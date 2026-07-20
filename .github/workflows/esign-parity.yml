@@ -1,0 +1,41 @@
+name: E-Signature parity
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:unit
+      - run: npx tsc --noEmit
+
+  esign-backend-and-contract:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite+pysqlite:///:memory:
+      STRIPE_SECRET_KEY: sk_test_ci_placeholder
+      GOOGLE_CLOUD_PROJECT_ID: bytereview-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: python -m venv backend/venv
+      - run: backend/venv/bin/pip install -r backend/requirements-dev.txt
+      - run: npm ci
+      - run: backend/venv/bin/pytest backend/tests/test_esign_*.py
+      - run: cd backend && npm run check-openapi

@@ -1277,6 +1277,7 @@ async def save_signing_progress(
             user_email=_email(token),
             envelope_id=envelope_id,
             field_values=payload.field_values,
+            marks=payload.marks,
             expected_routing_version=payload.expected_routing_version,
         )
         return EsignProgressResponse(saved_count=saved)
@@ -1336,6 +1337,7 @@ async def submit_signature(
             user_email=_email(token),
             envelope_id=envelope_id,
             signature=payload.signature,
+            marks=payload.marks,
             field_values=payload.field_values,
             expected_routing_version=payload.expected_routing_version,
             occupation=payload.occupation,
@@ -1571,6 +1573,7 @@ async def save_guest_progress(
         saved = esign_signing_service.save_progress(
             user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], field_values=payload.field_values,
+            marks=payload.marks,
             expected_routing_version=payload.expected_routing_version,
         )
         return EsignProgressResponse(saved_count=saved)
@@ -1622,6 +1625,7 @@ async def submit_guest_signature(
         result = await esign_signing_service.submit_signature(
             user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], signature=payload.signature,
+            marks=payload.marks,
             field_values=payload.field_values, expected_routing_version=payload.expected_routing_version,
             occupation=payload.occupation, address=payload.address, meta=meta,
         )

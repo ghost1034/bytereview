@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import vectors from '../../backend/tests/fixtures/field_logic_vectors.json'
-import { conditionMatches, evaluateFormula, incompleteFields, resolveVisibility, type ConditionalRule, type LogicField } from './fieldLogic'
+import { conditionMatches, evaluateFormula, fieldValueError, incompleteFields, resolveVisibility, type ConditionalRule, type LogicField } from './fieldLogic'
 
 describe('field logic parity vectors', () => {
   it('evaluates formulas safely', () => {
     for (const vector of vectors.formulas) expect(evaluateFormula(vector.expression, vector.values, vector.places)).toBe(vector.expected)
   })
   it('evaluates conditions', () => {
-    const parent = { id: 'parent', field_type: 'text', properties: {} }
+    const parent: LogicField = { id: 'parent', field_type: 'text', properties: {} }
     for (const vector of vectors.conditions) {
       expect(conditionMatches({ parent_field_id: 'parent', operator: vector.operator as ConditionalRule['operator'], values: vector.values }, parent, [parent], { parent: vector.current })).toBe(vector.expected)
     }
@@ -30,5 +30,20 @@ describe('field logic parity vectors', () => {
     ]
     expect(incompleteFields(fields, {}, true).map((field) => field.id)).toEqual(['required'])
     expect(incompleteFields(fields, { required: 'true' }, true)).toEqual([])
+  })
+  it('keeps checkbox selection groups independent from shared data labels', () => {
+    const fields: LogicField[] = [
+      { id: 'a', field_type: 'checkbox', required: false, properties: { data_label: 'shared', shared_value: true, selection_group: { id: 'choices', label: 'Choices', minimum_selected: 1, maximum_selected: 1 } } },
+      { id: 'b', field_type: 'checkbox', required: false, properties: { data_label: 'other', selection_group: { id: 'choices', label: 'Choices', minimum_selected: 1, maximum_selected: 1 } } },
+    ]
+    expect(incompleteFields(fields, {}, false).map((field) => field.id)).toEqual(['a'])
+    expect(incompleteFields(fields, { b: 'true' }, false)).toEqual([])
+    expect(incompleteFields(fields, { a: 'true', b: 'true' }, false).map((field) => field.id)).toEqual(['a'])
+  })
+  it('uses strict decimal and ISO-date input parsing', () => {
+    expect(fieldValueError({ id: 'n', field_type: 'number' }, '1e2')).toBe('Enter a decimal number')
+    expect(fieldValueError({ id: 'n', field_type: 'number' }, '-1.25')).toBeNull()
+    expect(fieldValueError({ id: 'd', field_type: 'date' }, '2026-02-30')).toBe('Enter a valid date')
+    expect(fieldValueError({ id: 'd', field_type: 'date' }, '2026-02-28')).toBeNull()
   })
 })

@@ -15,7 +15,8 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type { components } from '@/lib/api-types'
 import type { EsignFieldResponse } from '@/lib/api'
-import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility } from '@/lib/esign/fieldLogic'
+import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility, validationErrors } from '@/lib/esign/fieldLogic'
+import { adoptedToMarks, initializeCeremonyState, marksToAdopted } from '@/lib/esign/ceremony'
 import { cn } from '@/lib/utils'
 
 type Session = components['schemas']['EsignSigningSessionResponse']
@@ -109,17 +110,8 @@ export default function GuestSigningPage() {
       ))
       setSession(current)
       setAttachments(current.attachments ?? [])
-      const initial: Record<string, string> = {}
-      for (const attachment of current.attachments ?? []) initial[attachment.field_id] = attachment.id
-      for (const field of current.fields ?? []) {
-        if (field.draft_value) initial[field.id] = field.draft_value
-        if (field.properties?.sender_prefill != null) initial[field.id] = field.properties.sender_prefill
-        if (field.field_type === 'first_name') initial[field.id] = current.recipient_name.split(/\s+/)[0] ?? ''
-        if (field.field_type === 'last_name') { const names = current.recipient_name.split(/\s+/); initial[field.id] = names[names.length - 1] ?? '' }
-        if (field.field_type === 'full_name') initial[field.id] = current.recipient_name
-        if (field.field_type === 'email') initial[field.id] = current.recipient_email
-      }
-      setFieldValues(initial)
+      setFieldValues(initializeCeremonyState(current))
+      setAdopted(marksToAdopted(current.draft_marks))
       if (current.access_purpose === 'completed_copy') setDone('completed')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Guest invitation could not be opened')
@@ -139,11 +131,12 @@ export default function GuestSigningPage() {
         body: JSON.stringify({
           expected_routing_version: session.routing_version,
           field_values: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
+          marks: adoptedToMarks(adopted),
         }),
       }).catch(() => undefined)
     }, 1000)
     return () => window.clearTimeout(timer)
-  }, [csrf, fieldValues, guestRequest, session, sessionId])
+  }, [adopted, csrf, fieldValues, guestRequest, session, sessionId])
 
   const consent = async () => {
     if (!session) return
@@ -158,19 +151,12 @@ export default function GuestSigningPage() {
   }
 
   const submit = async () => {
-    if (!session || !adopted) return
+    if (!session) return
     setBusy(true)
     try {
       const payload: SubmitRequest = {
         expected_routing_version: session.routing_version,
-        signature: {
-          signature_type: adopted.signatureType,
-          image_data_url: adopted.imageDataUrl,
-          typed_text: adopted.typedText,
-          typed_font: adopted.typedFont,
-          initials_text: adopted.initialsText,
-          initials_image_data_url: adopted.initialsImageDataUrl,
-        },
+        marks: adoptedToMarks(adopted),
         field_values: fields.map((field) =>
           ['signature', 'initials', 'stamp'].includes(field.field_type)
             ? { field_id: field.id, completed: fieldValues[field.id] === 'true' }
@@ -250,6 +236,7 @@ export default function GuestSigningPage() {
         body: JSON.stringify({
           expected_routing_version: session.routing_version,
           field_values: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
+          marks: adoptedToMarks(adopted),
         }),
       })
       setDone('saved')
@@ -281,10 +268,12 @@ export default function GuestSigningPage() {
   )
   const incomplete = findIncompleteFields(logicFields, displayValues, !!adopted)
     .filter((field) => fields.some((candidate) => candidate.id === field.id))
+  const allFieldErrors = validationErrors(logicFields, displayValues, !!adopted)
+  const fieldErrors = Object.fromEntries(Object.entries(allFieldErrors).filter(([id]) => fields.some((field) => field.id === id)))
   const countedRadioGroups = new Set<string>()
   const totalRequired = fields.filter((field) => {
     if (['signature', 'initials', 'stamp'].includes(field.field_type)) return isFieldRequired(field, logicFields, displayValues, visibility)
-    if (field.field_type === 'date_signed') return true
+    if (field.field_type === 'date_signed') return false
     if (field.field_type === 'formula') return false
     if (field.field_type === 'radio') {
       const group = field.properties?.group?.id ?? field.id
@@ -297,7 +286,9 @@ export default function GuestSigningPage() {
   }).length
   const completedCount = Math.max(0, totalRequired - incomplete.length)
   const witnessReady = session.recipient_role !== 'witness' || (!!occupation.trim() && !!address.trim())
-  const canFinish = !!adopted && incomplete.length === 0 && witnessReady
+  const hasAppliedMarks = fields.some((field) => ['signature', 'initials', 'stamp'].includes(field.field_type) && fieldValues[field.id] === 'true')
+  const hasSignatureLikeFields = fields.some((field) => ['signature', 'initials', 'stamp'].includes(field.field_type))
+  const canFinish = (!hasAppliedMarks || !!adopted) && incomplete.length === 0 && witnessReady
 
   const goToNextField = () => {
     setGuideStarted(true)
@@ -306,13 +297,16 @@ export default function GuestSigningPage() {
     setActiveFieldId(next.id)
     const element = document.getElementById(`esign-field-${next.id}`)
     element?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    if (['text', 'dropdown', 'auto_fill'].includes(next.field_type)) {
-      ;(element as HTMLInputElement | null)?.focus({ preventScroll: true })
-    }
+    ;(element as HTMLElement | null)?.focus({ preventScroll: true })
   }
 
   const handleFieldClick = (field: EsignFieldResponse) => {
-    if (adopted) {
+    const hasMatchingMark = !!adopted && (
+      field.field_type === 'stamp' ? !!adopted.stampImageDataUrl
+        : field.field_type === 'initials' ? !!(adopted.initialsText || adopted.initialsImageDataUrl)
+          : adopted.signatureType === 'typed' ? !!adopted.typedText : !!adopted.imageDataUrl
+    )
+    if (hasMatchingMark) {
       setFieldValues((values) => ({ ...values, [field.id]: values[field.id] === 'true' ? 'false' : 'true' }))
       return
     }
@@ -336,7 +330,7 @@ export default function GuestSigningPage() {
   return <div className="min-h-dvh space-y-4 bg-surface-muted/50 pb-24 sm:pb-4">
     <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur sm:px-6">
       <div className="min-w-0"><h1 className="truncate text-base font-semibold">{session.title}</h1><p className="text-xs text-foreground-muted">From {session.sender_email} · {completedCount} of {totalRequired} required fields complete{session.expires_at && <> · Expires {new Date(session.expires_at).toLocaleDateString()}</>}</p></div>
-      <div className="hidden items-center gap-2 sm:flex"><Button variant="outline" onClick={() => setDeclineOpen(true)}>Decline</Button>{!session.consent_required && <Button variant="outline" onClick={() => void finishLater()} disabled={busy}>{busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}Finish Later</Button>}{!adopted ? <Button onClick={() => setAdoptionOpen(true)}><PenLine className="mr-1.5 size-4" /> Adopt signature</Button> : <Button onClick={() => void submit()} disabled={busy || !canFinish}>{busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ShieldCheck className="mr-1.5 size-4" />}Finish signing</Button>}</div>
+      <div className="hidden items-center gap-2 sm:flex"><Button variant="outline" onClick={() => setDeclineOpen(true)}>Decline</Button>{!session.consent_required && <Button variant="outline" onClick={() => void finishLater()} disabled={busy}>{busy && <Loader2 className="mr-1.5 size-4 animate-spin" />}Finish Later</Button>}{!adopted && hasSignatureLikeFields ? <Button onClick={() => setAdoptionOpen(true)}><PenLine className="mr-1.5 size-4" /> Adopt signature</Button> : <Button onClick={() => void submit()} disabled={busy || !canFinish}>{busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ShieldCheck className="mr-1.5 size-4" />}Finish signing</Button>}</div>
     </header>
     <div className="fixed inset-x-0 bottom-0 z-50 flex min-h-16 items-center gap-2 border-t border-border bg-surface/95 px-3 py-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur sm:hidden">
       <Button variant="outline" className="min-h-11 flex-1" onClick={() => void finishLater()} disabled={busy}>Finish later</Button>
@@ -344,16 +338,17 @@ export default function GuestSigningPage() {
       <Button variant="ghost" size="icon" className="min-h-11 min-w-11 text-destructive" onClick={() => setDeclineOpen(true)} aria-label="Decline envelope"><ShieldAlert className="size-5" /></Button>
     </div>
     {error && <p className="mx-auto max-w-5xl rounded border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
+    {Object.keys(fieldErrors).length > 0 && guideStarted && <div role="alert" className="mx-auto max-w-5xl rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><p className="font-medium">Complete or correct these fields:</p><ul className="mt-1 list-disc pl-5">{Object.entries(fieldErrors).map(([id, message]) => <li key={id}><button type="button" className="underline" onClick={() => { setActiveFieldId(id); document.getElementById(`esign-field-${id}`)?.focus() }}>{message}</button></li>)}</ul></div>}
     {session.message && <p className="rounded-lg border border-border bg-surface p-4 text-sm text-foreground-muted">{session.message}</p>}
     {(session.available_actions ?? []).includes('configure_witness') && <section className="space-y-3 rounded-lg border border-border bg-surface p-4"><div><h2 className="font-semibold">Confirm your witness</h2><p className="text-sm text-foreground-muted">The witness signs after you through an audited guest invitation.</p></div><div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Witness full name" value={witnessName} onChange={(event) => setWitnessName(event.target.value)} /><Input type="email" placeholder="Witness email (optional)" value={witnessEmail} onChange={(event) => setWitnessEmail(event.target.value)} /></div><Button variant="outline" disabled={busy || !witnessName.trim()} onClick={() => void configureWitness()}>Confirm witness</Button>{witnessLink && <p className="break-all rounded bg-surface-muted p-2 text-xs text-foreground-muted">Guest invitation: {witnessLink}</p>}</section>}
     {(session.available_actions ?? []).includes('reassign') && <section className="grid gap-2 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3"><Input placeholder="Replacement name" value={replacementName} onChange={(event) => setReplacementName(event.target.value)} /><Input type="email" placeholder="Replacement email" value={replacementEmail} onChange={(event) => setReplacementEmail(event.target.value)} /><Input placeholder="Reason (required)" value={replacementReason} onChange={(event) => setReplacementReason(event.target.value)} /><Button variant="outline" disabled={busy || !replacementName.trim() || !replacementEmail.trim() || !replacementReason.trim()} onClick={() => void reassign()}>Reassign this step</Button></section>}
     {session.recipient_role === 'witness' && <section className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2"><div><Label htmlFor="occupation">Occupation</Label><Input id="occupation" value={occupation} onChange={(event) => setOccupation(event.target.value)} /></div><div><Label htmlFor="address">Address</Label><Textarea id="address" value={address} onChange={(event) => setAddress(event.target.value)} /></div></section>}
     {!session.consent_required && <div className="fixed left-4 top-1/2 z-40 hidden -translate-y-1/2 sm:block">{incomplete.length > 0 ? <Button size="sm" className="shadow-lg" onClick={goToNextField}>{guideStarted ? 'Next' : 'Start'}<ArrowDown className="ml-1.5 size-3.5" /></Button> : <Button size="sm" className="shadow-lg" onClick={() => void submit()} disabled={busy || !canFinish}>Finish</Button>}</div>}
     <main className={cn('mx-auto max-w-5xl space-y-8 p-3 sm:p-5', session.consent_required && 'pointer-events-none select-none blur-sm')} aria-hidden={session.consent_required || undefined}>
-      {session.documents.map((document) => <div key={document.id} className="space-y-2">{session.documents.length > 1 && <h2 className="text-sm font-medium text-foreground-muted">{document.original_filename}</h2>}<SigningDocumentViewer url={document.download_url} name={document.original_filename} fields={fields.filter((field) => field.document_id === document.id)} fieldValues={displayValues} adopted={adopted} activeFieldId={activeFieldId} onFieldClick={handleFieldClick} onTextChange={handleValueChange} attachments={attachments} onAttachmentUpload={(fieldId, file) => void uploadAttachment(fieldId, file).catch((cause) => setError(cause instanceof Error ? cause.message : 'Upload failed'))} onAttachmentDelete={(id) => void deleteAttachment(id).catch((cause) => setError(cause instanceof Error ? cause.message : 'Delete failed'))} dateFormat={session.date_format} /></div>)}
+      {session.documents.map((document) => <div key={document.id} className="space-y-2">{session.documents.length > 1 && <h2 className="text-sm font-medium text-foreground-muted">{document.original_filename}</h2>}<SigningDocumentViewer url={document.download_url} name={document.original_filename} fields={fields.filter((field) => field.document_id === document.id)} fieldValues={displayValues} adopted={adopted} activeFieldId={activeFieldId} onFieldClick={handleFieldClick} onTextChange={handleValueChange} attachments={attachments} onAttachmentUpload={(fieldId, file) => void uploadAttachment(fieldId, file).catch((cause) => setError(cause instanceof Error ? cause.message : 'Upload failed'))} onAttachmentDelete={(id) => void deleteAttachment(id).catch((cause) => setError(cause instanceof Error ? cause.message : 'Delete failed'))} dateFormat={session.date_format} fieldErrors={fieldErrors} /></div>)}
     </main>
     {session.consent_required && <ConsentGate disclosureText={session.consent_disclosure_text} senderEmail={session.sender_email} agreeing={busy} onAgree={() => void consent()} onDecline={() => setDeclineOpen(true)} />}
-    <SignatureAdoptionModal open={adoptionOpen} onOpenChange={setAdoptionOpen} defaultName={session.recipient_name} onAdopt={(artifact) => { setAdopted(artifact); if (pendingApplyFieldId) setFieldValues((values) => ({ ...values, [pendingApplyFieldId]: 'true' })); setPendingApplyFieldId(null) }} />
+    <SignatureAdoptionModal open={adoptionOpen} onOpenChange={setAdoptionOpen} defaultName={session.recipient_name} requireStamp={!!pendingApplyFieldId && fields.find((field) => field.id === pendingApplyFieldId)?.field_type === 'stamp'} onAdopt={(artifact) => { const targetType = fields.find((field) => field.id === pendingApplyFieldId)?.field_type; setAdopted((previous) => targetType === 'stamp' && previous ? { ...previous, stampType: artifact.stampType, stampImageDataUrl: artifact.stampImageDataUrl } : { ...artifact, stampType: artifact.stampType ?? previous?.stampType, stampImageDataUrl: artifact.stampImageDataUrl ?? previous?.stampImageDataUrl }); if (pendingApplyFieldId) setFieldValues((values) => ({ ...values, [pendingApplyFieldId]: 'true' })); setPendingApplyFieldId(null) }} />
     <DeclineDialog open={declineOpen} onOpenChange={setDeclineOpen} onDecline={decline} declining={busy} />
   </div>
 }

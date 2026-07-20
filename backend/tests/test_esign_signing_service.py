@@ -23,6 +23,7 @@ from models.db_models import (
     EsignRecipientStatus,
     EsignSigningType,
 )
+from models.esign import EsignMarkArtifact, EsignMarkBundle, EsignSignatureInput
 from services.esign.audit_service import extract_request_meta
 from services.esign.envelope_service import EsignError
 from services.esign.sealing_service import _initials_from_name
@@ -196,6 +197,20 @@ class SignaturePayloadTests(unittest.TestCase):
         self.assertEqual(_initials_from_name("Jane Q. Client"), "JQC")
         self.assertEqual(_initials_from_name("ian"), "I")
         self.assertEqual(_initials_from_name(""), "??")
+
+    def test_stamp_must_be_a_distinct_image_artifact(self) -> None:
+        with self.assertRaisesRegex(EsignError, "drawn or uploaded"):
+            esign_signing_service._validate_mark_bundle(EsignMarkBundle(
+                stamp=EsignMarkArtifact(signature_type="typed", typed_text="Not a stamp")
+            ))
+
+    def test_legacy_bundle_does_not_create_a_schema_v2_stamp(self) -> None:
+        bundle = esign_signing_service._legacy_mark_bundle(EsignSignatureInput(
+            signature_type="typed", typed_text="Jane Client", initials_text="JC"
+        ))
+        self.assertIsNotNone(bundle.signature)
+        self.assertIsNotNone(bundle.initials)
+        self.assertIsNone(bundle.stamp)
 
     def test_date_signed_format_matches_ceremony_preview(self) -> None:
         from datetime import datetime

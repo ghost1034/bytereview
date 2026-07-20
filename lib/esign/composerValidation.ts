@@ -1,4 +1,4 @@
-import { formulaReferences, validateFormula } from './fieldLogic'
+import { formulaReferences, validateFormula, type EsignFieldType } from './fieldLogic'
 
 export interface RecipientDraft {
   name: string
@@ -14,7 +14,7 @@ export interface RecipientDraft {
 export interface ComposerField {
   id: string
   participantId: string
-  fieldType: string
+  fieldType: EsignFieldType
   required: boolean
   properties?: {
     options?: Array<{ value: string; label: string }>
@@ -24,6 +24,10 @@ export interface ComposerField {
     conditional?: { parent_field_id: string }
     data_label?: string
     shared_value?: boolean
+    sender_prefill?: string
+    read_only?: boolean
+    allowed_types?: string[]
+    selection_group?: { id: string; label: string; minimum_selected?: number; maximum_selected?: number; validation_message?: string }
   }
 }
 
@@ -52,17 +56,24 @@ export function collectFieldIssues(
   const labels = new Map(signers.map((signer) => typeof signer === 'string' ? [signer, 'Signer'] : [signer.id, signer.label]))
   const signerSet = new Set(signerIds)
   signerIds.forEach((recipientId) => {
-    if (!fields.some((field) => field.participantId === recipientId && field.fieldType === 'signature')) {
-      issues.push({ id: `signature-${recipientId}`, message: `${labels.get(recipientId) ?? 'Signer'} is missing a signature field.` })
-    }
-    if (!fields.some((field) => field.participantId === recipientId && field.required)) {
-      issues.push({ id: `required-${recipientId}`, message: `${labels.get(recipientId) ?? 'Signer'} has no required field.` })
+    const actionable = new Set(['signature', 'initials', 'stamp', 'text', 'number', 'date', 'company', 'title', 'checkbox', 'radio', 'dropdown', 'attachment'])
+    if (!fields.some((field) => field.participantId === recipientId && actionable.has(field.fieldType))) {
+      issues.push({ id: `actionable-${recipientId}`, message: `${labels.get(recipientId) ?? 'Signer'} has no actionable field.` })
     }
   })
   fields.forEach((field) => {
     if (!signerSet.has(field.participantId)) issues.push({ id: `owner-${field.id}`, fieldId: field.id, message: 'Field is not assigned to a current signer.' })
     if (field.fieldType === 'dropdown' && !field.properties?.options?.length) issues.push({ id: `options-${field.id}`, fieldId: field.id, message: 'Dropdown needs at least one option.' })
+    if (field.fieldType === 'dropdown' && field.properties?.options) {
+      const values = field.properties.options.map((option) => option.value)
+      if (new Set(values).size !== values.length) issues.push({ id: `option-values-${field.id}`, fieldId: field.id, message: 'Dropdown option values must be unique.' })
+      if (field.properties.sender_prefill && !values.includes(field.properties.sender_prefill)) issues.push({ id: `default-${field.id}`, fieldId: field.id, message: 'Dropdown default must match a listed option.' })
+    }
     if (field.fieldType === 'radio' && (!field.properties?.group?.id || !field.properties?.option_value?.trim())) issues.push({ id: `radio-${field.id}`, fieldId: field.id, message: 'Radio option needs a group and value.' })
+    if (field.fieldType === 'attachment' && !field.properties?.allowed_types?.length) issues.push({ id: `mime-${field.id}`, fieldId: field.id, message: 'Attachment needs at least one allowed file type.' })
+    if (field.required && field.properties?.read_only && !field.properties.sender_prefill) issues.push({ id: `locked-${field.id}`, fieldId: field.id, message: 'Required locked field needs a sender value.' })
+    const selection = field.properties?.selection_group
+    if (selection?.maximum_selected != null && (selection.minimum_selected ?? 0) > selection.maximum_selected) issues.push({ id: `selection-${field.id}`, fieldId: field.id, message: 'Selection-group minimum cannot exceed its maximum.' })
     if (field.fieldType === 'formula') {
       try {
         const expression = field.properties?.formula?.expression ?? ''
@@ -89,6 +100,28 @@ export function collectFieldIssues(
     if (previous && !(previous.properties?.shared_value && field.properties?.shared_value)) {
       issues.push({ id: `label-${field.id}`, fieldId: field.id, message: `Data label “${label}” must be unique unless both fields share values.` })
     } else labelsByOwner.set(key, field)
+  }
+  const radioGroups = new Map<string, ComposerField[]>()
+  const checkboxGroups = new Map<string, ComposerField[]>()
+  for (const field of fields) {
+    const radioGroup = field.fieldType === 'radio' ? field.properties?.group?.id : undefined
+    if (radioGroup) radioGroups.set(radioGroup, [...(radioGroups.get(radioGroup) ?? []), field])
+    const checkboxGroup = field.fieldType === 'checkbox' ? field.properties?.selection_group?.id : undefined
+    if (checkboxGroup) checkboxGroups.set(checkboxGroup, [...(checkboxGroups.get(checkboxGroup) ?? []), field])
+  }
+  for (const [group, members] of radioGroups) {
+    if (new Set(members.map((field) => field.participantId)).size > 1 || new Set(members.map((field) => field.required)).size > 1 || new Set(members.map((field) => field.properties?.group?.label ?? '')).size > 1) {
+      issues.push({ id: `radio-group-${group}`, fieldId: members[0]?.id, message: 'Radio group members must share one recipient, label, and required state.' })
+    }
+    if (members.filter((field) => field.properties?.sender_prefill === 'true').length > 1) {
+      issues.push({ id: `radio-default-${group}`, fieldId: members[0]?.id, message: 'Radio group can have only one default option.' })
+    }
+  }
+  for (const [group, members] of checkboxGroups) {
+    const definitions = members.map((field) => JSON.stringify(field.properties?.selection_group))
+    if (new Set(members.map((field) => field.participantId)).size > 1 || new Set(definitions).size > 1) {
+      issues.push({ id: `checkbox-group-${group}`, fieldId: members[0]?.id, message: 'Checkbox group members must share one recipient and selection rule.' })
+    }
   }
   const visiting = new Set<string>(); const visited = new Set<string>()
   const byId = new Map(fields.map((field) => [field.id, field]))

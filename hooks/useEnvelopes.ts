@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
 import { apiClient } from '@/lib/api'
+import type { components } from '@/lib/api-types'
 import type {
   EsignEnvelopeResponse,
   EsignEnvelopeUpdateRequest,
@@ -288,8 +289,8 @@ export function useRecordConsent(envelopeId: string) {
 export function useSaveSigningProgress(envelopeId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ fieldValues, expectedRoutingVersion }: { fieldValues: { field_id: string; value?: string | null }[]; expectedRoutingVersion: number }) =>
-      apiClient.saveEsignSigningProgress(envelopeId, fieldValues, expectedRoutingVersion),
+    mutationFn: ({ fieldValues, expectedRoutingVersion, marks }: { fieldValues: { field_id: string; value?: string | null }[]; expectedRoutingVersion: number; marks?: components['schemas']['EsignMarkBundle'] }) =>
+      apiClient.saveEsignSigningProgress(envelopeId, fieldValues, expectedRoutingVersion, marks),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['esign', 'signing-session', envelopeId] }),
   })

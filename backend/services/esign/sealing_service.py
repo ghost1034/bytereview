@@ -202,9 +202,18 @@ def _stamp_field(
                 else None
             ) or _initials_from_name(recipient.name if recipient else "")
             fontname, fontfile = _signature_font(
-                signature_record.typed_font if signature_record is not None else None
+                (
+                    getattr(signature_record, "initials_typed_font", None)
+                    or signature_record.typed_font
+                ) if signature_record is not None else None
             )
             _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.8, align=fitz.TEXT_ALIGN_CENTER)
+        elif field.field_type == EsignFieldType.STAMP:
+            if image_bytes:
+                page.insert_image(_derotate(page, box), stream=image_bytes, rotate=rotate, keep_proportion=True)
+            # A schema-v2 stamp is always an image. No typed/signature fallback
+            # is performed here; legacy records are mapped to signature bytes
+            # by the loader below.
         elif signature_record is not None and signature_record.signature_type in _IMAGE_SIGNATURE_TYPES and image_bytes:
             page.insert_image(_derotate(page, box), stream=image_bytes, rotate=rotate, keep_proportion=True)
         elif signature_record is not None:
@@ -314,6 +323,11 @@ class EsignSealingService:
                             object_name = getattr(
                                 signature_record, "initials_image_gcs_object_name", None
                             )
+                        elif field.field_type == EsignFieldType.STAMP:
+                            object_name = getattr(signature_record, "stamp_image_gcs_object_name", None)
+                            # Compatibility for records sealed before schema v2.
+                            if not object_name and getattr(signature_record, "stamp_type", None) is None:
+                                object_name = signature_record.image_gcs_object_name
                         elif signature_record.signature_type in _IMAGE_SIGNATURE_TYPES:
                             object_name = signature_record.image_gcs_object_name
                     if object_name:

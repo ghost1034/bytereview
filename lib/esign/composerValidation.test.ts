@@ -33,8 +33,9 @@ describe('collectFieldIssues', () => {
     ], ['signer-1'])
 
     expect(issues.map((issue) => issue.id)).toEqual(expect.arrayContaining([
-      'signature-signer-1', 'options-dropdown', 'owner-orphan', 'formula-orphan',
+      'options-dropdown', 'owner-orphan', 'formula-orphan',
     ]))
+    expect(issues.some((issue) => issue.id === 'signature-signer-1')).toBe(false)
     expect(issues.find((issue) => issue.id === 'options-dropdown')?.fieldId).toBe('dropdown')
   })
 })

@@ -759,7 +759,7 @@ class EsignLifecyclePgTests(unittest.TestCase):
         envelope = self.envelope_service.get_envelope(self.sender_uid, envelope_id)
         fields = {f.field_type: f for f in envelope.fields}
         now = datetime.now(timezone.utc)
-        self.assertEqual(fields["date_signed"].value, f"{now.month}/{now.day}/{now.year}")
+        self.assertEqual(fields["date_signed"].value, now.date().isoformat())
         self.assertEqual(fields["text"].value, "Acme LLC")
         self.assertIsNone(fields["text"].draft_value)
 

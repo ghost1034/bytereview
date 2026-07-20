@@ -1,18 +1,25 @@
+export type EsignFieldType =
+  | 'signature' | 'initials' | 'date_signed' | 'text' | 'checkbox' | 'auto_fill'
+  | 'attachment' | 'radio' | 'dropdown' | 'formula' | 'stamp' | 'date' | 'number'
+  | 'first_name' | 'last_name' | 'full_name' | 'email' | 'company' | 'title' | 'note'
+
 export interface LogicField {
   id: string
+  label?: string | null
   recipient_id?: string
   recipient_index?: number
-  field_type: string
+  field_type: EsignFieldType
   required?: boolean
   properties?: {
     group?: { id?: string | null } | null
+    selection_group?: { id: string; label?: string; minimum_selected?: number; maximum_selected?: number | null; validation_message?: string | null } | null
     option_value?: string | null
     formula?: { expression?: string | null; decimal_places?: number | null } | null
     conditional?: ConditionalRule | null
     data_label?: string | null
     shared_value?: boolean | null
     read_only?: boolean | null
-    text_validation?: { max_length?: number | null; regex?: string | null } | null
+    text_validation?: { max_length?: number | null; regex?: string | null; message?: string | null } | null
     number_validation?: { minimum?: number | null; maximum?: number | null; decimal_places?: number | null; allow_negative?: boolean | null } | null
     date_validation?: { minimum?: string | null; maximum?: string | null } | null
     options?: Array<{ value: string; label?: string }> | null
@@ -30,6 +37,23 @@ export interface ConditionalRule {
 const REF = /\[([^\[\]]+)\]/g
 
 type FormulaValue = number | string | boolean | Date
+
+function roundHalfAwayFromZero(value: number, places: number): number {
+  const factor = 10 ** places
+  const magnitude = Math.abs(value) * factor
+  // Offset only enough to neutralize common binary representation error at a
+  // decimal tie; this implements Python Decimal ROUND_HALF_UP semantics.
+  const rounded = Math.round(magnitude + Number.EPSILON * Math.max(1, magnitude)) / factor
+  return value < 0 ? -rounded : rounded
+}
+
+function decimalResult(value: number): number {
+  if (!Number.isFinite(value)) throw new Error('Numeric result is not finite')
+  // Formula inputs are decimal strings. Normalizing each operation to 15
+  // significant digits removes binary IEEE-754 residue (for example
+  // 0.1 + 0.2) so comparisons match the server's Decimal evaluator.
+  return Number(value.toPrecision(15))
+}
 
 class FormulaParser {
   private pos = 0
@@ -52,12 +76,14 @@ class FormulaParser {
     for (const operator of ['>=', '<=', '!=', '==', '>', '<']) {
       if (!this.take(operator)) continue
       const right = this.expression()
-      if (operator === '==') return value === right
-      if (operator === '!=') return value !== right
-      if (operator === '>') return value > right
-      if (operator === '<') return value < right
-      if (operator === '>=') return value >= right
-      return value <= right
+      const comparableLeft = typeof value === 'number' ? decimalResult(value) : value
+      const comparableRight = typeof right === 'number' ? decimalResult(right) : right
+      if (operator === '==') return comparableLeft === comparableRight
+      if (operator === '!=') return comparableLeft !== comparableRight
+      if (operator === '>') return comparableLeft > comparableRight
+      if (operator === '<') return comparableLeft < comparableRight
+      if (operator === '>=') return comparableLeft >= comparableRight
+      return comparableLeft <= comparableRight
     }
     return value
   }
@@ -70,8 +96,8 @@ class FormulaParser {
     let value = this.term()
     for (;;) {
       this.space()
-      if (this.take('+')) value = this.numeric(value) + this.numeric(this.term())
-      else if (this.take('-')) value = this.numeric(value) - this.numeric(this.term())
+      if (this.take('+')) value = decimalResult(this.numeric(value) + this.numeric(this.term()))
+      else if (this.take('-')) value = decimalResult(this.numeric(value) - this.numeric(this.term()))
       else return value
     }
   }
@@ -79,11 +105,11 @@ class FormulaParser {
     let value = this.factor()
     for (;;) {
       this.space()
-      if (this.take('*')) value = this.numeric(value) * this.numeric(this.factor())
+      if (this.take('*')) value = decimalResult(this.numeric(value) * this.numeric(this.factor()))
       else if (this.take('/')) {
         const divisor = this.numeric(this.factor())
         if (divisor === 0) throw new Error('Division by zero')
-        value = this.numeric(value) / divisor
+        value = decimalResult(this.numeric(value) / divisor)
       } else return value
     }
   }
@@ -155,12 +181,11 @@ class FormulaParser {
     if (name === 'IF' && args.length === 3) return args[0] ? args[1] : args[2]
     if (name === 'ROUND' && args.length >= 1 && args.length <= 2) {
       const places = args.length === 2 ? this.numeric(args[1]) : 0
-      const factor = 10 ** places
-      return Math.round(this.numeric(args[0]) * factor) / factor
+      return roundHalfAwayFromZero(this.numeric(args[0]), places)
     }
     if (name === 'MIN' && args.length) return Math.min(...numbers())
     if (name === 'MAX' && args.length) return Math.max(...numbers())
-    if (name === 'SUM') return numbers().reduce((total, value) => total + value, 0)
+    if (name === 'SUM') return numbers().reduce((total, value) => decimalResult(total + value), 0)
     if (name === 'FLOOR' && args.length === 1) return Math.floor(this.numeric(args[0]))
     if (name === 'CEILING' && args.length === 1) return Math.ceil(this.numeric(args[0]))
     if (name === 'DATEADD' && (args.length === 2 || args.length === 3)) {
@@ -198,7 +223,10 @@ export function evaluateFormula(
     const result = new FormulaParser(expression, values).parse()
     if (result instanceof Date) return result.toISOString().slice(0, 10)
     if (typeof result === 'boolean') return result ? 'true' : 'false'
-    if (typeof result === 'number' && Number.isFinite(result)) return result.toFixed(Math.max(0, Math.min(10, decimalPlaces)))
+    if (typeof result === 'number' && Number.isFinite(result)) {
+      const places = Math.max(0, Math.min(10, decimalPlaces))
+      return roundHalfAwayFromZero(result, places).toFixed(places)
+    }
     return String(result)
   } catch {
     return ''
@@ -295,6 +323,7 @@ export function incompleteFields(
 ): LogicField[] {
   const visible = resolveVisibility(fields, values)
   const seenRadioGroups = new Set<string>()
+  const seenCheckboxGroups = new Set<string>()
   return fields.filter((field) => {
     if (!visible[field.id]) return false
     if (['signature', 'initials', 'stamp'].includes(field.field_type)) {
@@ -309,6 +338,14 @@ export function incompleteFields(
       return members.some((member) => isFieldRequired(member, fields, values, visible)) &&
         !members.some((member) => values[member.id] === 'true')
     }
+    if (field.field_type === 'checkbox' && field.properties?.selection_group?.id) {
+      const group = field.properties.selection_group
+      if (seenCheckboxGroups.has(group.id)) return false
+      seenCheckboxGroups.add(group.id)
+      const members = fields.filter((item) => item.field_type === 'checkbox' && item.properties?.selection_group?.id === group.id && visible[item.id])
+      const selected = members.filter((member) => values[member.id] === 'true').length
+      return selected < (group.minimum_selected ?? 0) || (group.maximum_selected != null && selected > group.maximum_selected)
+    }
     if (!isFieldRequired(field, fields, values, visible)) return false
     if (field.field_type === 'checkbox') return values[field.id] !== 'true'
     const value = (values[field.id] ?? '').trim()
@@ -320,13 +357,13 @@ export function fieldValueError(field: LogicField, value: string): string | null
   const rules = field.properties?.text_validation
   if (rules?.max_length && value.length > rules.max_length) return `Maximum length is ${rules.max_length}`
   if (rules?.regex) {
-    try { if (!new RegExp(`^(?:${rules.regex})$`).test(value)) return 'Invalid format' }
+    try { if (!new RegExp(`^(?:${rules.regex})$`).test(value)) return rules.message || 'Invalid format' }
     catch { return 'Invalid validation pattern' }
   }
   if (field.field_type === 'dropdown' && value && !field.properties?.options?.some((option) => option.value === value)) return 'Select a listed option'
   if (field.field_type === 'number' && value) {
+    if (!/^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value.trim())) return 'Enter a decimal number'
     const numeric = Number(value), numberRules = field.properties?.number_validation
-    if (!Number.isFinite(numeric)) return 'Enter a number'
     if (numberRules?.allow_negative === false && numeric < 0) return 'Negative values are not allowed'
     if (numberRules?.minimum != null && numeric < numberRules.minimum) return `Minimum is ${numberRules.minimum}`
     if (numberRules?.maximum != null && numeric > numberRules.maximum) return `Maximum is ${numberRules.maximum}`
@@ -334,10 +371,22 @@ export function fieldValueError(field: LogicField, value: string): string | null
     if (numberRules?.decimal_places != null && decimals > numberRules.decimal_places) return `Use at most ${numberRules.decimal_places} decimal places`
   }
   if (field.field_type === 'date' && value) {
-    const parsed = Date.parse(value), dateRules = field.properties?.date_validation
-    if (Number.isNaN(parsed)) return 'Enter a valid date'
+    const parsed = Date.parse(`${value}T00:00:00Z`), dateRules = field.properties?.date_validation
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(parsed) || new Date(parsed).toISOString().slice(0, 10) !== value) return 'Enter a valid date'
     if (dateRules?.minimum && parsed < Date.parse(dateRules.minimum)) return `Date must be on or after ${dateRules.minimum}`
     if (dateRules?.maximum && parsed > Date.parse(dateRules.maximum)) return `Date must be on or before ${dateRules.maximum}`
   }
   return null
+}
+
+export function validationErrors(
+  fields: LogicField[], values: Record<string, string>, signatureAdopted: boolean,
+): Record<string, string> {
+  return Object.fromEntries(incompleteFields(fields, values, signatureAdopted).map((field) => {
+    const valueError = fieldValueError(field, values[field.id] ?? '')
+    const groupMessage = field.field_type === 'checkbox'
+      ? field.properties?.selection_group?.validation_message
+      : null
+    return [field.id, valueError || groupMessage || `${field.label || field.field_type.replace(/_/g, ' ')} is required`]
+  }))
 }

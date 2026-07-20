@@ -263,6 +263,21 @@ class AdoptionStampingTests(unittest.TestCase):
         doc.close()
         self.assertEqual(len(images), 1)
 
+    def test_schema_v2_stamp_uses_only_its_distinct_image(self) -> None:
+        from models.db_models import EsignFieldType, EsignSignatureType
+        from services.esign.sealing_service import _stamp_field
+
+        doc, page = self._page()
+        recipient = NS(name="Jane Signature", email="jane@example.com")
+        record = NS(
+            signature_type=EsignSignatureType.TYPED, typed_text="Jane Signature",
+            typed_font="dancing-script", stamp_type=EsignSignatureType.UPLOADED,
+        )
+        _stamp_field(page, self._field(EsignFieldType.STAMP), recipient, record, self._png())
+        self.assertEqual(len(page.get_images(full=True)), 1)
+        self.assertNotIn("Jane Signature", page.get_text())
+        doc.close()
+
     def test_radio_selection_draws_filled_dot(self) -> None:
         from models.db_models import EsignFieldType
         from services.esign.sealing_service import _stamp_field

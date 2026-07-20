@@ -23,6 +23,8 @@ export interface AdoptedSignature {
   typedFont?: string
   initialsText?: string
   initialsImageDataUrl?: string
+  stampType?: 'drawn' | 'uploaded'
+  stampImageDataUrl?: string
 }
 
 // Slugs must stay in sync with ALLOWED_TYPED_FONTS (backend signing service)
@@ -80,6 +82,7 @@ interface SignatureAdoptionModalProps {
   onOpenChange: (open: boolean) => void
   defaultName: string
   onAdopt: (signature: AdoptedSignature) => void
+  requireStamp?: boolean
 }
 
 /** Hand-rolled drawing canvas (touch-action: none so strokes work on iOS). */
@@ -261,6 +264,7 @@ export function SignatureAdoptionModal({
   onOpenChange,
   defaultName,
   onAdopt,
+  requireStamp = false,
 }: SignatureAdoptionModalProps) {
   const [tab, setTab] = React.useState<'type' | 'draw' | 'upload'>('type')
   const [fullName, setFullName] = React.useState(defaultName)
@@ -271,6 +275,8 @@ export function SignatureAdoptionModal({
   const [drawnInitialsDataUrl, setDrawnInitialsDataUrl] = React.useState<string | null>(null)
   const [uploadedDataUrl, setUploadedDataUrl] = React.useState<string | null>(null)
   const [uploadedInitialsDataUrl, setUploadedInitialsDataUrl] = React.useState<string | null>(null)
+  const [drawnStampDataUrl, setDrawnStampDataUrl] = React.useState<string | null>(null)
+  const [uploadedStampDataUrl, setUploadedStampDataUrl] = React.useState<string | null>(null)
   const [uploadError, setUploadError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -288,7 +294,8 @@ export function SignatureAdoptionModal({
 
   const canAdopt =
     fullName.trim().length > 0 &&
-    (tab === 'type' ? true : tab === 'draw' ? !!drawnDataUrl : !!uploadedDataUrl)
+    (requireStamp ? true : tab === 'type' ? true : tab === 'draw' ? !!drawnDataUrl : !!uploadedDataUrl) &&
+    (!requireStamp || (tab === 'draw' ? !!drawnStampDataUrl : tab === 'upload' ? !!uploadedStampDataUrl : false))
 
   const adopt = () => {
     const base = {
@@ -297,19 +304,23 @@ export function SignatureAdoptionModal({
     }
     if (tab === 'type') {
       onAdopt({ ...base, signatureType: 'typed', typedFont: fontSlug })
-    } else if (tab === 'draw' && drawnDataUrl) {
+    } else if (tab === 'draw' && (drawnDataUrl || (requireStamp && drawnStampDataUrl))) {
       onAdopt({
         ...base,
         signatureType: 'drawn',
-        imageDataUrl: drawnDataUrl,
+        imageDataUrl: drawnDataUrl ?? undefined,
         initialsImageDataUrl: drawnInitialsDataUrl ?? undefined,
+        stampType: drawnStampDataUrl ? 'drawn' : undefined,
+        stampImageDataUrl: drawnStampDataUrl ?? undefined,
       })
-    } else if (tab === 'upload' && uploadedDataUrl) {
+    } else if (tab === 'upload' && (uploadedDataUrl || (requireStamp && uploadedStampDataUrl))) {
       onAdopt({
         ...base,
         signatureType: 'uploaded',
-        imageDataUrl: uploadedDataUrl,
+        imageDataUrl: uploadedDataUrl ?? undefined,
         initialsImageDataUrl: uploadedInitialsDataUrl ?? undefined,
+        stampType: uploadedStampDataUrl ? 'uploaded' : undefined,
+        stampImageDataUrl: uploadedStampDataUrl ?? undefined,
       })
     }
     onOpenChange(false)
@@ -322,7 +333,7 @@ export function SignatureAdoptionModal({
           <DialogTitle>Adopt your signature and initials</DialogTitle>
           <DialogDescription>
             Confirm your name and initials, then choose how your signature should look. It will be
-            available to apply to each signature, initials, or stamp field you choose.
+            available to apply to the matching signature, initials, and stamp fields you choose.
           </DialogDescription>
         </DialogHeader>
 
@@ -358,6 +369,7 @@ export function SignatureAdoptionModal({
           </TabsList>
 
           <TabsContent value="type" className="space-y-2 pt-3">
+            {requireStamp && <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-foreground-muted">A stamp must be drawn or uploaded. Choose Draw or Upload to continue.</p>}
             <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
               {SIGNATURE_FONTS.map((font) => {
                 const selected = font.slug === fontSlug
@@ -400,6 +412,12 @@ export function SignatureAdoptionModal({
               ariaLabel="Initials drawing area"
               hint="Draw your initials above (optional — typed initials are used otherwise)"
             />
+            <DrawCanvas
+              onChange={setDrawnStampDataUrl}
+              heightClass="h-24"
+              ariaLabel="Stamp drawing area"
+              hint={requireStamp ? 'Draw your distinct stamp above' : 'Draw a distinct stamp above (optional)'}
+            />
           </TabsContent>
 
           <TabsContent value="upload" className="space-y-4 pt-3">
@@ -411,6 +429,16 @@ export function SignatureAdoptionModal({
                 setUploadedDataUrl(v)
               }}
               onError={setUploadError}
+            />
+            <UploadDropzone
+              label={requireStamp ? 'Stamp image (required)' : 'Stamp image (optional)'}
+              dataUrl={uploadedStampDataUrl}
+              onChange={(v) => {
+                setUploadError(null)
+                setUploadedStampDataUrl(v)
+              }}
+              onError={setUploadError}
+              heightClass="h-24"
             />
             <UploadDropzone
               label="Initials image (optional)"

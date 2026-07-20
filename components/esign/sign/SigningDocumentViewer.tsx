@@ -26,6 +26,7 @@ interface SigningDocumentViewerProps {
   onAttachmentUpload: (fieldId: string, file: File) => void
   onAttachmentDelete: (attachmentId: string) => void
   dateFormat?: string
+  fieldErrors?: Record<string, string>
 }
 
 /** The shared inline PDF field UI used by authenticated and guest signers. */
@@ -42,6 +43,7 @@ export function SigningDocumentViewer({
   onAttachmentUpload,
   onAttachmentDelete,
   dateFormat = 'MM/DD/YYYY',
+  fieldErrors = {},
 }: SigningDocumentViewerProps) {
   const [pdf, setPdf] = React.useState<PdfDocument | null>(null)
   const [error, setError] = React.useState<string | null>(null)
@@ -66,13 +68,21 @@ export function SigningDocumentViewer({
     {Array.from({ length: pdf.numPages }, (_, pageIndex) => <div key={pageIndex} className="mx-auto w-full max-w-3xl">
       <PdfPageCanvas pdf={pdf} pageNumber={pageIndex + 1} overlay={(size) => <div className="absolute inset-0">
         {fields.filter((field) => field.page_number === pageIndex).map((field) => {
+          const family = field.properties?.appearance?.font ?? 'Helvetica'
+          const pdfFontSize = field.properties?.appearance?.font_size
+          const renderedFieldHeight = field.height * size.height
           const style: React.CSSProperties = {
             left: field.pos_x * size.width,
             top: field.pos_y * size.height,
             width: field.width * size.width,
             height: field.height * size.height,
             color: field.properties?.appearance?.color ?? undefined,
-            fontSize: field.properties?.appearance?.font_size ?? undefined,
+            fontSize: pdfFontSize
+              ? Math.min(pdfFontSize * size.scale, renderedFieldHeight * 0.9)
+              : renderedFieldHeight * 0.7,
+            fontFamily: family.toLowerCase().includes('times')
+              ? 'Times New Roman, serif'
+              : family.toLowerCase().includes('courier') ? 'Courier New, monospace' : 'Arial, Helvetica, sans-serif',
             fontWeight: field.properties?.appearance?.bold ? 700 : undefined,
             fontStyle: field.properties?.appearance?.italic ? 'italic' : undefined,
             textDecoration: field.properties?.appearance?.underline ? 'underline' : undefined,
@@ -84,7 +94,10 @@ export function SigningDocumentViewer({
           if (['signature', 'initials', 'stamp'].includes(field.field_type)) {
             const complete = !!adopted && fieldValues[field.id] === 'true'
             const isInitials = field.field_type === 'initials'
-            const imageUrl = isInitials
+            const isStamp = field.field_type === 'stamp'
+            const imageUrl = isStamp
+              ? adopted?.stampImageDataUrl
+              : isInitials
               ? adopted?.initialsImageDataUrl
               : adopted?.signatureType !== 'typed' ? adopted?.imageDataUrl : undefined
             return <button key={field.id} id={`esign-field-${field.id}`} type="button" onClick={() => onFieldClick(field)}
@@ -92,13 +105,13 @@ export function SigningDocumentViewer({
               title={tooltip} style={{ ...style, ...(complete ? {} : { borderColor: color.border, backgroundColor: color.bg, color: color.text }) }}>
               {complete ? imageUrl
                 // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={imageUrl} alt={isInitials ? 'Your initials' : 'Your signature'} className="max-h-full max-w-full object-contain" />
+                ? <img src={imageUrl} alt={isStamp ? 'Your stamp' : isInitials ? 'Your initials' : 'Your signature'} className="max-h-full max-w-full object-contain" />
                 : <span className="truncate px-1 text-lg leading-none text-foreground" style={{ fontFamily: signatureFontFamily(adopted?.typedFont) }}>{isInitials ? adopted?.initialsText : adopted?.typedText}</span>
                 : <span className="inline-flex items-center gap-1 truncate px-1"><PenLine className="size-3.5" />{isInitials ? 'Initial' : field.field_type === 'stamp' ? 'Apply stamp' : 'Sign here'}</span>}
             </button>
           }
           if (field.field_type === 'date_signed') {
-            return <div key={field.id} id={`esign-field-${field.id}`} className={cn('absolute flex items-center overflow-hidden rounded-sm border px-1 text-xs', adopted ? 'border-success bg-surface text-foreground' : 'border-border bg-surface-muted text-foreground-muted')} style={style} title={tooltip ?? (adopted ? 'Date signed' : 'Filled automatically when you adopt your signature')}>{formatDateSigned(new Date(), dateFormat)}</div>
+            return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border border-border bg-surface-muted px-1 text-xs text-foreground-muted" style={style} title={tooltip ?? 'The server records the actual completion date'}>Completed when submitted</div>
           }
           if (field.properties?.read_only && ['checkbox', 'radio', 'dropdown'].includes(field.field_type)) {
             const raw = fieldValues[field.id] ?? field.properties.sender_prefill ?? ''
@@ -129,9 +142,24 @@ export function SigningDocumentViewer({
             </div>
           }
           if (field.field_type === 'formula') return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? ''}</div>
-          if (field.field_type === 'auto_fill' && field.properties?.auto_source !== 'company') return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? ''}</div>
+          if (field.field_type === 'auto_fill' && field.properties?.auto_source !== 'company') {
+            const value = fieldValues[field.id] ?? ''
+            const display = field.properties?.auto_source === 'date_sent' && value ? formatDateSigned(new Date(`${value}T00:00:00`), dateFormat) : value
+            return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{display}</div>
+          }
           if (field.field_type === 'note' || field.properties?.read_only || ['first_name', 'last_name', 'full_name', 'email'].includes(field.field_type)) return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? field.properties?.sender_prefill ?? ''}</div>
-          return <input key={field.id} id={`esign-field-${field.id}`} title={tooltip} type={field.field_type === 'date' ? 'date' : field.field_type === 'number' ? 'number' : 'text'} min={field.field_type === 'date' ? field.properties?.date_validation?.minimum ?? undefined : field.field_type === 'number' && field.properties?.number_validation?.minimum != null ? String(field.properties.number_validation.minimum) : undefined} max={field.field_type === 'date' ? field.properties?.date_validation?.maximum ?? undefined : field.field_type === 'number' && field.properties?.number_validation?.maximum != null ? String(field.properties.number_validation.maximum) : undefined} step={field.field_type === 'number' && field.properties?.number_validation?.decimal_places != null ? String(10 ** -field.properties.number_validation.decimal_places) : undefined} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} placeholder={field.label || 'Text'} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground focus:outline-none', activeRing)} style={{ ...style, borderColor: color.border }} />
+          const controlProps = {
+            id: `esign-field-${field.id}`, title: tooltip,
+            value: fieldValues[field.id] ?? '',
+            onChange: (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => onTextChange(field.id, event.target.value),
+            placeholder: field.label || 'Text',
+            'aria-invalid': !!fieldErrors[field.id],
+            'aria-describedby': fieldErrors[field.id] ? `esign-error-${field.id}` : undefined,
+            className: cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground focus:outline-none', activeRing, fieldErrors[field.id] && 'border-destructive'),
+            style: { ...style, borderColor: fieldErrors[field.id] ? undefined : color.border },
+          }
+          if (field.field_type === 'text' && field.properties?.multiline) return <textarea key={field.id} {...controlProps} />
+          return <input key={field.id} {...controlProps} type={field.field_type === 'date' ? 'date' : field.field_type === 'number' ? 'number' : 'text'} min={field.field_type === 'date' ? field.properties?.date_validation?.minimum ?? undefined : field.field_type === 'number' && field.properties?.number_validation?.minimum != null ? String(field.properties.number_validation.minimum) : undefined} max={field.field_type === 'date' ? field.properties?.date_validation?.maximum ?? undefined : field.field_type === 'number' && field.properties?.number_validation?.maximum != null ? String(field.properties.number_validation.maximum) : undefined} step={field.field_type === 'number' && field.properties?.number_validation?.decimal_places != null ? String(10 ** -field.properties.number_validation.decimal_places) : undefined} />
         })}
       </div>} />
     </div>)}

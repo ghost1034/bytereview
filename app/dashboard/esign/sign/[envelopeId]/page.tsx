@@ -39,7 +39,8 @@ import {
 } from '@/hooks/useEnvelopes'
 import { ApiError, apiClient, type EsignFieldResponse, type EsignSubmitRequest } from '@/lib/api'
 import type { EsignSignerAttachmentResponse } from '@/lib/api'
-import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility } from '@/lib/esign/fieldLogic'
+import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility, validationErrors } from '@/lib/esign/fieldLogic'
+import { adoptedToMarks, initializeCeremonyState, marksToAdopted } from '@/lib/esign/ceremony'
 
 type CeremonyState = 'signing' | 'submitted' | 'declined'
 
@@ -85,17 +86,6 @@ export default function SigningCeremonyPage() {
 
   const session = sessionQuery.data
 
-  // Restore Finish Later drafts without clobbering anything typed this visit.
-  React.useEffect(() => {
-    const drafts: Record<string, string> = {}
-    for (const f of session?.fields ?? []) {
-      if (f.draft_value) drafts[f.id] = f.draft_value
-    }
-    if (Object.keys(drafts).length) {
-      setFieldValues((prev) => ({ ...drafts, ...prev }))
-    }
-  }, [session])
-
   React.useEffect(() => {
     if (!session?.managed_recipients) return
     setManagedValues(Object.fromEntries((session.managed_recipients ?? []).map((recipient) => [recipient.id, { name: recipient.name ?? '', email: recipient.email ?? '' }])))
@@ -110,34 +100,20 @@ export default function SigningCeremonyPage() {
         {
           fieldValues: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
           expectedRoutingVersion: session.routing_version,
+          marks: adoptedToMarks(adopted),
         },
       )
     }, 1000)
     return () => window.clearTimeout(timer)
     // The mutation object is intentionally excluded; field/session changes drive autosave.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fieldValues, session?.consent_required, session?.recipient_role])
+  }, [fieldValues, adopted, session?.consent_required, session?.recipient_role])
 
   React.useEffect(() => {
     if (!session) return
     setAttachments(session.attachments ?? [])
-    const automatic: Record<string, string> = {}
-    for (const attachment of session.attachments ?? []) automatic[attachment.field_id] = attachment.id
-    for (const field of session.fields ?? []) {
-      if (field.properties?.sender_prefill != null) automatic[field.id] = field.properties.sender_prefill
-      if (field.field_type === 'first_name') automatic[field.id] = session.recipient_name.split(/\s+/)[0] ?? ''
-      else if (field.field_type === 'last_name') { const names = session.recipient_name.split(/\s+/); automatic[field.id] = names[names.length - 1] ?? '' }
-      else if (field.field_type === 'full_name') automatic[field.id] = session.recipient_name
-      else if (field.field_type === 'email') automatic[field.id] = session.recipient_email
-      else if (field.field_type === 'company') automatic[field.id] = session.recipient_company ?? ''
-      if (field.field_type !== 'auto_fill') continue
-      const source = field.properties?.auto_source
-      if (source === 'recipient_name') automatic[field.id] = session.recipient_name
-      else if (source === 'recipient_email') automatic[field.id] = session.recipient_email
-      else if (source === 'company') automatic[field.id] = session.recipient_company ?? ''
-      else if (source === 'date_sent' && session.sent_at) automatic[field.id] = new Date(session.sent_at).toISOString().slice(0, 10)
-    }
-    setFieldValues((previous) => ({ ...automatic, ...previous }))
+    setFieldValues((previous) => ({ ...initializeCeremonyState(session), ...previous }))
+    setAdopted((previous) => previous ?? marksToAdopted(session.draft_marks))
   }, [session])
 
   // ---- error / terminal states -------------------------------------------
@@ -367,10 +343,12 @@ export default function SigningCeremonyPage() {
   )
   const incompleteFields = findIncompleteFields(logicFields, displayValues, !!adopted)
     .filter((field) => myFields.some((candidate) => candidate.id === field.id)) as EsignFieldResponse[]
+  const allFieldErrors = validationErrors(logicFields, displayValues, !!adopted)
+  const fieldErrors = Object.fromEntries(Object.entries(allFieldErrors).filter(([id]) => myFields.some((field) => field.id === id)))
   const countedRadioGroups = new Set<string>()
   const totalRequired = myFields.filter((field) => {
     if (['signature', 'initials', 'stamp'].includes(field.field_type)) return isFieldRequired(field, logicFields, displayValues, visibility)
-    if (field.field_type === 'date_signed') return true
+    if (field.field_type === 'date_signed') return false
     if (field.field_type === 'formula') return false
     if (field.field_type === 'radio') {
       const group = field.properties?.group?.id ?? field.id
@@ -383,7 +361,9 @@ export default function SigningCeremonyPage() {
   }).length
   const completedCount = Math.max(0, totalRequired - incompleteFields.length)
   const witnessEvidenceComplete = session.recipient_role !== 'witness' || (!!witnessOccupation.trim() && !!witnessAddress.trim())
-  const canFinish = !!adopted && incompleteFields.length === 0 && witnessEvidenceComplete
+  const hasAppliedMarks = myFields.some((field) => ['signature', 'initials', 'stamp'].includes(field.field_type) && fieldValues[field.id] === 'true')
+  const hasSignatureLikeFields = myFields.some((field) => ['signature', 'initials', 'stamp'].includes(field.field_type))
+  const canFinish = (!hasAppliedMarks || !!adopted) && incompleteFields.length === 0 && witnessEvidenceComplete
 
   const goToNextField = () => {
     setGuideStarted(true)
@@ -392,13 +372,16 @@ export default function SigningCeremonyPage() {
     setActiveFieldId(next.id)
     const el = document.getElementById(`esign-field-${next.id}`)
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    if (next.field_type === 'text' || next.field_type === 'dropdown' || next.field_type === 'auto_fill') {
-      ;(el as HTMLInputElement | null)?.focus({ preventScroll: true })
-    }
+    ;(el as HTMLElement | null)?.focus({ preventScroll: true })
   }
 
   const handleFieldClick = (field: EsignFieldResponse) => {
-    if (adopted) {
+    const hasMatchingMark = !!adopted && (
+      field.field_type === 'stamp' ? !!adopted.stampImageDataUrl
+        : field.field_type === 'initials' ? !!(adopted.initialsText || adopted.initialsImageDataUrl)
+          : adopted.signatureType === 'typed' ? !!adopted.typedText : !!adopted.imageDataUrl
+    )
+    if (hasMatchingMark) {
       setFieldValues((previous) => ({ ...previous, [field.id]: previous[field.id] === 'true' ? 'false' : 'true' }))
       return
     }
@@ -441,7 +424,6 @@ export default function SigningCeremonyPage() {
   }
 
   const handleFinish = async () => {
-    if (!adopted) return
     try {
       const submittedFields: NonNullable<EsignSubmitRequest['field_values']> = []
       for (const field of myFields) {
@@ -450,14 +432,7 @@ export default function SigningCeremonyPage() {
       }
       const result = await submitSignature.mutateAsync({
         expected_routing_version: session.routing_version,
-        signature: {
-          signature_type: adopted.signatureType,
-          image_data_url: adopted.imageDataUrl,
-          typed_text: adopted.typedText,
-          typed_font: adopted.typedFont,
-          initials_text: adopted.initialsText,
-          initials_image_data_url: adopted.initialsImageDataUrl,
-        },
+        marks: adoptedToMarks(adopted),
         field_values: submittedFields,
         occupation: session.recipient_role === 'witness' ? witnessOccupation.trim() : undefined,
         address: session.recipient_role === 'witness' ? witnessAddress.trim() : undefined,
@@ -483,6 +458,7 @@ export default function SigningCeremonyPage() {
       await saveProgress.mutateAsync({
         fieldValues: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
         expectedRoutingVersion: session.routing_version,
+        marks: adoptedToMarks(adopted),
       })
       toast({
         title: 'Progress saved',
@@ -539,7 +515,7 @@ export default function SigningCeremonyPage() {
               Finish Later
             </Button>
           )}
-          {!adopted ? (
+          {!adopted && hasSignatureLikeFields ? (
             <Button onClick={() => setAdoptionOpen(true)}>
               <PenLine className="mr-1.5 size-4" /> Adopt signature
             </Button>
@@ -582,6 +558,7 @@ export default function SigningCeremonyPage() {
           <div><Label htmlFor="witness-address">Address</Label><Textarea id="witness-address" value={witnessAddress} onChange={(event) => setWitnessAddress(event.target.value)} /></div>
         </section>
       )}
+      {Object.keys(fieldErrors).length > 0 && guideStarted && <div role="alert" className="mx-auto max-w-5xl rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><p className="font-medium">Complete or correct these fields:</p><ul className="mt-1 list-disc pl-5">{Object.entries(fieldErrors).map(([id, message]) => <li key={id}><button type="button" className="underline" onClick={() => { setActiveFieldId(id); document.getElementById(`esign-field-${id}`)?.focus() }}>{message}</button></li>)}</ul></div>}
       {(session.available_actions ?? []).includes('configure_witness') && (
         <section className="space-y-3 rounded-lg border border-border bg-surface p-4">
           <div><h2 className="font-semibold">Confirm your witness</h2><p className="text-sm text-foreground-muted">The witness signs after you through an audited guest invitation.</p></div>
@@ -643,6 +620,7 @@ export default function SigningCeremonyPage() {
               onAttachmentUpload={handleAttachmentUpload}
               onAttachmentDelete={handleAttachmentDelete}
               dateFormat={session.date_format}
+              fieldErrors={fieldErrors}
             />
           </div>
         ))}
@@ -671,9 +649,13 @@ export default function SigningCeremonyPage() {
       <SignatureAdoptionModal
         open={adoptionOpen}
         onOpenChange={setAdoptionOpen}
-        defaultName={user?.displayName ?? ''}
+        defaultName={user?.displayName || session.recipient_name}
+        requireStamp={!!pendingApplyFieldId && myFields.find((field) => field.id === pendingApplyFieldId)?.field_type === 'stamp'}
         onAdopt={(artifact) => {
-          setAdopted(artifact)
+          const targetType = myFields.find((field) => field.id === pendingApplyFieldId)?.field_type
+          setAdopted((previous) => targetType === 'stamp' && previous
+            ? { ...previous, stampType: artifact.stampType, stampImageDataUrl: artifact.stampImageDataUrl }
+            : { ...artifact, stampType: artifact.stampType ?? previous?.stampType, stampImageDataUrl: artifact.stampImageDataUrl ?? previous?.stampImageDataUrl })
           if (pendingApplyFieldId) setFieldValues((previous) => ({ ...previous, [pendingApplyFieldId]: 'true' }))
           setPendingApplyFieldId(null)
         }}

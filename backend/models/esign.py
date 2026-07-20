@@ -12,6 +12,12 @@ EsignRecipientRoleName = Literal[
     "witness", "in_person_signer",
 ]
 
+EsignFieldTypeName = Literal[
+    "signature", "initials", "date_signed", "text", "checkbox", "auto_fill",
+    "attachment", "radio", "dropdown", "formula", "stamp", "date", "number",
+    "first_name", "last_name", "full_name", "email", "company", "title", "note",
+]
+
 
 # ---------------------------------------------------------------------------
 # Shared field/recipient shapes
@@ -71,6 +77,7 @@ class AnchorProps(BaseModel):
 class TextValidation(BaseModel):
     max_length: Optional[int] = Field(default=None, ge=1, le=100_000)
     regex: Optional[str] = Field(default=None, max_length=2_000)
+    message: Optional[str] = Field(default=None, max_length=2_000)
 
     @model_validator(mode="after")
     def valid_regex(self):
@@ -118,6 +125,20 @@ class SelectionValidation(BaseModel):
         return self
 
 
+class SelectionGroup(BaseModel):
+    id: str = Field(min_length=1, max_length=255)
+    label: str = Field(min_length=1, max_length=255)
+    minimum_selected: int = Field(default=0, ge=0)
+    maximum_selected: Optional[int] = Field(default=None, ge=1)
+    validation_message: Optional[str] = Field(default=None, max_length=2_000)
+
+    @model_validator(mode="after")
+    def valid_range(self):
+        if self.maximum_selected is not None and self.minimum_selected > self.maximum_selected:
+            raise ValueError("minimum_selected cannot exceed maximum_selected")
+        return self
+
+
 class FieldAppearance(BaseModel):
     font: str = Field(default="Helvetica", max_length=100)
     font_size: Optional[float] = Field(default=None, ge=4, le=144)
@@ -131,7 +152,9 @@ class FieldAppearance(BaseModel):
 class EsignFieldProperties(BaseModel):
     model_config = ConfigDict(extra="allow")
 
+    schema_version: Literal[2] = 2
     group: Optional[RadioGroupProps] = None
+    selection_group: Optional[SelectionGroup] = None
     option_value: Optional[str] = None
     options: Optional[list[DropdownOption]] = None
     conditional: Optional[ConditionalRule] = None
@@ -142,6 +165,7 @@ class EsignFieldProperties(BaseModel):
     data_label: Optional[str] = Field(default=None, min_length=1, max_length=255)
     tooltip: Optional[str] = Field(default=None, max_length=2_000)
     sender_prefill: Optional[str] = None
+    multiline: bool = False
     read_only: bool = False
     shared_value: bool = False
     text_validation: Optional[TextValidation] = None
@@ -151,13 +175,43 @@ class EsignFieldProperties(BaseModel):
     appearance: Optional[FieldAppearance] = None
 
 
-def _validated_properties(field_type: str, value: Any) -> EsignFieldProperties:
+_COMMON_PROPERTIES = {"schema_version", "conditional", "data_label", "tooltip", "appearance", "anchor"}
+_FIELD_PROPERTY_CAPABILITIES: dict[str, set[str]] = {
+    "signature": set(), "initials": set(), "stamp": set(), "date_signed": set(),
+    "text": {"sender_prefill", "multiline", "read_only", "shared_value", "text_validation"},
+    "number": {"sender_prefill", "read_only", "shared_value", "number_validation"},
+    "date": {"sender_prefill", "read_only", "shared_value", "date_validation"},
+    "first_name": set(), "last_name": set(), "full_name": set(), "email": set(),
+    "company": {"sender_prefill", "read_only", "shared_value", "text_validation"},
+    "title": {"sender_prefill", "read_only", "shared_value", "text_validation"},
+    "note": {"sender_prefill", "read_only"},
+    "auto_fill": {"auto_source", "shared_value"},
+    "checkbox": {"sender_prefill", "read_only", "shared_value", "selection_group", "selection_validation"},
+    "radio": {"group", "option_value", "sender_prefill", "read_only"},
+    "dropdown": {"options", "sender_prefill", "read_only", "shared_value"},
+    "attachment": {"allowed_types"},
+    "formula": {"formula"},
+}
+
+
+def _validated_properties(field_type: EsignFieldTypeName, value: Any) -> EsignFieldProperties:
     props = value.model_dump(exclude_none=True) if isinstance(value, BaseModel) else dict(value or {})
+    props.setdefault("schema_version", 2)
+    unsupported = set(props) - _COMMON_PROPERTIES - _FIELD_PROPERTY_CAPABILITIES[field_type]
+    # Pydantic materializes false/default values on model instances. They are
+    # harmless unless explicitly enabled, and ignoring them keeps old clients
+    # compatible while rejecting meaningful unsupported configuration.
+    unsupported = {key for key in unsupported if props.get(key) not in (None, False, [], {})}
+    if unsupported:
+        raise ValueError(
+            f"{field_type} fields do not support properties: {', '.join(sorted(unsupported))}"
+        )
     if "conditional" in props and props["conditional"] is not None:
         props["conditional"] = ConditionalRule.model_validate(props["conditional"]).model_dump()
     for key, model in (
         ("text_validation", TextValidation), ("number_validation", NumberValidation),
         ("date_validation", DateValidation), ("selection_validation", SelectionValidation),
+        ("selection_group", SelectionGroup),
         ("appearance", FieldAppearance), ("anchor", AnchorProps),
     ):
         if props.get(key) is not None:
@@ -181,6 +235,18 @@ def _validated_properties(field_type: str, value: Any) -> EsignFieldProperties:
         props.update(AutoFillProps.model_validate(props).model_dump())
     elif field_type == "attachment":
         props.update(AttachmentProps.model_validate(props).model_dump())
+    if field_type == "checkbox" and props.get("selection_group"):
+        props["selection_group"] = SelectionGroup.model_validate(props["selection_group"]).model_dump(exclude_none=True)
+    if field_type in ("checkbox", "radio") and props.get("sender_prefill") not in (None, "true", "false"):
+        raise ValueError(f"{field_type} sender_prefill must be 'true' or 'false'")
+    if field_type == "dropdown" and props.get("sender_prefill"):
+        option_values = {str(option["value"]) for option in props.get("options", [])}
+        if str(props["sender_prefill"]) not in option_values:
+            raise ValueError("dropdown sender_prefill must match an option value")
+    if field_type == "attachment" and not props.get("allowed_types"):
+        raise ValueError("attachment fields require at least one allowed MIME type")
+    if field_type == "note":
+        props["read_only"] = True
     if field_type == "date" and props.get("sender_prefill"):
         try:
             date.fromisoformat(str(props["sender_prefill"]))
@@ -193,7 +259,7 @@ class EsignFieldInput(BaseModel):
     id: Optional[str] = None
     document_id: str
     recipient_id: str
-    field_type: str  # signature | initials | date_signed | text | checkbox
+    field_type: EsignFieldTypeName
     page_number: int = Field(ge=0)  # 0-based page index
     pos_x: float = Field(ge=0, le=1)
     pos_y: float = Field(ge=0, le=1)
@@ -216,7 +282,7 @@ class EsignFieldResponse(BaseModel):
     envelope_id: str
     document_id: str
     recipient_id: str
-    field_type: str
+    field_type: EsignFieldTypeName
     page_number: int
     pos_x: float
     pos_y: float
@@ -500,7 +566,7 @@ class EsignSigningDocument(BaseModel):
 
 class EsignContextField(BaseModel):
     id: str
-    field_type: str
+    field_type: EsignFieldTypeName
     value: Optional[str] = None
     properties: EsignFieldProperties = Field(default_factory=EsignFieldProperties)
 
@@ -529,6 +595,7 @@ class EsignSigningSessionResponse(BaseModel):
     recipient_company: Optional[str] = None
     date_format: str = "MM/DD/YYYY"
     attachments: list["EsignSignerAttachmentResponse"] = Field(default_factory=list)
+    draft_marks: Optional["EsignMarkBundle"] = None
     sent_at: Optional[datetime] = None
     expires_at: Optional[datetime] = None
     brand: Optional[dict[str, Any]] = None
@@ -551,6 +618,21 @@ class EsignSignatureInput(BaseModel):
     initials_image_data_url: Optional[str] = None  # base64 PNG data URL, optional
 
 
+class EsignMarkArtifact(BaseModel):
+    signature_type: Literal["drawn", "typed", "uploaded"]
+    image_data_url: Optional[str] = None
+    typed_text: Optional[str] = Field(default=None, max_length=255)
+    typed_font: Optional[str] = Field(default=None, max_length=100)
+
+
+class EsignMarkBundle(BaseModel):
+    """Independently adopted artifacts; stamps never inherit a signature."""
+
+    signature: Optional[EsignMarkArtifact] = None
+    initials: Optional[EsignMarkArtifact] = None
+    stamp: Optional[EsignMarkArtifact] = None
+
+
 class EsignFieldValueInput(BaseModel):
     field_id: str
     value: Optional[str] = None  # text value / "true"|"false" for checkbox
@@ -561,7 +643,8 @@ class EsignFieldValueInput(BaseModel):
 
 class EsignSubmitRequest(BaseModel):
     expected_routing_version: int = Field(ge=1)
-    signature: EsignSignatureInput
+    signature: Optional[EsignSignatureInput] = None  # legacy compatibility
+    marks: Optional[EsignMarkBundle] = None
     field_values: list[EsignFieldValueInput] = Field(default_factory=list)
     occupation: Optional[str] = Field(default=None, max_length=255)
     address: Optional[str] = Field(default=None, max_length=2_000)
@@ -572,6 +655,7 @@ class EsignProgressRequest(BaseModel):
 
     expected_routing_version: int = Field(ge=1)
     field_values: list[EsignFieldValueInput] = Field(default_factory=list)
+    marks: Optional[EsignMarkBundle] = None
 
 
 class EsignProgressResponse(BaseModel):
@@ -743,7 +827,7 @@ class EsignTemplateFieldInput(BaseModel):
     template_document_id: str
     recipient_index: int = Field(ge=0)
     recipient_role_id: Optional[str] = None
-    field_type: str
+    field_type: EsignFieldTypeName
     page_number: int = Field(ge=0)
     pos_x: float = Field(ge=0, le=1)
     pos_y: float = Field(ge=0, le=1)
@@ -789,7 +873,7 @@ class EsignTemplateFieldResponse(BaseModel):
     template_document_id: str
     recipient_index: int
     recipient_role_id: Optional[str] = None
-    field_type: str
+    field_type: EsignFieldTypeName
     page_number: int
     pos_x: float
     pos_y: float
@@ -840,7 +924,7 @@ class EsignPdfWidget(BaseModel):
     widget_id: str
     name: str
     tooltip: Optional[str] = None
-    suggested_field_type: Optional[str] = None
+    suggested_field_type: Optional[EsignFieldTypeName] = None
     page_number: int
     x: float
     y: float

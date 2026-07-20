@@ -95,10 +95,9 @@ class _FormulaEvaluator:
             if isinstance(node.op, ast.Mult): return left * right
             if right == 0: raise FieldLogicError("Division by zero")
             return left / right
-        if isinstance(node, ast.BoolOp) and isinstance(node.op, (ast.And, ast.Or)):
-            values = [bool(self._eval(value)) for value in node.values]
-            return all(values) if isinstance(node.op, ast.And) else any(values)
         if isinstance(node, ast.Compare):
+            if len(node.ops) != 1:
+                raise FieldLogicError("Chained comparisons are not supported")
             left = self._eval(node.left)
             for operator, comparator in zip(node.ops, node.comparators):
                 right = self._eval(comparator)
@@ -179,7 +178,7 @@ def validate_formula(expression: str) -> list[str]:
     evaluator = _FormulaEvaluator(expression, {})
     allowed_nodes = (
         ast.Expression, ast.Constant, ast.UnaryOp, ast.UAdd, ast.USub, ast.BinOp,
-        ast.Add, ast.Sub, ast.Mult, ast.Div, ast.BoolOp, ast.And, ast.Or,
+        ast.Add, ast.Sub, ast.Mult, ast.Div,
         ast.Compare, ast.Eq, ast.NotEq, ast.Lt, ast.LtE, ast.Gt, ast.GtE,
         ast.Call, ast.Name, ast.Load,
     )
@@ -320,6 +319,7 @@ def validate_field_graph(fields: Iterable[Any]) -> None:
             else:
                 by_label[key] = field
     radio_groups: dict[str, list[Any]] = {}
+    checkbox_groups: dict[str, list[Any]] = {}
     for field_id, field in by_id.items():
         props = _props(field)
         rule = props.get("conditional")
@@ -356,6 +356,11 @@ def validate_field_graph(fields: Iterable[Any]) -> None:
             if not group_id:
                 raise FieldLogicError("Radio fields require a group ID")
             radio_groups.setdefault(group_id, []).append(field)
+        if _type(field) == "checkbox" and props.get("selection_group"):
+            group_id = str((props.get("selection_group") or {}).get("id", ""))
+            if not group_id:
+                raise FieldLogicError("Checkbox selection groups require an ID")
+            checkbox_groups.setdefault(group_id, []).append(field)
 
     for group_id, members in radio_groups.items():
         recipients = {str(_get(member, "recipient_id", _get(member, "recipient_index"))) for member in members}
@@ -364,6 +369,24 @@ def validate_field_graph(fields: Iterable[Any]) -> None:
             raise FieldLogicError(f"Radio group {group_id} must belong to one recipient")
         if len(options) != len(set(options)):
             raise FieldLogicError(f"Radio group {group_id} option values must be unique")
+        labels = {str((_props(member).get("group") or {}).get("label") or "") for member in members}
+        required_states = {bool(_get(member, "required", False)) for member in members}
+        defaults = [member for member in members if _props(member).get("sender_prefill") == "true"]
+        if len(labels) != 1 or len(required_states) != 1:
+            raise FieldLogicError(f"Radio group {group_id} must use one label and required state")
+        if len(defaults) > 1:
+            raise FieldLogicError(f"Radio group {group_id} has more than one default option")
+
+    for group_id, members in checkbox_groups.items():
+        recipients = {str(_get(member, "recipient_id", _get(member, "recipient_index"))) for member in members}
+        definitions = {
+            str(sorted((_props(member).get("selection_group") or {}).items()))
+            for member in members
+        }
+        if len(recipients) != 1:
+            raise FieldLogicError(f"Checkbox group {group_id} must belong to one recipient")
+        if len(definitions) != 1:
+            raise FieldLogicError(f"Checkbox group {group_id} must use one consistent definition")
 
     visiting: set[str] = set()
     visited: set[str] = set()
@@ -417,8 +440,12 @@ def validate_field_value(field: Any, value: Any, *, date_format: str = "MM/DD/YY
         raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' exceeds {maximum} characters")
     pattern = text_rules.get("regex")
     if text and pattern and re.fullmatch(str(pattern), text) is None:
-        raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' has an invalid format")
+        raise FieldLogicError(
+            str(text_rules.get("message") or f"Field '{_get(field, 'label') or field_type}' has an invalid format")
+        )
     if field_type == "number" and text:
+        if re.fullmatch(r"-?(?:\d+(?:\.\d*)?|\.\d+)", text) is None:
+            raise FieldLogicError(f"Field '{_get(field, 'label') or field_type}' must be a decimal number")
         number = _number(text)
         rules = props.get("number_validation") or {}
         if not rules.get("allow_negative", True) and number < 0:
@@ -480,7 +507,10 @@ def resolve_display_value(
         for option in props.get("options", []):
             if str(option.get("value")) == text:
                 return str(option.get("label", text))
-    if field_type in {"date", "date_signed"} and text:
+    if (
+        field_type in {"date", "date_signed"}
+        or (field_type == "auto_fill" and props.get("auto_source") == "date_sent")
+    ) and text:
         try:
             return format_date_value(date.fromisoformat(text), date_format)
         except ValueError:

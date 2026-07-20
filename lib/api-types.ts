@@ -7380,6 +7380,10 @@ export interface components {
             width: number;
             /** Height */
             height: number;
+            /** Reference X */
+            reference_x?: number | null;
+            /** Reference Y */
+            reference_y?: number | null;
         };
         /** EsignAnchorSearchRequest */
         EsignAnchorSearchRequest: {
@@ -7427,6 +7431,16 @@ export interface components {
              * @enum {string}
              */
             offset_unit: "point" | "mm" | "inch";
+            /**
+             * Field Width
+             * @default 0
+             */
+            field_width: number;
+            /**
+             * Field Height
+             * @default 0
+             */
+            field_height: number;
         };
         /** EsignAnchorSearchResponse */
         EsignAnchorSearchResponse: {
@@ -7573,8 +7587,11 @@ export interface components {
         EsignContextField: {
             /** Id */
             id: string;
-            /** Field Type */
-            field_type: string;
+            /**
+             * Field Type
+             * @enum {string}
+             */
+            field_type: "signature" | "initials" | "date_signed" | "text" | "checkbox" | "auto_fill" | "attachment" | "radio" | "dropdown" | "formula" | "stamp" | "date" | "number" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "note";
             /** Value */
             value?: string | null;
             properties?: components["schemas"]["EsignFieldProperties"];
@@ -7993,8 +8010,11 @@ export interface components {
             document_id: string;
             /** Recipient Id */
             recipient_id: string;
-            /** Field Type */
-            field_type: string;
+            /**
+             * Field Type
+             * @enum {string}
+             */
+            field_type: "signature" | "initials" | "date_signed" | "text" | "checkbox" | "auto_fill" | "attachment" | "radio" | "dropdown" | "formula" | "stamp" | "date" | "number" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "note";
             /** Page Number */
             page_number: number;
             /** Pos X */
@@ -8016,7 +8036,14 @@ export interface components {
         };
         /** EsignFieldProperties */
         EsignFieldProperties: {
+            /**
+             * Schema Version
+             * @default 2
+             * @constant
+             */
+            schema_version: 2;
             group?: components["schemas"]["RadioGroupProps"] | null;
+            selection_group?: components["schemas"]["SelectionGroup"] | null;
             /** Option Value */
             option_value?: string | null;
             /** Options */
@@ -8034,6 +8061,11 @@ export interface components {
             tooltip?: string | null;
             /** Sender Prefill */
             sender_prefill?: string | null;
+            /**
+             * Multiline
+             * @default false
+             */
+            multiline: boolean;
             /**
              * Read Only
              * @default false
@@ -8062,8 +8094,11 @@ export interface components {
             document_id: string;
             /** Recipient Id */
             recipient_id: string;
-            /** Field Type */
-            field_type: string;
+            /**
+             * Field Type
+             * @enum {string}
+             */
+            field_type: "signature" | "initials" | "date_signed" | "text" | "checkbox" | "auto_fill" | "attachment" | "radio" | "dropdown" | "formula" | "stamp" | "date" | "number" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "note";
             /** Page Number */
             page_number: number;
             /** Pos X */
@@ -8140,7 +8175,8 @@ export interface components {
         EsignGuestSubmitRequest: {
             /** Expected Routing Version */
             expected_routing_version: number;
-            signature: components["schemas"]["EsignSignatureInput"];
+            signature?: components["schemas"]["EsignSignatureInput"] | null;
+            marks?: components["schemas"]["EsignMarkBundle"] | null;
             /** Field Values */
             field_values?: components["schemas"]["EsignFieldValueInput"][];
             /** Occupation */
@@ -8223,6 +8259,29 @@ export interface components {
             /** Recipients */
             recipients?: components["schemas"]["EsignRecipientResponse"][];
         };
+        /** EsignMarkArtifact */
+        EsignMarkArtifact: {
+            /**
+             * Signature Type
+             * @enum {string}
+             */
+            signature_type: "drawn" | "typed" | "uploaded";
+            /** Image Data Url */
+            image_data_url?: string | null;
+            /** Typed Text */
+            typed_text?: string | null;
+            /** Typed Font */
+            typed_font?: string | null;
+        };
+        /**
+         * EsignMarkBundle
+         * @description Independently adopted artifacts; stamps never inherit a signature.
+         */
+        EsignMarkBundle: {
+            signature?: components["schemas"]["EsignMarkArtifact"] | null;
+            initials?: components["schemas"]["EsignMarkArtifact"] | null;
+            stamp?: components["schemas"]["EsignMarkArtifact"] | null;
+        };
         /** EsignPdfWidget */
         EsignPdfWidget: {
             /** Widget Id */
@@ -8232,7 +8291,7 @@ export interface components {
             /** Tooltip */
             tooltip?: string | null;
             /** Suggested Field Type */
-            suggested_field_type?: string | null;
+            suggested_field_type?: ("signature" | "initials" | "date_signed" | "text" | "checkbox" | "auto_fill" | "attachment" | "radio" | "dropdown" | "formula" | "stamp" | "date" | "number" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "note") | null;
             /** Page Number */
             page_number: number;
             /** X */
@@ -8420,6 +8479,7 @@ export interface components {
             expected_routing_version: number;
             /** Field Values */
             field_values?: components["schemas"]["EsignFieldValueInput"][];
+            marks?: components["schemas"]["EsignMarkBundle"] | null;
         };
         /** EsignProgressResponse */
         EsignProgressResponse: {
@@ -8730,6 +8790,7 @@ export interface components {
             date_format: string;
             /** Attachments */
             attachments?: components["schemas"]["EsignSignerAttachmentResponse"][];
+            draft_marks?: components["schemas"]["EsignMarkBundle"] | null;
             /** Sent At */
             sent_at?: string | null;
             /** Expires At */
@@ -8759,7 +8820,8 @@ export interface components {
         EsignSubmitRequest: {
             /** Expected Routing Version */
             expected_routing_version: number;
-            signature: components["schemas"]["EsignSignatureInput"];
+            signature?: components["schemas"]["EsignSignatureInput"] | null;
+            marks?: components["schemas"]["EsignMarkBundle"] | null;
             /** Field Values */
             field_values?: components["schemas"]["EsignFieldValueInput"][];
             /** Occupation */
@@ -8806,8 +8868,11 @@ export interface components {
             recipient_index: number;
             /** Recipient Role Id */
             recipient_role_id?: string | null;
-            /** Field Type */
-            field_type: string;
+            /**
+             * Field Type
+             * @enum {string}
+             */
+            field_type: "signature" | "initials" | "date_signed" | "text" | "checkbox" | "auto_fill" | "attachment" | "radio" | "dropdown" | "formula" | "stamp" | "date" | "number" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "note";
             /** Page Number */
             page_number: number;
             /** Pos X */
@@ -8837,8 +8902,11 @@ export interface components {
             recipient_index: number;
             /** Recipient Role Id */
             recipient_role_id?: string | null;
-            /** Field Type */
-            field_type: string;
+            /**
+             * Field Type
+             * @enum {string}
+             */
+            field_type: "signature" | "initials" | "date_signed" | "text" | "checkbox" | "auto_fill" | "attachment" | "radio" | "dropdown" | "formula" | "stamp" | "date" | "number" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "note";
             /** Page Number */
             page_number: number;
             /** Pos X */
@@ -11660,6 +11728,22 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** SelectionGroup */
+        SelectionGroup: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /**
+             * Minimum Selected
+             * @default 0
+             */
+            minimum_selected: number;
+            /** Maximum Selected */
+            maximum_selected?: number | null;
+            /** Validation Message */
+            validation_message?: string | null;
+        };
         /** SelectionValidation */
         SelectionValidation: {
             /**
@@ -11849,6 +11933,8 @@ export interface components {
             max_length?: number | null;
             /** Regex */
             regex?: string | null;
+            /** Message */
+            message?: string | null;
         };
         /** TokensResponse */
         TokensResponse: {

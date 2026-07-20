@@ -2550,10 +2550,11 @@ export class ApiClient {
     envelopeId: string,
     fieldValues: { field_id: string; value?: string | null }[],
     expectedRoutingVersion: number,
+    marks?: apiComponents['schemas']['EsignMarkBundle'],
   ): Promise<{ saved_count: number }> {
     return this.request(`/api/esign/sign/${envelopeId}/progress`, {
       method: 'PUT',
-      body: JSON.stringify({ field_values: fieldValues, expected_routing_version: expectedRoutingVersion }),
+      body: JSON.stringify({ field_values: fieldValues, expected_routing_version: expectedRoutingVersion, marks }),
     })
   }
 

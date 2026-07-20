@@ -27,6 +27,7 @@ export type { EditorFieldType } from './anchorPlacement'
 export interface EditorDocument { id: string; name: string; url: string; pageCount: number }
 export interface EditorParticipant { id: string; label: string }
 export interface EditorFieldProperties {
+  schema_version?: 2
   group?: { id: string; label?: string }
   option_value?: string
   options?: Array<{ value: string; label: string }>
@@ -48,12 +49,14 @@ export interface EditorFieldProperties {
   data_label?: string
   tooltip?: string
   sender_prefill?: string
+  multiline?: boolean
   read_only?: boolean
   shared_value?: boolean
-  text_validation?: { max_length?: number; regex?: string }
+  text_validation?: { max_length?: number; regex?: string; message?: string }
   number_validation?: { minimum?: number; maximum?: number; decimal_places?: number; allow_negative?: boolean }
   date_validation?: { minimum?: string; maximum?: string }
   selection_validation?: { minimum_selected?: number; maximum_selected?: number }
+  selection_group?: { id: string; label: string; minimum_selected?: number; maximum_selected?: number; validation_message?: string }
   appearance?: { font?: string; font_size?: number; color?: string; alignment?: 'left' | 'center' | 'right'; bold?: boolean; italic?: boolean; underline?: boolean }
   [key: string]: unknown
 }
@@ -138,18 +141,19 @@ const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min)
 const newId = () => typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `f_${Math.random().toString(36).slice(2)}`
 
 function defaultProperties(type: EditorFieldType, radioGroup: string | null): EditorFieldProperties {
-  if (type === 'radio') return { group: { id: radioGroup ?? newId(), label: 'Choose one' }, option_value: 'Option' }
+  if (type === 'radio') return { schema_version: 2, group: { id: radioGroup ?? newId(), label: 'Choose one' }, option_value: `option_${newId()}`, sender_prefill: 'false' }
   if (type === 'dropdown') return { options: [{ value: 'option_1', label: 'Option 1' }] }
   if (type === 'auto_fill') return { auto_source: 'recipient_name' }
   if (type === 'formula') return { formula: { expression: '0', decimal_places: 2 } }
   if (type === 'attachment') return { allowed_types: ['application/pdf', 'image/png', 'image/jpeg'] }
-  return {}
+  return { schema_version: 2 }
 }
 
-function PropertiesPanel({ field, fields, update, remove }: {
+function PropertiesPanel({ field, fields, update, updateRadioGroup, remove }: {
   field: EditorField
   fields: EditorField[]
   update: (patch: Partial<EditorField>) => void
+  updateRadioGroup: (transform: (member: EditorField) => EditorField) => void
   remove: () => void
 }) {
   const properties = field.properties ?? {}
@@ -166,32 +170,38 @@ function PropertiesPanel({ field, fields, update, remove }: {
       onChange={(event) => setProperties({ data_label: event.target.value })} placeholder="Data label" />
     <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.tooltip ?? ''}
       onChange={(event) => setProperties({ tooltip: event.target.value })} placeholder="Tooltip" />
-    {!['signature', 'initials', 'stamp', 'date_signed', 'formula', 'note'].includes(field.fieldType) && <label className="flex gap-2">
-      <input type="checkbox" checked={field.required} onChange={(event) => update({ required: event.target.checked })} /> Required
+    {!['date_signed', 'formula', 'note', 'first_name', 'last_name', 'full_name', 'email', 'auto_fill'].includes(field.fieldType) && <label className="flex gap-2">
+      <input type="checkbox" checked={field.required} onChange={(event) => field.fieldType === 'radio'
+        ? updateRadioGroup((member) => ({ ...member, required: event.target.checked }))
+        : update({ required: event.target.checked })} /> Required
     </label>}
-    {!['signature', 'initials', 'stamp'].includes(field.fieldType) && <label className="flex gap-2">
+    {['text', 'number', 'date', 'company', 'title', 'checkbox', 'dropdown', 'auto_fill'].includes(field.fieldType) && <label className="flex gap-2">
       <input type="checkbox" checked={properties.shared_value ?? false} onChange={(event) => setProperties({ shared_value: event.target.checked })} /> Share values with this data label
     </label>}
-    {!['signature', 'initials', 'stamp', 'date_signed', 'formula'].includes(field.fieldType) && <label className="flex gap-2">
+    {['text', 'number', 'date', 'company', 'title', 'checkbox', 'radio', 'dropdown'].includes(field.fieldType) && <label className="flex gap-2">
       <input type="checkbox" checked={properties.read_only ?? false} onChange={(event) => setProperties({ read_only: event.target.checked })} /> Read only
     </label>}
-    {(properties.read_only || field.fieldType === 'note') && <input type={field.fieldType === 'date' ? 'date' : 'text'} className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''}
+    {(properties.read_only || field.fieldType === 'note') && field.fieldType === 'dropdown' && <select className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''} onChange={(event) => setProperties({ sender_prefill: event.target.value || undefined })}><option value="">No default</option>{(properties.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}
+    {(properties.read_only || field.fieldType === 'note') && ['checkbox', 'radio'].includes(field.fieldType) && <label className="flex gap-2"><input type="checkbox" checked={properties.sender_prefill === 'true'} onChange={(event) => setProperties({ sender_prefill: event.target.checked ? 'true' : 'false' })} /> Selected by default</label>}
+    {(properties.read_only || field.fieldType === 'note') && !['checkbox', 'radio', 'dropdown'].includes(field.fieldType) && <input type={field.fieldType === 'date' ? 'date' : 'text'} className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''}
       onChange={(event) => setProperties({ sender_prefill: event.target.value })} placeholder="Sender prefill" />}
-    {['text', 'number', 'date', 'company', 'title', 'dropdown', 'checkbox'].includes(field.fieldType) && <details>
+    {field.fieldType === 'text' && <label className="flex gap-2"><input type="checkbox" checked={properties.multiline ?? false} onChange={(event) => setProperties({ multiline: event.target.checked })} /> Multiline</label>}
+    {['text', 'number', 'date', 'company', 'title'].includes(field.fieldType) && <details>
       <summary className="cursor-pointer text-xs font-medium">Validation & appearance</summary>
       <div className="mt-2 space-y-2">
-        <div className="grid grid-cols-2 gap-2"><input type="number" min={1} className="rounded border border-border bg-background px-2 py-1" value={properties.text_validation?.max_length ?? ''}
+        {['text', 'company', 'title'].includes(field.fieldType) && <><div className="grid grid-cols-2 gap-2"><input type="number" min={1} className="rounded border border-border bg-background px-2 py-1" value={properties.text_validation?.max_length ?? ''}
           onChange={(event) => setProperties({ text_validation: { ...properties.text_validation, max_length: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Max length" />
         <input className="rounded border border-border bg-background px-2 py-1" value={properties.text_validation?.regex ?? ''}
-          onChange={(event) => setProperties({ text_validation: { ...properties.text_validation, regex: event.target.value || undefined } })} placeholder="Regex" /></div>
+          onChange={(event) => setProperties({ text_validation: { ...properties.text_validation, regex: event.target.value || undefined } })} placeholder="Regex" /></div><input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.text_validation?.message ?? ''} onChange={(event) => setProperties({ text_validation: { ...properties.text_validation, message: event.target.value || undefined } })} placeholder="Validation message" /></>}
         {field.fieldType === 'number' && <><div className="grid grid-cols-2 gap-2"><input type="number" className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.minimum ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, minimum: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Minimum" /><input type="number" className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.maximum ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, maximum: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Maximum" /></div><div className="grid grid-cols-2 gap-2"><input type="number" min={0} max={10} className="rounded border border-border bg-background px-2 py-1" value={properties.number_validation?.decimal_places ?? ''} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, decimal_places: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Decimal places" /><label className="flex items-center gap-2"><input type="checkbox" checked={properties.number_validation?.allow_negative ?? true} onChange={(event) => setProperties({ number_validation: { ...properties.number_validation, allow_negative: event.target.checked } })} /> Allow negative</label></div></>}
         {field.fieldType === 'date' && <div className="grid grid-cols-2 gap-2"><input type="date" className="rounded border border-border bg-background px-2 py-1" value={properties.date_validation?.minimum ?? ''} onChange={(event) => setProperties({ date_validation: { ...properties.date_validation, minimum: event.target.value || undefined } })} /><input type="date" className="rounded border border-border bg-background px-2 py-1" value={properties.date_validation?.maximum ?? ''} onChange={(event) => setProperties({ date_validation: { ...properties.date_validation, maximum: event.target.value || undefined } })} /></div>}
-        {['checkbox', 'dropdown'].includes(field.fieldType) && <div className="grid grid-cols-2 gap-2"><input type="number" min={0} className="rounded border border-border bg-background px-2 py-1" value={properties.selection_validation?.minimum_selected ?? ''} onChange={(event) => setProperties({ selection_validation: { ...properties.selection_validation, minimum_selected: Number(event.target.value) || 0 } })} placeholder="Minimum selected" /><input type="number" min={1} className="rounded border border-border bg-background px-2 py-1" value={properties.selection_validation?.maximum_selected ?? ''} onChange={(event) => setProperties({ selection_validation: { ...properties.selection_validation, maximum_selected: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Maximum selected" /></div>}
         <div className="grid grid-cols-2 gap-2"><select className="rounded border border-border bg-background px-2 py-1" value={properties.appearance?.font ?? 'Helvetica'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, font: event.target.value } })}><option>Helvetica</option><option>Times</option><option>Courier</option></select><input type="number" min={4} max={144} className="rounded border border-border bg-background px-2 py-1" value={properties.appearance?.font_size ?? ''} onChange={(event) => setProperties({ appearance: { ...properties.appearance, font_size: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Font size" /></div><input type="color" className="h-8 w-full rounded border border-border bg-background" value={properties.appearance?.color ?? '#000000'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, color: event.target.value } })} />
         <select className="w-full rounded border border-border bg-background px-2 py-1" value={properties.appearance?.alignment ?? 'left'} onChange={(event) => setProperties({ appearance: { ...properties.appearance, alignment: event.target.value as 'left' | 'center' | 'right' } })}><option value="left">Left align</option><option value="center">Center align</option><option value="right">Right align</option></select>
         <div className="flex gap-3"><label><input type="checkbox" checked={properties.appearance?.bold ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, bold: event.target.checked } })} /> Bold</label><label><input type="checkbox" checked={properties.appearance?.italic ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, italic: event.target.checked } })} /> Italic</label><label><input type="checkbox" checked={properties.appearance?.underline ?? false} onChange={(event) => setProperties({ appearance: { ...properties.appearance, underline: event.target.checked } })} /> Underline</label></div>
       </div>
     </details>}
+    {field.fieldType === 'checkbox' && <details><summary className="cursor-pointer text-xs font-medium">Selection group (optional)</summary><div className="mt-2 space-y-2"><div className="grid grid-cols-2 gap-2"><input className="rounded border border-border bg-background px-2 py-1" value={properties.selection_group?.id ?? ''} onChange={(event) => setProperties({ selection_group: event.target.value ? { id: event.target.value, label: properties.selection_group?.label || 'Choose options', minimum_selected: properties.selection_group?.minimum_selected ?? 0, maximum_selected: properties.selection_group?.maximum_selected } : undefined })} placeholder="Stable group ID" /><input className="rounded border border-border bg-background px-2 py-1" value={properties.selection_group?.label ?? ''} onChange={(event) => properties.selection_group && setProperties({ selection_group: { ...properties.selection_group, label: event.target.value } })} placeholder="Group label" /></div>{properties.selection_group && <><div className="grid grid-cols-2 gap-2"><input type="number" min={0} className="rounded border border-border bg-background px-2 py-1" value={properties.selection_group.minimum_selected ?? 0} onChange={(event) => setProperties({ selection_group: { ...properties.selection_group!, minimum_selected: Number(event.target.value) || 0 } })} placeholder="Minimum" /><input type="number" min={1} className="rounded border border-border bg-background px-2 py-1" value={properties.selection_group.maximum_selected ?? ''} onChange={(event) => setProperties({ selection_group: { ...properties.selection_group!, maximum_selected: event.target.value ? Number(event.target.value) : undefined } })} placeholder="Maximum" /></div><input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.selection_group.validation_message ?? ''} onChange={(event) => setProperties({ selection_group: { ...properties.selection_group!, validation_message: event.target.value || undefined } })} placeholder="Validation message" /></>}</div></details>}
+    {field.fieldType === 'checkbox' && !properties.read_only && <label className="flex gap-2"><input type="checkbox" checked={properties.sender_prefill === 'true'} onChange={(event) => setProperties({ sender_prefill: event.target.checked ? 'true' : 'false' })} /> Checked by default</label>}
     {field.fieldType === 'auto_fill' && <label className="block">Source
       <select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={properties.auto_source ?? 'recipient_name'}
         onChange={(event) => setProperties({ auto_source: event.target.value as EditorFieldProperties['auto_source'] })}>
@@ -202,13 +212,15 @@ function PropertiesPanel({ field, fields, update, remove }: {
     {field.fieldType === 'dropdown' && <label className="block">Options (one per line)
       <textarea className="mt-1 min-h-20 w-full rounded border border-border bg-background px-2 py-1"
         value={(properties.options ?? []).map((option) => option.label).join('\n')}
-        onChange={(event) => setProperties({ options: event.target.value.split('\n').filter(Boolean).map((label, index) => ({ value: `option_${index + 1}`, label })) })} />
+        onChange={(event) => setProperties({ options: event.target.value.split('\n').filter(Boolean).map((label, index) => ({ value: properties.options?.[index]?.value ?? `option_${newId()}`, label })) })} />
     </label>}
+    {field.fieldType === 'dropdown' && <label className="block">Default option<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''} onChange={(event) => setProperties({ sender_prefill: event.target.value || undefined })}><option value="">No default</option>{(properties.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}
     {field.fieldType === 'radio' && <>
       <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.group?.label ?? ''}
-        onChange={(event) => setProperties({ group: { id: properties.group?.id ?? newId(), label: event.target.value } })} placeholder="Group label" />
+        onChange={(event) => updateRadioGroup((member) => ({ ...member, properties: { ...member.properties, group: { id: member.properties?.group?.id ?? properties.group?.id ?? newId(), label: event.target.value } } }))} placeholder="Group label" />
       <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.option_value ?? ''}
         onChange={(event) => setProperties({ option_value: event.target.value })} placeholder="Option value" />
+      <label className="flex gap-2"><input type="checkbox" checked={properties.sender_prefill === 'true'} onChange={(event) => updateRadioGroup((member) => ({ ...member, properties: { ...member.properties, sender_prefill: event.target.checked && member.id === field.id ? 'true' : 'false' } }))} /> Default option</label>
     </>}
     {field.fieldType === 'attachment' && <fieldset className="space-y-1"><legend className="text-xs font-medium">Allowed file types</legend>{[
       ['application/pdf', 'PDF'], ['image/png', 'PNG'], ['image/jpeg', 'JPG'],
@@ -462,7 +474,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         <div className="flex gap-1"><Button type="button" variant="ghost" size="sm" onClick={undo} title="Undo"><Undo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={redo} title="Redo"><Redo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={() => duplicate(fields.filter((field) => selectedIds.has(field.id)))} title="Duplicate"><Copy className="size-4" /></Button></div>
         <p className="text-xs text-foreground-subtle">{armedType ? armedType === 'radio' ? 'Click repeatedly to add options; Escape ends the group.' : 'Click a page to place.' : 'Shift/Cmd-click or drag a marquee to multi-select. Alt disables snapping.'}</p>
       </div>
-      {selectedField && <PropertiesPanel field={selectedField} fields={fields} update={(patch) => commit(fields.map((field) => field.id === selectedField.id ? { ...field, ...patch } : field))} remove={removeSelected} />}
+      {selectedField && <PropertiesPanel field={selectedField} fields={fields} update={(patch) => commit(fields.map((field) => field.id === selectedField.id ? { ...field, ...patch } : field))} updateRadioGroup={(transform) => { const group = selectedField.properties?.group?.id; commit(fields.map((field) => field.fieldType === 'radio' && field.properties?.group?.id === group ? transform(field) : field)) }} remove={removeSelected} />}
     </aside>
     <main className={cn('min-w-0 flex-1 space-y-4 rounded-lg bg-surface-muted p-3 sm:p-4', armedType && 'cursor-crosshair')}>
       {loadError && <p className="text-sm text-destructive">{loadError}</p>}

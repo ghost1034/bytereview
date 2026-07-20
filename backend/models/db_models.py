@@ -1412,6 +1412,8 @@ class EsignRecipient(Base):
     declined_at = Column(TIMESTAMP(timezone=True), nullable=True)
     declined_reason = Column(Text, nullable=True)
     action_completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    # Temporary adopted artifacts used by Finish Later. Cleared on submit.
+    draft_marks = Column(MutableDict.as_mutable(JSONB), nullable=True)
     identity_changed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
@@ -1580,8 +1582,14 @@ class EsignSignatureRecord(Base):
     # Adopted initials: text always recorded (explicit or derived at adoption);
     # image only when the signer uploaded/drew dedicated initials.
     initials_text = Column(String(20), nullable=True)
+    initials_type = Column(_esign_enum(EsignSignatureType, "esign_signature_type"), nullable=True)
+    initials_typed_font = Column(String(100), nullable=True)
     initials_image_gcs_object_name = Column(Text, nullable=True)
     initials_image_sha256 = Column(String(64), nullable=True)
+    # Schema-v2 stamps are independent from the normal signature image.
+    stamp_type = Column(_esign_enum(EsignSignatureType, "esign_signature_type"), nullable=True)
+    stamp_image_gcs_object_name = Column(Text, nullable=True)
+    stamp_image_sha256 = Column(String(64), nullable=True)
     adopted_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     recipient = relationship("EsignRecipient", back_populates="signature_records")

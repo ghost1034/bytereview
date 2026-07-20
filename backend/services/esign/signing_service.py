@@ -49,6 +49,8 @@ from models.esign import (
     EsignDeclineRequest,
     EsignEnvelopeResponse,
     EsignFieldValueInput,
+    EsignMarkArtifact,
+    EsignMarkBundle,
     EsignInboxItem,
     EsignInboxResponse,
     EsignSignatureInput,
@@ -428,10 +430,50 @@ class EsignSigningService:
                 fields_by_recipient.setdefault(str(field.recipient_id), []).append(field)
             for signer in [r for r in blocking if r.role in SIGNATURE_ROLES]:
                 signer_fields = fields_by_recipient.get(str(signer.id), [])
-                if not any(f.required for f in signer_fields):
-                    raise EsignError(f"Signature recipient {signer.name or signer.role_label or signer.id} has no required fields placed")
-                if not any(f.field_type == EsignFieldType.SIGNATURE for f in signer_fields):
-                    raise EsignError(f"Signature recipient {signer.name or signer.role_label or signer.id} has no signature field placed")
+                actionable_types = {
+                    EsignFieldType.SIGNATURE, EsignFieldType.INITIALS, EsignFieldType.STAMP,
+                    EsignFieldType.TEXT, EsignFieldType.NUMBER, EsignFieldType.DATE,
+                    EsignFieldType.COMPANY, EsignFieldType.TITLE, EsignFieldType.CHECKBOX,
+                    EsignFieldType.RADIO, EsignFieldType.DROPDOWN, EsignFieldType.ATTACHMENT,
+                }
+                if not any(
+                    f.field_type in actionable_types
+                    or (f.field_type == EsignFieldType.AUTO_FILL and (f.properties or {}).get("auto_source") == "company")
+                    for f in signer_fields
+                ):
+                    raise EsignError(
+                        f"Signature recipient {signer.name or signer.role_label or signer.id} has no actionable fields placed"
+                    )
+                for field in signer_fields:
+                    props = field.properties or {}
+                    locked_value = props.get("sender_prefill")
+                    if field.field_type in (EsignFieldType.CHECKBOX, EsignFieldType.RADIO):
+                        locked_value = locked_value == "true"
+                    grouped_selection = field.field_type == EsignFieldType.RADIO or bool(props.get("selection_group"))
+                    if field.required and props.get("read_only") and not grouped_selection and not locked_value:
+                        raise EsignError(f"Required locked field '{field.label or field.field_type.value}' has no value")
+                    if field.field_type == EsignFieldType.ATTACHMENT and not props.get("allowed_types"):
+                        raise EsignError(f"Attachment field '{field.label or 'attachment'}' has no allowed MIME types")
+                radio_groups: dict[str, list[EsignField]] = {}
+                checkbox_groups: dict[str, list[EsignField]] = {}
+                for field in signer_fields:
+                    props = field.properties or {}
+                    if field.field_type == EsignFieldType.RADIO:
+                        radio_groups.setdefault(str((props.get("group") or {}).get("id")), []).append(field)
+                    if field.field_type == EsignFieldType.CHECKBOX and props.get("selection_group"):
+                        checkbox_groups.setdefault(str(props["selection_group"].get("id")), []).append(field)
+                for members in radio_groups.values():
+                    if any(member.required for member in members) and all((member.properties or {}).get("read_only") for member in members):
+                        if sum((member.properties or {}).get("sender_prefill") == "true" for member in members) != 1:
+                            raise EsignError("Required locked radio group needs one default option")
+                for members in checkbox_groups.values():
+                    if all((member.properties or {}).get("read_only") for member in members):
+                        rules = (members[0].properties or {}).get("selection_group") or {}
+                        count = sum((member.properties or {}).get("sender_prefill") == "true" for member in members)
+                        if count < int(rules.get("minimum_selected", 0)) or (
+                            rules.get("maximum_selected") is not None and count > int(rules["maximum_selected"])
+                        ):
+                            raise EsignError("Locked checkbox group defaults do not satisfy its selection rule")
             for recipient in blocking:
                 if recipient.role not in (EsignRecipientRole.IN_PERSON_SIGNER, EsignRecipientRole.WITNESS) and not recipient.email:
                     raise EsignError("Every remote actionable recipient must have an email")
@@ -853,6 +895,10 @@ class EsignSigningService:
                 recipient_company=company,
                 date_format=getattr(envelope, "date_format", None) or "MM/DD/YYYY",
                 attachments=role_attachments,
+                draft_marks=(
+                    EsignMarkBundle.model_validate(recipient.draft_marks)
+                    if getattr(recipient, "draft_marks", None) else None
+                ),
                 sent_at=envelope.sent_at,
                 expires_at=envelope.expires_at,
                 brand=dict(envelope.brand_snapshot or {}) or None,
@@ -943,6 +989,7 @@ class EsignSigningService:
         user_email: str,
         envelope_id: str,
         field_values: list[EsignFieldValueInput], expected_routing_version: int,
+        marks: Optional[EsignMarkBundle] = None,
         recipient_id: Optional[str] = None,
     ) -> int:
         """Persist text/checkbox drafts so the signer can leave and resume.
@@ -965,6 +1012,9 @@ class EsignSigningService:
                 raise PermissionError("It is not your turn to sign yet")
 
             values_by_field = {str(v.field_id): v.value for v in field_values}
+            if marks is not None:
+                self._validate_mark_bundle(marks)
+                recipient.draft_marks = marks.model_dump(exclude_none=True)
             saved = 0
             for field in envelope.fields or []:
                 if str(field.recipient_id) != str(recipient.id):
@@ -1189,13 +1239,62 @@ class EsignSigningService:
             raise EsignError("Signature image must be a PNG")
         return content
 
+    def _validate_mark_artifact(
+        self, artifact: EsignMarkArtifact, *, stamp: bool = False,
+    ) -> Optional[bytes]:
+        if stamp and artifact.signature_type == EsignSignatureType.TYPED.value:
+            raise EsignError("Stamps must be drawn or uploaded images")
+        if artifact.signature_type in (
+            EsignSignatureType.DRAWN.value, EsignSignatureType.UPLOADED.value,
+        ):
+            return self._decode_signature_image(artifact.image_data_url or "")
+        if artifact.signature_type == EsignSignatureType.TYPED.value:
+            if not (artifact.typed_text or "").strip():
+                raise EsignError("Typed mark text is required")
+            if artifact.typed_font and artifact.typed_font not in ALLOWED_TYPED_FONTS:
+                raise EsignError(f"Unsupported signature font: {artifact.typed_font}")
+            return None
+        raise EsignError(f"Invalid signature type: {artifact.signature_type}")
+
+    def _validate_mark_bundle(self, marks: EsignMarkBundle) -> dict[str, Optional[bytes]]:
+        return {
+            name: self._validate_mark_artifact(artifact, stamp=name == "stamp")
+            for name in ("signature", "initials", "stamp")
+            if (artifact := getattr(marks, name)) is not None
+        }
+
+    @staticmethod
+    def _legacy_mark_bundle(signature: EsignSignatureInput) -> EsignMarkBundle:
+        signature_mark = EsignMarkArtifact(
+            signature_type=signature.signature_type,
+            image_data_url=signature.image_data_url,
+            typed_text=signature.typed_text,
+            typed_font=signature.typed_font,
+        )
+        source = (signature.initials_text or "").strip()
+        if not source:
+            source = "".join(
+                part[0].upper() for part in (signature.typed_text or "").split() if part
+            )[:20]
+        initials_mark = EsignMarkArtifact(
+            signature_type=(
+                signature.signature_type if signature.initials_image_data_url
+                else EsignSignatureType.TYPED.value
+            ),
+            image_data_url=signature.initials_image_data_url,
+            typed_text=source or "IN",
+            typed_font=signature.typed_font,
+        )
+        return EsignMarkBundle(signature=signature_mark, initials=initials_mark)
+
     async def submit_signature(
         self,
         *,
         user_id: str,
         user_email: str,
         envelope_id: str,
-        signature: EsignSignatureInput,
+        signature: Optional[EsignSignatureInput],
+        marks: Optional[EsignMarkBundle] = None,
         field_values: list[EsignFieldValueInput],
         expected_routing_version: int,
         meta: EsignRequestMeta,
@@ -1204,23 +1303,9 @@ class EsignSigningService:
         address: Optional[str] = None,
     ) -> EsignSubmitResponse:
         submission_types: set[str] = set()
-        # Validate + upload the signature image before opening the transaction.
-        image_bytes: Optional[bytes] = None
-        if signature.signature_type in (
-            EsignSignatureType.DRAWN.value,
-            EsignSignatureType.UPLOADED.value,
-        ):
-            image_bytes = self._decode_signature_image(signature.image_data_url or "")
-        elif signature.signature_type == EsignSignatureType.TYPED.value:
-            if not (signature.typed_text or "").strip():
-                raise EsignError("Typed signature text is required")
-            if signature.typed_font and signature.typed_font not in ALLOWED_TYPED_FONTS:
-                raise EsignError(f"Unsupported signature font: {signature.typed_font}")
-        else:
-            raise EsignError(f"Invalid signature type: {signature.signature_type}")
-        initials_image_bytes: Optional[bytes] = None
-        if signature.initials_image_data_url:
-            initials_image_bytes = self._decode_signature_image(signature.initials_image_data_url)
+        legacy_submission = marks is None and signature is not None
+        effective_marks = marks or (self._legacy_mark_bundle(signature) if signature else EsignMarkBundle())
+        mark_images = self._validate_mark_bundle(effective_marks)
 
         sealing_enqueued = False
         sealing_work_id: Optional[str] = None
@@ -1256,47 +1341,46 @@ class EsignSigningService:
 
             now = datetime.now(timezone.utc)
 
-            # Persist the adopted signature artifact.
-            image_object_name = None
-            image_sha = None
-            if image_bytes is not None:
-                image_object_name = (
-                    f"esign/{envelope.user_id}/{envelope.id}/signatures/{recipient.id}_{uuid.uuid4().hex[:8]}.png"
-                )
-                image_sha = sha256_hex(image_bytes)
+            artifacts = {
+                name: getattr(effective_marks, name)
+                for name in ("signature", "initials", "stamp")
+            }
+            object_names: dict[str, Optional[str]] = {name: None for name in artifacts}
+            image_hashes: dict[str, Optional[str]] = {name: None for name in artifacts}
+            for name, content in mark_images.items():
+                if content is not None:
+                    object_names[name] = (
+                        f"esign/{envelope.user_id}/{envelope.id}/signatures/"
+                        f"{recipient.id}_{uuid.uuid4().hex[:8]}_{name}.png"
+                    )
+                    image_hashes[name] = sha256_hex(content)
 
-            # Adopted initials: explicit text wins; otherwise derive from the
-            # adopted name so initials fields never render a full name.
-            initials_text = (signature.initials_text or "").strip()[:20] or None
-            if initials_text is None:
-                source = (signature.typed_text or "").strip() or recipient.name or ""
-                initials_text = (
-                    "".join(p[0].upper() for p in source.split() if p)[:20] or None
+            signature_record = None
+            first_artifact = next((item for item in artifacts.values() if item is not None), None)
+            if first_artifact is not None:
+                signature_mark = artifacts["signature"]
+                initials_mark = artifacts["initials"]
+                stamp_mark = artifacts["stamp"]
+                signature_record = EsignSignatureRecord(
+                    id=uuid.uuid4(), envelope_id=envelope.id, recipient_id=recipient.id,
+                    signature_type=EsignSignatureType(
+                        signature_mark.signature_type if signature_mark else first_artifact.signature_type
+                    ),
+                    image_gcs_object_name=object_names["signature"],
+                    image_sha256=image_hashes["signature"],
+                    typed_text=(signature_mark.typed_text or "").strip() or None if signature_mark else None,
+                    typed_font=signature_mark.typed_font if signature_mark else None,
+                    initials_type=EsignSignatureType(initials_mark.signature_type) if initials_mark else None,
+                    initials_typed_font=initials_mark.typed_font if initials_mark else None,
+                    initials_text=(initials_mark.typed_text or "").strip()[:20] or None if initials_mark else None,
+                    initials_image_gcs_object_name=object_names["initials"],
+                    initials_image_sha256=image_hashes["initials"],
+                    stamp_type=EsignSignatureType(stamp_mark.signature_type) if stamp_mark else None,
+                    stamp_image_gcs_object_name=object_names["stamp"],
+                    stamp_image_sha256=image_hashes["stamp"],
                 )
-            initials_object_name = None
-            initials_sha = None
-            if initials_image_bytes is not None:
-                initials_object_name = (
-                    f"esign/{envelope.user_id}/{envelope.id}/signatures/"
-                    f"{recipient.id}_{uuid.uuid4().hex[:8]}_initials.png"
-                )
-                initials_sha = sha256_hex(initials_image_bytes)
-
-            signature_record = EsignSignatureRecord(
-                id=uuid.uuid4(),
-                envelope_id=envelope.id,
-                recipient_id=recipient.id,
-                signature_type=EsignSignatureType(signature.signature_type),
-                image_gcs_object_name=image_object_name,
-                image_sha256=image_sha,
-                typed_text=(signature.typed_text or "").strip() or None,
-                typed_font=signature.typed_font,
-                initials_text=initials_text,
-                initials_image_gcs_object_name=initials_object_name,
-                initials_image_sha256=initials_sha,
-            )
-            db.add(signature_record)
-            db.flush()
+                db.add(signature_record)
+                db.flush()
 
             # Apply field values. Visibility and requiredness are recomputed on
             # the server; the client cannot bypass a conditional requirement.
@@ -1335,7 +1419,15 @@ class EsignSigningService:
                     # Missing completed is the expand-first compatibility path
                     # for clients deployed before per-instance completion.
                     completed = submission.completed if submission and submission.completed is not None else submission is None
-                    field.value = str(signature_record.id) if completed else None
+                    mark_name = field.field_type.value
+                    legacy_stamp = (
+                        legacy_submission
+                        and field.field_type == EsignFieldType.STAMP
+                        and (field.properties or {}).get("schema_version") != 2
+                    )
+                    if completed and artifacts.get(mark_name) is None and not legacy_stamp:
+                        raise EsignError(f"A distinct {mark_name.replace('_', ' ')} mark must be adopted")
+                    field.value = str(signature_record.id) if completed and signature_record else None
                 elif field.field_type == EsignFieldType.DATE_SIGNED:
                     field.value = format_date_signed(now, getattr(envelope, "date_format", None) or "MM/DD/YYYY")
                 elif field.field_type in (
@@ -1410,19 +1502,29 @@ class EsignSigningService:
             checkbox_groups: dict[str, list[EsignField]] = {}
             for field in my_fields:
                 props = field.properties or {}
-                label = str(props.get("data_label") or "")
-                if field.field_type == EsignFieldType.CHECKBOX and label and props.get("selection_validation"):
-                    checkbox_groups.setdefault(label, []).append(field)
-            for label, members in checkbox_groups.items():
-                rules = (members[0].properties or {}).get("selection_validation") or {}
+                selection_group = props.get("selection_group") or {}
+                group_id = str(selection_group.get("id") or "")
+                # Legacy envelopes grouped by shared data label. Schema-v2
+                # selection groups are deliberately independent from sharing.
+                if not group_id and props.get("selection_validation"):
+                    group_id = str(props.get("data_label") or "")
+                if field.field_type == EsignFieldType.CHECKBOX and group_id:
+                    checkbox_groups.setdefault(group_id, []).append(field)
+            for group_id, members in checkbox_groups.items():
+                first_props = members[0].properties or {}
+                rules = first_props.get("selection_group") or first_props.get("selection_validation") or {}
                 selected_count = sum(member.value == "true" for member in members if visible.get(str(member.id), True))
                 minimum = int(rules.get("minimum_selected", 0))
                 maximum = rules.get("maximum_selected")
                 if selected_count < minimum or (maximum is not None and selected_count > int(maximum)):
-                    raise EsignError(f"Checkbox group '{label}' selection count is invalid")
+                    message = rules.get("validation_message")
+                    label = rules.get("label") or group_id
+                    raise EsignError(message or f"Checkbox group '{label}' selection count is invalid")
 
             for field in my_fields:
                 if field.field_type in (EsignFieldType.FORMULA, EsignFieldType.RADIO):
+                    continue
+                if field.field_type == EsignFieldType.CHECKBOX and (field.properties or {}).get("selection_group"):
                     continue
                 if not resolve_required(field, all_fields, final_values, visible):
                     continue
@@ -1446,12 +1548,13 @@ class EsignSigningService:
 
             # Only touch object storage after every envelope, consent, routing,
             # field, conditional, and witness-evidence validation has passed.
-            if image_bytes is not None and image_object_name:
-                await self.storage.upload_file_content(image_bytes, image_object_name)
-                uploaded_objects.append(image_object_name)
-            if initials_image_bytes is not None and initials_object_name:
-                await self.storage.upload_file_content(initials_image_bytes, initials_object_name)
-                uploaded_objects.append(initials_object_name)
+            for name, content in mark_images.items():
+                object_name = object_names.get(name)
+                if content is not None and object_name:
+                    await self.storage.upload_file_content(content, object_name)
+                    uploaded_objects.append(object_name)
+
+            recipient.draft_marks = None
 
             recipient.status = EsignRecipientStatus.SIGNED
             recipient.signed_at = now
@@ -1468,11 +1571,13 @@ class EsignSigningService:
                 recipient_id=recipient.id,
                 meta=meta,
                 details={
-                    "signature_record_id": str(signature_record.id),
-                    "signature_type": signature.signature_type,
-                    "signature_image_sha256": image_sha,
-                    "initials_text": initials_text,
-                    "initials_image_sha256": initials_sha,
+                    "signature_record_id": str(signature_record.id) if signature_record else None,
+                    "signature_type": artifacts["signature"].signature_type if artifacts["signature"] else None,
+                    "signature_image_sha256": image_hashes["signature"],
+                    "initials_text": artifacts["initials"].typed_text if artifacts["initials"] else None,
+                    "initials_image_sha256": image_hashes["initials"],
+                    "stamp_image_sha256": image_hashes["stamp"],
+                    "legacy_mark_fallback": legacy_submission,
                     "field_count": len(my_fields),
                     "consent_record_id": str(consent.id),
                     "occupation": occupation,

@@ -11,7 +11,7 @@ interface PdfPageCanvasProps {
   pageNumber: number
   className?: string
   /** Rendered when the page has a size; receives the display size in CSS px. */
-  overlay?: (size: { width: number; height: number }) => React.ReactNode
+  overlay?: (size: { width: number; height: number; scale: number }) => React.ReactNode
 }
 
 /**
@@ -25,6 +25,7 @@ export function PdfPageCanvas({ pdf, pageNumber, className, overlay }: PdfPageCa
   const [visible, setVisible] = React.useState(false)
   const [containerWidth, setContainerWidth] = React.useState(0)
   const [aspectRatio, setAspectRatio] = React.useState<number | null>(null)
+  const [baseWidth, setBaseWidth] = React.useState<number | null>(null)
   const renderTaskRef = React.useRef<{ cancel: () => void } | null>(null)
 
   // Track container width
@@ -60,6 +61,7 @@ export function PdfPageCanvas({ pdf, pageNumber, className, overlay }: PdfPageCa
       if (cancelled) return
       const viewport = page.getViewport({ scale: 1 })
       setAspectRatio(viewport.height / viewport.width)
+      setBaseWidth(viewport.width)
     })
     return () => {
       cancelled = true
@@ -113,7 +115,7 @@ export function PdfPageCanvas({ pdf, pageNumber, className, overlay }: PdfPageCa
     >
       <canvas ref={canvasRef} className="block" />
       {overlay && containerWidth > 0 && displayHeight
-        ? overlay({ width: containerWidth, height: displayHeight })
+        ? overlay({ width: containerWidth, height: displayHeight, scale: baseWidth ? containerWidth / baseWidth : 1 })
         : null}
     </div>
   )
