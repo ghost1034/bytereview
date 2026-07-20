@@ -27,6 +27,7 @@ import {
   type AdoptedSignature,
 } from '@/components/esign/sign/SignatureAdoptionModal'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
@@ -288,6 +289,10 @@ function SignedDocViewer({
   )
 }
 
+function ReadOnlyDocuments({ session }: { session: NonNullable<ReturnType<typeof useSigningSession>['data']> }) {
+  return <div className="space-y-8 rounded-lg bg-surface-muted p-3 sm:p-5">{(session.documents ?? []).map((doc) => <div key={doc.id} className="space-y-2">{session.documents.length > 1 && <h2 className="text-sm font-medium text-foreground-muted">{doc.original_filename}</h2>}<SignedDocViewer url={doc.download_url} name={doc.original_filename} fields={[]} fieldValues={{}} adopted={null} activeFieldId={null} onFieldClick={() => {}} onTextChange={() => {}} attachments={[]} onAttachmentUpload={() => {}} onAttachmentDelete={() => {}} /></div>)}</div>
+}
+
 export default function SigningCeremonyPage() {
   const params = useParams<{ envelopeId: string }>()
   const envelopeId = params?.envelopeId
@@ -311,6 +316,15 @@ export default function SigningCeremonyPage() {
   const [guideStarted, setGuideStarted] = React.useState(false)
   const [activeFieldId, setActiveFieldId] = React.useState<string | null>(null)
   const [pendingApplyFieldId, setPendingApplyFieldId] = React.useState<string | null>(null)
+  const [roleBusy, setRoleBusy] = React.useState(false)
+  const [handoffName, setHandoffName] = React.useState('')
+  const [guestLink, setGuestLink] = React.useState<string | null>(null)
+  const [witnessName, setWitnessName] = React.useState('')
+  const [witnessEmail, setWitnessEmail] = React.useState('')
+  const [replacementName, setReplacementName] = React.useState('')
+  const [replacementEmail, setReplacementEmail] = React.useState('')
+  const [reassignmentReason, setReassignmentReason] = React.useState('')
+  const [managedValues, setManagedValues] = React.useState<Record<string, { name: string; email: string }>>({})
 
   const session = sessionQuery.data
 
@@ -325,13 +339,21 @@ export default function SigningCeremonyPage() {
     }
   }, [session])
 
+  React.useEffect(() => {
+    if (!session?.managed_recipients) return
+    setManagedValues(Object.fromEntries((session.managed_recipients ?? []).map((recipient) => [recipient.id, { name: recipient.name ?? '', email: recipient.email ?? '' }])))
+  }, [session?.managed_recipients])
+
   // Save signer entries as they work; Finish Later remains an explicit exit.
   React.useEffect(() => {
     if (!session || session.consent_required || session.recipient_role === 'cc') return
     if (Object.keys(fieldValues).length === 0) return
     const timer = window.setTimeout(() => {
       saveProgress.mutate(
-        Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
+        {
+          fieldValues: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
+          expectedRoutingVersion: session.routing_version,
+        },
       )
     }, 1000)
     return () => window.clearTimeout(timer)
@@ -389,6 +411,29 @@ export default function SigningCeremonyPage() {
   }
 
   if (!session) return null
+
+  const handleRoleDecline = async (reason: string) => {
+    try {
+      await declineEnvelope.mutateAsync({ reason, expectedRoutingVersion: session.routing_version })
+      setDeclineOpen(false)
+      setCeremonyState('declined')
+    } catch (error) {
+      toast({ title: 'Failed to decline', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
+    }
+  }
+  const performReassignment = async () => {
+    setRoleBusy(true)
+    try {
+      await apiClient.reassignEsignRecipient(session.envelope_id, {
+        replacement_name: replacementName.trim(), replacement_email: replacementEmail.trim(),
+        reason: reassignmentReason.trim(), expected_routing_version: session.routing_version,
+      })
+      setCeremonyState('submitted')
+      toast({ title: 'Recipient reassigned', description: 'Your access has been revoked and the replacement now owns this routing slot.' })
+    } catch (error) {
+      toast({ title: 'Reassignment failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
+    } finally { setRoleBusy(false) }
+  }
 
   if (session.envelope_status === 'completed') {
     const openDownload = async (kind: 'sealed' | 'certificate') => {
@@ -478,6 +523,50 @@ export default function SigningCeremonyPage() {
     )
   }
 
+  if (['approver', 'certified_delivery', 'agent', 'editor', 'in_person_signer'].includes(session.recipient_role)) {
+    const roleLabel = session.recipient_role.replace(/_/g, ' ')
+    const act = async (action: 'approve' | 'manager' | 'handoff') => {
+      setRoleBusy(true)
+      try {
+        if (action === 'approve') {
+          await apiClient.approveEsignEnvelope(session.envelope_id, session.routing_version)
+          setCeremonyState('submitted')
+        } else if (action === 'manager') {
+          await apiClient.completeEsignManagerStep(session.envelope_id, session.routing_version)
+          setCeremonyState('submitted')
+        } else {
+          const invitation = await apiClient.startEsignInPerson(session.envelope_id, { signer_name: handoffName, expected_routing_version: session.routing_version })
+          setGuestLink(invitation.guest_url)
+        }
+      } catch (error) {
+        toast({ title: 'Action could not be completed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
+      } finally { setRoleBusy(false) }
+    }
+    const saveManaged = async () => {
+      setRoleBusy(true)
+      try {
+        await apiClient.updateEsignManagedRecipients(session.envelope_id, {
+          expected_routing_version: session.routing_version,
+          recipients: Object.entries(managedValues).map(([recipient_id, value]) => ({ recipient_id, ...value })),
+        })
+        await sessionQuery.refetch()
+        toast({ title: 'Recipient identities updated' })
+      } catch (error) {
+        toast({ title: 'Recipients could not be updated', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
+      } finally { setRoleBusy(false) }
+    }
+    return <div className="space-y-5">
+      <div className="sticky top-0 z-40 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface/95 px-4 py-3 backdrop-blur"><div><h1 className="text-base font-semibold">{session.title}</h1><p className="text-xs capitalize text-foreground-muted">{roleLabel} ceremony · routing version {session.routing_version}</p></div><div className="flex gap-2">{(session.available_actions ?? []).includes('decline') && <Button variant="outline" onClick={() => setDeclineOpen(true)}>Decline</Button>}{(session.available_actions ?? []).includes('approve') && <Button disabled={roleBusy} onClick={() => void act('approve')}>Approve</Button>}{(session.available_actions ?? []).includes('manager_complete') && <Button disabled={roleBusy} onClick={() => void act('manager')}>Complete step</Button>}</div></div>
+      {session.private_message && <p className="rounded-lg border border-primary/20 bg-primary-soft p-4 text-sm"><span className="font-medium">Private message:</span> {session.private_message}</p>}
+      {(session.available_actions ?? []).includes('reassign') && <section className="grid gap-2 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3"><Input placeholder="Replacement name" value={replacementName} onChange={(event) => setReplacementName(event.target.value)} /><Input type="email" placeholder="Replacement email" value={replacementEmail} onChange={(event) => setReplacementEmail(event.target.value)} /><Input placeholder="Reason (required)" value={reassignmentReason} onChange={(event) => setReassignmentReason(event.target.value)} /><Button variant="outline" disabled={roleBusy || !replacementName.trim() || !replacementEmail.trim() || !reassignmentReason.trim()} onClick={() => void performReassignment()}>Reassign this step</Button></section>}
+      {session.recipient_role === 'certified_delivery' && <p className="rounded-lg border border-success/30 bg-success-soft p-4 text-sm">Delivery was recorded when this authenticated document session opened. No signature is required.</p>}
+      {['agent', 'editor'].includes(session.recipient_role) && <section className="space-y-3 rounded-lg border border-border bg-surface p-4"><div><h2 className="font-semibold">Managed recipients</h2><p className="text-sm text-foreground-muted">Resolve assigned placeholders. Editors may update any outstanding recipient.</p></div>{(session.managed_recipients ?? []).map((recipient) => <div key={recipient.id} className="grid gap-2 sm:grid-cols-2"><Input aria-label={`${recipient.role_label ?? 'Recipient'} name`} placeholder={recipient.role_label ?? 'Recipient name'} value={managedValues[recipient.id]?.name ?? ''} onChange={(event) => setManagedValues((current) => ({ ...current, [recipient.id]: { ...(current[recipient.id] ?? { email: '' }), name: event.target.value } }))} /><Input type="email" aria-label={`${recipient.role_label ?? 'Recipient'} email`} placeholder="recipient@example.com" value={managedValues[recipient.id]?.email ?? ''} onChange={(event) => setManagedValues((current) => ({ ...current, [recipient.id]: { ...(current[recipient.id] ?? { name: '' }), email: event.target.value } }))} /></div>)}<Button variant="outline" disabled={roleBusy || !(session.managed_recipients ?? []).length} onClick={() => void saveManaged()}>Save identities</Button></section>}
+      {session.recipient_role === 'in_person_signer' && <section className="space-y-3 rounded-lg border border-border bg-surface p-4"><h2 className="font-semibold">Hosted handoff</h2><p className="text-sm text-foreground-muted">Confirm the person signing on this device, then hand them the screen for consent and signing.</p><Input placeholder="In-person signer name" value={handoffName} onChange={(event) => setHandoffName(event.target.value)} /><Button disabled={roleBusy || !handoffName.trim()} onClick={() => void act('handoff')}>Start secure handoff</Button>{guestLink && <Button asChild variant="outline"><Link href={guestLink}>Continue to guest ceremony</Link></Button>}</section>}
+      <ReadOnlyDocuments session={session} />
+      <DeclineDialog open={declineOpen} onOpenChange={setDeclineOpen} declining={declineEnvelope.isPending} onDecline={handleRoleDecline} />
+    </div>
+  }
+
   // ---- copy recipient (read-only) ----------------------------------------
   if (session.recipient_role === 'cc') {
     return (
@@ -498,30 +587,7 @@ export default function SigningCeremonyPage() {
             {session.message}
           </p>
         )}
-        <div className="space-y-8 rounded-lg bg-surface-muted p-3 sm:p-5">
-          {(session.documents ?? []).map((doc) => (
-            <div key={doc.id} className="space-y-2">
-              {(session.documents ?? []).length > 1 && (
-                <h2 className="text-sm font-medium text-foreground-muted">
-                  {doc.original_filename}
-                </h2>
-              )}
-              <SignedDocViewer
-                url={doc.download_url}
-                name={doc.original_filename}
-                fields={[]}
-                fieldValues={{}}
-                adopted={null}
-                activeFieldId={null}
-                onFieldClick={() => {}}
-                onTextChange={() => {}}
-                attachments={[]}
-                onAttachmentUpload={() => {}}
-                onAttachmentDelete={() => {}}
-              />
-            </div>
-          ))}
-        </div>
+        <ReadOnlyDocuments session={session} />
       </div>
     )
   }
@@ -625,6 +691,7 @@ export default function SigningCeremonyPage() {
         else if (Object.prototype.hasOwnProperty.call(fieldValues, field.id)) submittedFields.push({ field_id: field.id, value: fieldValues[field.id] })
       }
       const result = await submitSignature.mutateAsync({
+        expected_routing_version: session.routing_version,
         signature: {
           signature_type: adopted.signatureType,
           image_data_url: adopted.imageDataUrl,
@@ -653,9 +720,10 @@ export default function SigningCeremonyPage() {
 
   const handleFinishLater = async () => {
     try {
-      await saveProgress.mutateAsync(
-        Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
-      )
+      await saveProgress.mutateAsync({
+        fieldValues: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
+        expectedRoutingVersion: session.routing_version,
+      })
       toast({
         title: 'Progress saved',
         description: 'You can resume signing anytime from your E-Signature inbox.',
@@ -672,7 +740,7 @@ export default function SigningCeremonyPage() {
 
   const handleDecline = async (reason: string) => {
     try {
-      await declineEnvelope.mutateAsync(reason)
+      await declineEnvelope.mutateAsync({ reason, expectedRoutingVersion: session.routing_version })
       setDeclineOpen(false)
       setCeremonyState('declined')
     } catch (error) {
@@ -743,6 +811,22 @@ export default function SigningCeremonyPage() {
           {session.message}
         </p>
       )}
+      {session.private_message && (
+        <p className="rounded-lg border border-primary/20 bg-primary-soft p-4 text-sm">
+          <span className="font-medium">Private message:</span> {session.private_message}
+        </p>
+      )}
+      {(session.available_actions ?? []).includes('configure_witness') && (
+        <section className="space-y-3 rounded-lg border border-border bg-surface p-4">
+          <div><h2 className="font-semibold">Confirm your witness</h2><p className="text-sm text-foreground-muted">The witness signs after you through an audited guest invitation.</p></div>
+          <div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Witness full name" value={witnessName} onChange={(event) => setWitnessName(event.target.value)} /><Input type="email" placeholder="Witness email (optional)" value={witnessEmail} onChange={(event) => setWitnessEmail(event.target.value)} /></div>
+          <Button variant="outline" disabled={roleBusy || !witnessName.trim()} onClick={async () => { setRoleBusy(true); try { const invitation = await apiClient.configureEsignWitness(session.envelope_id, { name: witnessName.trim(), email: witnessEmail.trim() || null, expected_routing_version: session.routing_version }); setGuestLink(invitation.guest_url); await sessionQuery.refetch(); toast({ title: 'Witness confirmed', description: 'The secure invitation is ready for the witness after you finish.' }) } catch (error) { toast({ title: 'Witness could not be configured', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } finally { setRoleBusy(false) } }}>Confirm witness</Button>
+          {guestLink && <p className="break-all rounded bg-surface-muted p-2 text-xs text-foreground-muted">Guest invitation: {guestLink}</p>}
+        </section>
+      )}
+      {(session.available_actions ?? []).includes('reassign') && (
+        <section className="grid gap-2 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3"><Input placeholder="Replacement name" value={replacementName} onChange={(event) => setReplacementName(event.target.value)} /><Input type="email" placeholder="Replacement email" value={replacementEmail} onChange={(event) => setReplacementEmail(event.target.value)} /><Input placeholder="Reason (required)" value={reassignmentReason} onChange={(event) => setReassignmentReason(event.target.value)} /><Button variant="outline" disabled={roleBusy || !replacementName.trim() || !replacementEmail.trim() || !reassignmentReason.trim()} onClick={() => void performReassignment()}>Reassign this step</Button></section>
+      )}
 
       {/* Floating guided-navigation button (DocuSign-style Start/Next). */}
       {!session.consent_required && (
@@ -805,7 +889,7 @@ export default function SigningCeremonyPage() {
           agreeing={recordConsent.isPending}
           onAgree={async () => {
             try {
-              await recordConsent.mutateAsync()
+              await recordConsent.mutateAsync(session.routing_version)
             } catch (error) {
               toast({
                 title: 'Failed to record consent',

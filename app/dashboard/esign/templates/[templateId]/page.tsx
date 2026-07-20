@@ -73,8 +73,10 @@ export default function EsignTemplateEditPage() {
     staleTime: 10 * 60 * 1000,
   })
 
-  const roles = ((template?.recipient_roles as { label?: string }[] | undefined) ?? []).map(
-    (role, index) => ({
+  const roles = ((template?.recipient_roles as { label?: string; role?: string }[] | undefined) ?? []).map(
+    (role, index) => ({ role, index }),
+  ).filter(({ role }) => ['signer', 'witness', 'in_person_signer'].includes(role.role ?? 'signer')).map(
+    ({ role, index }) => ({
       id: String(index),
       label: role.label || `Signer ${index + 1}`,
     }),

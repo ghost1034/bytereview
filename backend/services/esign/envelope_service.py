@@ -26,6 +26,7 @@ from models.db_models import (
     EsignField,
     EsignFieldType,
     EsignRecipient,
+    EsignRecipientChange,
     EsignRecipientRole,
     EsignRecipientStatus,
     EsignSigningType,
@@ -45,6 +46,7 @@ from models.esign import (
     EsignFieldInput,
     EsignFieldResponse,
     EsignRecipientInput,
+    EsignRecipientChangeResponse,
     EsignRecipientResponse,
     EsignTemplateDocumentResponse,
     EsignTemplateFieldInput,
@@ -173,6 +175,14 @@ class EsignEnvelopeService:
             role=recipient.role.value if hasattr(recipient.role, "value") else str(recipient.role),
             routing_order=int(recipient.routing_order),
             status=recipient.status.value if hasattr(recipient.status, "value") else str(recipient.status),
+            role_label=getattr(recipient, "role_label", None),
+            private_message=getattr(recipient, "private_message", None),
+            managed_by_recipient_id=str(recipient.managed_by_recipient_id) if getattr(recipient, "managed_by_recipient_id", None) else None,
+            witness_for_recipient_id=str(recipient.witness_for_recipient_id) if getattr(recipient, "witness_for_recipient_id", None) else None,
+            host_name=getattr(recipient, "host_name", None),
+            host_email=getattr(recipient, "host_email", None),
+            allow_reassignment=bool(getattr(recipient, "allow_reassignment", False)),
+            action_completed_at=getattr(recipient, "action_completed_at", None),
             viewed_at=recipient.viewed_at,
             consented_at=recipient.consented_at,
             signed_at=recipient.signed_at,
@@ -200,6 +210,8 @@ class EsignEnvelopeService:
             signing_type=envelope.signing_type.value if hasattr(envelope.signing_type, "value") else str(envelope.signing_type),
             date_format=getattr(envelope, "date_format", None) or "MM/DD/YYYY",
             current_routing_order=envelope.current_routing_order,
+            routing_version=int(getattr(envelope, "routing_version", 1) or 1),
+            allow_reassignment=bool(getattr(envelope, "allow_reassignment", False)),
             consent_disclosure_text=envelope.consent_disclosure_text,
             expires_at=envelope.expires_at,
             reminder_interval_hours=envelope.reminder_interval_hours,
@@ -630,6 +642,8 @@ class EsignEnvelopeService:
                 envelope.expires_at = payload.expires_at
             if payload.reminder_interval_hours is not None:
                 envelope.reminder_interval_hours = payload.reminder_interval_hours
+            if payload.allow_reassignment is not None:
+                envelope.allow_reassignment = payload.allow_reassignment
             db.commit()
             db.refresh(envelope)
             return self._serialize_envelope(envelope)
@@ -648,11 +662,16 @@ class EsignEnvelopeService:
         if len(recipients) > MAX_RECIPIENTS:
             raise EsignError(f"At most {MAX_RECIPIENTS} recipients per envelope")
 
-        emails = [_normalize_email(r.email) for r in recipients]
+        emails = [
+            _normalize_email(value)
+            for recipient in recipients
+            for value in (recipient.email, recipient.host_email)
+            if value
+        ]
         if len(set(emails)) != len(emails):
             raise EsignError("Duplicate recipient emails are not allowed")
-        if not any(r.role == EsignRecipientRole.SIGNER.value for r in recipients):
-            raise EsignError("At least one recipient must be a signer")
+        if not any(r.role != EsignRecipientRole.CC.value for r in recipients):
+            raise EsignError("At least one actionable recipient is required")
 
         db = self._get_session()
         try:
@@ -661,11 +680,12 @@ class EsignEnvelopeService:
 
             existing = {str(recipient.id): recipient for recipient in envelope.recipients or []}
             existing_by_email = {
-                _normalize_email(recipient.email): recipient for recipient in envelope.recipients or []
+                _normalize_email(recipient.email): recipient for recipient in envelope.recipients or [] if recipient.email
             }
             kept_ids: set[str] = set()
+            created_recipients: list[EsignRecipient] = []
             for r in recipients:
-                if r.role not in (EsignRecipientRole.SIGNER.value, EsignRecipientRole.CC.value):
+                if r.role not in {role.value for role in EsignRecipientRole}:
                     raise EsignError(f"Invalid recipient role: {r.role}")
                 recipient = None
                 if r.id:
@@ -676,7 +696,7 @@ class EsignEnvelopeService:
                     if recipient is None:
                         raise EsignError(f"Recipient id {r.id} does not belong to this envelope")
                 if recipient is None:
-                    candidate = existing_by_email.get(_normalize_email(r.email))
+                    candidate = existing_by_email.get(_normalize_email(r.email)) if r.email else None
                     if candidate and str(candidate.id) not in kept_ids:
                         recipient = candidate
                 if recipient is None:
@@ -686,11 +706,38 @@ class EsignEnvelopeService:
                         status=EsignRecipientStatus.PENDING,
                     )
                     db.add(recipient)
-                recipient.email = _normalize_email(r.email)
-                recipient.name = r.name.strip()[:255]
+                    created_recipients.append(recipient)
+                recipient.email = _normalize_email(r.email) or None
+                recipient.name = r.name.strip()[:255] if r.name else None
                 recipient.role = EsignRecipientRole(r.role)
                 recipient.routing_order = int(r.routing_order)
+                recipient.role_label = r.role_label
+                recipient.private_message = r.private_message
+                recipient.managed_by_recipient_id = uuid.UUID(r.managed_by_recipient_id) if r.managed_by_recipient_id else None
+                recipient.witness_for_recipient_id = uuid.UUID(r.witness_for_recipient_id) if r.witness_for_recipient_id else None
+                recipient.host_name = r.host_name
+                recipient.host_email = _normalize_email(r.host_email) or None
+                recipient.allow_reassignment = r.allow_reassignment
                 kept_ids.add(str(recipient.id))
+
+            db.flush()
+            kept = {
+                str(recipient.id): recipient
+                for recipient in [*(envelope.recipients or []), *created_recipients]
+                if str(recipient.id) in kept_ids
+            }
+            for recipient in kept.values():
+                if recipient.managed_by_recipient_id:
+                    manager = kept.get(str(recipient.managed_by_recipient_id))
+                    if manager is None or manager.role not in (EsignRecipientRole.AGENT, EsignRecipientRole.EDITOR):
+                        raise EsignError("Managed recipients must reference an agent or editor in this envelope")
+                    if int(recipient.routing_order) < int(manager.routing_order):
+                        raise EsignError("A managed recipient cannot route before its agent or editor")
+                if recipient.witness_for_recipient_id:
+                    signer = kept.get(str(recipient.witness_for_recipient_id))
+                    if recipient.role != EsignRecipientRole.WITNESS or signer is None or signer.role != EsignRecipientRole.SIGNER:
+                        raise EsignError("Witness recipients must reference a signer in this envelope")
+                    recipient.routing_order = signer.routing_order
 
             deleted_ids = [recipient.id for key, recipient in existing.items() if key not in kept_ids]
             if deleted_ids:
@@ -736,8 +783,12 @@ class EsignEnvelopeService:
                 recipient = recipient_ids.get(str(f.recipient_id))
                 if not recipient:
                     raise EsignError(f"Unknown recipient_id: {f.recipient_id}")
-                if recipient.role == EsignRecipientRole.CC:
-                    raise EsignError("Fields cannot be assigned to CC recipients")
+                if recipient.role not in (
+                    EsignRecipientRole.SIGNER,
+                    EsignRecipientRole.WITNESS,
+                    EsignRecipientRole.IN_PERSON_SIGNER,
+                ):
+                    raise EsignError("Fields can only be assigned to signer, witness, or in-person signer roles")
                 if f.field_type not in {t.value for t in EsignFieldType}:
                     raise EsignError(f"Invalid field type: {f.field_type}")
                 if f.page_number >= (doc.page_count or 0):
@@ -842,7 +893,10 @@ class EsignEnvelopeService:
             )
             items = []
             for env in envelopes:
-                signers = [r for r in (env.recipients or []) if r.role == EsignRecipientRole.SIGNER]
+                signers = [
+                    r for r in (env.recipients or [])
+                    if r.role in (EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER)
+                ]
                 items.append(
                     EsignEnvelopeListItem(
                         id=str(env.id),
@@ -890,9 +944,22 @@ class EsignEnvelopeService:
                 .order_by(EsignEvent.created_at.asc())
                 .all()
             )
+            changes = (
+                db.query(EsignRecipientChange)
+                .filter(EsignRecipientChange.envelope_id == envelope.id)
+                .order_by(EsignRecipientChange.created_at.asc())
+                .all()
+            )
             return EsignAuditTrailResponse(
                 envelope_id=str(envelope.id),
                 events=[self._serialize_event(e) for e in events],
+                recipient_changes=[EsignRecipientChangeResponse(
+                    id=str(change.id), recipient_id=str(change.recipient_id) if change.recipient_id else None,
+                    envelope_version=change.envelope_version, change_type=change.change_type,
+                    actor_email=change.actor_email, reason=change.reason,
+                    before_snapshot=change.before_snapshot, after_snapshot=change.after_snapshot,
+                    created_at=change.created_at,
+                ) for change in changes],
             )
         finally:
             db.close()

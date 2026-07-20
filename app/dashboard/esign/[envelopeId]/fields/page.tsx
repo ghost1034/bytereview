@@ -116,7 +116,7 @@ export default function EnvelopeFieldsPage() {
     staleTime: 10 * 60 * 1000,
   })
 
-  const signers = envelope?.recipients.filter((recipient) => recipient.role === 'signer') ?? []
+  const signers = envelope?.recipients.filter((recipient) => ['signer', 'witness', 'in_person_signer'].includes(recipient.role)) ?? []
   const issues = collectFieldIssues(editorFields, signers.map((recipient) => recipient.id))
   const openReview = async () => { if (await saveNow()) setReviewOpen(true) }
   const handleSend = async () => {

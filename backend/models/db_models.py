@@ -1150,6 +1150,12 @@ class EsignSigningType(str, enum.Enum):
 class EsignRecipientRole(str, enum.Enum):
     SIGNER = "signer"
     CC = "cc"
+    APPROVER = "approver"
+    CERTIFIED_DELIVERY = "certified_delivery"
+    AGENT = "agent"
+    EDITOR = "editor"
+    WITNESS = "witness"
+    IN_PERSON_SIGNER = "in_person_signer"
 
 
 class EsignRecipientStatus(str, enum.Enum):
@@ -1158,6 +1164,9 @@ class EsignRecipientStatus(str, enum.Enum):
     VIEWED = "viewed"
     CONSENTED = "consented"
     SIGNED = "signed"
+    APPROVED = "approved"
+    DELIVERED = "delivered"
+    MANAGED = "managed"
     DECLINED = "declined"
 
 
@@ -1203,6 +1212,16 @@ class EsignEventType(str, enum.Enum):
     SEALED = "sealed"
     EXPIRED = "expired"
     EXPIRATION_WARNING = "expiration_warning"
+    CORRECTED = "corrected"
+    REASSIGNED = "reassigned"
+    APPROVED = "approved"
+    DELIVERED = "delivered"
+    MANAGER_ACTION = "manager_action"
+    WITNESS_CONFIGURED = "witness_configured"
+    HOST_HANDOFF = "host_handoff"
+    GUEST_INVITATION_EXCHANGED = "guest_invitation_exchanged"
+    GUEST_CONSENT_GIVEN = "guest_consent_given"
+    ROUTING_ADVANCED = "routing_advanced"
 
 
 def _esign_enum(enum_cls, type_name: str):
@@ -1247,6 +1266,8 @@ class EsignEnvelope(Base):
     # Sender-selected display format shared by editable dates and date-signed.
     date_format = Column(String(32), nullable=False, default="MM/DD/YYYY", server_default="MM/DD/YYYY")
     current_routing_order = Column(Integer, nullable=True)  # set when sent
+    routing_version = Column(Integer, nullable=False, default=1, server_default="1")
+    allow_reassignment = Column(Boolean, nullable=False, default=False, server_default=expression.false())
     # Snapshot of the ESIGN/UETA consent disclosure shown to signers; immutable
     # per envelope so consent records can be tied to the exact text.
     consent_disclosure_text = Column(Text, nullable=False)
@@ -1315,8 +1336,8 @@ class EsignRecipient(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=False)
-    email = Column(String(255), nullable=False)  # always lowercased
-    name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=True)  # always lowercased; null for unresolved placeholders
+    name = Column(String(255), nullable=True)
     # Resolved lazily on the recipient's first authenticated access.
     recipient_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     role = Column(
@@ -1325,6 +1346,18 @@ class EsignRecipient(Base):
         server_default=EsignRecipientRole.SIGNER.value,
     )
     routing_order = Column(Integer, nullable=False, default=1)
+    role_label = Column(String(255), nullable=True)
+    private_message = Column(Text, nullable=True)
+    managed_by_recipient_id = Column(
+        UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="RESTRICT"), nullable=True
+    )
+    witness_for_recipient_id = Column(
+        UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="RESTRICT"), nullable=True
+    )
+    host_name = Column(String(255), nullable=True)
+    host_email = Column(String(255), nullable=True)
+    host_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    allow_reassignment = Column(Boolean, nullable=False, default=False, server_default=expression.false())
     status = Column(
         _esign_enum(EsignRecipientStatus, "esign_recipient_status"),
         nullable=False,
@@ -1335,6 +1368,8 @@ class EsignRecipient(Base):
     signed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     declined_at = Column(TIMESTAMP(timezone=True), nullable=True)
     declined_reason = Column(Text, nullable=True)
+    action_completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    identity_changed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
@@ -1342,11 +1377,75 @@ class EsignRecipient(Base):
     fields = relationship("EsignField", back_populates="recipient", cascade="all, delete-orphan")
     signature_records = relationship("EsignSignatureRecord", back_populates="recipient")
     consent_records = relationship("EsignConsentRecord", back_populates="recipient")
+    managed_by = relationship("EsignRecipient", remote_side=[id], foreign_keys=[managed_by_recipient_id])
+    witness_for = relationship("EsignRecipient", remote_side=[id], foreign_keys=[witness_for_recipient_id])
 
     __table_args__ = (
-        Index("uq_esign_recipients_envelope_email", "envelope_id", "email", unique=True),
+        Index(
+            "uq_esign_recipients_envelope_email", "envelope_id", "email", unique=True,
+            postgresql_where=text("email IS NOT NULL"),
+        ),
         Index("ix_esign_recipients_email", "email"),
     )
+
+
+class EsignRecipientChange(Base):
+    """Immutable recipient correction/reassignment evidence."""
+    __tablename__ = "esign_recipient_changes"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
+    # Deliberately not an FK: removed recipients retain their immutable UUID in
+    # the assignment chain without an ON DELETE mutation of this append-only row.
+    recipient_id = Column(UUID(as_uuid=True), nullable=True)
+    envelope_version = Column(Integer, nullable=False)
+    change_type = Column(String(64), nullable=False)
+    actor_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    actor_email = Column(String(255), nullable=True)
+    reason = Column(Text, nullable=False)
+    before_snapshot = Column(JSONB, nullable=True)
+    after_snapshot = Column(JSONB, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (Index("ix_esign_recipient_changes_envelope", "envelope_id", "created_at"),)
+
+
+class EsignGuestInvitation(Base):
+    """Single-use, hashed invitation for a witness or hosted signer."""
+    __tablename__ = "esign_guest_invitations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
+    recipient_id = Column(UUID(as_uuid=True), nullable=False)
+    token_sha256 = Column(String(64), unique=True, nullable=False)
+    routing_version = Column(Integer, nullable=False)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    exchanged_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (Index("ix_esign_guest_invitations_recipient", "recipient_id"),)
+
+
+class EsignGuestSession(Base):
+    """Hashed guest-cookie session with idle/absolute expiry and one-time completion."""
+    __tablename__ = "esign_guest_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    envelope_id = Column(UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="RESTRICT"), nullable=False)
+    recipient_id = Column(UUID(as_uuid=True), nullable=False)
+    invitation_id = Column(UUID(as_uuid=True), ForeignKey("esign_guest_invitations.id", ondelete="RESTRICT"), nullable=False)
+    token_sha256 = Column(String(64), unique=True, nullable=False)
+    csrf_sha256 = Column(String(64), nullable=False)
+    routing_version = Column(Integer, nullable=False)
+    last_seen_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    idle_expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    absolute_expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    consumed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (Index("ix_esign_guest_sessions_recipient", "recipient_id"),)
 
 
 class EsignField(Base):
@@ -1462,7 +1561,9 @@ class EsignEvent(Base):
     event_type = Column(_esign_enum(EsignEventType, "esign_event_type"), nullable=False)
     actor_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     actor_email = Column(String(255), nullable=True)  # denormalized snapshot
-    recipient_id = Column(UUID(as_uuid=True), ForeignKey("esign_recipients.id", ondelete="SET NULL"), nullable=True)
+    # Immutable recipient UUID snapshot. No FK: recipient correction may remove
+    # an outstanding slot without mutating this append-only audit evidence.
+    recipient_id = Column(UUID(as_uuid=True), nullable=True)
     ip_address = Column(String(64), nullable=True)
     user_agent = Column(Text, nullable=True)
     mfa_verified = Column(Boolean, nullable=True)

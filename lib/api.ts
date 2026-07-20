@@ -2383,17 +2383,20 @@ export class ApiClient {
     return this.request(`/api/esign/sign/${envelopeId}`)
   }
 
-  async recordEsignConsent(envelopeId: string): Promise<EsignConsentResponse> {
-    return this.request(`/api/esign/sign/${envelopeId}/consent`, { method: 'POST', body: '{}' })
+  async recordEsignConsent(envelopeId: string, expectedRoutingVersion: number): Promise<EsignConsentResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/consent`, {
+      method: 'POST', body: JSON.stringify({ expected_routing_version: expectedRoutingVersion }),
+    })
   }
 
   async saveEsignSigningProgress(
     envelopeId: string,
     fieldValues: { field_id: string; value?: string | null }[],
+    expectedRoutingVersion: number,
   ): Promise<{ saved_count: number }> {
     return this.request(`/api/esign/sign/${envelopeId}/progress`, {
       method: 'PUT',
-      body: JSON.stringify({ field_values: fieldValues }),
+      body: JSON.stringify({ field_values: fieldValues, expected_routing_version: expectedRoutingVersion }),
     })
   }
 
@@ -2415,10 +2418,52 @@ export class ApiClient {
     })
   }
 
-  async declineEsignEnvelope(envelopeId: string, reason: string): Promise<EsignSubmitResponse> {
+  async declineEsignEnvelope(envelopeId: string, reason: string, expectedRoutingVersion: number): Promise<EsignSubmitResponse> {
     return this.request(`/api/esign/sign/${envelopeId}/decline`, {
       method: 'POST',
-      body: JSON.stringify({ reason }),
+      body: JSON.stringify({ reason, expected_routing_version: expectedRoutingVersion }),
+    })
+  }
+
+  async correctEsignRecipients(envelopeId: string, payload: EsignCorrectionRequest): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/corrections`, {
+      method: 'POST', body: JSON.stringify(payload),
+    })
+  }
+
+  async reassignEsignRecipient(envelopeId: string, payload: EsignReassignRequest): Promise<EsignRecipientResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/reassign`, {
+      method: 'POST', body: JSON.stringify(payload),
+    })
+  }
+
+  async approveEsignEnvelope(envelopeId: string, expectedRoutingVersion: number): Promise<EsignSubmitResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/approve`, {
+      method: 'POST', body: JSON.stringify({ expected_routing_version: expectedRoutingVersion }),
+    })
+  }
+
+  async updateEsignManagedRecipients(envelopeId: string, payload: EsignManagedRecipientsRequest): Promise<EsignManagedRecipientsResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/managed-recipients`, {
+      method: 'PATCH', body: JSON.stringify(payload),
+    })
+  }
+
+  async completeEsignManagerStep(envelopeId: string, expectedRoutingVersion: number): Promise<EsignSubmitResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/manager-complete`, {
+      method: 'POST', body: JSON.stringify({ expected_routing_version: expectedRoutingVersion }),
+    })
+  }
+
+  async configureEsignWitness(envelopeId: string, payload: EsignWitnessRequest): Promise<EsignGuestInvitationResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/witness`, {
+      method: 'PUT', body: JSON.stringify(payload),
+    })
+  }
+
+  async startEsignInPerson(envelopeId: string, payload: EsignInPersonStartRequest): Promise<EsignGuestInvitationResponse> {
+    return this.request(`/api/esign/sign/${envelopeId}/in-person/start`, {
+      method: 'POST', body: JSON.stringify(payload),
     })
   }
 
@@ -2537,6 +2582,13 @@ export type EsignPdfWidgetInspectionResponse = apiComponents['schemas']['EsignPd
 export type EsignPdfWidgetConversionRequest = apiComponents['schemas']['EsignPdfWidgetConversionRequest']
 export type EsignSubmitResponse = apiComponents['schemas']['EsignSubmitResponse']
 export type EsignSignatureInput = apiComponents['schemas']['EsignSignatureInput']
+export type EsignCorrectionRequest = apiComponents['schemas']['EsignCorrectionRequest']
+export type EsignReassignRequest = apiComponents['schemas']['EsignReassignRequest']
+export type EsignManagedRecipientsRequest = apiComponents['schemas']['EsignManagedRecipientsRequest']
+export type EsignManagedRecipientsResponse = apiComponents['schemas']['EsignManagedRecipientsResponse']
+export type EsignWitnessRequest = apiComponents['schemas']['EsignWitnessRequest']
+export type EsignInPersonStartRequest = apiComponents['schemas']['EsignInPersonStartRequest']
+export type EsignGuestInvitationResponse = apiComponents['schemas']['EsignGuestInvitationResponse']
 export type EsignVerifyResponse = apiComponents['schemas']['EsignVerifyResponse']
 export type EsignTemplateResponse = apiComponents['schemas']['EsignTemplateResponse']
 export type EsignTemplateListResponse = apiComponents['schemas']['EsignTemplateListResponse']

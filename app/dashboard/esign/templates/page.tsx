@@ -61,6 +61,7 @@ export default function EsignTemplatesPage() {
           label: label.trim() || `Signer ${index + 1}`,
           role: 'signer',
           routing_order: index + 1,
+          allow_reassignment: false,
         })),
         files,
       })

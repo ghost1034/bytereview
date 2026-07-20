@@ -3,7 +3,11 @@ import { formulaReferences, validateFormula } from './fieldLogic'
 export interface RecipientDraft {
   name: string
   email: string
-  role: 'signer' | 'cc'
+  role: 'signer' | 'cc' | 'approver' | 'certified_delivery' | 'agent' | 'editor' | 'witness' | 'in_person_signer'
+  managedByRecipientId?: string
+  witnessForRecipientId?: string
+  hostName?: string
+  hostEmail?: string
 }
 
 export interface ComposerField {
@@ -25,12 +29,15 @@ export interface ComposerField {
 export interface FieldIssue { id: string; message: string; fieldId?: string }
 
 export function recipientValidationError(rows: RecipientDraft[]): string | null {
-  const complete = rows.filter((row) => row.name.trim() || row.email.trim())
-  if (complete.some((row) => !row.name.trim() || !row.email.trim())) return 'Enter a name and email for every recipient.'
+  const complete = rows.filter((row) => row.name.trim() || row.email.trim() || row.managedByRecipientId)
+  const identityOptional = (row: RecipientDraft) => !!row.managedByRecipientId || row.role === 'in_person_signer' || row.role === 'witness'
+  if (complete.some((row) => !identityOptional(row) && (!row.name.trim() || !row.email.trim()))) return 'Enter a name and email for every remote recipient.'
   if (complete.length === 0) return 'Add at least one recipient.'
-  const emails = complete.map((row) => row.email.trim().toLowerCase())
+  const emails = complete.map((row) => row.email.trim().toLowerCase()).filter(Boolean)
   if (new Set(emails).size !== emails.length) return 'Each recipient must use a unique email address.'
   if (!complete.some((row) => row.role === 'signer')) return 'At least one recipient must be a signer.'
+  if (complete.some((row) => row.role === 'witness' && !row.witnessForRecipientId)) return 'Link every witness to a signer.'
+  if (complete.some((row) => row.role === 'in_person_signer' && (!row.hostName?.trim() || !row.hostEmail?.trim()))) return 'Enter a verified host name and email for every in-person signer.'
   return null
 }
 

@@ -219,7 +219,7 @@ export function useSigningSession(envelopeId: string | undefined) {
 export function useRecordConsent(envelopeId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: () => apiClient.recordEsignConsent(envelopeId),
+    mutationFn: (expectedRoutingVersion: number) => apiClient.recordEsignConsent(envelopeId, expectedRoutingVersion),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['esign', 'signing-session', envelopeId] }),
   })
@@ -228,8 +228,8 @@ export function useRecordConsent(envelopeId: string) {
 export function useSaveSigningProgress(envelopeId: string) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (fieldValues: { field_id: string; value?: string | null }[]) =>
-      apiClient.saveEsignSigningProgress(envelopeId, fieldValues),
+    mutationFn: ({ fieldValues, expectedRoutingVersion }: { fieldValues: { field_id: string; value?: string | null }[]; expectedRoutingVersion: number }) =>
+      apiClient.saveEsignSigningProgress(envelopeId, fieldValues, expectedRoutingVersion),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ['esign', 'signing-session', envelopeId] }),
   })
@@ -246,7 +246,8 @@ export function useSubmitSignature(envelopeId: string) {
 export function useDeclineEnvelope(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
-    mutationFn: (reason: string) => apiClient.declineEsignEnvelope(envelopeId, reason),
+    mutationFn: ({ reason, expectedRoutingVersion }: { reason: string; expectedRoutingVersion: number }) =>
+      apiClient.declineEsignEnvelope(envelopeId, reason, expectedRoutingVersion),
     onSuccess: () => invalidate(envelopeId),
   })
 }

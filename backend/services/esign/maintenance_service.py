@@ -119,15 +119,15 @@ class EsignMaintenanceService:
                     event_type=EsignEventType.EXPIRATION_WARNING,
                     details={
                         "expires_at": envelope.expires_at.isoformat(),
-                        "recipients": [t.email for t in targets],
+                        "recipients": [esign_signing_service.recipient_notification_email(t) for t in targets],
                     },
                 )
                 for target in targets:
                     notifications.append(
                         (
-                            target.email,
+                            esign_signing_service.recipient_notification_email(target),
                             email_templates.expiration_warning(
-                                recipient_name=target.name,
+                                recipient_name=esign_signing_service.recipient_notification_name(target),
                                 title=envelope.title,
                                 url=signing_url(envelope.id),
                                 expires_at=envelope.expires_at,
@@ -192,14 +192,14 @@ class EsignMaintenanceService:
                     db,
                     envelope_id=envelope.id,
                     event_type=EsignEventType.REMINDER_SENT,
-                    details={"recipients": [t.email for t in targets], "manual": False},
+                    details={"recipients": [esign_signing_service.recipient_notification_email(t) for t in targets], "manual": False},
                 )
                 for target in targets:
                     reminders.append(
                         (
-                            target.email,
+                            esign_signing_service.recipient_notification_email(target),
                             email_templates.signature_request(
-                                recipient_name=target.name,
+                                recipient_name=esign_signing_service.recipient_notification_name(target),
                                 sender_name=sender_name,
                                 title=envelope.title,
                                 message=None,

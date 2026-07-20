@@ -7,6 +7,11 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
+EsignRecipientRoleName = Literal[
+    "signer", "cc", "approver", "certified_delivery", "agent", "editor",
+    "witness", "in_person_signer",
+]
+
 
 # ---------------------------------------------------------------------------
 # Shared field/recipient shapes
@@ -219,19 +224,53 @@ class EsignFieldResponse(BaseModel):
 
 class EsignRecipientInput(BaseModel):
     id: Optional[str] = None
-    email: EmailStr
-    name: str
-    role: str = "signer"  # signer | cc
+    email: Optional[EmailStr] = None
+    name: Optional[str] = None
+    role: EsignRecipientRoleName = "signer"
     routing_order: int = Field(default=1, ge=1)
+    role_label: Optional[str] = Field(default=None, max_length=255)
+    private_message: Optional[str] = Field(default=None, max_length=4_000)
+    managed_by_recipient_id: Optional[str] = None
+    witness_for_recipient_id: Optional[str] = None
+    host_name: Optional[str] = Field(default=None, max_length=255)
+    host_email: Optional[EmailStr] = None
+    allow_reassignment: bool = False
+
+    @model_validator(mode="after")
+    def validate_identity_shape(self):
+        if self.role in ("agent", "editor", "approver", "certified_delivery", "signer", "cc"):
+            if not self.name or not self.email:
+                raise ValueError(f"{self.role} recipients require a name and email")
+        if self.role == "witness" and not self.witness_for_recipient_id:
+            raise ValueError("witness recipients must identify the signer they witness")
+        if self.role == "in_person_signer" and (not self.host_name or not self.host_email):
+            raise ValueError("in-person signers require host name and email")
+        if self.role in ("witness", "in_person_signer"):
+            return self
+        if bool(self.managed_by_recipient_id) != (not self.name and not self.email):
+            if self.managed_by_recipient_id and (self.name or self.email):
+                # A manager may also be recorded after resolving the placeholder.
+                return self
+            if not self.name and not self.email:
+                raise ValueError("unresolved recipients must identify their manager")
+        return self
 
 
 class EsignRecipientResponse(BaseModel):
     id: str
-    email: str
-    name: str
+    email: Optional[str] = None
+    name: Optional[str] = None
     role: str
     routing_order: int
     status: str
+    role_label: Optional[str] = None
+    private_message: Optional[str] = None
+    managed_by_recipient_id: Optional[str] = None
+    witness_for_recipient_id: Optional[str] = None
+    host_name: Optional[str] = None
+    host_email: Optional[str] = None
+    allow_reassignment: bool = False
+    action_completed_at: Optional[datetime] = None
     viewed_at: Optional[datetime] = None
     consented_at: Optional[datetime] = None
     signed_at: Optional[datetime] = None
@@ -262,6 +301,7 @@ class EsignEnvelopeUpdateRequest(BaseModel):
     expires_at: Optional[datetime] = None
     reminder_interval_hours: Optional[int] = Field(default=None, ge=1, le=24 * 30)
     date_format: Optional[Literal["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD", "MMM D, YYYY"]] = None
+    allow_reassignment: Optional[bool] = None
 
 
 class EsignRecipientsReplaceRequest(BaseModel):
@@ -284,6 +324,8 @@ class EsignEnvelopeResponse(BaseModel):
     signing_type: str
     date_format: str = "MM/DD/YYYY"
     current_routing_order: Optional[int] = None
+    routing_version: int = 1
+    allow_reassignment: bool = False
     consent_disclosure_text: Optional[str] = None
     expires_at: Optional[datetime] = None
     reminder_interval_hours: Optional[int] = None
@@ -346,6 +388,19 @@ class EsignEventResponse(BaseModel):
 class EsignAuditTrailResponse(BaseModel):
     envelope_id: str
     events: list[EsignEventResponse] = Field(default_factory=list)
+    recipient_changes: list["EsignRecipientChangeResponse"] = Field(default_factory=list)
+
+
+class EsignRecipientChangeResponse(BaseModel):
+    id: str
+    recipient_id: Optional[str] = None
+    envelope_version: int
+    change_type: str
+    actor_email: Optional[str] = None
+    reason: str
+    before_snapshot: Optional[dict[str, Any]] = None
+    after_snapshot: Optional[dict[str, Any]] = None
+    created_at: datetime
 
 
 class EsignDownloadResponse(BaseModel):
@@ -405,6 +460,10 @@ class EsignSigningSessionResponse(BaseModel):
     envelope_status: str
     recipient_status: str
     recipient_role: str = "signer"  # signer | cc (cc sessions are read-only)
+    routing_version: int = 1
+    private_message: Optional[str] = None
+    available_actions: list[str] = Field(default_factory=list)
+    managed_recipients: list[EsignRecipientResponse] = Field(default_factory=list)
     is_my_turn: bool
     consent_required: bool  # false once consent has been recorded
     consent_disclosure_text: str
@@ -443,6 +502,7 @@ class EsignFieldValueInput(BaseModel):
 
 
 class EsignSubmitRequest(BaseModel):
+    expected_routing_version: int = Field(ge=1)
     signature: EsignSignatureInput
     field_values: list[EsignFieldValueInput] = Field(default_factory=list)
 
@@ -450,6 +510,7 @@ class EsignSubmitRequest(BaseModel):
 class EsignProgressRequest(BaseModel):
     """Finish Later: in-progress text/checkbox entries saved mid-ceremony."""
 
+    expected_routing_version: int = Field(ge=1)
     field_values: list[EsignFieldValueInput] = Field(default_factory=list)
 
 
@@ -475,6 +536,92 @@ class EsignSubmitResponse(BaseModel):
 
 class EsignDeclineRequest(BaseModel):
     reason: str = Field(min_length=1, max_length=2000)
+    expected_routing_version: int = Field(ge=1)
+
+
+class EsignVersionedActionRequest(BaseModel):
+    expected_routing_version: int = Field(ge=1)
+
+
+class EsignConsentRequest(EsignVersionedActionRequest):
+    pass
+
+
+class EsignApproveRequest(EsignVersionedActionRequest):
+    pass
+
+
+class EsignCorrectionRequest(BaseModel):
+    recipients: list[EsignRecipientInput]
+    reason: str = Field(min_length=1, max_length=2_000)
+    expected_routing_version: int = Field(ge=1)
+
+
+class EsignReassignRequest(BaseModel):
+    replacement_name: str = Field(min_length=1, max_length=255)
+    replacement_email: EmailStr
+    reason: str = Field(min_length=1, max_length=2_000)
+    expected_routing_version: int = Field(ge=1)
+
+
+class EsignManagedRecipientUpdate(BaseModel):
+    recipient_id: str
+    name: str = Field(min_length=1, max_length=255)
+    email: EmailStr
+
+
+class EsignManagedRecipientsRequest(EsignVersionedActionRequest):
+    recipients: list[EsignManagedRecipientUpdate]
+
+
+class EsignManagedRecipientsResponse(BaseModel):
+    routing_version: int
+    recipients: list[EsignRecipientResponse] = Field(default_factory=list)
+
+
+class EsignWitnessRequest(EsignVersionedActionRequest):
+    name: str = Field(min_length=1, max_length=255)
+    email: Optional[EmailStr] = None
+
+
+class EsignInPersonStartRequest(EsignVersionedActionRequest):
+    signer_name: str = Field(min_length=1, max_length=255)
+
+
+class EsignGuestInvitationResponse(BaseModel):
+    invitation_token: str
+    guest_url: str
+    expires_at: datetime
+
+
+class EsignGuestExchangeRequest(BaseModel):
+    invitation_token: str = Field(min_length=20, max_length=500)
+
+
+class EsignGuestExchangeResponse(BaseModel):
+    envelope_id: str
+    recipient_id: str
+    csrf_token: str
+    routing_version: int
+
+
+class EsignGuestSessionResponse(BaseModel):
+    envelope_id: str
+    recipient_id: str
+    title: str
+    recipient_name: Optional[str] = None
+    recipient_role: str
+    routing_version: int
+    consent_required: bool
+    consent_disclosure_text: str
+    available_actions: list[str] = Field(default_factory=list)
+    documents: list[EsignSigningDocument] = Field(default_factory=list)
+    fields: list[EsignFieldResponse] = Field(default_factory=list)
+
+
+class EsignGuestSubmitRequest(EsignSubmitRequest):
+    occupation: Optional[str] = Field(default=None, max_length=255)
+    address: Optional[str] = Field(default=None, max_length=2_000)
 
 
 # ---------------------------------------------------------------------------
@@ -503,8 +650,14 @@ class EsignVerifyResponse(BaseModel):
 
 class EsignTemplateRoleInput(BaseModel):
     label: str
-    role: str = "signer"
+    role: EsignRecipientRoleName = "signer"
     routing_order: int = Field(default=1, ge=1)
+    private_message: Optional[str] = Field(default=None, max_length=4_000)
+    managed_by_recipient_index: Optional[int] = Field(default=None, ge=0)
+    witness_for_recipient_index: Optional[int] = Field(default=None, ge=0)
+    host_name: Optional[str] = Field(default=None, max_length=255)
+    host_email: Optional[EmailStr] = None
+    allow_reassignment: bool = False
 
 
 class EsignTemplateFieldInput(BaseModel):

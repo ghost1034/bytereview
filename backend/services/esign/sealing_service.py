@@ -47,6 +47,7 @@ from services.esign import audit_service
 from services.esign.certificate_service import build_certificate_pdf
 from services.esign.envelope_service import sha256_hex
 from services.esign.signing_service import acquire_envelope_lock
+from services.esign.routing_engine import incomplete_blocking
 from services.esign.field_logic import compute_formulas, resolve_display_value, resolve_visibility
 from services.gcs_service import get_storage_service
 
@@ -373,13 +374,12 @@ class EsignSealingService:
             if envelope.status not in (EsignEnvelopeStatus.IN_PROGRESS, EsignEnvelopeStatus.SENT):
                 return {"status": f"skipped_status_{envelope.status.value}", "envelope_id": envelope_id}
 
-            signers_list = [r for r in envelope.recipients if r.role == EsignRecipientRole.SIGNER]
-            unsigned = [r for r in signers_list if r.status != EsignRecipientStatus.SIGNED]
+            unsigned = incomplete_blocking(envelope.recipients)
             if unsigned:
                 return {
                     "status": "not_ready",
                     "envelope_id": envelope_id,
-                    "unsigned": [r.email for r in unsigned],
+                    "unsigned": [r.email or r.name or str(r.id) for r in unsigned],
                 }
 
             recipients_by_id = {str(r.id): r for r in envelope.recipients}

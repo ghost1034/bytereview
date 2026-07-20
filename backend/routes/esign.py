@@ -12,7 +12,7 @@ import json
 import logging
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import APIRouter, Cookie, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
 from pydantic import BaseModel, ValidationError
 
 from dependencies.auth import verify_firebase_token
@@ -21,6 +21,8 @@ from models.esign import (
     EsignAnchorSearchRequest,
     EsignAnchorSearchResponse,
     EsignConsentResponse,
+    EsignConsentRequest,
+    EsignCorrectionRequest,
     EsignDeclineRequest,
     EsignDownloadResponse,
     EsignDocumentOrderRequest,
@@ -32,6 +34,19 @@ from models.esign import (
     EsignInboxResponse,
     EsignProgressRequest,
     EsignProgressResponse,
+    EsignApproveRequest,
+    EsignGuestExchangeRequest,
+    EsignGuestExchangeResponse,
+    EsignGuestSessionResponse,
+    EsignGuestSubmitRequest,
+    EsignInPersonStartRequest,
+    EsignManagedRecipientsRequest,
+    EsignManagedRecipientsResponse,
+    EsignRecipientResponse,
+    EsignReassignRequest,
+    EsignVersionedActionRequest,
+    EsignWitnessRequest,
+    EsignGuestInvitationResponse,
     EsignPdfWidgetConversionRequest,
     EsignPdfWidgetInspectionResponse,
     EsignRecipientsReplaceRequest,
@@ -54,7 +69,9 @@ from services.esign.envelope_service import (
     esign_envelope_service,
 )
 from services.esign.signing_service import esign_signing_service
+from services.esign.recipient_service import esign_recipient_service
 from services.esign.verification_service import esign_verification_service
+from services.rate_limit import rate_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -380,6 +397,20 @@ async def replace_recipients(
         _raise_http(exc)
 
 
+@router.post("/envelopes/{envelope_id}/corrections", response_model=EsignEnvelopeResponse)
+async def correct_recipients(
+    envelope_id: str, payload: EsignCorrectionRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_recipient_service.correct_recipients(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            payload=payload, meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
 @router.put("/envelopes/{envelope_id}/fields", response_model=EsignEnvelopeResponse)
 async def replace_fields(
     envelope_id: str,
@@ -560,6 +591,7 @@ async def get_signing_session(
 @router.post("/sign/{envelope_id}/consent", response_model=EsignConsentResponse)
 async def record_consent(
     envelope_id: str,
+    payload: EsignConsentRequest,
     request: Request,
     token: dict = Depends(verify_firebase_token),
 ):
@@ -568,6 +600,7 @@ async def record_consent(
             user_id=_uid(token),
             user_email=_email(token),
             envelope_id=envelope_id,
+            expected_routing_version=payload.expected_routing_version,
             meta=extract_request_meta(request, token),
         )
     except Exception as exc:
@@ -587,6 +620,7 @@ async def save_signing_progress(
             user_email=_email(token),
             envelope_id=envelope_id,
             field_values=payload.field_values,
+            expected_routing_version=payload.expected_routing_version,
         )
         return EsignProgressResponse(saved_count=saved)
     except Exception as exc:
@@ -646,6 +680,7 @@ async def submit_signature(
             envelope_id=envelope_id,
             signature=payload.signature,
             field_values=payload.field_values,
+            expected_routing_version=payload.expected_routing_version,
             meta=extract_request_meta(request, token),
         )
     except Exception as exc:
@@ -665,8 +700,200 @@ async def decline_envelope(
             user_email=_email(token),
             envelope_id=envelope_id,
             reason=payload.reason,
+            expected_routing_version=payload.expected_routing_version,
             meta=extract_request_meta(request, token),
         )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/sign/{envelope_id}/reassign", response_model=EsignRecipientResponse)
+async def reassign_recipient(
+    envelope_id: str, payload: EsignReassignRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_recipient_service.reassign(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            payload=payload, meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/sign/{envelope_id}/corrections", response_model=EsignEnvelopeResponse)
+async def editor_correct_recipients(
+    envelope_id: str, payload: EsignCorrectionRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_recipient_service.correct_recipients(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            payload=payload, meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/sign/{envelope_id}/approve", response_model=EsignSubmitResponse)
+async def approve_envelope(
+    envelope_id: str, payload: EsignApproveRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_recipient_service.approve(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            expected_routing_version=payload.expected_routing_version,
+            meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.patch("/sign/{envelope_id}/managed-recipients", response_model=EsignManagedRecipientsResponse)
+async def update_managed_recipients(
+    envelope_id: str, payload: EsignManagedRecipientsRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_recipient_service.manage_recipients(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            payload=payload, meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/sign/{envelope_id}/manager-complete", response_model=EsignSubmitResponse)
+async def complete_manager_step(
+    envelope_id: str, payload: EsignVersionedActionRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return await esign_recipient_service.manager_complete(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            expected_routing_version=payload.expected_routing_version,
+            meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.put("/sign/{envelope_id}/witness", response_model=EsignGuestInvitationResponse)
+async def configure_witness(
+    envelope_id: str, payload: EsignWitnessRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_recipient_service.configure_witness(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            payload=payload, meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/sign/{envelope_id}/in-person/start", response_model=EsignGuestInvitationResponse)
+async def start_in_person_signing(
+    envelope_id: str, payload: EsignInPersonStartRequest, request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_recipient_service.start_in_person(
+            user_id=_uid(token), user_email=_email(token), envelope_id=envelope_id,
+            payload=payload, meta=extract_request_meta(request, token),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+GUEST_COOKIE = "esign_guest_session"
+
+
+def _enforce_guest_rate_limit(request: Request, action: str, *, limit: int, window_seconds: int) -> None:
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    ip = forwarded or (request.client.host if request.client else "unknown")
+    if not rate_limiter.check(f"esign_guest_{action}", ip, limit=limit, window_seconds=window_seconds):
+        raise HTTPException(status_code=429, detail="Too many guest ceremony requests; try again later")
+
+
+@router.post("/guest/exchange", response_model=EsignGuestExchangeResponse)
+async def exchange_guest_invitation(
+    payload: EsignGuestExchangeRequest, request: Request, response: Response,
+):
+    _enforce_guest_rate_limit(request, "exchange", limit=20, window_seconds=3600)
+    try:
+        result, session_token, _ = esign_recipient_service.exchange_invitation(
+            payload.invitation_token, extract_request_meta(request, None)
+        )
+        response.set_cookie(
+            GUEST_COOKIE, session_token, httponly=True, secure=True, samesite="strict",
+            max_age=2 * 60 * 60, path="/api/esign/guest",
+        )
+        return result
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.get("/guest/session", response_model=EsignGuestSessionResponse)
+async def get_guest_session(request: Request, esign_guest_session: str | None = Cookie(default=None, alias=GUEST_COOKIE)):
+    _enforce_guest_rate_limit(request, "session", limit=120, window_seconds=60)
+    try:
+        if not esign_guest_session:
+            raise EsignNotFound("Guest session is invalid or expired")
+        return await esign_recipient_service.guest_session(esign_guest_session)
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/guest/consent")
+async def record_guest_consent(
+    payload: EsignConsentRequest, request: Request,
+    esign_guest_session: str | None = Cookie(default=None, alias=GUEST_COOKIE),
+    csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+):
+    _enforce_guest_rate_limit(request, "consent", limit=30, window_seconds=60)
+    try:
+        if not esign_guest_session or not csrf_token:
+            raise PermissionError("Guest session and CSRF token are required")
+        return esign_recipient_service.guest_consent(
+            esign_guest_session, csrf_token, payload.expected_routing_version,
+            extract_request_meta(request, None),
+        )
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.post("/guest/submit", response_model=EsignSubmitResponse)
+async def submit_guest_signature(
+    payload: EsignGuestSubmitRequest, request: Request, response: Response,
+    esign_guest_session: str | None = Cookie(default=None, alias=GUEST_COOKIE),
+    csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+):
+    _enforce_guest_rate_limit(request, "submit", limit=20, window_seconds=300)
+    try:
+        if not esign_guest_session or not csrf_token:
+            raise PermissionError("Guest session and CSRF token are required")
+        result = await esign_recipient_service.guest_submit(
+            esign_guest_session, csrf_token, payload, extract_request_meta(request, None)
+        )
+        response.delete_cookie(GUEST_COOKIE, path="/api/esign/guest")
+        return result
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.put("/guest/progress", response_model=EsignProgressResponse)
+async def save_guest_progress(
+    payload: EsignProgressRequest, request: Request,
+    esign_guest_session: str | None = Cookie(default=None, alias=GUEST_COOKIE),
+    csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+):
+    _enforce_guest_rate_limit(request, "progress", limit=120, window_seconds=60)
+    try:
+        if not esign_guest_session or not csrf_token:
+            raise PermissionError("Guest session and CSRF token are required")
+        return esign_recipient_service.guest_progress(esign_guest_session, csrf_token, payload)
     except Exception as exc:
         _raise_http(exc)
 

@@ -12,6 +12,7 @@ import {
   FileBadge,
   Loader2,
   ShieldCheck,
+  UserRoundPen,
   XCircle,
 } from 'lucide-react'
 
@@ -63,6 +64,9 @@ const RECIPIENT_STATUS_LABEL: Record<string, string> = {
   viewed: 'Viewed',
   consented: 'Consented',
   signed: 'Signed',
+  approved: 'Approved',
+  delivered: 'Delivered',
+  managed: 'Managed',
   declined: 'Declined',
 }
 
@@ -79,6 +83,16 @@ const EVENT_LABEL: Record<string, string> = {
   sealed: 'Digitally sealed',
   expired: 'Expired',
   expiration_warning: 'Expiration warning sent',
+  corrected: 'Recipients corrected',
+  reassigned: 'Recipient reassigned',
+  approved: 'Approved',
+  delivered: 'Certified delivery recorded',
+  manager_action: 'Manager action',
+  witness_configured: 'Witness configured',
+  host_handoff: 'Hosted handoff started',
+  guest_invitation_exchanged: 'Guest invitation exchanged',
+  guest_consent_given: 'Guest consent recorded',
+  routing_advanced: 'Routing advanced',
 }
 
 /** "Viewed Jul 3, 2:14 PM · Consented … · Signed …" from recipient timestamps. */
@@ -87,12 +101,14 @@ function recipientTimeline(recipient: {
   consented_at?: string | null
   signed_at?: string | null
   declined_at?: string | null
+  action_completed_at?: string | null
 }): string {
   const parts: string[] = []
   if (recipient.viewed_at) parts.push(`Viewed ${formatDateTime(recipient.viewed_at)}`)
   if (recipient.consented_at) parts.push(`Consented ${formatDateTime(recipient.consented_at)}`)
   if (recipient.signed_at) parts.push(`Signed ${formatDateTime(recipient.signed_at)}`)
   if (recipient.declined_at) parts.push(`Declined ${formatDateTime(recipient.declined_at)}`)
+  if (recipient.action_completed_at && !recipient.signed_at) parts.push(`Completed ${formatDateTime(recipient.action_completed_at)}`)
   return parts.join(' · ')
 }
 
@@ -129,7 +145,8 @@ export default function EnvelopeDetailPage() {
   }
 
   const isActive = envelope.status === 'sent' || envelope.status === 'in_progress'
-  const signers = envelope.recipients.filter((r) => r.role === 'signer')
+  const signers = envelope.recipients.filter((r) => ['signer', 'witness', 'in_person_signer'].includes(r.role))
+  const actionableRecipients = envelope.recipients.filter((r) => r.role !== 'cc')
 
   const openDownload = async (kind: 'sealed' | 'certificate' | { documentId: string }) => {
     const key = typeof kind === 'string' ? kind : kind.documentId
@@ -176,6 +193,7 @@ export default function EnvelopeDetailPage() {
             </Button>
             {isActive && (
               <>
+                {process.env.NEXT_PUBLIC_ESIGN_ADVANCED_RECIPIENTS_ENABLED === 'true' && <Button variant="outline" asChild><Link href={`/dashboard/esign/${envelope.id}/correct`}><UserRoundPen className="mr-1.5 size-4" /> Correct recipients</Link></Button>}
                 <Button
                   variant="outline"
                   onClick={async () => {
@@ -270,13 +288,13 @@ export default function EnvelopeDetailPage() {
         <section className="space-y-3 rounded-lg border border-border bg-surface p-5">
           <h2 className="text-base font-semibold">Recipients</h2>
           <ol className="space-y-3">
-            {[...signers]
+            {[...actionableRecipients]
               .sort((a, b) => a.routing_order - b.routing_order)
               .map((recipient) => {
                 const timeline = recipientTimeline(recipient)
                 return (
                   <li key={recipient.id} className="flex items-start gap-3">
-                    {recipient.status === 'signed' ? (
+                    {recipient.action_completed_at ? (
                       <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
                     ) : recipient.status === 'declined' ? (
                       <XCircle className="mt-0.5 size-5 shrink-0 text-destructive" />
@@ -287,6 +305,7 @@ export default function EnvelopeDetailPage() {
                       <p className="text-sm font-medium">
                         {recipient.routing_order}. {recipient.name}
                         <span className="ml-2 font-normal text-foreground-muted">{recipient.email}</span>
+                        <span className="ml-2 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-normal capitalize text-foreground-muted">{recipient.role.replace(/_/g, ' ')}</span>
                       </p>
                       <p className="text-xs text-foreground-muted">
                         {RECIPIENT_STATUS_LABEL[recipient.status] ?? recipient.status}

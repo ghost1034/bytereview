@@ -225,9 +225,13 @@ def build_certificate_pdf(
     # ------------------------------------------------------------------
     # Signers
     # ------------------------------------------------------------------
-    story.append(Paragraph("Signer Events", h2))
+    story.append(Paragraph("Signature Events", h2))
     for recipient in recipients:
-        if recipient.role != EsignRecipientRole.SIGNER:
+        if recipient.role not in (
+            EsignRecipientRole.SIGNER,
+            EsignRecipientRole.WITNESS,
+            EsignRecipientRole.IN_PERSON_SIGNER,
+        ):
             continue
         consent = consent_by_recipient.get(str(recipient.id))
         sig = signature_by_recipient.get(str(recipient.id))
@@ -235,10 +239,18 @@ def build_certificate_pdf(
         initials_desc = _initials_description(sig) if sig is not None else "—"
         signed_ip = signed_ip_by_recipient.get(str(recipient.id))
         rows = [
-            [_para("Signer", small), _para(f"{recipient.name} <{recipient.email}>", body)],
+            [_para("Role", small), _para(_enum_val(recipient.role).replace("_", " ").title(), body)],
+            [_para("Signer", small), _para(f"{recipient.name or 'Self-declared guest'} <{recipient.email or 'guest'}>", body)],
             [
                 _para("Security level", small),
-                _para("Email, CPAAutomation Account Authentication, SMS phone MFA (Firebase)", body),
+                _para(
+                    "Verified host account with SMS phone MFA; signer identity self-declared"
+                    if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER
+                    else "Audited guest invitation and ceremony session"
+                    if recipient.role == EsignRecipientRole.WITNESS
+                    else "Email, CPAAutomation Account Authentication, SMS phone MFA (Firebase)",
+                    body,
+                ),
             ],
             [_para("Routing order", small), _para(str(recipient.routing_order), body)],
             [_para("Sent", small), _para(_fmt_dt(envelope.sent_at), body)],
@@ -278,6 +290,38 @@ def build_certificate_pdf(
         )
         story.append(table)
         story.append(Spacer(1, 8))
+
+    action_recipients = [
+        recipient for recipient in recipients
+        if recipient.role not in (
+            EsignRecipientRole.SIGNER, EsignRecipientRole.WITNESS,
+            EsignRecipientRole.IN_PERSON_SIGNER, EsignRecipientRole.CC,
+        )
+    ]
+    if action_recipients:
+        story.append(Paragraph("Routing Action Events", h2))
+        action_rows = [[
+            _para("Recipient", small), _para("Role", small), _para("Status", small),
+            _para("Completed", small), _para("Routing order", small),
+        ]]
+        for recipient in action_recipients:
+            action_rows.append([
+                _para(f"{recipient.name or recipient.role_label or 'Placeholder'} <{recipient.email or '—'}>", body),
+                _para(_enum_val(recipient.role).replace("_", " ").title(), body),
+                _para(_enum_val(recipient.status), body),
+                _para(_fmt_dt(recipient.action_completed_at), body),
+                _para(str(recipient.routing_order), body),
+            ])
+        action_table = Table(action_rows, colWidths=[2.4 * inch, 1.25 * inch, 1.0 * inch, 1.45 * inch, 0.75 * inch])
+        action_table.setStyle(TableStyle([
+            ("GRID", (0, 0), (-1, -1), 0.5, _BORDER),
+            ("BACKGROUND", (0, 0), (-1, 0), _HEADER_BG),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        story.append(action_table)
 
     # ------------------------------------------------------------------
     # Carbon copy recipients

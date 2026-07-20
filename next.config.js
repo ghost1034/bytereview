@@ -1,5 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  env: {
+    // Server-side rollout flag exposed to the compiled client composer.
+    NEXT_PUBLIC_ESIGN_ADVANCED_RECIPIENTS_ENABLED:
+      process.env.ESIGN_ADVANCED_RECIPIENTS_ENABLED ??
+      process.env.NEXT_PUBLIC_ESIGN_ADVANCED_RECIPIENTS_ENABLED ??
+      'false',
+  },
   // Remove experimental.appDir as it's now stable in Next.js 14
   async rewrites() {
     if (process.env.NODE_ENV === 'production') {

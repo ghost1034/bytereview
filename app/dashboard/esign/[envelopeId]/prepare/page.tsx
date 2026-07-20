@@ -59,11 +59,26 @@ interface RecipientRow {
   id?: string
   name: string
   email: string
-  role: 'signer' | 'cc'
+  role: EsignRole
   roleLabel?: string
+  routingOrder: number
+  privateMessage: string
+  managedByRecipientId?: string
+  witnessForRecipientId?: string
+  hostName: string
+  hostEmail: string
+  allowReassignment: boolean
 }
 
-const newRecipient = (): RecipientRow => ({ key: crypto.randomUUID(), name: '', email: '', role: 'signer' })
+type EsignRole = 'signer' | 'cc' | 'approver' | 'certified_delivery' | 'agent' | 'editor' | 'witness' | 'in_person_signer'
+const ADVANCED_RECIPIENTS = process.env.NEXT_PUBLIC_ESIGN_ADVANCED_RECIPIENTS_ENABLED === 'true'
+const ROLE_OPTIONS: Array<{ value: EsignRole; label: string }> = [
+  { value: 'signer', label: 'Signer' }, { value: 'cc', label: 'CC' },
+  { value: 'approver', label: 'Approver' }, { value: 'certified_delivery', label: 'Certified delivery' },
+  { value: 'agent', label: 'Agent' }, { value: 'editor', label: 'Editor' },
+  { value: 'witness', label: 'Witness' }, { value: 'in_person_signer', label: 'In-person signer' },
+]
+const newRecipient = (routingOrder = 1): RecipientRow => ({ key: crypto.randomUUID(), name: '', email: '', role: 'signer', routingOrder, privateMessage: '', hostName: '', hostEmail: '', allowReassignment: false })
 
 function SortHandle({ id, label, disabled = false }: { id: string; label: string; disabled?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled })
@@ -105,6 +120,7 @@ export default function EnvelopePreparePage() {
   const [title, setTitle] = React.useState('')
   const [message, setMessage] = React.useState('')
   const [signingType, setSigningType] = React.useState('sequential')
+  const [allowReassignment, setAllowReassignment] = React.useState(false)
   const [dateFormat, setDateFormat] = React.useState('MM/DD/YYYY')
   const [reminderHours, setReminderHours] = React.useState('')
   const [expiresAt, setExpiresAt] = React.useState('')
@@ -123,22 +139,23 @@ export default function EnvelopePreparePage() {
     setTitle(envelope.title)
     setMessage(envelope.message ?? '')
     setSigningType(envelope.signing_type)
+    setAllowReassignment(envelope.allow_reassignment)
     setDateFormat(envelope.date_format)
     setReminderHours(envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '')
     setExpiresAt(envelope.expires_at ? envelope.expires_at.slice(0, 10) : '')
     setRows(envelope.recipients.length
-      ? envelope.recipients.map((recipient, index) => ({ key: recipient.id, id: recipient.id, name: recipient.name, email: recipient.email, role: recipient.role as 'signer' | 'cc', roleLabel: templateRoles[index]?.label }))
+      ? envelope.recipients.map((recipient, index) => ({ key: recipient.id, id: recipient.id, name: recipient.name ?? '', email: recipient.email ?? '', role: recipient.role as EsignRole, roleLabel: recipient.role_label ?? templateRoles[index]?.label, routingOrder: recipient.routing_order, privateMessage: recipient.private_message ?? '', managedByRecipientId: recipient.managed_by_recipient_id ?? undefined, witnessForRecipientId: recipient.witness_for_recipient_id ?? undefined, hostName: recipient.host_name ?? '', hostEmail: recipient.host_email ?? '', allowReassignment: recipient.allow_reassignment }))
       : templateRoles.length
-        ? templateRoles.map((role) => ({ ...newRecipient(), role: (role.role as 'signer' | 'cc') ?? 'signer', roleLabel: role.label || 'Recipient' }))
+        ? templateRoles.map((role) => ({ ...newRecipient(role.routing_order ?? 1), role: (role.role as EsignRole) ?? 'signer', roleLabel: role.label || 'Recipient' }))
         : [newRecipient()])
     setDocuments([...envelope.documents].sort((a, b) => a.display_order - b.display_order))
-    lastMetadata.current = JSON.stringify({ title: envelope.title, message: envelope.message ?? '', signingType: envelope.signing_type, dateFormat: envelope.date_format, reminderHours: envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '', expiresAt: envelope.expires_at ? envelope.expires_at.slice(0, 10) : '' })
+    lastMetadata.current = JSON.stringify({ title: envelope.title, message: envelope.message ?? '', signingType: envelope.signing_type, allowReassignment: envelope.allow_reassignment, dateFormat: envelope.date_format, reminderHours: envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '', expiresAt: envelope.expires_at ? envelope.expires_at.slice(0, 10) : '' })
     setHydrated(true)
   }, [envelope, hydrated, template, templateId, templateRoles])
 
   React.useEffect(() => {
     if (!hydrated) return
-    const snapshot = JSON.stringify({ title, message, signingType, dateFormat, reminderHours, expiresAt })
+    const snapshot = JSON.stringify({ title, message, signingType, allowReassignment, dateFormat, reminderHours, expiresAt })
     if (snapshot === lastMetadata.current || !title.trim()) return
     const timer = window.setTimeout(async () => {
       setSaveState('saving')
@@ -147,6 +164,7 @@ export default function EnvelopePreparePage() {
           title: title.trim(),
           message,
           signing_type: signingType,
+          allow_reassignment: allowReassignment,
           date_format: dateFormat as 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MMM D, YYYY',
           reminder_interval_hours: reminderHours ? Number(reminderHours) : undefined,
           expires_at: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : undefined,
@@ -158,7 +176,7 @@ export default function EnvelopePreparePage() {
       }
     }, 750)
     return () => window.clearTimeout(timer)
-  }, [dateFormat, expiresAt, hydrated, message, reminderHours, signingType, title, updateEnvelope])
+  }, [allowReassignment, dateFormat, expiresAt, hydrated, message, reminderHours, signingType, title, updateEnvelope])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -170,9 +188,9 @@ export default function EnvelopePreparePage() {
     if (error) { if (!quiet) toast({ title: error, variant: 'destructive' }); return false }
     setSaveState('saving')
     try {
-      const complete = nextRows.filter((row) => row.name.trim() && row.email.trim())
+      const complete = nextRows.filter((row) => row.name.trim() || row.email.trim() || row.managedByRecipientId || row.role === 'witness' || row.role === 'in_person_signer')
       await replaceRecipients.mutateAsync({
-        recipients: complete.map((row, index) => ({ id: row.id, name: row.name.trim(), email: row.email.trim().toLowerCase(), role: row.role, routing_order: index + 1 })) as EsignRecipientInput[],
+        recipients: complete.map((row) => ({ id: row.id, name: row.name.trim() || null, email: row.email.trim().toLowerCase() || null, role: row.role, routing_order: row.routingOrder, role_label: row.roleLabel, private_message: row.privateMessage || null, managed_by_recipient_id: row.managedByRecipientId, witness_for_recipient_id: row.witnessForRecipientId, host_name: row.hostName || null, host_email: row.hostEmail.trim().toLowerCase() || null, allow_reassignment: row.allowReassignment })) as EsignRecipientInput[],
         templateId,
       })
       setSaveState('saved')
@@ -200,7 +218,7 @@ export default function EnvelopePreparePage() {
     if (!over || active.id === over.id) return
     const from = rows.findIndex((item) => item.key === active.id)
     const to = rows.findIndex((item) => item.key === over.id)
-    const next = arrayMove(rows, from, to)
+    const next = arrayMove(rows, from, to).map((item, index) => ({ ...item, routingOrder: index + 1 }))
     setRows(next)
     void saveRecipients(next, true)
   }
@@ -247,16 +265,16 @@ export default function EnvelopePreparePage() {
           </section>
 
           <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
-            <div className="mb-4"><h2 className="font-semibold">Recipients</h2><p className="text-sm text-foreground-muted">Add signers or people who receive a copy. Drag to change routing order.</p></div>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onRecipientDrag}><SortableContext items={rows.map((item) => item.key)} strategy={verticalListSortingStrategy}><div className="space-y-2">{rows.map((row, index) => { const color = participantColor(index); return <div key={row.key} className="flex flex-wrap items-end gap-2 rounded-lg border border-border p-2"><SortHandle id={row.key} label={row.name || `recipient ${index + 1}`} disabled={templateLocked} /><span className="mb-3 size-2.5 rounded-full" style={{ background: color.border }} />{row.roleLabel && <span className="mb-2.5 rounded-full bg-primary-soft px-2 py-1 text-xs font-medium text-primary">{row.roleLabel}</span>}<div className="min-w-40 flex-1"><Label className="text-xs">Name</Label><Input value={row.name} onChange={(event) => setRows((current) => current.map((item) => item.key === row.key ? { ...item, name: event.target.value } : item))} onBlur={() => void saveRecipients(rows, true)} placeholder="Jane Client" /></div><div className="min-w-52 flex-[1.3]"><Label className="text-xs">Email</Label><Input type="email" value={row.email} onChange={(event) => setRows((current) => current.map((item) => item.key === row.key ? { ...item, email: event.target.value } : item))} onBlur={() => void saveRecipients(rows, true)} placeholder="jane@client.com" /></div><div className="w-28"><Label className="text-xs">Role</Label><Select value={row.role} disabled={templateLocked} onValueChange={(role) => { const next = rows.map((item) => item.key === row.key ? { ...item, role: role as 'signer' | 'cc' } : item); setRows(next); void saveRecipients(next, true) }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="signer">Signer</SelectItem><SelectItem value="cc">CC</SelectItem></SelectContent></Select></div>{!templateLocked && <Button variant="ghost" size="icon" disabled={rows.length <= 1} onClick={() => setRemoveTarget({ type: 'recipient', id: row.key, label: row.name || row.email || 'this recipient', fieldCount: envelope?.fields.filter((field) => field.recipient_id === row.id).length ?? 0 })} aria-label={`Remove ${row.name || 'recipient'}`}><Trash2 className="size-4" /></Button>}</div> })}</div></SortableContext></DndContext>
-            {!templateLocked && <Button variant="outline" size="sm" className="mt-3" onClick={() => setRows((current) => [...current, newRecipient()])}><Plus className="mr-1.5 size-4" /> Add recipient</Button>}
+            <div className="mb-4"><h2 className="font-semibold">Recipients</h2><p className="text-sm text-foreground-muted">Set explicit routing steps. Recipients with the same step act in parallel.</p></div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onRecipientDrag}><SortableContext items={rows.map((item) => item.key)} strategy={verticalListSortingStrategy}><div className="space-y-2">{rows.map((row, index) => { const color = participantColor(index); const update = (changes: Partial<RecipientRow>) => setRows((current) => current.map((item) => item.key === row.key ? { ...item, ...changes } : item)); return <div key={row.key} className="flex flex-wrap items-end gap-2 rounded-lg border border-border p-3"><SortHandle id={row.key} label={row.name || `recipient ${index + 1}`} disabled={templateLocked} /><span className="mb-3 size-2.5 rounded-full" style={{ background: color.border }} /><div className="min-w-36 flex-1"><Label className="text-xs">Name</Label><Input value={row.name} onChange={(event) => update({ name: event.target.value })} onBlur={() => void saveRecipients(rows, true)} placeholder={row.managedByRecipientId ? 'Resolved by manager' : 'Jane Client'} /></div><div className="min-w-48 flex-[1.2]"><Label className="text-xs">Email</Label><Input type="email" value={row.email} onChange={(event) => update({ email: event.target.value })} onBlur={() => void saveRecipients(rows, true)} placeholder={row.managedByRecipientId ? 'Resolved by manager' : 'jane@client.com'} /></div><div className="w-20"><Label className="text-xs">Step</Label><Input type="number" min={1} value={row.routingOrder} onChange={(event) => update({ routingOrder: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void saveRecipients(rows, true)} /></div><div className="w-44"><Label className="text-xs">Role</Label><Select value={row.role} disabled={templateLocked} onValueChange={(role) => { const next = rows.map((item) => item.key === row.key ? { ...item, role: role as EsignRole } : item); setRows(next); void saveRecipients(next, true) }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ROLE_OPTIONS.filter((option) => ADVANCED_RECIPIENTS || ['signer', 'cc'].includes(option.value)).map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}</SelectContent></Select></div>{!templateLocked && <Button variant="ghost" size="icon" disabled={rows.length <= 1} onClick={() => setRemoveTarget({ type: 'recipient', id: row.key, label: row.name || row.email || 'this recipient', fieldCount: envelope?.fields.filter((field) => field.recipient_id === row.id).length ?? 0 })} aria-label={`Remove ${row.name || 'recipient'}`}><Trash2 className="size-4" /></Button>}{ADVANCED_RECIPIENTS && <div className="grid w-full gap-2 border-t border-border pt-3 sm:grid-cols-2"><div><Label className="text-xs">Private message</Label><Input value={row.privateMessage} onChange={(event) => update({ privateMessage: event.target.value })} onBlur={() => void saveRecipients(rows, true)} placeholder="Visible only to this recipient" /></div><div><Label className="text-xs">Role label</Label><Input value={row.roleLabel ?? ''} onChange={(event) => update({ roleLabel: event.target.value })} onBlur={() => void saveRecipients(rows, true)} placeholder="Client, reviewer, witness…" /></div>{['signer', 'approver', 'certified_delivery'].includes(row.role) && <div><Label className="text-xs">Managed by</Label><Select value={row.managedByRecipientId ?? 'none'} onValueChange={(value) => update({ managedByRecipientId: value === 'none' ? undefined : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Not managed</SelectItem>{rows.filter((item) => item.id && ['agent', 'editor'].includes(item.role)).map((item) => <SelectItem key={item.id} value={item.id!}>{item.name || item.roleLabel || item.role}</SelectItem>)}</SelectContent></Select></div>}{row.role === 'witness' && <div><Label className="text-xs">Witness for</Label><Select value={row.witnessForRecipientId ?? ''} onValueChange={(value) => { const signer = rows.find((item) => item.id === value); update({ witnessForRecipientId: value, routingOrder: signer?.routingOrder ?? row.routingOrder }) }}><SelectTrigger><SelectValue placeholder="Choose signer" /></SelectTrigger><SelectContent>{rows.filter((item) => item.id && item.role === 'signer').map((item) => <SelectItem key={item.id} value={item.id!}>{item.name || 'Signer'}</SelectItem>)}</SelectContent></Select></div>}{row.role === 'in_person_signer' && <><div><Label className="text-xs">Host name</Label><Input value={row.hostName} onChange={(event) => update({ hostName: event.target.value })} /></div><div><Label className="text-xs">Host email</Label><Input type="email" value={row.hostEmail} onChange={(event) => update({ hostEmail: event.target.value })} onBlur={() => void saveRecipients(rows, true)} /></div></>}<label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={row.allowReassignment} onChange={(event) => update({ allowReassignment: event.target.checked })} /> Allow reassignment</label></div>}</div> })}</div></SortableContext></DndContext>
+            {!templateLocked && <Button variant="outline" size="sm" className="mt-3" onClick={() => setRows((current) => [...current, newRecipient(Math.max(0, ...current.map((item) => item.routingOrder)) + 1)])}><Plus className="mr-1.5 size-4" /> Add recipient</Button>}
             {recipientValidationError(rows) && <p className="mt-3 text-sm text-warning" role="status">{recipientValidationError(rows)}</p>}
           </section>
         </div>
 
         <aside className="space-y-5">
           <section className="rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="mb-4 font-semibold">Message</h2><Label htmlFor="prepare-message">Email message</Label><Textarea id="prepare-message" rows={7} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Add a note for recipients…" /></section>
-          <section className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="font-semibold">Delivery settings</h2><div><Label>Signing order</Label><Select value={signingType} onValueChange={setSigningType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sequential">In the order shown</SelectItem><SelectItem value="parallel">Any order</SelectItem></SelectContent></Select></div><div><Label>Date format</Label><Select value={dateFormat} onValueChange={setDateFormat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem><SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem><SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem><SelectItem value="MMM D, YYYY">MMM D, YYYY</SelectItem></SelectContent></Select></div><div><Label htmlFor="prepare-expires">Expiration date</Label><Input id="prepare-expires" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></div><div><Label htmlFor="prepare-reminders">Remind every (hours)</Label><Input id="prepare-reminders" type="number" min={1} max={720} value={reminderHours} onChange={(event) => setReminderHours(event.target.value)} /></div></section>
+          <section className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="font-semibold">Delivery settings</h2><div><Label>Signing order</Label><Select value={signingType} onValueChange={setSigningType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sequential">Routing steps</SelectItem><SelectItem value="parallel">All actionable recipients</SelectItem></SelectContent></Select></div>{ADVANCED_RECIPIENTS && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={allowReassignment} onChange={(event) => setAllowReassignment(event.target.checked)} /> Permit recipient reassignment</label>}<div><Label>Date format</Label><Select value={dateFormat} onValueChange={setDateFormat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem><SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem><SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem><SelectItem value="MMM D, YYYY">MMM D, YYYY</SelectItem></SelectContent></Select></div><div><Label htmlFor="prepare-expires">Expiration date</Label><Input id="prepare-expires" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></div><div><Label htmlFor="prepare-reminders">Remind every (hours)</Label><Input id="prepare-reminders" type="number" min={1} max={720} value={reminderHours} onChange={(event) => setReminderHours(event.target.value)} /></div></section>
         </aside>
       </div>
 
