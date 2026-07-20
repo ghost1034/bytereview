@@ -1,6 +1,7 @@
 'use client'
 
 import * as React from 'react'
+import { createPortal } from 'react-dom'
 import { Loader2, ShieldCheck } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -19,15 +20,22 @@ interface ConsentGateProps {
  * behind this gate until consent is recorded — no progression before consent.
  */
 export function ConsentGate({ disclosureText, senderEmail, onAgree, onDecline, agreeing }: ConsentGateProps) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+  if (typeof document === 'undefined') return null
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="esign-consent-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm"
+    >
       <div className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-xl">
         <div className="flex items-center gap-3 border-b border-border px-5 py-4">
           <span className="flex size-9 items-center justify-center rounded-full bg-primary-soft text-primary">
             <ShieldCheck className="size-5" />
           </span>
           <div>
-            <h2 className="text-base font-semibold">Electronic records and signatures</h2>
+            <h2 id="esign-consent-title" className="text-base font-semibold">Electronic records and signatures</h2>
             <p className="text-xs text-foreground-muted">
               {senderEmail} has asked you to sign electronically
             </p>
@@ -48,6 +56,7 @@ export function ConsentGate({ disclosureText, senderEmail, onAgree, onDecline, a
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
