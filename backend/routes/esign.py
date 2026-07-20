@@ -63,6 +63,7 @@ from models.esign import (
     EsignVoidRequest,
     EsignTemplateVersionListResponse,
     EsignTemplateVersionResponse,
+    EsignTemplateVersionCompatibilityResponse,
     EsignScheduleRequest,
     EsignBulkJobResponse,
     EsignBulkJobListResponse,
@@ -78,6 +79,7 @@ from models.esign import (
     EsignPermissionAssignmentRequest,
     EsignEnvelopeGrantRequest,
     EsignCustodyTransferRequest,
+    EsignCustodyRemediationRequest,
     EsignBrandProfileRequest,
     EsignWebhookConfigurationRequest,
 )
@@ -156,6 +158,12 @@ async def esign_admin_overview(token: dict = Depends(verify_firebase_token)):
 @router.get("/admin/custody-review")
 async def esign_admin_custody_review(token: dict = Depends(verify_firebase_token)):
     try: return {"assets": esign_admin_service.custody_review(_uid(token))}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/admin/custody-review/remediate")
+async def remediate_esign_custody(payload: EsignCustodyRemediationRequest, token: dict = Depends(verify_firebase_token)):
+    try: return esign_admin_service.remediate_custody(_uid(token), payload)
     except Exception as exc: _raise_http(exc)
 
 
@@ -282,17 +290,28 @@ async def replay_esign_webhook(delivery_id: str, token: dict = Depends(verify_fi
 
 
 @router.get("/admin/audit")
-async def list_esign_admin_audit(limit: int = Query(default=500, ge=1, le=5000), token: dict = Depends(verify_firebase_token)):
-    try: return {"events": esign_admin_service.audit_events(_uid(token), limit=limit)}
+async def list_esign_admin_audit(
+    limit: int = Query(default=500, ge=1, le=5000), event_type: str | None = Query(default=None),
+    actor_email: str | None = Query(default=None), target_type: str | None = Query(default=None),
+    start: datetime | None = Query(default=None), end: datetime | None = Query(default=None),
+    token: dict = Depends(verify_firebase_token),
+):
+    try: return {"events": esign_admin_service.audit_events(_uid(token), limit=limit, event_type=event_type,
+        actor_email=actor_email, target_type=target_type, start=start, end=end)}
     except Exception as exc: _raise_http(exc)
 
 
 @router.get("/admin/audit.csv", response_class=PlainTextResponse)
-async def export_esign_admin_audit(token: dict = Depends(verify_firebase_token)):
+async def export_esign_admin_audit(
+    event_type: str | None = Query(default=None), actor_email: str | None = Query(default=None),
+    target_type: str | None = Query(default=None), start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None), token: dict = Depends(verify_firebase_token),
+):
     try:
         output = io.StringIO(newline=""); writer = csv.writer(output)
         writer.writerow(["id", "created_at", "event_type", "actor_email", "target_type", "target_id", "details"])
-        for event in esign_admin_service.audit_events(_uid(token), limit=5000):
+        for event in esign_admin_service.audit_events(_uid(token), limit=5000, event_type=event_type,
+                actor_email=actor_email, target_type=target_type, start=start, end=end):
             writer.writerow([event["id"], event["created_at"].isoformat(), event["event_type"], event["actor_email"],
                              event["target_type"], event["target_id"], json.dumps(event["details"] or {}, sort_keys=True)])
         return PlainTextResponse(output.getvalue(), media_type="text/csv",
@@ -346,8 +365,8 @@ async def create_template(
 
 
 @router.get("/templates", response_model=EsignTemplateListResponse)
-async def list_templates(token: dict = Depends(verify_firebase_token)):
-    return EsignTemplateListResponse(templates=esign_envelope_service.list_templates(_uid(token)))
+async def list_templates(include_archived: bool = Query(default=False), token: dict = Depends(verify_firebase_token)):
+    return EsignTemplateListResponse(templates=esign_envelope_service.list_templates(_uid(token), include_archived=include_archived))
 
 
 @router.get("/templates/{template_id}", response_model=EsignTemplateResponse)
@@ -402,7 +421,7 @@ async def update_template(
 async def delete_template(template_id: str, token: dict = Depends(verify_firebase_token)):
     try:
         esign_envelope_service.delete_template(_uid(token), template_id)
-        return {"message": "Template deleted"}
+        return {"message": "Template deleted or archived when referenced by retained records"}
     except Exception as exc:
         _raise_http(exc)
 
@@ -427,6 +446,12 @@ async def list_template_versions(template_id: str, token: dict = Depends(verify_
         return EsignTemplateVersionListResponse(versions=esign_scale_service.list_versions(_uid(token), template_id))
     except Exception as exc:
         _raise_http(exc)
+
+
+@router.post("/template-versions/{version_id}/draft", response_model=EsignTemplateResponse, status_code=201)
+async def create_template_draft_from_version(version_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return await esign_scale_service.create_draft_from_version(_uid(token), version_id)
+    except Exception as exc: _raise_http(exc)
 
 
 @router.get("/template-versions/{version_id}/bulk-sample.csv", response_class=PlainTextResponse)
@@ -528,9 +553,21 @@ async def upgrade_powerform(form_id: str, version_id: str, token: dict = Depends
     except Exception as exc: _raise_http(exc)
 
 
+@router.get("/powerforms/{form_id}/upgrade/{version_id}/preview", response_model=EsignTemplateVersionCompatibilityResponse)
+async def preview_powerform_upgrade(form_id: str, version_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.powerform_upgrade_preview(_uid(token), form_id, version_id)
+    except Exception as exc: _raise_http(exc)
+
+
 @router.get("/powerforms/{form_id}/submissions")
 async def list_powerform_submissions(form_id: str, token: dict = Depends(verify_firebase_token)):
     try: return {"submissions": esign_scale_service.list_powerform_submissions(_uid(token), form_id)}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/powerforms/{form_id}/submissions/{submission_id}/retry")
+async def retry_powerform_submission(form_id: str, submission_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return await esign_scale_service.retry_powerform_submission(_uid(token), form_id, submission_id)
     except Exception as exc: _raise_http(exc)
 
 
@@ -599,19 +636,30 @@ async def report_summary(
 
 
 @router.get("/reports/time-series")
-async def report_time_series(start: str = Query(...), end: str = Query(...), source: str | None = Query(default=None),
-                             token: dict = Depends(verify_firebase_token)):
+async def report_time_series(
+    start: str = Query(...), end: str = Query(...), source: str | None = Query(default=None),
+    status: str | None = Query(default=None), template_version_id: str | None = Query(default=None),
+    sender_user_id: str | None = Query(default=None), source_id: str | None = Query(default=None),
+    token: dict = Depends(verify_firebase_token),
+):
     try:
         return {"points": esign_scale_service.report_time_series(_uid(token),
-            datetime.fromisoformat(start.replace("Z", "+00:00")), datetime.fromisoformat(end.replace("Z", "+00:00")), source)}
+            datetime.fromisoformat(start.replace("Z", "+00:00")), datetime.fromisoformat(end.replace("Z", "+00:00")),
+            source, status, template_version_id, sender_user_id, source_id)}
     except Exception as exc: _raise_http(exc)
 
 
 @router.get("/reports/details.csv", response_class=PlainTextResponse)
-async def report_details_csv(start: str = Query(...), end: str = Query(...), token: dict = Depends(verify_firebase_token)):
+async def report_details_csv(
+    start: str = Query(...), end: str = Query(...), source: str | None = Query(default=None),
+    status: str | None = Query(default=None), template_version_id: str | None = Query(default=None),
+    sender_user_id: str | None = Query(default=None), source_id: str | None = Query(default=None),
+    token: dict = Depends(verify_firebase_token),
+):
     try:
         content = esign_scale_service.report_csv(_uid(token), datetime.fromisoformat(start.replace("Z", "+00:00")),
-            datetime.fromisoformat(end.replace("Z", "+00:00")))
+            datetime.fromisoformat(end.replace("Z", "+00:00")), source, status, template_version_id,
+            sender_user_id, source_id)
         return PlainTextResponse(content, media_type="text/csv",
             headers={"Content-Disposition": 'attachment; filename="esign-report-details.csv"'})
     except Exception as exc: _raise_http(exc)
@@ -630,6 +678,20 @@ async def download_template_document(
         )
     except Exception as exc:
         _raise_http(exc)
+
+
+@router.post("/templates/{template_id}/documents", response_model=EsignTemplateResponse)
+async def add_template_documents(template_id: str, files: list[UploadFile] = File(...),
+                                 token: dict = Depends(verify_firebase_token)):
+    try: return await esign_envelope_service.add_template_documents(_uid(token), template_id, await _read_uploads(files))
+    except Exception as exc: _raise_http(exc)
+
+
+@router.delete("/templates/{template_id}/documents/{document_id}", response_model=EsignTemplateResponse)
+async def delete_template_document(template_id: str, document_id: str,
+                                   token: dict = Depends(verify_firebase_token)):
+    try: return await esign_envelope_service.delete_template_document(_uid(token), template_id, document_id)
+    except Exception as exc: _raise_http(exc)
 
 
 # ---------------------------------------------------------------------------
@@ -688,6 +750,12 @@ async def retry_failed_send(envelope_id: str, request: Request, token: dict = De
     try:
         return await esign_scale_service.retry_failed_send(_uid(token), _email(token), envelope_id,
             extract_request_meta(request, token))
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/envelopes/{envelope_id}/recover-draft", response_model=EsignEnvelopeResponse)
+async def recover_failed_send_draft(envelope_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_scale_service.recover_failed_send_draft(_uid(token), envelope_id)
     except Exception as exc: _raise_http(exc)
 
 

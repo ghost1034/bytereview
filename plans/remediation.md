@@ -8,28 +8,6 @@ Current baseline: production frontend build, TypeScript check, and 9 targeted E-
 
 ## Remediation Findings
 
-### P1 — Ceremony, editor, and correction completeness
-
-10. Configured date formats disagree between client and server. Use ISO YYYY-MM-DD as the canonical value, render and parse using the envelope’s selected format, and replace free-text date entry with a date-aware control.
-
-11. Field properties are not end-to-end consistent. Auto-fill cannot be added from the palette; read-only is ineffective for several control types; tooltips are not shown; attachment MIME restrictions are hardcoded; and selection, number, and appearance options are only partially editable. Implement these properties across composer, API validation, signing, and sealing, and hide any property that remains unsupported.
-
-12. Conditional field errors are discovered too late. The editor permits conditionals without a valid parent and Review can report the envelope ready. Mirror backend field-graph validation in the composer, disable invalid choices, show precise recipient roles, and block send on every schema or graph error.
-
-13. Autosave and publish can race or ignore failures. Full replacement saves can complete out of order, and template Publish/Use continues after a swallowed save failure. Serialize autosaves, add draft revision/ETag checks, surface conflicts, and require a confirmed current revision before publishing or using a template.
-
-14. PDF form conversion lacks a complete review workflow. Add all eligible signing roles, show detected options/defaults/required state/data labels, explicitly identify unsupported widgets, and require confirmation before removing or flattening unsupported content.
-
-15. Correction is incomplete for advanced recipients. The page cannot add recipients or edit witness, manager, host, and reassignment settings, and exposed role changes can fail backend validation. Build a role-aware correction composer with add/remove, relationship controls, validation, reason, and accurate change diff.
-
-16. Document and field correction is explicitly unfinished. Permit document replacement only before any recipient completes; afterward offer clone-and-void. Allow field corrections only for incomplete recipients, increment the document/routing revision, invalidate outstanding links and saved consent where affected, audit the change, and re-notify recipients.
-
-17. Witness handoff depends on manually copying a guest URL. Model witness mode explicitly as remote or in_person. Require an email and durable invitation for remote witnesses; keep copied links as a secondary authorized action and audit their creation.
-
-18. Approval-only and delivery-only envelopes are blocked by the frontend. Align with backend support by allowing any actionable recipient role, skipping the field-composer requirement when no signature fields are needed, and supporting approver/certified-delivery completion paths.
-
-19. Feature and permission gating is inconsistent. Advanced recipients use a build-time environment flag while the backend uses firm capabilities; firm scope and exports can also be displayed to unauthorized users. Replace scattered checks with the runtime E-Sign context, centralized route/action guards, and a single backend capability matrix.
-
 ### P2 — Scale and management workflows
 
 20. Bulk Send recovery is incomplete. Add job detail, live progress, per-row envelope links, original-row error exports, corrected-file re-upload, and strict idempotent confirm/cancel/retry transitions. Cancelling must remove or explicitly retain unsent draft artifacts according to one documented policy.

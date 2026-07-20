@@ -1,6 +1,7 @@
 // Typed API client using generated OpenAPI types
 import { auth } from './firebase'
 import type { paths } from './api-types'
+import { buildEsignReportQuery } from './esign/reportFilters'
 
 type ApiPaths = paths
 type ApiResponse<T> = T extends { responses: { 200: { content: { 'application/json': infer U } } } } ? U : never
@@ -62,6 +63,35 @@ export interface EsignPermissionProfile {
 export interface EsignWebhookConfiguration {
   id: string; envelope_id?: string | null; endpoint_url: string; enabled: boolean
   event_filters: string[]; include_completed_documents: boolean; secret?: string
+}
+
+export interface EsignPowerFormSubmission {
+  id: string; status: string; initiating_email: string; envelope_id?: string | null
+  verified_at?: string | null; created_at: string; attempt_count: number; last_error?: string | null
+}
+
+export interface EsignPowerFormUpgradePreview {
+  compatible: boolean; current_version: number; target_version: number
+  added_roles: string[]; removed_roles: string[]; changed_roles: string[]
+  current_field_count: number; target_field_count: number; warnings: string[]
+}
+
+export interface EsignReportFilters {
+  start: string; end: string; source?: string; status?: string; templateVersionId?: string
+  senderUserId?: string; sourceId?: string
+}
+
+export interface EsignReportPoint { date: string; sent: number; completed: number }
+export interface EsignWebhookAttempt {
+  id: string; attempt_number: number; started_at: string; completed_at?: string | null
+  duration_ms?: number | null; result: string; http_status?: number | null
+  response_excerpt?: string | null; error?: string | null
+}
+export interface EsignCustodyIssue { asset_type: string; asset_id: string; recorded_owner_id: string; created_at?: string | null }
+export interface EsignAuditFilters { eventType?: string; actorEmail?: string; targetType?: string; start?: string; end?: string }
+export interface EsignAdminAuditEvent {
+  id: string; event_type: string; actor_email?: string | null; target_type?: string | null
+  target_id?: string | null; details?: Record<string, unknown> | null; created_at: string
 }
 
 function inferUploadContentType(file: File): string {
@@ -2623,8 +2653,8 @@ export class ApiClient {
     return this.requestMultipart('/api/esign/templates', formData)
   }
 
-  async listEsignTemplates(): Promise<EsignTemplateListResponse> {
-    return this.request('/api/esign/templates')
+  async listEsignTemplates(includeArchived = false): Promise<EsignTemplateListResponse> {
+    return this.request(`/api/esign/templates${includeArchived ? '?include_archived=true' : ''}`)
   }
 
   async getEsignTemplate(templateId: string): Promise<EsignTemplateResponse> {
@@ -2646,6 +2676,15 @@ export class ApiClient {
     return this.request(`/api/esign/templates/${templateId}/documents/${documentId}/download`)
   }
 
+  async addEsignTemplateDocuments(templateId: string, files: File[]): Promise<EsignTemplateResponse> {
+    const form = new FormData(); files.forEach(file => form.append('files', file))
+    return this.requestMultipart(`/api/esign/templates/${templateId}/documents`, form)
+  }
+
+  async deleteEsignTemplateDocument(templateId: string, documentId: string): Promise<EsignTemplateResponse> {
+    return this.request(`/api/esign/templates/${templateId}/documents/${documentId}`, { method: 'DELETE' })
+  }
+
   async publishEsignTemplate(templateId: string, expectedRevision?: number): Promise<EsignTemplateVersionResponse> {
     const query = expectedRevision ? `?expected_revision=${expectedRevision}` : ''
     return this.request(`/api/esign/templates/${templateId}/versions${query}`, { method: 'POST', body: '{}' })
@@ -2653,6 +2692,10 @@ export class ApiClient {
 
   async listEsignTemplateVersions(templateId: string): Promise<EsignTemplateVersionListResponse> {
     return this.request(`/api/esign/templates/${templateId}/versions`)
+  }
+
+  async createEsignTemplateDraftFromVersion(versionId: string): Promise<EsignTemplateResponse> {
+    return this.request(`/api/esign/template-versions/${versionId}/draft`, { method: 'POST', body: '{}' })
   }
 
   async downloadEsignBulkSample(versionId: string): Promise<Blob> {
@@ -2717,16 +2760,37 @@ export class ApiClient {
     return this.request(`/api/esign/powerforms/${id}/rotate`, { method: 'POST', body: '{}' })
   }
 
-  async getEsignReportSummary(params: { start: string; end: string; source?: string; status?: string; templateVersionId?: string }): Promise<EsignReportSummary> {
-    const query = new URLSearchParams({ start: params.start, end: params.end })
-    if (params.source) query.set('source', params.source)
-    if (params.status) query.set('status', params.status)
-    if (params.templateVersionId) query.set('template_version_id', params.templateVersionId)
+  async listEsignPowerFormSubmissions(id: string): Promise<{ submissions: EsignPowerFormSubmission[] }> {
+    return this.request(`/api/esign/powerforms/${id}/submissions`)
+  }
+
+  async retryEsignPowerFormSubmission(id: string, submissionId: string): Promise<EsignPowerFormSubmission> {
+    return this.request(`/api/esign/powerforms/${id}/submissions/${submissionId}/retry`, { method: 'POST', body: '{}' })
+  }
+
+  async previewEsignPowerFormUpgrade(id: string, versionId: string): Promise<EsignPowerFormUpgradePreview> {
+    return this.request(`/api/esign/powerforms/${id}/upgrade/${versionId}/preview`)
+  }
+
+  async upgradeEsignPowerForm(id: string, versionId: string): Promise<EsignPowerFormResponse> {
+    return this.request(`/api/esign/powerforms/${id}/upgrade/${versionId}`, { method: 'POST', body: '{}' })
+  }
+
+  private esignReportQuery(params: EsignReportFilters): URLSearchParams {
+    return buildEsignReportQuery(params)
+  }
+
+  async getEsignReportSummary(params: EsignReportFilters): Promise<EsignReportSummary> {
+    const query = this.esignReportQuery(params)
     return this.request(`/api/esign/reports/summary?${query}`)
   }
 
-  async downloadEsignReportDetails(start: string, end: string): Promise<Blob> {
-    const token = await this.getAuthToken(); const query = new URLSearchParams({ start, end })
+  async getEsignReportTimeSeries(params: EsignReportFilters): Promise<{ points: EsignReportPoint[] }> {
+    return this.request(`/api/esign/reports/time-series?${this.esignReportQuery(params)}`)
+  }
+
+  async downloadEsignReportDetails(params: EsignReportFilters): Promise<Blob> {
+    const token = await this.getAuthToken(); const query = this.esignReportQuery(params)
     const response = await fetch(`${this.baseURL}/api/esign/reports/details.csv?${query}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
     if (!response.ok) throw new ApiError(response.status, 'Could not export report details')
     return response.blob()
@@ -2738,6 +2802,81 @@ export class ApiClient {
 
   async unscheduleEsignEnvelope(envelopeId: string): Promise<EsignEnvelopeResponse> {
     return this.request(`/api/esign/envelopes/${envelopeId}/unschedule`, { method: 'POST', body: '{}' })
+  }
+
+  async retryFailedEsignSend(envelopeId: string): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/retry-send`, { method: 'POST', body: '{}' })
+  }
+
+  async recoverFailedEsignSendDraft(envelopeId: string): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/recover-draft`, { method: 'POST', body: '{}' })
+  }
+
+  async revokeEsignEnvelopeAccess(envelopeId: string, userId: string): Promise<{ success: boolean }> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/access/${encodeURIComponent(userId)}`, { method: 'DELETE' })
+  }
+
+  async updateEsignPermissionProfile(profileId: string, payload: { name: string; capabilities: Record<string, boolean> }): Promise<EsignPermissionProfile> {
+    return this.request(`/api/esign/admin/permission-profiles/${profileId}`, { method: 'PUT', body: JSON.stringify(payload) })
+  }
+
+  async updateEsignBrand(brandId: string, payload: Record<string, any>): Promise<Record<string, any>> {
+    return this.request(`/api/esign/admin/brands/${brandId}`, { method: 'PUT', body: JSON.stringify(payload) })
+  }
+
+  async uploadEsignBrandAsset(file: File): Promise<{ id: string; content_type: string; sha256: string; file_size_bytes: number }> {
+    const form = new FormData(); form.append('file', file)
+    return this.requestMultipart('/api/esign/admin/brand-assets', form)
+  }
+
+  async updateEsignWebhook(id: string, payload: { endpoint_url: string; enabled: boolean; event_filters: string[]; include_completed_documents: boolean }): Promise<EsignWebhookConfiguration> {
+    return this.request(`/api/esign/admin/webhooks/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+  }
+
+  async rotateEsignWebhookSecret(id: string): Promise<{ id: string; secret: string; overlap_expires_at: string }> {
+    return this.request(`/api/esign/admin/webhooks/${id}/rotate-secret`, { method: 'POST', body: '{}' })
+  }
+
+  async testEsignWebhook(id: string): Promise<{ delivery_id: string; status: string }> {
+    return this.request(`/api/esign/admin/webhooks/${id}/test`, { method: 'POST', body: '{}' })
+  }
+
+  async disableEsignWebhook(id: string): Promise<{ success: boolean }> {
+    return this.request(`/api/esign/admin/webhooks/${id}`, { method: 'DELETE' })
+  }
+
+  async getEsignWebhookAttempts(deliveryId: string): Promise<{ attempts: EsignWebhookAttempt[] }> {
+    return this.request(`/api/esign/admin/webhook-deliveries/${deliveryId}/attempts`)
+  }
+
+  async getEsignCustodyReview(): Promise<{ assets: EsignCustodyIssue[] }> {
+    return this.request('/api/esign/admin/custody-review')
+  }
+
+  async remediateEsignCustody(payload: { asset_type: EsignCustodyIssue['asset_type']; asset_id: string; successor_user_id: string }): Promise<Record<string, string>> {
+    return this.request('/api/esign/admin/custody-review/remediate', { method: 'POST', body: JSON.stringify(payload) })
+  }
+
+  async getEsignAdminAudit(filters: EsignAuditFilters = {}): Promise<{ events: EsignAdminAuditEvent[] }> {
+    const query = new URLSearchParams()
+    if (filters.eventType) query.set('event_type', filters.eventType)
+    if (filters.actorEmail) query.set('actor_email', filters.actorEmail)
+    if (filters.targetType) query.set('target_type', filters.targetType)
+    if (filters.start) query.set('start', filters.start)
+    if (filters.end) query.set('end', filters.end)
+    return this.request(`/api/esign/admin/audit?${query}`)
+  }
+
+  async downloadEsignAdminAudit(filters: EsignAuditFilters = {}): Promise<Blob> {
+    const token = await this.getAuthToken(); const query = new URLSearchParams()
+    if (filters.eventType) query.set('event_type', filters.eventType)
+    if (filters.actorEmail) query.set('actor_email', filters.actorEmail)
+    if (filters.targetType) query.set('target_type', filters.targetType)
+    if (filters.start) query.set('start', filters.start)
+    if (filters.end) query.set('end', filters.end)
+    const response = await fetch(`${this.baseURL}/api/esign/admin/audit.csv?${query}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    if (!response.ok) throw new ApiError(response.status, 'Could not export audit events')
+    return response.blob()
   }
 
 }
@@ -2813,8 +2952,8 @@ export type EsignWitnessRequest = apiComponents['schemas']['EsignWitnessRequest'
 export type EsignInPersonStartRequest = apiComponents['schemas']['EsignInPersonStartRequest']
 export type EsignGuestInvitationResponse = apiComponents['schemas']['EsignGuestInvitationResponse']
 export type EsignVerifyResponse = apiComponents['schemas']['EsignVerifyResponse']
-export type EsignTemplateResponse = apiComponents['schemas']['EsignTemplateResponse']
-export type EsignTemplateListResponse = apiComponents['schemas']['EsignTemplateListResponse']
+export type EsignTemplateResponse = apiComponents['schemas']['EsignTemplateResponse'] & { archived_at?: string | null }
+export type EsignTemplateListResponse = Omit<apiComponents['schemas']['EsignTemplateListResponse'], 'templates'> & { templates: EsignTemplateResponse[] }
 export type EsignTemplateRoleInput = apiComponents['schemas']['EsignTemplateRoleInput']
 export type EsignTemplateUpdateRequest = apiComponents['schemas']['EsignTemplateUpdateRequest']
 export type EsignTemplateFieldInput = apiComponents['schemas']['EsignTemplateFieldInput']

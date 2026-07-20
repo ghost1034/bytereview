@@ -121,11 +121,11 @@ export function useEsignInbox(params: { q?: string; state?: 'pending' | 'complet
   })
 }
 
-export function useEsignTemplates() {
+export function useEsignTemplates(includeArchived = false) {
   const { user } = useAuth()
   return useQuery({
-    queryKey: ['esign', 'templates'],
-    queryFn: () => apiClient.listEsignTemplates(),
+    queryKey: ['esign', 'templates', { includeArchived }],
+    queryFn: () => apiClient.listEsignTemplates(includeArchived),
     enabled: !!user,
   })
 }

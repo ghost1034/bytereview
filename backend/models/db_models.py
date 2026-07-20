@@ -1655,6 +1655,7 @@ class EsignTemplate(Base):
     recipient_roles = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    archived_at = Column(TIMESTAMP(timezone=True), nullable=True)
 
     user = relationship("User")
     documents = relationship(

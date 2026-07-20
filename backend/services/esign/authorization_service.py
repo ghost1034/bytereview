@@ -33,7 +33,7 @@ SENDER_CAPABILITIES = {
     "send": True, "templates": True, "scheduling": True, "bulk_sends": True,
     "powerforms": True, "advanced_recipients": True, "corrections": True,
     "voiding": True, "reminders": True, "sharing": True, "reports": True,
-    "envelope_webhooks": True,
+    "envelope_webhooks": True, "exports": True,
 }
 
 

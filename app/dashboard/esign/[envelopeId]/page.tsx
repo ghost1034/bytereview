@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft,
+  AlertTriangle,
   BellRing,
   CalendarClock,
   CheckCircle2,
@@ -12,6 +13,7 @@ import {
   Download,
   FileBadge,
   Loader2,
+  RotateCcw,
   ShieldCheck,
   UserRoundPen,
   Users,
@@ -19,6 +21,9 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -51,6 +56,7 @@ import {
 import { apiClient } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAnalyticsFirm } from '@/hooks/useAnalyticsTeam'
 
 function formatDateTime(value?: string | null) {
   if (!value) return '—'
@@ -123,6 +129,7 @@ export default function EnvelopeDetailPage() {
   const router = useRouter()
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const firm = useAnalyticsFirm()
 
   const envelopeQuery = useEnvelope(envelopeId)
   const auditQuery = useEnvelopeAudit(envelopeId)
@@ -133,6 +140,8 @@ export default function EnvelopeDetailPage() {
   const [voidOpen, setVoidOpen] = React.useState(false)
   const [voidReason, setVoidReason] = React.useState('')
   const [downloading, setDownloading] = React.useState<string | null>(null)
+  const [shareUserId, setShareUserId] = React.useState(''); const [shareLevel, setShareLevel] = React.useState<'view' | 'manage'>('view')
+  const [transferOpen, setTransferOpen] = React.useState(false); const [successorId, setSuccessorId] = React.useState(''); const [retainView, setRetainView] = React.useState(true)
 
   const envelope = envelopeQuery.data
   const accessQuery = useQuery({
@@ -250,6 +259,8 @@ export default function EnvelopeDetailPage() {
         }
       />
 
+      {envelope.status === 'send_failed' && <div className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4"><AlertTriangle className="size-5 text-destructive" /><div className="min-w-0 flex-1"><p className="text-sm font-medium">Send failed · {envelope.send_error_code || 'delivery_error'}</p><p className="text-xs text-foreground-muted">{envelope.send_error_message || 'The envelope could not be sent.'}</p></div><Button size="sm" variant="outline" onClick={async () => { try { await apiClient.recoverFailedEsignSendDraft(envelope.id); router.push(`/dashboard/esign/${envelope.id}/prepare`) } catch (error) { toast({ title: 'Could not recover draft', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><UserRoundPen className="mr-1 size-3" /> Edit draft</Button><Button size="sm" onClick={async () => { try { await apiClient.retryFailedEsignSend(envelope.id); await envelopeQuery.refetch(); toast({ title: 'Envelope sent' }) } catch (error) { toast({ title: 'Retry failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><RotateCcw className="mr-1 size-3" /> Retry send</Button></div>}
+
       {envelope.status === 'completed' && (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-success/30 bg-success-soft p-4">
           <ShieldCheck className="size-5 text-success" />
@@ -315,8 +326,9 @@ export default function EnvelopeDetailPage() {
         <TabsContent value="access">
           <section className="space-y-4 rounded-lg border border-border bg-surface p-5">
             <div className="flex items-center gap-3"><Users className="size-5 text-primary" /><div><h2 className="text-base font-semibold">Envelope access</h2><p className="text-sm text-foreground-muted">Owner: {envelope.owner_name || envelope.owner_email || accessQuery.data?.owner_id || envelope.owner_id}</p></div></div>
-            {accessQuery.data?.grants.length ? <div className="divide-y divide-border rounded-md border border-border">{accessQuery.data.grants.map((grant) => <div key={String(grant.user_id)} className="flex items-center justify-between p-3 text-sm"><div><p className="font-medium">{String(grant.name || grant.email)}</p><p className="text-xs text-foreground-muted">{String(grant.email)}</p></div><span className="rounded-full bg-surface-muted px-2 py-1 text-xs capitalize">{String(grant.access_level)}</span></div>)}</div> : <p className="rounded-md border border-dashed border-border p-5 text-sm text-foreground-muted">This envelope has no direct sharing grants. Firm administrators still retain oversight.</p>}
-            {(envelope.access_level === 'owner' || envelope.access_level === 'admin') && <p className="text-xs text-foreground-muted">Owners and firm administrators can add grants or transfer custody through the E‑Signature API. Custody changes are recorded in the immutable audit trail.</p>}
+            {envelope.available_actions?.includes('share') && <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-[1fr_140px_auto]"><Select value={shareUserId} onValueChange={setShareUserId}><SelectTrigger><SelectValue placeholder="Choose a firm user" /></SelectTrigger><SelectContent>{firm.data?.members?.filter(member => member.user_id !== envelope.owner_id).map(member => <SelectItem key={member.user_id} value={member.user_id}>{member.display_name || member.email}</SelectItem>)}</SelectContent></Select><Select value={shareLevel} onValueChange={value => setShareLevel(value as 'view' | 'manage')}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="view">Can view</SelectItem><SelectItem value="manage">Can manage</SelectItem></SelectContent></Select><Button disabled={!shareUserId} onClick={async () => { try { await apiClient.grantEsignEnvelopeAccess(envelope.id, shareUserId, shareLevel); setShareUserId(''); await accessQuery.refetch(); await auditQuery.refetch(); toast({ title: 'Envelope access updated' }) } catch (error) { toast({ title: 'Could not share envelope', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}>Grant access</Button></div>}
+            {accessQuery.data?.grants.length ? <div className="divide-y divide-border rounded-md border border-border">{accessQuery.data.grants.map((grant) => <div key={String(grant.user_id)} className="flex items-center justify-between gap-3 p-3 text-sm"><div><p className="font-medium">{String(grant.name || grant.email)}</p><p className="text-xs text-foreground-muted">{String(grant.email)}</p></div><div className="flex items-center gap-2"><Select value={String(grant.access_level)} disabled={!envelope.available_actions?.includes('share')} onValueChange={async value => { try { await apiClient.grantEsignEnvelopeAccess(envelope.id, String(grant.user_id), value as 'view' | 'manage'); await accessQuery.refetch(); toast({ title: 'Access level changed' }) } catch (error) { toast({ title: 'Could not change access', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><SelectTrigger className="w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="view">Can view</SelectItem><SelectItem value="manage">Can manage</SelectItem></SelectContent></Select>{envelope.available_actions?.includes('share') && <Button size="sm" variant="ghost" className="text-destructive" onClick={async () => { try { await apiClient.revokeEsignEnvelopeAccess(envelope.id, String(grant.user_id)); await accessQuery.refetch(); await auditQuery.refetch(); toast({ title: 'Access revoked' }) } catch (error) { toast({ title: 'Could not revoke access', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}>Revoke</Button>}</div></div>)}</div> : <p className="rounded-md border border-dashed border-border p-5 text-sm text-foreground-muted">This envelope has no direct sharing grants. Firm administrators still retain oversight.</p>}
+            {envelope.available_actions?.includes('transfer') && <div className="flex items-center justify-between rounded-md bg-surface-muted p-3"><div><p className="text-sm font-medium">Transfer custody</p><p className="text-xs text-foreground-muted">The new owner controls sharing and the change is fully audited.</p></div><Button variant="outline" onClick={() => setTransferOpen(true)}>Transfer</Button></div>}
           </section>
         </TabsContent>
         <TabsContent value="recipients">
@@ -510,6 +522,7 @@ export default function EnvelopeDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={transferOpen} onOpenChange={setTransferOpen}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Transfer envelope custody</DialogTitle><DialogDescription>This changes the legal record custodian inside your firm. The transfer and retain-view choice will be added to the audit trail.</DialogDescription></DialogHeader><div className="space-y-4"><div><Label>New owner</Label><Select value={successorId} onValueChange={setSuccessorId}><SelectTrigger><SelectValue placeholder="Choose a firm user" /></SelectTrigger><SelectContent>{firm.data?.members?.filter(member => member.user_id !== envelope.owner_id).map(member => <SelectItem key={member.user_id} value={member.user_id}>{member.display_name || member.email}</SelectItem>)}</SelectContent></Select></div><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={retainView} onChange={event => setRetainView(event.target.checked)} /> Keep the previous owner as a viewer</label></div><DialogFooter><Button variant="outline" onClick={() => setTransferOpen(false)}>Cancel</Button><Button disabled={!successorId} onClick={async () => { try { await apiClient.transferEsignEnvelope(envelope.id, successorId, retainView); await Promise.all([envelopeQuery.refetch(), accessQuery.refetch(), auditQuery.refetch()]); setTransferOpen(false); setSuccessorId(''); toast({ title: 'Custody transferred' }) } catch (error) { toast({ title: 'Transfer failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}>Confirm transfer</Button></DialogFooter></DialogContent></Dialog>
     </div>
   )
 }

@@ -42,6 +42,22 @@ Click **Void**, enter a reason, and confirm **Void envelope** to permanently sto
 
 The envelope and audit trail remain available after voiding. A voided envelope cannot be reopened or resent; create a new envelope if the request needs to start again.
 
+## Recover a Bulk Send
+
+Open **Bulk sends** and select a job to see live progress and every source row. Successful rows link to their envelopes. For validation or processing failures, download **Original rows + errors**; the export preserves the submitted columns and appends diagnostic columns so it can be corrected and uploaded as a new validation job.
+
+Bulk Send cancellation follows one retention policy:
+
+- Envelopes already sent are retained and continue normally.
+- Unsent envelopes that were already materialized are retained as ordinary drafts for inspection, editing, or explicit draft deletion.
+- Rows that have not materialized are cancelled and create no envelope.
+
+Confirm, cancel, and retry requests are idempotent. Repeating the same accepted operation does not create duplicate envelopes or restart completed rows.
+
+## Recover a failed send
+
+A **Send failed** envelope displays its delivery error code and message in the envelope list and detail page. Choose **Retry send** when the draft is still correct, or **Edit draft** to return it to authoring before trying again. Email delivery failures after a successful send are tracked independently on the **Delivery** tab and can be resent without changing the envelope state.
+
 ## Download completed files
 
 After an envelope reaches **Completed**, the sender can download:

@@ -11,6 +11,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  RotateCcw,
   Search,
   Trash2,
 } from 'lucide-react'
@@ -241,6 +242,7 @@ export default function EsignManagePage() {
                       <DropdownMenuContent align="end">
                         <DropdownMenuItem onClick={() => router.push(href)}><Pencil /> {envelope.status === 'draft' ? 'Resume draft' : 'View details'}</DropdownMenuItem>
                         {(envelope.status === 'sent' || envelope.status === 'in_progress') && envelope.available_actions?.includes('remind') && <DropdownMenuItem onClick={async () => { try { await apiClient.remindEsignEnvelope(envelope.id); toast({ title: 'Reminder sent' }) } catch (error) { toast({ title: 'Reminder failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><BellRing /> Send reminder</DropdownMenuItem>}
+                        {envelope.status === 'send_failed' && <><DropdownMenuItem onClick={async () => { try { await apiClient.retryFailedEsignSend(envelope.id); await envelopesQuery.refetch(); toast({ title: 'Envelope sent' }) } catch (error) { toast({ title: 'Retry failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><RotateCcw /> Retry send</DropdownMenuItem><DropdownMenuItem onClick={async () => { try { await apiClient.recoverFailedEsignSendDraft(envelope.id); router.push(`/dashboard/esign/${envelope.id}/prepare`) } catch (error) { toast({ title: 'Could not recover draft', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><Pencil /> Edit before retry</DropdownMenuItem></>}
                         {envelope.status === 'draft' && envelope.available_actions?.includes('delete_draft') && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setDeleteTarget({ id: envelope.id, title: envelope.title })}><Trash2 /> Delete draft</DropdownMenuItem></>}
                       </DropdownMenuContent>
                     </DropdownMenu>

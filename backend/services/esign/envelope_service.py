@@ -1656,6 +1656,7 @@ class EsignEnvelopeService:
             firm_id=str(template.firm_id) if getattr(template, "firm_id", None) else None,
             latest_published_version=max((v.version for v in getattr(template, "versions", []) or []), default=None),
             brand_id=str(template.brand_id) if getattr(template, "brand_id", None) else None,
+            archived_at=getattr(template, "archived_at", None),
         )
 
     async def create_template(
@@ -1852,13 +1853,16 @@ class EsignEnvelopeService:
         finally:
             db.close()
 
-    def list_templates(self, user_id: str) -> list[EsignTemplateResponse]:
+    def list_templates(self, user_id: str, *, include_archived: bool = False) -> list[EsignTemplateResponse]:
         db = self._get_session()
         try:
             principal = esign_authorization_service.principal(db, user_id)
             scope_filter = (EsignTemplate.firm_id == principal.firm_id) if principal and (principal.is_admin or principal.can("firm_manage")) else (EsignTemplate.user_id == user_id)
+            query = db.query(EsignTemplate)
+            if not include_archived:
+                query = query.filter(EsignTemplate.archived_at.is_(None))
             templates = (
-                db.query(EsignTemplate)
+                query
                 .options(joinedload(EsignTemplate.documents), joinedload(EsignTemplate.fields))
                 .filter(scope_filter)
                 .order_by(EsignTemplate.updated_at.desc())
@@ -1897,6 +1901,49 @@ class EsignEnvelopeService:
             )
         finally:
             db.close()
+
+    async def add_template_documents(self, user_id: str, template_id: str,
+                                     files: list[tuple[str, bytes]]) -> EsignTemplateResponse:
+        if not files: raise EsignError("Provide at least one PDF")
+        db = self._get_session(); created_objects: list[str] = []
+        try:
+            template = self._load_template(db, user_id, template_id)
+            if len(template.documents or []) + len(files) > MAX_DOCUMENTS_PER_ENVELOPE:
+                raise EsignError(f"At most {MAX_DOCUMENTS_PER_ENVELOPE} documents per template")
+            next_order = max((int(item.display_order) for item in template.documents or []), default=-1) + 1
+            for offset, (filename, content) in enumerate(files):
+                if len(content) > MAX_DOCUMENT_BYTES: raise EsignError(f"'{filename}' is too large")
+                page_count = _validate_pdf(content, filename); document_id = uuid.uuid4()
+                object_name = f"esign_templates/{user_id}/{template.id}/{document_id}_{os.path.basename(filename)}"
+                await self.storage.upload_file_content(content, object_name); created_objects.append(object_name)
+                db.add(EsignTemplateDocument(id=document_id, template_id=template.id,
+                    display_order=next_order + offset, original_filename=os.path.basename(filename),
+                    gcs_object_name=object_name, sha256=sha256_hex(content), page_count=page_count,
+                    file_size_bytes=len(content)))
+            _bump_draft_revision(template); db.commit(); db.expire(template, ["documents"]); db.refresh(template)
+            return self._serialize_template(template)
+        except Exception:
+            db.rollback()
+            for object_name in created_objects:
+                try: await self.storage.delete_file(object_name)
+                except Exception: pass
+            raise
+        finally: db.close()
+
+    async def delete_template_document(self, user_id: str, template_id: str,
+                                       document_id: str) -> EsignTemplateResponse:
+        db = self._get_session()
+        try:
+            template = self._load_template(db, user_id, template_id)
+            if len(template.documents or []) <= 1: raise EsignConflict("A template must keep at least one document")
+            document = next((item for item in template.documents or [] if str(item.id) == document_id), None)
+            if not document: raise EsignNotFound("Template document not found")
+            object_name = document.gcs_object_name; db.delete(document); _bump_draft_revision(template); db.commit()
+            try: await self.storage.delete_file(object_name)
+            except Exception: logger.warning("Could not remove archived template document object %s", object_name)
+            db.expire(template, ["documents", "fields"]); db.refresh(template); return self._serialize_template(template)
+        except Exception: db.rollback(); raise
+        finally: db.close()
 
     @staticmethod
     def _pdf_widget_rows(content: bytes, document_id: str) -> list[EsignPdfWidget]:
@@ -2188,7 +2235,11 @@ class EsignEnvelopeService:
         db = self._get_session()
         try:
             template = self._load_template(db, user_id, template_id)
-            db.delete(template)
+            referenced = db.query(EsignEnvelope.id).filter(EsignEnvelope.template_id == template.id).first()
+            if referenced or (template.versions or []):
+                template.archived_at = datetime.now(timezone.utc)
+            else:
+                db.delete(template)
             db.commit()
         except Exception:
             db.rollback()

@@ -878,6 +878,7 @@ class EsignTemplateResponse(BaseModel):
     firm_id: Optional[str] = None
     latest_published_version: Optional[int] = None
     brand_id: Optional[str] = None
+    archived_at: Optional[datetime] = None
 
 
 class EsignTemplateListResponse(BaseModel):
@@ -905,6 +906,18 @@ class EsignTemplateVersionResponse(BaseModel):
     version: int
     published_at: datetime
     published_by_user_id: str
+
+
+class EsignTemplateVersionCompatibilityResponse(BaseModel):
+    compatible: bool
+    current_version: int
+    target_version: int
+    added_roles: list[str] = Field(default_factory=list)
+    removed_roles: list[str] = Field(default_factory=list)
+    changed_roles: list[str] = Field(default_factory=list)
+    current_field_count: int = 0
+    target_field_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
 
 
 class EsignTemplateVersionListResponse(BaseModel):
@@ -993,7 +1006,6 @@ class EsignPowerFormVerificationRequest(BaseModel):
     recipients: list[dict[str, str]]
     fields: dict[str, str] = Field(default_factory=dict)
     consent: bool
-    consent: bool
 
 
 class EsignPowerFormVerificationExchange(BaseModel):
@@ -1050,6 +1062,12 @@ class EsignEnvelopeGrantRequest(BaseModel):
 class EsignCustodyTransferRequest(BaseModel):
     successor_user_id: str = Field(min_length=1, max_length=128)
     retain_previous_owner_view: bool = True
+
+
+class EsignCustodyRemediationRequest(BaseModel):
+    asset_type: Literal["envelope", "template", "bulk_job", "powerform"]
+    asset_id: str
+    successor_user_id: str = Field(min_length=1, max_length=128)
 
 
 class EsignBrandProfileRequest(BaseModel):

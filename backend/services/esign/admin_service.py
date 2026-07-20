@@ -21,7 +21,7 @@ from models.db_models import (
 )
 from models.esign import (
     EsignBrandProfileRequest, EsignPermissionProfileRequest,
-    EsignSettingsUpdateRequest, EsignWebhookConfigurationRequest,
+    EsignSettingsUpdateRequest, EsignWebhookConfigurationRequest, EsignCustodyRemediationRequest,
 )
 from services.esign import audit_service
 from services.esign.authorization_service import DEFAULT_FEATURES, SENDER_CAPABILITIES, esign_authorization_service
@@ -95,6 +95,11 @@ class EsignAdminService:
                                                  capabilities=dict(capabilities), built_in_key=key, locked=True)
                 db.add(profile)
                 profiles.append(profile)
+            else:
+                # Built-ins are product policy, not user-editable profiles. Keep
+                # existing firms aligned when capabilities are added in releases.
+                by_key[key].name = name
+                by_key[key].capabilities = dict(capabilities)
         db.flush()
         sender = next(profile for profile in profiles if profile.built_in_key == "sender")
         assigned_ids = db.query(EsignPermissionAssignment.user_id).filter(EsignPermissionAssignment.firm_id == firm_id)
@@ -164,6 +169,22 @@ class EsignAdminService:
                 rows.extend({"asset_type": kind, "asset_id": str(asset.id), "recorded_owner_id": asset.user_id,
                              "created_at": getattr(asset, "created_at", None)} for asset in assets)
             return sorted(rows, key=lambda item: str(item.get("created_at") or ""), reverse=True)
+        finally: db.close()
+
+    def remediate_custody(self, user_id: str, payload: EsignCustodyRemediationRequest) -> dict[str, Any]:
+        models = {"envelope": EsignEnvelope, "template": EsignTemplate,
+                  "bulk_job": EsignBulkJob, "powerform": EsignPowerForm}
+        db = self._get_session()
+        try:
+            actor = self._actor(db, user_id, admin=True); model = models[payload.asset_type]
+            asset = db.query(model).filter(model.id == uuid.UUID(payload.asset_id), model.firm_id == actor.firm_id).first()
+            successor = db.query(User).filter(User.id == payload.successor_user_id, User.firm_id == actor.firm_id).first()
+            if not asset or not successor: raise EsignNotFound("Custody asset or successor not found")
+            previous_owner = asset.user_id; asset.user_id = successor.id
+            self._audit(db, actor, "custody.remediated", payload.asset_type, str(asset.id),
+                        {"previous_owner_id": previous_owner, "successor_user_id": successor.id})
+            db.commit(); return {"asset_type": payload.asset_type, "asset_id": str(asset.id), "owner_id": successor.id}
+        except Exception: db.rollback(); raise
         finally: db.close()
 
     def get_settings(self, user_id: str) -> dict[str, Any]:
@@ -598,13 +619,21 @@ class EsignAdminService:
         except Exception: db.rollback(); raise
         finally: db.close()
 
-    def audit_events(self, user_id: str, limit: int = 500) -> list[dict[str, Any]]:
+    def audit_events(self, user_id: str, limit: int = 500, *, event_type: str | None = None,
+                     actor_email: str | None = None, target_type: str | None = None,
+                     start: datetime | None = None, end: datetime | None = None) -> list[dict[str, Any]]:
         db = self._get_session()
         try:
             actor = self._actor(db, user_id, admin=True)
+            query = db.query(EsignAdminEvent).filter(EsignAdminEvent.firm_id == actor.firm_id)
+            if event_type: query = query.filter(EsignAdminEvent.event_type == event_type)
+            if actor_email: query = query.filter(EsignAdminEvent.actor_email.ilike(f"%{actor_email.strip()}%"))
+            if target_type: query = query.filter(EsignAdminEvent.target_type == target_type)
+            if start: query = query.filter(EsignAdminEvent.created_at >= start)
+            if end: query = query.filter(EsignAdminEvent.created_at < end)
             return [{"id": str(row.id), "event_type": row.event_type, "actor_email": row.actor_email,
                      "target_type": row.target_type, "target_id": row.target_id, "details": row.details, "created_at": row.created_at}
-                    for row in db.query(EsignAdminEvent).filter(EsignAdminEvent.firm_id == actor.firm_id).order_by(EsignAdminEvent.created_at.desc()).limit(min(limit, 5000)).all()]
+                    for row in query.order_by(EsignAdminEvent.created_at.desc()).limit(min(limit, 5000)).all()]
         finally: db.close()
 
 

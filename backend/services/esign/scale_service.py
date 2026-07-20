@@ -40,6 +40,8 @@ from models.db_models import (
     EsignRecipientRole,
     EsignSigningType,
     EsignTemplate,
+    EsignTemplateDocument,
+    EsignTemplateField,
     EsignTemplateVersion,
     User,
 )
@@ -50,6 +52,8 @@ from models.esign import (
     EsignPowerFormResponse,
     EsignReportSummary,
     EsignTemplateVersionResponse,
+    EsignTemplateVersionCompatibilityResponse,
+    EsignTemplateResponse,
 )
 from services.analytics.firm_scope import require_firm_id
 from services.esign import audit_service
@@ -313,6 +317,59 @@ class EsignScaleService:
         finally:
             db.close()
 
+    async def create_draft_from_version(self, user_id: str, version_id: str) -> EsignTemplateResponse:
+        db = self._get_session()
+        created_objects: list[str] = []
+        try:
+            version = self._owned_version(db, user_id, version_id)
+            snapshot = dict(version.snapshot or {})
+            template = EsignTemplate(
+                id=uuid.uuid4(), user_id=user_id, firm_id=version.firm_id,
+                name=f"{snapshot.get('name') or 'Template'} (v{version.version} draft)",
+                title=snapshot.get("title"), message=snapshot.get("message"),
+                signing_type=EsignSigningType(snapshot.get("signing_type") or "sequential"),
+                date_format=snapshot.get("date_format") or "MM/DD/YYYY",
+                recipient_roles=normalize_template_roles(snapshot.get("recipient_roles") or []),
+                brand_id=uuid.UUID(snapshot["brand_id"]) if snapshot.get("brand_id") else None,
+            )
+            db.add(template); db.flush()
+            document_ids: dict[str, uuid.UUID] = {}
+            for source in snapshot.get("documents", []):
+                document_id = uuid.uuid4()
+                object_name = f"esign_templates/{user_id}/{template.id}/{document_id}_{os.path.basename(source['original_filename'])}"
+                await esign_envelope_service.storage.copy_object(source["gcs_object_name"], object_name)
+                created_objects.append(object_name); document_ids[str(source["id"])] = document_id
+                db.add(EsignTemplateDocument(
+                    id=document_id, template_id=template.id, display_order=int(source.get("display_order", 0)),
+                    original_filename=source["original_filename"], gcs_object_name=object_name,
+                    sha256=source["sha256"], page_count=int(source["page_count"]),
+                    file_size_bytes=int(source["file_size_bytes"]),
+                ))
+            field_ids = {str(field.get("id")): str(uuid.uuid4()) for field in snapshot.get("fields", [])}
+            for field in snapshot.get("fields", []):
+                source_document_id = str(field["template_document_id"])
+                if source_document_id not in document_ids: continue
+                db.add(EsignTemplateField(
+                    id=uuid.UUID(field_ids[str(field.get("id"))]), template_id=template.id,
+                    template_document_id=document_ids[source_document_id],
+                    recipient_index=int(field["recipient_index"]),
+                    recipient_role_id=uuid.UUID(str(field["recipient_role_id"])) if field.get("recipient_role_id") else None,
+                    field_type=EsignFieldType(field["field_type"]), page_number=int(field["page_number"]),
+                    pos_x=field["pos_x"], pos_y=field["pos_y"], width=field["width"], height=field["height"],
+                    required=bool(field.get("required", True)), label=field.get("label"),
+                    properties=remap_property_references(dict(field.get("properties") or {}), field_ids),
+                ))
+            db.commit(); db.refresh(template)
+            return esign_envelope_service._serialize_template(template)
+        except Exception:
+            db.rollback()
+            for object_name in created_objects:
+                try: await esign_envelope_service.storage.delete_file(object_name)
+                except Exception: pass
+            raise
+        finally:
+            db.close()
+
     def sample_csv(self, user_id: str, version_id: str) -> str:
         db = self._get_session()
         try:
@@ -375,6 +432,8 @@ class EsignScaleService:
         db = self._get_session()
         try:
             job = self._owned_job(db, user_id, job_id)
+            if job.confirmed_at is not None and job.status != "cancelled":
+                return self._bulk_response(job)
             if job.status != "ready": raise EsignConflict("Only a ready bulk job can be confirmed")
             if job.valid_rows == 0: raise EsignConflict("This bulk job has no valid rows to process")
             job.status = "queued"; job.confirmed_at = datetime.now(timezone.utc)
@@ -388,11 +447,17 @@ class EsignScaleService:
         db = self._get_session()
         try:
             job = self._owned_job(db, user_id, job_id)
+            if job.status == "cancelled":
+                return self._bulk_response(job)
+            if job.status not in ("ready", "queued", "processing"):
+                raise EsignConflict("Only a ready or active bulk job can be cancelled")
             for row in job.rows or []:
                 if row.status in ("valid", "queued", "materialized", "scheduled"):
                     if row.envelope_id:
                         env = db.query(EsignEnvelope).filter(EsignEnvelope.id == row.envelope_id).first()
                         if env and env.status in (EsignEnvelopeStatus.DRAFT, EsignEnvelopeStatus.SCHEDULED):
+                            # Cancellation policy: unsent draft artifacts are retained as
+                            # ordinary drafts so a sender can inspect or safely delete them.
                             env.status = EsignEnvelopeStatus.DRAFT
                     row.status = "cancelled"
             job.status = "cancelled"; job.completed_at = datetime.now(timezone.utc)
@@ -404,6 +469,11 @@ class EsignScaleService:
         db = self._get_session()
         try:
             job = self._owned_job(db, user_id, job_id)
+            if job.status == "queued" and job.completed_at is None and any(
+                    row.status == "queued" and row.attempts > 0 for row in job.rows or []):
+                return self._bulk_response(job)
+            if job.status not in ("partial_failed", "completed"):
+                raise EsignConflict("Only a finished bulk job with failed rows can be retried")
             retried = 0
             for row in job.rows or []:
                 if row.status == "failed":
@@ -419,9 +489,16 @@ class EsignScaleService:
         try:
             job = self._owned_job(db, user_id, job_id)
             output = io.StringIO(newline=""); writer = csv.writer(output)
-            writer.writerow(["row_number", "status", "error_code", "error_message"])
+            original_headers: list[str] = []
             for row in sorted(job.rows or [], key=lambda r: r.row_number):
-                if row.error_message: writer.writerow([row.row_number, row.status, row.error_code or "", row.error_message])
+                for key in (row.normalized_input or {}):
+                    if key not in original_headers:
+                        original_headers.append(key)
+            writer.writerow([*original_headers, "_row_number", "_status", "_error_code", "_error_message"])
+            for row in sorted(job.rows or [], key=lambda r: r.row_number):
+                if row.error_message:
+                    writer.writerow([*((row.normalized_input or {}).get(key, "") for key in original_headers),
+                                     row.row_number, row.status, row.error_code or "", row.error_message])
             return output.getvalue()
         finally: db.close()
 
@@ -608,6 +685,18 @@ class EsignScaleService:
         except Exception as exc:
             self._mark_send_failed(env_id, exc); raise
 
+    def recover_failed_send_draft(self, user_id: str, envelope_id: str) -> EsignEnvelopeResponse:
+        db = self._get_session()
+        try:
+            env = esign_envelope_service._load_envelope(db, user_id, envelope_id)
+            if env.status != EsignEnvelopeStatus.SEND_FAILED: raise EsignConflict("Envelope is not in send_failed status")
+            env.status = EsignEnvelopeStatus.DRAFT
+            audit_service.record_event(db, envelope_id=env.id, event_type=EsignEventType.CORRECTED,
+                actor_user_id=user_id, details={"recovery": "send_failed_to_draft", "error_code": env.send_error_code})
+            db.commit(); db.refresh(env); return esign_envelope_service._serialize_envelope(env)
+        except Exception: db.rollback(); raise
+        finally: db.close()
+
     def create_powerform(self, user_id: str, payload: EsignPowerFormCreateRequest) -> EsignPowerFormResponse:
         db = self._get_session()
         try:
@@ -680,12 +769,43 @@ class EsignScaleService:
         try:
             row = self._owned_powerform(db, user_id, form_id)
             version = self._owned_version(db, user_id, version_id)
-            if len(version.snapshot.get("recipient_roles", [])) != len(row.role_config or []):
+            current = self._owned_version(db, user_id, str(row.template_version_id))
+            current_role_ids = [str(role.get("id") or index) for index, role in enumerate(current.snapshot.get("recipient_roles", []))]
+            target_role_ids = [str(role.get("id") or index) for index, role in enumerate(version.snapshot.get("recipient_roles", []))]
+            if current_role_ids != target_role_ids or len(target_role_ids) != len(row.role_config or []):
                 raise EsignError("The new version's recipient roles do not match this PowerForm")
             row.template_version_id = version.id
             db.commit(); db.refresh(row); return self._powerform_response(row)
         except Exception: db.rollback(); raise
         finally: db.close()
+
+    def powerform_upgrade_preview(
+        self, user_id: str, form_id: str, version_id: str,
+    ) -> EsignTemplateVersionCompatibilityResponse:
+        db = self._get_session()
+        try:
+            form = self._owned_powerform(db, user_id, form_id)
+            current = self._owned_version(db, user_id, str(form.template_version_id))
+            target = self._owned_version(db, user_id, version_id)
+            current_roles = {str(role.get("id") or index): role for index, role in enumerate(current.snapshot.get("recipient_roles", []))}
+            target_roles = {str(role.get("id") or index): role for index, role in enumerate(target.snapshot.get("recipient_roles", []))}
+            added = [str(role.get("label") or key) for key, role in target_roles.items() if key not in current_roles]
+            removed = [str(role.get("label") or key) for key, role in current_roles.items() if key not in target_roles]
+            changed = [str(target_roles[key].get("label") or key) for key in current_roles.keys() & target_roles.keys()
+                       if any(current_roles[key].get(field) != target_roles[key].get(field)
+                              for field in ("role", "routing_order", "managed_by_role_id", "witness_for_role_id"))]
+            compatible = not added and not removed and len(target_roles) == len(form.role_config or [])
+            warnings = []
+            if added or removed: warnings.append("Recipient roles changed; update the PowerForm identity mapping before upgrading.")
+            if changed: warnings.append("One or more recipient roles changed routing or relationship settings.")
+            return EsignTemplateVersionCompatibilityResponse(
+                compatible=compatible, current_version=current.version, target_version=target.version,
+                added_roles=added, removed_roles=removed, changed_roles=changed,
+                current_field_count=len(current.snapshot.get("fields", [])),
+                target_field_count=len(target.snapshot.get("fields", [])), warnings=warnings,
+            )
+        finally:
+            db.close()
 
     def list_powerform_submissions(self, user_id: str, form_id: str) -> list[dict[str, Any]]:
         db = self._get_session()
@@ -698,6 +818,27 @@ class EsignScaleService:
                 "verified_at": item.verified_at, "created_at": item.created_at,
                 "attempt_count": item.attempt_count, "last_error": item.last_error} for item in submissions]
         finally: db.close()
+
+    async def retry_powerform_submission(self, user_id: str, form_id: str, submission_id: str) -> dict[str, Any]:
+        db = self._get_session()
+        try:
+            form = self._owned_powerform(db, user_id, form_id)
+            submission = db.query(EsignPowerFormSubmission).filter(
+                EsignPowerFormSubmission.id == uuid.UUID(submission_id),
+                EsignPowerFormSubmission.powerform_id == form.id,
+            ).with_for_update().first()
+            if not submission: raise EsignNotFound("PowerForm submission not found")
+            if submission.status != "failed": raise EsignConflict("Only a failed submission can be retried")
+            token = secrets.token_urlsafe(32)
+            submission.verification_token_sha256 = hashlib.sha256(token.encode()).hexdigest()
+            submission.verification_expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
+            db.commit()
+        except Exception:
+            db.rollback(); raise
+        finally:
+            db.close()
+        await self.exchange_powerform_verification(token)
+        return next(item for item in self.list_powerform_submissions(user_id, form_id) if item["id"] == submission_id)
 
     def public_powerform(self, token: str) -> dict[str, Any]:
         db = self._get_session()
@@ -970,7 +1111,10 @@ class EsignScaleService:
         finally: db.close()
 
     def report_time_series(self, user_id: str, start: datetime, end: datetime,
-                           source: Optional[str] = None) -> list[dict[str, Any]]:
+                           source: Optional[str] = None, status: Optional[str] = None,
+                           template_version_id: Optional[str] = None,
+                           sender_user_id: Optional[str] = None,
+                           source_id: Optional[str] = None) -> list[dict[str, Any]]:
         db = self._get_session()
         try:
             user = db.query(User).filter(User.id == user_id).first()
@@ -981,6 +1125,13 @@ class EsignScaleService:
                 EsignEnvelope.sent_at >= start, EsignEnvelope.sent_at < end)
             if not principal or not (principal.is_admin or principal.can("firm_view")): q = q.filter(EsignEnvelope.user_id == user_id)
             if source: q = q.filter(EsignEnvelope.source_type == source)
+            if status: q = q.filter(EsignEnvelope.status == status)
+            if template_version_id: q = q.filter(EsignEnvelope.template_version_id == uuid.UUID(template_version_id))
+            if sender_user_id:
+                if (not principal or not (principal.is_admin or principal.can("firm_view"))) and sender_user_id != user_id:
+                    raise PermissionError("You may only report on envelopes you sent")
+                q = q.filter(EsignEnvelope.user_id == sender_user_id)
+            if source_id: q = q.filter(EsignEnvelope.source_id == uuid.UUID(source_id))
             buckets: dict[str, dict[str, Any]] = {}
             for env in q.all():
                 day = env.sent_at.date().isoformat()
@@ -989,7 +1140,11 @@ class EsignScaleService:
             return [buckets[key] for key in sorted(buckets)]
         finally: db.close()
 
-    def report_csv(self, user_id: str, start: datetime, end: datetime) -> str:
+    def report_csv(self, user_id: str, start: datetime, end: datetime,
+                   source: Optional[str] = None, status: Optional[str] = None,
+                   template_version_id: Optional[str] = None,
+                   sender_user_id: Optional[str] = None,
+                   source_id: Optional[str] = None) -> str:
         db = self._get_session()
         try:
             user = db.query(User).filter(User.id == user_id).first()
@@ -997,8 +1152,16 @@ class EsignScaleService:
             principal = esign_authorization_service.principal(db, user_id)
             if principal and not principal.can("exports"): raise EsignNotFound("E-Signature report export not found")
             q = db.query(EsignEnvelope).filter(EsignEnvelope.firm_id == require_firm_id(db, user_id),
-                EsignEnvelope.created_at >= start, EsignEnvelope.created_at < end)
+                EsignEnvelope.sent_at >= start, EsignEnvelope.sent_at < end)
             if not principal or not (principal.is_admin or principal.can("firm_view")): q = q.filter(EsignEnvelope.user_id == user_id)
+            if source: q = q.filter(EsignEnvelope.source_type == source)
+            if status: q = q.filter(EsignEnvelope.status == status)
+            if template_version_id: q = q.filter(EsignEnvelope.template_version_id == uuid.UUID(template_version_id))
+            if sender_user_id:
+                if (not principal or not (principal.is_admin or principal.can("firm_view"))) and sender_user_id != user_id:
+                    raise PermissionError("You may only export envelopes you sent")
+                q = q.filter(EsignEnvelope.user_id == sender_user_id)
+            if source_id: q = q.filter(EsignEnvelope.source_id == uuid.UUID(source_id))
             output = io.StringIO(newline=""); writer = csv.writer(output)
             writer.writerow(["envelope_id", "title", "sender_user_id", "source", "source_id", "template_version_id",
                 "status", "scheduled_at", "sent_at", "completed_at", "created_at", "error_code", "error_message"])

@@ -38,7 +38,8 @@ import {
 export default function EsignTemplatesPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const templatesQuery = useEsignTemplates()
+  const [showArchived, setShowArchived] = React.useState(false)
+  const templatesQuery = useEsignTemplates(showArchived)
   const createTemplate = useCreateEsignTemplate()
   const deleteTemplate = useDeleteEsignTemplate()
 
@@ -90,6 +91,7 @@ export default function EsignTemplatesPage() {
                 <ArrowLeft className="mr-1.5 size-4" /> Envelopes
               </Link>
             </Button>
+            <Button variant="outline" onClick={() => setShowArchived(value => !value)}>{showArchived ? 'Hide archived' : 'Show archived'}</Button>
             <Button onClick={() => setCreateOpen(true)}>
               <Plus className="mr-1.5 size-4" /> New template
             </Button>
@@ -132,7 +134,7 @@ export default function EsignTemplatesPage() {
                   className="cursor-pointer"
                   onClick={() => router.push(`/dashboard/esign/templates/${template.id}`)}
                 >
-                  <TableCell className="font-medium">{template.name}</TableCell>
+                  <TableCell className="font-medium">{template.name}{template.archived_at && <span className="ml-2 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] text-foreground-muted">Archived</span>}</TableCell>
                   <TableCell className="text-foreground-muted">{template.documents.length}</TableCell>
                   <TableCell className="text-foreground-muted">
                     {(template.recipient_roles as { label?: string }[])
@@ -143,7 +145,7 @@ export default function EsignTemplatesPage() {
                   <TableCell className="text-foreground-muted">{template.fields.length}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                      <Button
+                      {!template.archived_at && <Button
                         size="sm"
                         onClick={async (e) => {
                           e.stopPropagation()
@@ -151,7 +153,7 @@ export default function EsignTemplatesPage() {
                         }}
                       >
                         Use
-                      </Button>
+                      </Button>}
                       <Button
                         size="sm"
                         variant="ghost"
@@ -160,7 +162,7 @@ export default function EsignTemplatesPage() {
                           e.stopPropagation()
                           try {
                             await deleteTemplate.mutateAsync(template.id)
-                            toast({ title: 'Template deleted' })
+                            toast({ title: template.latest_published_version ? 'Template archived' : 'Template deleted', description: template.latest_published_version ? 'Published history and referenced envelope records were retained.' : undefined })
                           } catch (error) {
                             toast({
                               title: 'Failed to delete template',

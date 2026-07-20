@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
-import { apiClient, type EsignPowerFormCreateRequest } from '@/lib/api'
+import { apiClient, type EsignPowerFormCreateRequest, type EsignReportFilters } from '@/lib/api'
 
 export function useTemplateVersions(templateId?: string) {
   const { user } = useAuth()
@@ -78,7 +78,18 @@ export function usePowerFormAction() {
   })
 }
 
-export function useEsignReport(params: { start: string; end: string; source?: string; status?: string }) {
+export function usePowerFormSubmissions(formId?: string) {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'powerform', formId, 'submissions'],
+    queryFn: () => apiClient.listEsignPowerFormSubmissions(formId!), enabled: !!user && !!formId })
+}
+
+export function useEsignReport(params: EsignReportFilters) {
   const { user } = useAuth()
   return useQuery({ queryKey: ['esign', 'report', params], queryFn: () => apiClient.getEsignReportSummary(params), enabled: !!user })
+}
+
+export function useEsignReportTimeSeries(params: EsignReportFilters) {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['esign', 'report', 'time-series', params], queryFn: () => apiClient.getEsignReportTimeSeries(params), enabled: !!user })
 }

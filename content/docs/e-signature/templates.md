@@ -41,8 +41,12 @@ Set the envelope title, message, expiration, and reminder interval, then click *
 
 The envelope receives its own copy of the template documents and fields. Later edits to or deletion of the template do not change envelopes already created from it.
 
-## Edit or delete a template
+## Edit and publish a template
 
-Click a template row to open the immersive field editor. You can move, resize, add, or remove fields; changes save automatically. Click **Use template** to start an envelope from the updated layout.
+Click a template row to open the immersive editor. You can edit roles and their relationships, documents, message defaults, date and signing settings, branding, and field placement. Field changes save automatically; use **Save settings** for the remaining draft settings.
 
-To delete a template, use the delete button in the **Templates** table. Deleting a template removes it from future use but does not remove envelopes previously created from it.
+Click **Publish** to create an immutable numbered version for Bulk Send and PowerForms. Published snapshots never change when the working draft is edited. The version history can create a new editable template draft from any prior version.
+
+## Archive or delete a template
+
+Use the delete button in the **Templates** table to remove an unused draft. If an envelope or published history references the template, CPAAutomation archives it instead of hard-deleting it. Archived templates cannot be used for new sends, but their immutable versions and retained envelope provenance remain available. Use **Show archived** to inspect them.
