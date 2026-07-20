@@ -56,7 +56,11 @@ from services.esign.routing_engine import (
     recompute_current_routing_order,
     role_value,
 )
-from services.esign.signing_service import ACTIVE_ENVELOPE_STATUSES, acquire_envelope_lock
+from services.esign.signing_service import (
+    ACTIVE_ENVELOPE_STATUSES,
+    acquire_envelope_lock,
+    recipient_has_account,
+)
 from services.esign.url_service import app_base_url
 from services.gcs_service import get_storage_service
 
@@ -650,7 +654,8 @@ class EsignRecipientService:
                 special_guest = role_value(recipient) in (
                     EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER,
                 ) or getattr(envelope, "source_type", None) == "powerform"
-                if getattr(envelope, "recipient_access_mode", "account") != "email_link" and not special_guest:
+                legacy_guest_mode = getattr(envelope, "recipient_access_mode", "account") == "email_link"
+                if recipient_has_account(db, recipient) and not legacy_guest_mode and not special_guest:
                     raise PermissionError("Guest access is not available for this recipient")
                 if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
                     raise EsignConflict("This envelope is no longer active")

@@ -12,7 +12,7 @@ import types
 import unittest
 import uuid
 from pathlib import Path
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -108,18 +108,24 @@ class RecipientAccessUrlTests(unittest.TestCase):
         ):
             self.assertEqual(app_base_url(), "https://sign.example.com")
 
-    def test_existing_account_mode_keeps_authenticated_url(self) -> None:
-        envelope = NS(id=uuid.uuid4(), recipient_access_mode="account", source_type="manual", source_id=None)
+    @staticmethod
+    def _db_with_user(exists: bool):
+        db = MagicMock()
+        db.query.return_value.filter.return_value.first.return_value = ("user-id",) if exists else None
+        return db
+
+    def test_cpaautomation_user_receives_authenticated_url(self) -> None:
+        envelope = NS(id=uuid.uuid4(), recipient_access_mode="email_link", source_type="manual", source_id=None)
         recipient = NS(id=uuid.uuid4(), role=EsignRecipientRole.SIGNER, email="guest@example.com")
-        url = esign_signing_service.recipient_signing_url(NS(), envelope, recipient)
+        url = esign_signing_service.recipient_signing_url(self._db_with_user(True), envelope, recipient)
         self.assertIn(f"/dashboard/esign/sign/{envelope.id}", url)
 
-    def test_email_link_mode_issues_guest_invitation(self) -> None:
-        envelope = NS(id=uuid.uuid4(), recipient_access_mode="email_link", source_type="manual", source_id=None)
+    def test_non_user_receives_guest_invitation(self) -> None:
+        envelope = NS(id=uuid.uuid4(), recipient_access_mode="account", source_type="manual", source_id=None)
         recipient = NS(id=uuid.uuid4(), role=EsignRecipientRole.SIGNER, email="guest@example.com")
         invitation = NS(guest_url="https://cpaautomation.ai/esign/guest?token=secret")
         with patch("services.esign.recipient_service.esign_recipient_service._issue_invitation", return_value=invitation) as issue:
-            url = esign_signing_service.recipient_signing_url(NS(), envelope, recipient)
+            url = esign_signing_service.recipient_signing_url(self._db_with_user(False), envelope, recipient)
         self.assertEqual(url, invitation.guest_url)
         issue.assert_called_once_with(ANY, envelope, recipient)
 
@@ -128,6 +134,45 @@ class RecipientAccessUrlTests(unittest.TestCase):
         recipient = NS(id=uuid.uuid4(), role=EsignRecipientRole.IN_PERSON_SIGNER, email=None)
         url = esign_signing_service.recipient_signing_url(NS(), envelope, recipient)
         self.assertIn("/dashboard/esign/sign/", url)
+
+
+class CompletionEmailAccessTests(unittest.IsolatedAsyncioTestCase):
+    async def test_completion_links_are_selected_per_recipient_account(self) -> None:
+        envelope_id = str(uuid.uuid4())
+        account_recipient = NS(role=EsignRecipientRole.SIGNER, email="user@example.com")
+        guest_recipient = NS(role=EsignRecipientRole.SIGNER, email="guest@example.com")
+        envelope = NS(
+            id=uuid.UUID(envelope_id),
+            title="Engagement letter",
+            recipients=[account_recipient, guest_recipient],
+        )
+        db = MagicMock()
+        invitation = NS(guest_url="https://cpaautomation.ai/esign/guest?token=completed")
+        sent = AsyncMock()
+
+        with (
+            patch.object(esign_signing_service, "_get_session", return_value=db),
+            patch.object(esign_signing_service, "_load_envelope_any", return_value=envelope),
+            patch.object(esign_signing_service, "_sender_email", return_value=""),
+            patch.object(esign_signing_service, "_send_content", sent),
+            patch("services.esign.signing_service.recipient_has_account", side_effect=[True, False]),
+            patch(
+                "services.esign.recipient_service.esign_recipient_service._issue_invitation",
+                return_value=invitation,
+            ) as issue,
+        ):
+            await esign_signing_service.send_completion_emails(envelope_id)
+
+        self.assertEqual([call.args[0] for call in sent.await_args_list], [
+            "guest@example.com",
+            "user@example.com",
+        ])
+        contents = {call.args[0]: call.args[1].text for call in sent.await_args_list}
+        self.assertIn(invitation.guest_url, contents["guest@example.com"])
+        self.assertIn(f"/dashboard/esign/sign/{envelope_id}", contents["user@example.com"])
+        issue.assert_called_once_with(db, envelope, guest_recipient, purpose="completed_copy")
+        db.commit.assert_called_once_with()
+        db.close.assert_called_once_with()
 
 
 class SignaturePayloadTests(unittest.TestCase):

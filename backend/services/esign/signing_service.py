@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import fitz
-from sqlalchemy import or_, text
+from sqlalchemy import func, or_, text
 from sqlalchemy.orm import Session, joinedload
 
 from core.database import db_config
@@ -34,7 +34,6 @@ from models.db_models import (
     EsignFieldType,
     EsignGuestInvitation,
     EsignGuestSession,
-    EsignPowerForm,
     EsignRecipient,
     EsignRecipientRole,
     EsignRecipientStatus,
@@ -113,6 +112,24 @@ COMPLETED_INBOX_LIMIT = int(os.getenv("ESIGN_COMPLETED_INBOX_LIMIT", "25"))
 
 def signing_url(envelope_id) -> str:
     return f"{app_base_url()}/dashboard/esign/sign/{envelope_id}"
+
+
+def recipient_has_account(db: Session, recipient: EsignRecipient) -> bool:
+    """Whether the address receiving this notification belongs to an app user."""
+    email = (
+        recipient.host_email
+        if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER
+        else recipient.email
+    )
+    normalized = (email or "").strip().lower()
+    if not normalized:
+        return False
+    return (
+        db.query(User.id)
+        .filter(func.lower(User.email) == normalized)
+        .first()
+        is not None
+    )
 
 
 def _advisory_lock_keys(lock_id: str) -> tuple[int, int]:
@@ -243,18 +260,10 @@ class EsignSigningService:
     # ------------------------------------------------------------------
 
     def recipient_signing_url(self, db: Session, envelope: EsignEnvelope, recipient: EsignRecipient) -> str:
-        """Return the correct snapshotted access URL for this recipient."""
+        """Return an account URL for users and a secure guest URL for non-users."""
         if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER:
             return signing_url(envelope.id)
-        accountless = getattr(envelope, "recipient_access_mode", "account") == "email_link"
-        if not accountless and getattr(envelope, "source_type", None) == "powerform" and getattr(envelope, "source_id", None):
-            form = db.query(EsignPowerForm).filter(EsignPowerForm.id == envelope.source_id).first()
-            preset_emails = {
-                str(item.get("email") or "").lower() for item in (form.role_config if form else [])
-                if item.get("identity_source") == "preset"
-            }
-            accountless = (recipient.email or "").lower() not in preset_emails
-        if not accountless:
+        if recipient_has_account(db, recipient):
             return signing_url(envelope.id)
         from services.esign.recipient_service import esign_recipient_service
         return esign_recipient_service._issue_invitation(db, envelope, recipient).guest_url
@@ -1787,24 +1796,20 @@ class EsignSigningService:
             sender_email = self._sender_email(db, envelope)
             recipients = list(envelope.recipients or [])
             envelope_title = envelope.title
-            accountless = getattr(envelope, "recipient_access_mode", "account") == "email_link"
             recipient_targets: list[tuple[str, str]] = []
-            if accountless:
-                from services.esign.recipient_service import esign_recipient_service
-                self._revoke_guest_access(db, envelope.id)
-                for recipient in recipients:
-                    email = self.recipient_notification_email(recipient)
-                    if email:
+            from services.esign.recipient_service import esign_recipient_service
+            self._revoke_guest_access(db, envelope.id)
+            for recipient in recipients:
+                email = self.recipient_notification_email(recipient)
+                if email:
+                    if recipient_has_account(db, recipient):
+                        recipient_targets.append((email, signing_url(envelope_id)))
+                    else:
                         invitation = esign_recipient_service._issue_invitation(
                             db, envelope, recipient, purpose="completed_copy",
                         )
                         recipient_targets.append((email, invitation.guest_url))
-                db.commit()
-            else:
-                recipient_targets = [
-                    (email, signing_url(envelope_id))
-                    for email in (self.recipient_notification_email(r) for r in recipients) if email
-                ]
+            db.commit()
         finally:
             db.close()
 
