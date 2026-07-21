@@ -52,12 +52,13 @@ import { cn } from '@/lib/utils'
 
 const PAGE_SIZE = 20
 
-type QuickView = 'all' | 'inbox' | 'draft' | 'scheduled' | 'send_failed' | 'active' | 'completed' | 'declined' | 'voided' | 'expired'
+type QuickView = 'all' | 'inbox' | 'signed' | 'draft' | 'scheduled' | 'send_failed' | 'active' | 'completed' | 'declined' | 'voided' | 'expired'
 type SortBy = 'updated_at' | 'created_at' | 'sent_at' | 'completed_at' | 'title'
 
 const QUICK_VIEWS: { id: QuickView; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'inbox', label: 'Awaiting my signature' },
+  { id: 'signed', label: 'Signed by me' },
   { id: 'draft', label: 'Drafts' },
   { id: 'scheduled', label: 'Scheduled' },
   { id: 'send_failed', label: 'Send failed' },
@@ -110,7 +111,8 @@ export default function EsignManagePage() {
     return () => window.clearTimeout(timer)
   }, [query, search, setParams])
 
-  const status = view === 'all' || view === 'inbox' ? undefined : view
+  const isRecipientView = view === 'inbox' || view === 'signed'
+  const status = view === 'all' || isRecipientView ? undefined : view
   const envelopesQuery = useEnvelopes({
     limit: PAGE_SIZE,
     offset,
@@ -122,20 +124,31 @@ export default function EsignManagePage() {
     scope: effectiveScope,
   })
   const inboxQuery = useEsignInbox({ q: query || undefined, state: 'pending' })
+  const signedQuery = useEsignInbox({ q: query || undefined, state: 'completed' })
   const deleteEnvelope = useDeleteEnvelope()
   const inboxItems = (inboxQuery.data?.items ?? []).filter((item) => item.role !== 'cc')
+  const signedItems = (signedQuery.data?.items ?? []).filter((item) => item.status === 'signed')
   const counts = (envelopesQuery.data as typeof envelopesQuery.data & { status_counts?: Record<string, number> })?.status_counts ?? {}
   const activeCount = (counts.sent ?? 0) + (counts.in_progress ?? 0)
 
   const countFor = (id: QuickView) => {
     if (id === 'all') return Object.values(counts).reduce((sum, count) => sum + count, 0)
     if (id === 'inbox') return inboxItems.length
+    if (id === 'signed') return signedItems.length
     if (id === 'active') return activeCount
     return counts[id] ?? 0
   }
 
-  const isLoading = view === 'inbox' ? inboxQuery.isLoading : envelopesQuery.isLoading
-  const total = view === 'inbox' ? inboxItems.length : envelopesQuery.data?.total ?? 0
+  const isLoading = view === 'inbox'
+    ? inboxQuery.isLoading
+    : view === 'signed'
+      ? signedQuery.isLoading
+      : envelopesQuery.isLoading
+  const total = view === 'inbox'
+    ? inboxItems.length
+    : view === 'signed'
+      ? signedItems.length
+      : envelopesQuery.data?.total ?? 0
 
   return (
     <div className="space-y-5">
@@ -183,7 +196,7 @@ export default function EsignManagePage() {
                 className="pl-9"
               />
             </div>
-            {view !== 'inbox' && (
+            {!isRecipientView && (
               <><Select value={effectiveScope} onValueChange={(value) => setParams({ scope: value === 'mine' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mine">My envelopes</SelectItem><SelectItem value="shared">Shared</SelectItem>{canViewFirm && <SelectItem value="firm">Firm-wide</SelectItem>}</SelectContent></Select><Select value={source ?? 'all'} onValueChange={(value) => setParams({ source: value === 'all' ? null : value, offset: null })}><SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All sources</SelectItem><SelectItem value="manual">Manual</SelectItem><SelectItem value="bulk">Bulk</SelectItem><SelectItem value="powerform">PowerForm</SelectItem></SelectContent></Select><Select value={`${sortBy}:${sortDir}`} onValueChange={(value) => {
                 const [nextSort, nextDir] = value.split(':')
                 setParams({ sort_by: nextSort, sort_dir: nextDir, offset: null })
@@ -202,17 +215,21 @@ export default function EsignManagePage() {
 
           {isLoading ? (
             <div className="space-y-3 p-4"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
-          ) : view === 'inbox' ? (
-            inboxItems.length === 0 ? (
-              <EmptyState icon={FileSignature} title="Nothing waiting for you" description="Signature requests assigned to you appear here." />
+          ) : isRecipientView ? (
+            (view === 'inbox' ? inboxItems : signedItems).length === 0 ? (
+              view === 'inbox' ? (
+                <EmptyState icon={FileSignature} title="Nothing waiting for you" description="Signature requests assigned to you appear here." />
+              ) : (
+                <EmptyState icon={FileSignature} title="No signed documents yet" description="Completed documents you signed appear here, even when someone else owns the envelope." />
+              )
             ) : (
               <ul className="divide-y divide-border">
-                {inboxItems.map((item) => (
+                {(view === 'inbox' ? inboxItems : signedItems).map((item) => (
                   <li key={item.envelope_id}>
                     <button type="button" onClick={() => router.push(`/dashboard/esign/sign/${item.envelope_id}`)} className="grid w-full gap-2 px-4 py-3 text-left hover:bg-surface-muted/50 sm:grid-cols-[minmax(0,1fr)_180px_130px] sm:items-center">
                       <span className="min-w-0"><span className="block truncate text-sm font-medium">{item.title}</span><span className="block truncate text-xs text-foreground-muted">From {item.sender_email}</span></span>
-                      <span className="text-xs text-foreground-muted">{item.is_my_turn ? 'Ready for your signature' : 'Waiting on others'}</span>
-                      <span className="text-xs text-foreground-muted">{formatActivity(item.sent_at)}</span>
+                      <span className="text-xs text-foreground-muted">{view === 'signed' ? 'Completed copy' : item.is_my_turn ? 'Ready for your signature' : 'Waiting on others'}</span>
+                      <span className="text-xs text-foreground-muted">{formatActivity(view === 'signed' ? item.completed_at : item.sent_at)}</span>
                     </button>
                   </li>
                 ))}
@@ -252,7 +269,7 @@ export default function EsignManagePage() {
             </ul>
           )}
 
-          {view !== 'inbox' && total > 0 && (
+          {!isRecipientView && total > 0 && (
             <div className="flex items-center justify-between border-t border-border px-4 py-3 text-xs text-foreground-muted">
               <span>{offset + 1}–{Math.min(offset + PAGE_SIZE, total)} of {total}</span>
               <div className="flex gap-1">
