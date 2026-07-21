@@ -10,9 +10,11 @@ const TEXT_FIELD_TYPES = new Set<EditorFieldType>([
 ])
 
 /** Fields whose entered or resolved value is rendered as text in the document. */
-export function supportsTextAlignment(type: EditorFieldType): boolean {
+export function supportsTextAppearance(type: EditorFieldType): boolean {
   return TEXT_FIELD_TYPES.has(type)
 }
+
+export const supportsTextAlignment = supportsTextAppearance
 
 export function resolveAnchorFieldType(armedType: EditorFieldType | null): EditorFieldType {
   return armedType ?? 'text'

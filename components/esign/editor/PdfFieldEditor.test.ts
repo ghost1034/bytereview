@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import type { EditorField } from './PdfFieldEditor'
-import { supportsTextAlignment, type EditorFieldType } from './anchorPlacement'
+import { supportsTextAppearance, type EditorFieldType } from './anchorPlacement'
 import { getFloatingToolbarPosition } from './floatingToolbar'
+import { configuredTextFontSize, textFontFamily } from './textAppearance'
 
 const field: EditorField = {
   id: 'field-1',
@@ -49,12 +50,26 @@ describe('text field appearance support', () => {
     'date_signed', 'text', 'auto_fill', 'dropdown', 'formula', 'date', 'number',
     'first_name', 'last_name', 'full_name', 'email', 'company', 'title', 'note',
   ])('allows alignment for %s fields', (fieldType) => {
-    expect(supportsTextAlignment(fieldType)).toBe(true)
+    expect(supportsTextAppearance(fieldType)).toBe(true)
   })
 
   it.each<EditorFieldType>([
     'signature', 'initials', 'stamp', 'checkbox', 'radio', 'attachment',
   ])('does not offer text alignment for %s fields', (fieldType) => {
-    expect(supportsTextAlignment(fieldType)).toBe(false)
+    expect(supportsTextAppearance(fieldType)).toBe(false)
+  })
+})
+
+describe('configured text font rendering', () => {
+  it('maps PDF-safe font names to browser font stacks', () => {
+    expect(textFontFamily('Helvetica')).toContain('Arial')
+    expect(textFontFamily('Times')).toContain('Times New Roman')
+    expect(textFontFamily('Courier')).toContain('Courier New')
+  })
+
+  it('scales point sizes without overflowing the field', () => {
+    expect(configuredTextFontSize(12, 1.5, 30)).toBe(18)
+    expect(configuredTextFontSize(72, 1, 20)).toBe(18)
+    expect(configuredTextFontSize(undefined, 1, 20)).toBeUndefined()
   })
 })

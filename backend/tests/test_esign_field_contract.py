@@ -50,8 +50,16 @@ def test_all_twenty_types_have_versioned_allowed_contract(field_type, properties
         "first_name", "last_name", "full_name", "email", "company", "title", "note",
     ],
 )
-def test_all_text_rendering_fields_accept_alignment(field_type):
-    result = field(field_type, {**VALID_PROPERTIES[field_type], "appearance": {"alignment": "right"}})
+def test_all_text_rendering_fields_accept_font_size_and_alignment(field_type):
+    result = field(
+        field_type,
+        {
+            **VALID_PROPERTIES[field_type],
+            "appearance": {"font": "Times", "font_size": 12, "alignment": "right"},
+        },
+    )
+    assert result.properties.appearance.font == "Times"
+    assert result.properties.appearance.font_size == 12
     assert result.properties.appearance.alignment == "right"
 
 

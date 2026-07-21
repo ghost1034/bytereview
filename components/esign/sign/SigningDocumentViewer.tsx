@@ -5,7 +5,8 @@ import { Loader2, Paperclip, PenLine, Trash2 } from 'lucide-react'
 
 import { openPdfFromUrl, participantColor, type PdfDocument } from '@/components/esign/pdf'
 import { PdfPageCanvas } from '@/components/esign/PdfPageCanvas'
-import { supportsTextAlignment } from '@/components/esign/editor/anchorPlacement'
+import { supportsTextAppearance } from '@/components/esign/editor/anchorPlacement'
+import { configuredTextFontSize, textFontFamily } from '@/components/esign/editor/textAppearance'
 import { formatDateSigned } from '@/components/esign/sign/dateSigned'
 import {
   signatureFontFamily,
@@ -69,10 +70,9 @@ export function SigningDocumentViewer({
     {Array.from({ length: pdf.numPages }, (_, pageIndex) => <div key={pageIndex} className="mx-auto w-full max-w-3xl">
       <PdfPageCanvas pdf={pdf} pageNumber={pageIndex + 1} overlay={(size) => <div className="absolute inset-0">
         {fields.filter((field) => field.page_number === pageIndex).map((field) => {
-          const family = field.properties?.appearance?.font ?? 'Helvetica'
           const pdfFontSize = field.properties?.appearance?.font_size
           const renderedFieldHeight = field.height * size.height
-          const textAlignment = supportsTextAlignment(field.field_type)
+          const textAlignment = supportsTextAppearance(field.field_type)
             ? field.properties?.appearance?.alignment
             : undefined
           const style: React.CSSProperties = {
@@ -81,12 +81,9 @@ export function SigningDocumentViewer({
             width: field.width * size.width,
             height: field.height * size.height,
             color: field.properties?.appearance?.color ?? undefined,
-            fontSize: pdfFontSize
-              ? Math.min(pdfFontSize * size.scale, renderedFieldHeight * 0.9)
-              : renderedFieldHeight * 0.7,
-            fontFamily: family.toLowerCase().includes('times')
-              ? 'Times New Roman, serif'
-              : family.toLowerCase().includes('courier') ? 'Courier New, monospace' : 'Arial, Helvetica, sans-serif',
+            fontSize: configuredTextFontSize(pdfFontSize, size.scale, renderedFieldHeight)
+              ?? renderedFieldHeight * 0.7,
+            fontFamily: textFontFamily(field.properties?.appearance?.font),
             fontWeight: field.properties?.appearance?.bold ? 700 : undefined,
             fontStyle: field.properties?.appearance?.italic ? 'italic' : undefined,
             textDecoration: field.properties?.appearance?.underline ? 'underline' : undefined,
