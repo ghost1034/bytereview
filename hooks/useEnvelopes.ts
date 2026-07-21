@@ -292,12 +292,9 @@ export function useRecordConsent(envelopeId: string) {
 }
 
 export function useSaveSigningProgress(envelopeId: string) {
-  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: ({ fieldValues, expectedRoutingVersion, marks }: { fieldValues: { field_id: string; value?: string | null }[]; expectedRoutingVersion: number; marks?: components['schemas']['EsignMarkBundle'] }) =>
       apiClient.saveEsignSigningProgress(envelopeId, fieldValues, expectedRoutingVersion, marks),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ['esign', 'signing-session', envelopeId] }),
   })
 }
 

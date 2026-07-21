@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { adoptedToMarks, initializeCeremonyState, marksToAdopted } from './ceremony'
+import { adoptedToMarks, initializeCeremonyState, marksToAdopted, mergeCeremonyState } from './ceremony'
 
 describe('shared signing ceremony state', () => {
   it('uses identical defaults and lets resumed drafts win', () => {
@@ -32,5 +32,26 @@ describe('shared signing ceremony state', () => {
     expect(marks.stamp?.image_data_url).toContain('stamp')
     expect(marks.stamp?.image_data_url).not.toBe(marks.signature?.image_data_url)
     expect(marksToAdopted(marks)).toMatchObject(adopted)
+  })
+
+  it('does not turn an unchanged session rehydration into a local edit', () => {
+    const previous = { name: 'Ada Lovelace', note: 'Local edit' }
+    const session = {
+      recipient_name: 'Ada Lovelace',
+      fields: [
+        { id: 'name', field_type: 'full_name' as const },
+        { id: 'note', field_type: 'text' as const, draft_value: 'Older server draft' },
+      ],
+    }
+
+    expect(mergeCeremonyState(previous, session)).toBe(previous)
+
+    const withNewDefault = mergeCeremonyState(previous, {
+      ...session,
+      fields: [...session.fields, { id: 'email', field_type: 'email' as const }],
+      recipient_email: 'ada@example.test',
+    })
+    expect(withNewDefault).toEqual({ ...previous, email: 'ada@example.test' })
+    expect(withNewDefault).not.toBe(previous)
   })
 })

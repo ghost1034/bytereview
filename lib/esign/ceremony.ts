@@ -60,6 +60,27 @@ export function initializeCeremonyState(session: CeremonySession): Record<string
   return values
 }
 
+/**
+ * Add server-provided defaults and saved drafts without replacing local edits.
+ * Returning the existing object when nothing changed also prevents a session
+ * refetch from looking like a new signer edit to the autosave effect.
+ */
+export function mergeCeremonyState(
+  previous: Record<string, string>,
+  session: CeremonySession,
+): Record<string, string> {
+  const initialized = initializeCeremonyState(session)
+  let next: Record<string, string> | undefined
+
+  for (const [fieldId, value] of Object.entries(initialized)) {
+    if (Object.prototype.hasOwnProperty.call(previous, fieldId)) continue
+    next ??= { ...previous }
+    next[fieldId] = value
+  }
+
+  return next ?? previous
+}
+
 export function adoptedToMarks(adopted: AdoptedSignature | null): MarkBundle | undefined {
   if (!adopted) return undefined
   const imageType = adopted.signatureType === 'typed' ? undefined : adopted.signatureType

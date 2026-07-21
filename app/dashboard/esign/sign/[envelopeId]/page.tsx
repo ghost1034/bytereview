@@ -40,7 +40,7 @@ import {
 import { ApiError, apiClient, type EsignFieldResponse, type EsignSubmitRequest } from '@/lib/api'
 import type { EsignSignerAttachmentResponse } from '@/lib/api'
 import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility, validationErrors } from '@/lib/esign/fieldLogic'
-import { adoptedToMarks, initializeCeremonyState, marksToAdopted } from '@/lib/esign/ceremony'
+import { adoptedToMarks, marksToAdopted, mergeCeremonyState } from '@/lib/esign/ceremony'
 
 type CeremonyState = 'signing' | 'submitted' | 'declined'
 
@@ -112,7 +112,7 @@ export default function SigningCeremonyPage() {
   React.useEffect(() => {
     if (!session) return
     setAttachments(session.attachments ?? [])
-    setFieldValues((previous) => ({ ...initializeCeremonyState(session), ...previous }))
+    setFieldValues((previous) => mergeCeremonyState(previous, session))
     setAdopted((previous) => previous ?? marksToAdopted(session.draft_marks))
   }, [session])
 
