@@ -58,7 +58,7 @@ class UdaMcpError(Exception):
 
 
 def uda_mcp_enabled() -> bool:
-    return os.getenv("CLAW_UDA_MCP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    return os.getenv("CLAW_UDA_MCP_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def audit_uda_mcp_call(user_id: str, tool_name: str, success: bool, duration_ms: int) -> None:

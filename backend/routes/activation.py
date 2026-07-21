@@ -149,7 +149,7 @@ def _provision_connector(
         from services.connector_service import connector_service
         from services.connector_token_service import mint_token
 
-        uda_enabled = os.getenv("CLAW_UDA_MCP_ENABLED", "false").strip().lower() in {
+        uda_enabled = os.getenv("CLAW_UDA_MCP_ENABLED", "true").strip().lower() in {
             "1", "true", "yes", "on"
         }
         if not connector_service.is_configured() and not uda_enabled:
