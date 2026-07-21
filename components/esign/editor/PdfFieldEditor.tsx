@@ -20,6 +20,7 @@ import {
   resolveAnchorFieldType,
   type EditorFieldType,
 } from './anchorPlacement'
+import { getFloatingToolbarPosition } from './floatingToolbar'
 import { snapRect, type SnapGuide } from './snapping'
 
 export type { EditorFieldType } from './anchorPlacement'
@@ -139,6 +140,76 @@ const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const
 type Handle = typeof HANDLES[number]
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
 const newId = () => typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `f_${Math.random().toString(36).slice(2)}`
+
+const REQUIRED_FIELD_TYPES = new Set<EditorFieldType>([
+  'signature', 'initials', 'stamp', 'date', 'number', 'text', 'company', 'title',
+  'checkbox', 'radio', 'dropdown', 'attachment',
+])
+
+function FieldFloatingToolbar({ field, participants, participantIndexById, pageSize, update, updateRequired, duplicate, remove }: {
+  field: EditorField
+  participants: EditorParticipant[]
+  participantIndexById: Map<string, number>
+  pageSize: { width: number; height: number }
+  update: (patch: Partial<EditorField>) => void
+  updateRequired: (required: boolean) => void
+  duplicate: () => void
+  remove: () => void
+}) {
+  const position = getFloatingToolbarPosition(field, pageSize.width, pageSize.height)
+  const canBeRequired = REQUIRED_FIELD_TYPES.has(field.fieldType)
+
+  return <div
+    role="toolbar"
+    aria-label={`${field.label || SHORT[field.fieldType]} field actions`}
+    data-esign-field-toolbar={field.id}
+    className={cn(
+      'absolute z-30 flex h-10 items-center gap-1 rounded-lg border border-border bg-surface px-1.5 text-foreground shadow-lg',
+      position.placement === 'above' && '-translate-y-full',
+    )}
+    style={{
+      left: position.left,
+      top: position.top,
+      width: position.width,
+    }}
+    onPointerDown={(event) => event.stopPropagation()}
+    onClick={(event) => event.stopPropagation()}
+  >
+    <span
+      aria-hidden="true"
+      className={cn(
+        'absolute size-2 rotate-45 border-border bg-surface',
+        position.placement === 'above' ? '-bottom-1 border-b border-r' : '-top-1 border-l border-t',
+      )}
+      style={{ left: position.arrowLeft - 4 }}
+    />
+    <span className="shrink-0 rounded bg-surface-muted px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">
+      {SHORT[field.fieldType]}
+    </span>
+    <Select value={field.participantId} onValueChange={(participantId) => update({ participantId })}>
+      <SelectTrigger className="h-7 min-w-0 flex-1 border-0 bg-transparent px-1.5 text-xs shadow-none focus:ring-1 focus:ring-ring focus:ring-offset-0" aria-label="Assign field to recipient">
+        <span className="mr-1 size-2 shrink-0 rounded-full" style={{ backgroundColor: participantColor(participantIndexById.get(field.participantId) ?? 0).border }} />
+        <SelectValue>{participants.find((participant) => participant.id === field.participantId)?.label}</SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        {participants.map((participant, index) => <SelectItem key={participant.id} value={participant.id}>
+          <span className="flex items-center gap-2"><span className="size-2 rounded-full" style={{ backgroundColor: participantColor(index).border }} />{participant.label}</span>
+        </SelectItem>)}
+      </SelectContent>
+    </Select>
+    {canBeRequired && <label className="flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded px-1.5 text-xs hover:bg-surface-muted" title="Mark field as required or optional">
+      <input type="checkbox" className="size-3.5 accent-primary" checked={field.required} onChange={(event) => updateRequired(event.target.checked)} aria-label="Required field" />
+      <span className="hidden sm:inline">Required</span>
+    </label>}
+    <span className="mx-0.5 h-5 w-px shrink-0 bg-border" />
+    <button type="button" className="flex size-7 shrink-0 items-center justify-center rounded text-foreground-muted hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={duplicate} title="Duplicate field" aria-label="Duplicate field">
+      <Copy className="size-3.5" />
+    </button>
+    <button type="button" className="flex size-7 shrink-0 items-center justify-center rounded text-foreground-muted hover:bg-destructive-soft hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={remove} title="Delete field" aria-label="Delete field">
+      <Trash2 className="size-3.5" />
+    </button>
+  </div>
+}
 
 function defaultProperties(type: EditorFieldType, radioGroup: string | null): EditorFieldProperties {
   if (type === 'radio') return { schema_version: 2, group: { id: radioGroup ?? newId(), label: 'Choose one' }, option_value: `option_${newId()}`, sender_prefill: 'false' }
@@ -367,6 +438,19 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     commit([...fields, ...clones]); setSelectedIds(new Set(clones.map((field) => field.id)))
   }, [commit, fields])
 
+  const updateSelectedField = React.useCallback((patch: Partial<EditorField>) => {
+    if (!selectedField) return
+    commit(fields.map((field) => field.id === selectedField.id ? { ...field, ...patch } : field))
+  }, [commit, fields, selectedField])
+
+  const updateSelectedRequired = React.useCallback((required: boolean) => {
+    if (!selectedField) return
+    const group = selectedField.fieldType === 'radio' ? selectedField.properties?.group?.id : undefined
+    commit(fields.map((field) => field.id === selectedField.id || (group && field.fieldType === 'radio' && field.properties?.group?.id === group)
+      ? { ...field, required }
+      : field))
+  }, [commit, fields, selectedField])
+
   React.useEffect(() => {
     const node = containerRef.current; if (!node) return
     const handle = (event: KeyboardEvent) => {
@@ -474,7 +558,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         <div className="flex gap-1"><Button type="button" variant="ghost" size="sm" onClick={undo} title="Undo"><Undo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={redo} title="Redo"><Redo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={() => duplicate(fields.filter((field) => selectedIds.has(field.id)))} title="Duplicate"><Copy className="size-4" /></Button></div>
         <p className="text-xs text-foreground-subtle">{armedType ? armedType === 'radio' ? 'Click repeatedly to add options; Escape ends the group.' : 'Click a page to place.' : 'Shift/Cmd-click or drag a marquee to multi-select. Alt disables snapping.'}</p>
       </div>
-      {selectedField && <PropertiesPanel field={selectedField} fields={fields} update={(patch) => commit(fields.map((field) => field.id === selectedField.id ? { ...field, ...patch } : field))} updateRadioGroup={(transform) => { const group = selectedField.properties?.group?.id; commit(fields.map((field) => field.fieldType === 'radio' && field.properties?.group?.id === group ? transform(field) : field)) }} remove={removeSelected} />}
+      {selectedField && <PropertiesPanel field={selectedField} fields={fields} update={updateSelectedField} updateRadioGroup={(transform) => { const group = selectedField.properties?.group?.id; commit(fields.map((field) => field.fieldType === 'radio' && field.properties?.group?.id === group ? transform(field) : field)) }} remove={removeSelected} />}
     </aside>
     <main className={cn('min-w-0 flex-1 space-y-4 rounded-lg bg-surface-muted p-3 sm:p-4', armedType && 'cursor-crosshair')}>
       {loadError && <p className="text-sm text-destructive">{loadError}</p>}
@@ -497,6 +581,16 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
               {selected && HANDLES.map((handle) => <span key={handle} onPointerDown={(event) => startInteraction(event, field, 'resize', size, handle)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
                 className="absolute size-2 rounded-[1px] border border-white bg-primary" style={{ cursor: `${handle}-resize`, left: handle.includes('w') ? -4 : handle.includes('e') ? 'calc(100% - 4px)' : 'calc(50% - 4px)', top: handle.includes('n') ? -4 : handle.includes('s') ? 'calc(100% - 4px)' : 'calc(50% - 4px)' }} />)}
             </div>})}
+          {selectedIds.size === 1 && selectedField?.documentId === activeDocument.id && selectedField.pageNumber === pageIndex && <FieldFloatingToolbar
+            field={selectedField}
+            participants={participants}
+            participantIndexById={participantIndexById}
+            pageSize={size}
+            update={updateSelectedField}
+            updateRequired={updateSelectedRequired}
+            duplicate={() => duplicate([selectedField])}
+            remove={removeSelected}
+          />}
         </div>} /></div>)}
     </main>
     <Dialog open={anchorOpen} onOpenChange={setAnchorOpen}>
