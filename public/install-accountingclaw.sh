@@ -49,7 +49,7 @@ if [ -s "$MARKER_FILE" ] && [ "$FORCE" != true ]; then
     echo "Re-run with --force to reinstall."
     exit 0
   fi
-  echo "Updating AccountingClaw to enable CPAAutomation integrations."
+  echo "Updating AccountingClaw to enable CPAAutomation platform and integration access."
 fi
 
 # 3. Activation key from env, first argument, or interactive prompt.
@@ -142,7 +142,7 @@ if [ -f "$HERMES_HOME/config.yaml.backup-$ts" ]; then
   cp "$HERMES_HOME/config.yaml.backup-$ts" "$HERMES_HOME/config.yaml"
 fi
 
-# Give Hermes live access to this user's CPAAutomation integrations.
+# Give Hermes live access to this user's CPAAutomation platform and integrations.
 if [ -n "$connector_url" ] && [ -n "$connector_token" ]; then
   config_file="$HERMES_HOME/config.yaml"
   if [ -f "$config_file" ]; then
@@ -160,9 +160,9 @@ mcp_servers:
 # <<< cpaa-connector <<<
 EOF
   chmod 600 "$config_file"
-  echo "CPAAutomation integrations enabled."
+  echo "CPAAutomation platform and integrations enabled."
 else
-  echo "CPAAutomation integrations are temporarily unavailable; the skills were still installed."
+  echo "CPAAutomation platform and integrations are temporarily unavailable; the skills were still installed."
 fi
 
 date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER_FILE"

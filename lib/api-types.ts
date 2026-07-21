@@ -5187,7 +5187,8 @@ export interface paths {
          *     Like /resolve, authenticated by possession of the activation key itself (NOT
          *     Firebase). Instead of the decryption secret, returns a short-lived signed GET
          *     URL to the requested product's plaintext profile tarball in the private GCS
-         *     bucket, its sha256, and optional MCP credentials for the user's integrations.
+         *     bucket, its sha256, and optional MCP credentials for the user's CPAAutomation
+         *     platform and integrations.
          *     Generic 401 for all key failures.
          */
         post: operations["bundle_api_activation_bundle_post"];
@@ -6595,7 +6596,7 @@ export interface components {
         };
         /**
          * BundleResponse
-         * @description Desktop profile bundle and optional CPAAutomation integrations access.
+         * @description Desktop profile bundle and optional CPAAutomation platform and integrations access.
          */
         BundleResponse: {
             /** Bundle Url */
@@ -11692,8 +11693,9 @@ export interface components {
          * @description The real build-time bundle secret that decrypts the requested Claw image.
          *
          *     ``connector_mcp_url`` / ``connector_token`` provision the container's access
-         *     to the user's CPAAutomation integrations (MCP proxy). Both are null when the
-         *     integration broker is not configured; older containers ignore them.
+         *     to the user's CPAAutomation platform and integrations (MCP proxy). Both are
+         *     null when neither platform MCP nor the integration broker is enabled; older
+         *     containers ignore them.
          */
         ResolveResponse: {
             /** Bundle Secret */

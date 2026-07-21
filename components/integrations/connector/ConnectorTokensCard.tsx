@@ -14,7 +14,7 @@ import {
 } from '@/hooks/useConnector'
 
 /**
- * Claw agent access tokens (``cpaa_conn_…``). Cloud and desktop installations
+ * Claw platform and integration access tokens (``cpaa_conn_…``). Cloud and desktop installations
  * normally get one automatically during activation; this card exists for
  * visibility, manual setups, and revocation. The full token is shown once.
  */
@@ -44,7 +44,7 @@ export function ConnectorTokensCard() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-foreground-muted">
-        Claw agents use these tokens to reach your connected integrations. A token is
+        Claw agents use these tokens to reach the CPAAutomation platform and your connected integrations. A token is
         issued automatically when a cloud or desktop Claw activates; revoke any token
         here to cut that agent&apos;s access instantly.
       </p>

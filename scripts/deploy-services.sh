@@ -75,6 +75,9 @@ INKWISE_SEGMENT_PDF_WINDOW_PAGES="${INKWISE_SEGMENT_PDF_WINDOW_PAGES:-4}"
 INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES="${INKWISE_SEGMENT_PDF_WINDOW_OVERLAP_PAGES:-1}"
 INKWISE_SEGMENT_TEXT_CHUNK_CHARS="${INKWISE_SEGMENT_TEXT_CHUNK_CHARS:-3000}"
 API_TIMEOUT="${API_TIMEOUT:-900}"
+# Universal Document Analysis tools on the Claw MCP gateway. Keep false for the
+# initial deploy; override per staging/cohort rollout once validation is complete.
+CLAW_UDA_MCP_ENABLED="${CLAW_UDA_MCP_ENABLED:-false}"
 
 # AccountingClaw bundle decryption secret (Secret Manager). The same value must
 # be used to build the AccountingClaw image; the activation /resolve endpoint
@@ -579,6 +582,7 @@ BACKEND_BASE_ENV=(
   "CPAA_BUNDLE_GCS_BUCKET=${CPAA_BUNDLE_GCS_BUCKET}"
   "CPAA_BUNDLE_GCS_OBJECT=${CPAA_BUNDLE_GCS_OBJECT}"
   "CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT=${CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT}"
+  "CLAW_UDA_MCP_ENABLED=${CLAW_UDA_MCP_ENABLED}"
 )
 
 section "Checking prerequisites"

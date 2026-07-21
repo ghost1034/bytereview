@@ -17583,7 +17583,7 @@
           "activation"
         ],
         "summary": "Bundle",
-        "description": "Desktop-installer-only: exchange a valid activation key for a signed bundle URL.\n\nLike /resolve, authenticated by possession of the activation key itself (NOT\nFirebase). Instead of the decryption secret, returns a short-lived signed GET\nURL to the requested product's plaintext profile tarball in the private GCS\nbucket, its sha256, and optional MCP credentials for the user's integrations.\nGeneric 401 for all key failures.",
+        "description": "Desktop-installer-only: exchange a valid activation key for a signed bundle URL.\n\nLike /resolve, authenticated by possession of the activation key itself (NOT\nFirebase). Instead of the decryption secret, returns a short-lived signed GET\nURL to the requested product's plaintext profile tarball in the private GCS\nbucket, its sha256, and optional MCP credentials for the user's CPAAutomation\nplatform and integrations.\nGeneric 401 for all key failures.",
         "operationId": "bundle_api_activation_bundle_post",
         "requestBody": {
           "content": {
@@ -21895,7 +21895,7 @@
           "bundle_url"
         ],
         "title": "BundleResponse",
-        "description": "Desktop profile bundle and optional CPAAutomation integrations access."
+        "description": "Desktop profile bundle and optional CPAAutomation platform and integrations access."
       },
       "CatalogProvider": {
         "properties": {
@@ -36067,7 +36067,7 @@
           "bundle_secret"
         ],
         "title": "ResolveResponse",
-        "description": "The real build-time bundle secret that decrypts the requested Claw image.\n\n``connector_mcp_url`` / ``connector_token`` provision the container's access\nto the user's CPAAutomation integrations (MCP proxy). Both are null when the\nintegration broker is not configured; older containers ignore them."
+        "description": "The real build-time bundle secret that decrypts the requested Claw image.\n\n``connector_mcp_url`` / ``connector_token`` provision the container's access\nto the user's CPAAutomation platform and integrations (MCP proxy). Both are\nnull when neither platform MCP nor the integration broker is enabled; older\ncontainers ignore them."
       },
       "ResultRowCreateRequest": {
         "properties": {

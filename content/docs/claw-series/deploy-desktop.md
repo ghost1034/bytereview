@@ -32,7 +32,7 @@ Launch the app and complete its onboarding — this is where you connect your AI
 
 ## Step 2 — Add the skills
 
-With Hermes Desktop installed, run the installer for the worker you want and your platform. It verifies your key with CPAAutomation, downloads the skills, installs them into your local Hermes home, and securely connects the worker to your CPAAutomation integrations. Replace `cpaa_live_...` with your own activation key.
+With Hermes Desktop installed, run the installer for the worker you want and your platform. It verifies your key with CPAAutomation, downloads the skills, installs them into your local Hermes home, and securely connects the worker for CPAAutomation platform and integration access. Replace `cpaa_live_...` with your own activation key.
 
 **AccountingClaw — macOS / Linux:**
 

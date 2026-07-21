@@ -21,6 +21,7 @@ never forwarded.
 import json
 import logging
 import os
+import time
 import uuid as uuid_module
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -63,6 +64,12 @@ from services.connector_service import (
 )
 from services.connector_token_service import mint_token, validate_token
 from services.rate_limit import rate_limiter
+from services.uda_mcp_service import (
+    UdaMcpError,
+    audit_uda_mcp_call,
+    uda_mcp_enabled,
+    uda_mcp_service,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -701,14 +708,200 @@ MCP_TOOLS: List[Dict[str, Any]] = [
     },
 ]
 
+UDA_MCP_TOOLS: List[Dict[str, Any]] = [
+    {
+        "name": "get_document_analysis_options",
+        "description": "Get supported document formats, upload limits, processing modes, and current extraction data types.",
+        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "list_document_analysis_templates",
+        "description": "Search the user's private extraction templates and selectable public templates, including field definitions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string", "maxLength": 100},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 50},
+                "cursor": {"type": "string"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "list_document_analyses",
+        "description": "List the user's Universal Document Analysis jobs and each job's latest run status.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 25},
+                "cursor": {"type": "string"},
+            },
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "create_document_analysis",
+        "description": "Create a normal Universal Document Analysis job and its initial run in CPAAutomation.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"name": {"type": "string", "maxLength": 255}},
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "prepare_document_uploads",
+        "description": "Validate local file metadata and create one-hour signed PUT uploads. Stream file bytes directly to each URL using the exact required Content-Type header.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string"},
+                "run_id": {"type": "string"},
+                "files": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "filename": {"type": "string"},
+                            "path": {"type": "string"},
+                            "size_bytes": {"type": "integer", "minimum": 1, "maximum": 52428800},
+                            "content_type": {"type": "string"},
+                        },
+                        "required": ["filename", "path", "size_bytes", "content_type"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            "required": ["job_id", "files"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "complete_document_uploads",
+        "description": "Verify signed uploads, count pages, initiate ZIP expansion when needed, and return file readiness.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string"},
+                "run_id": {"type": "string"},
+                "source_file_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+            },
+            "required": ["job_id", "source_file_ids"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "configure_document_analysis",
+        "description": "Configure extraction from one permitted template or ad hoc fields, with a default processing mode and optional per-folder overrides.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string"},
+                "run_id": {"type": "string"},
+                "template_id": {"type": "string"},
+                "fields": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string", "minLength": 1, "maxLength": 100},
+                            "data_type": {"type": "string"},
+                            "prompt": {"type": "string", "maxLength": 1500},
+                        },
+                        "required": ["name", "data_type", "prompt"],
+                        "additionalProperties": False,
+                    },
+                },
+                "description": {"type": "string"},
+                "default_processing_mode": {"type": "string", "enum": ["individual", "combined"], "default": "individual"},
+                "folder_processing_modes": {
+                    "type": "object",
+                    "additionalProperties": {"type": "string", "enum": ["individual", "combined"]},
+                },
+            },
+            "required": ["job_id"],
+            "oneOf": [{"required": ["template_id"]}, {"required": ["fields"]}],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "start_document_analysis",
+        "description": "Start the metered analysis idempotently after explicit user approval. confirmed_by_user must be true.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string"},
+                "run_id": {"type": "string"},
+                "confirmed_by_user": {"type": "boolean"},
+            },
+            "required": ["job_id", "confirmed_by_user"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_document_analysis_status",
+        "description": "Get run progress, file and ZIP readiness, page totals, task failures, and the dashboard URL.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"job_id": {"type": "string"}, "run_id": {"type": "string"}},
+            "required": ["job_id"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "get_document_analysis_results",
+        "description": "Get flattened structured result rows with task/source metadata and cursor pagination (maximum 200 rows).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "job_id": {"type": "string"},
+                "run_id": {"type": "string"},
+                "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 200},
+                "cursor": {"type": "string"},
+            },
+            "required": ["job_id"],
+            "additionalProperties": False,
+        },
+    },
+]
+
+UDA_MCP_TOOL_NAMES = {tool["name"] for tool in UDA_MCP_TOOLS}
+UDA_STATE_CHANGING_TOOLS = {
+    "create_document_analysis",
+    "prepare_document_uploads",
+    "complete_document_uploads",
+    "configure_document_analysis",
+    "start_document_analysis",
+}
+
+
+def _available_mcp_tools() -> List[Dict[str, Any]]:
+    return MCP_TOOLS + (UDA_MCP_TOOLS if uda_mcp_enabled() else [])
+
 MCP_INSTRUCTIONS = (
-    "CPAAutomation integrations gateway. Discover providers with list_apps, find "
+    "CPAAutomation platform and integrations gateway. Discover providers with list_apps, find "
     "actions with search_actions, read get_action_guide before executing, then "
     "call execute_action. Actions run against the user's own connected accounts; "
     f"missing providers must be connected at {DASHBOARD_INTEGRATIONS_URL}. For "
     "actions that create, update, delete, send, or otherwise affect external "
     "systems, make sure the user's intent is explicit before executing."
 )
+
+UDA_MCP_INSTRUCTIONS = (
+    " For Universal Document Analysis, follow this sequence: discover options and a template; "
+    "create the analysis; prepare uploads; PUT local bytes directly to each signed URL with the "
+    "exact returned Content-Type (never put document bytes in MCP JSON); complete uploads; configure; "
+    "present a file/page/field/processing summary; obtain explicit user approval; start with "
+    "confirmed_by_user=true; poll status; then return paginated results. For connected-app documents, "
+    "first use integration tools to download the file into the local workspace. If an integration "
+    "cannot provide downloadable bytes, explain that limitation; never pass an arbitrary external URL "
+    "to document analysis."
+)
+
+
+def _mcp_instructions() -> str:
+    return MCP_INSTRUCTIONS + (UDA_MCP_INSTRUCTIONS if uda_mcp_enabled() else "")
 
 
 def _authenticate_mcp(request: Request, db: Session) -> ConnectorToken:
@@ -885,7 +1078,7 @@ async def _handle_mcp_message(db: Session, user_id: str, message: Dict[str, Any]
                 "protocolVersion": client_version or MCP_PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": "cpaa-connector", "version": "1.0.0"},
-                "instructions": MCP_INSTRUCTIONS,
+                "instructions": _mcp_instructions(),
             },
         )
     if method == "ping":
@@ -893,13 +1086,23 @@ async def _handle_mcp_message(db: Session, user_id: str, message: Dict[str, Any]
     if is_notification:  # notifications/initialized, cancelled, etc.
         return None
     if method == "tools/list":
-        return _jsonrpc_result(request_id, {"tools": MCP_TOOLS})
+        return _jsonrpc_result(request_id, {"tools": _available_mcp_tools()})
     if method == "tools/call":
         params = message.get("params") or {}
+        if not isinstance(params, dict):
+            return _jsonrpc_error(request_id, -32602, "Invalid tool call parameters.")
         tool = params.get("name")
         args = params.get("arguments") or {}
+        if not isinstance(args, dict):
+            return _jsonrpc_result(
+                request_id,
+                _tool_error("invalid_input", "Tool arguments must be a JSON object."),
+            )
         if not rate_limiter.check("connector_mcp_exec", user_id, limit=60, window_seconds=60):
             return _jsonrpc_result(request_id, _tool_error("rate_limited", "Too many tool calls. Slow down."))
+        started = time.monotonic()
+        should_audit = tool in UDA_STATE_CHANGING_TOOLS
+        success = False
         try:
             if tool == "list_apps":
                 result = await _mcp_list_apps(db, user_id, args)
@@ -909,13 +1112,48 @@ async def _handle_mcp_message(db: Session, user_id: str, message: Dict[str, Any]
                 result = await _mcp_get_action_guide(db, user_id, args)
             elif tool == "execute_action":
                 result = await _mcp_execute_action(db, user_id, args)
+            elif tool in UDA_MCP_TOOL_NAMES:
+                if not uda_mcp_enabled():
+                    return _jsonrpc_error(request_id, -32602, f"Unknown tool: {tool}")
+                if tool == "get_document_analysis_options":
+                    data = await uda_mcp_service.get_options(db)
+                elif tool == "list_document_analysis_templates":
+                    data = await uda_mcp_service.list_templates(db, user_id, args)
+                elif tool == "list_document_analyses":
+                    data = await uda_mcp_service.list_analyses(db, user_id, args)
+                elif tool == "create_document_analysis":
+                    data = await uda_mcp_service.create_analysis(db, user_id, args)
+                elif tool == "prepare_document_uploads":
+                    data = await uda_mcp_service.prepare_uploads(db, user_id, args)
+                elif tool == "complete_document_uploads":
+                    data = await uda_mcp_service.complete_uploads(db, user_id, args)
+                elif tool == "configure_document_analysis":
+                    data = await uda_mcp_service.configure_analysis(db, user_id, args)
+                elif tool == "start_document_analysis":
+                    data = await uda_mcp_service.start_analysis(db, user_id, args)
+                elif tool == "get_document_analysis_status":
+                    data = await uda_mcp_service.get_status(db, user_id, args)
+                else:
+                    data = await uda_mcp_service.get_results(db, user_id, args)
+                result = _tool_result({"ok": True, "data": data})
             else:
                 return _jsonrpc_error(request_id, -32602, f"Unknown tool: {tool}")
+            success = not result.get("isError", False)
+        except UdaMcpError as exc:
+            result = _tool_error(exc.code, exc.message)
         except ConnectorError as exc:
             result = _tool_error(exc.code, str(exc))
         except Exception:
             logger.exception("MCP tool %s failed", tool)
             result = _tool_error("internal_error", "Tool execution failed.")
+        finally:
+            if should_audit:
+                audit_uda_mcp_call(
+                    user_id,
+                    str(tool),
+                    success,
+                    int((time.monotonic() - started) * 1000),
+                )
         return _jsonrpc_result(request_id, result)
     return _jsonrpc_error(request_id, -32601, f"Method not found: {method}")
 
@@ -924,7 +1162,7 @@ async def _handle_mcp_message(db: Session, user_id: str, message: Dict[str, Any]
 async def mcp_tools_preview(request: Request, db: Session = Depends(get_db)):
     """Non-MCP sanity endpoint mirroring the runtime's GET /mcp/tools."""
     _authenticate_mcp(request, db)
-    return {"tools": [{"name": t["name"], "description": t["description"]} for t in MCP_TOOLS]}
+    return {"tools": [{"name": t["name"], "description": t["description"]} for t in _available_mcp_tools()]}
 
 
 @router.post("/mcp")

@@ -50,8 +50,9 @@ class ResolveResponse(BaseModel):
     """The real build-time bundle secret that decrypts the requested Claw image.
 
     ``connector_mcp_url`` / ``connector_token`` provision the container's access
-    to the user's CPAAutomation integrations (MCP proxy). Both are null when the
-    integration broker is not configured; older containers ignore them.
+    to the user's CPAAutomation platform and integrations (MCP proxy). Both are
+    null when neither platform MCP nor the integration broker is enabled; older
+    containers ignore them.
     """
     bundle_secret: str
     connector_mcp_url: Optional[str] = None
@@ -67,7 +68,7 @@ class BundleRequest(BaseModel):
 
 
 class BundleResponse(BaseModel):
-    """Desktop profile bundle and optional CPAAutomation integrations access."""
+    """Desktop profile bundle and optional CPAAutomation platform and integrations access."""
     bundle_url: str
     sha256: Optional[str] = None
     version: Optional[str] = None

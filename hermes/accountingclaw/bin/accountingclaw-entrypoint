@@ -10,7 +10,7 @@ PRODUCT="accountingclaw"
 mkdir -p "$DATA_DIR/.cpaa" "$DATA_DIR/skills"
 
 # Exchange the personal activation key for the resolve payload (bundle secret
-# plus, when the platform has integrations enabled, a per-user connector token
+# plus, when platform or integration access is enabled, a per-user connector token
 # for the CPAAutomation MCP proxy). Echoes the raw JSON response.
 resolve_activation() {
   local fingerprint
@@ -21,7 +21,7 @@ resolve_activation() {
               '{activation_key:$k,fingerprint:$f,product:$p}')"
 }
 
-# Wire the CPAAutomation integrations gateway into Hermes: persist the token
+# Wire the CPAAutomation platform and integrations gateway into Hermes: persist the token
 # (root-only) and (re)write a managed mcp_servers block in the Hermes config.
 # The block is replaced wholesale on every start so token rotation Just Works;
 # profile bundles must therefore never define their own mcp_servers key.
@@ -53,7 +53,7 @@ mcp_servers:
 # <<< cpaa-connector <<<
 EOF
   chmod 600 "$cfg"
-  echo "CPAAutomation integrations enabled (MCP: $url)."
+  echo "CPAAutomation platform and integrations enabled (MCP: $url)."
 }
 
 activation_response=""
@@ -122,7 +122,7 @@ if [ ! -s "$MARKER_FILE" ]; then
   date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER_FILE"
 fi
 
-# --- CPAAutomation integrations (runs on every start, marker or not) --------
+# --- CPAAutomation platform and integrations (runs every start) ------------
 # Explicit env overrides win (local dev against a local backend); otherwise the
 # connector credential comes from the activation resolve response — reusing the
 # install-time response when we just activated, or re-resolving on restarts so

@@ -190,6 +190,34 @@ class ActivationBundleTests(unittest.IsolatedAsyncioTestCase):
         )
         db.begin_nested.assert_called_once_with()
 
+    def test_uda_enabled_provisions_token_without_openconnector(self) -> None:
+        db = MagicMock()
+
+        with patch("services.connector_service.connector_service") as connector_service:
+            connector_service.is_configured.return_value = False
+            with patch(
+                "services.connector_token_service.mint_token",
+                return_value=("cpaa_conn_uda", MagicMock()),
+            ) as mint_mock:
+                with patch.dict(
+                    os.environ,
+                    {
+                        "CLAW_UDA_MCP_ENABLED": "true",
+                        "CONNECTOR_MCP_PUBLIC_URL": "https://api.example/mcp",
+                    },
+                ):
+                    url, token = _provision_connector(
+                        db,
+                        "user-123",
+                        "accountingclaw",
+                        "host-9",
+                        "desktop",
+                    )
+
+        self.assertEqual(url, "https://api.example/mcp")
+        self.assertEqual(token, "cpaa_conn_uda")
+        mint_mock.assert_called_once()
+
 
 class ActivationResolveInstallTypeTests(unittest.IsolatedAsyncioTestCase):
     async def test_resolve_defaults_to_docker_install_type(self) -> None:

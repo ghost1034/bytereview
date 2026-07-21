@@ -144,12 +144,15 @@ def _provision_connector(
     fingerprint: Optional[str],
     install_type: str,
 ) -> tuple[Optional[str], Optional[str]]:
-    """Mint an installation-scoped MCP credential when integrations are enabled."""
+    """Mint an installation-scoped MCP credential when platform MCP access is enabled."""
     try:
         from services.connector_service import connector_service
         from services.connector_token_service import mint_token
 
-        if not connector_service.is_configured():
+        uda_enabled = os.getenv("CLAW_UDA_MCP_ENABLED", "false").strip().lower() in {
+            "1", "true", "yes", "on"
+        }
+        if not connector_service.is_configured() and not uda_enabled:
             return None, None
 
         mode = "desktop:" if install_type == "desktop" else ""
@@ -357,7 +360,8 @@ async def bundle(req: BundleRequest, request: Request):
     Like /resolve, authenticated by possession of the activation key itself (NOT
     Firebase). Instead of the decryption secret, returns a short-lived signed GET
     URL to the requested product's plaintext profile tarball in the private GCS
-    bucket, its sha256, and optional MCP credentials for the user's integrations.
+    bucket, its sha256, and optional MCP credentials for the user's CPAAutomation
+    platform and integrations.
     Generic 401 for all key failures.
     """
     ip = _client_ip(request)

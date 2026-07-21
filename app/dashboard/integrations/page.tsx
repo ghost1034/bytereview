@@ -327,7 +327,7 @@ export default function IntegrationsPage() {
                 Claw agent access
               </span>
               <span className="block text-xs font-normal text-foreground-muted">
-                Tokens your Claw agents use to reach these integrations
+                Tokens your Claw agents use for CPAAutomation platform and integration access
               </span>
             </div>
           </div>
