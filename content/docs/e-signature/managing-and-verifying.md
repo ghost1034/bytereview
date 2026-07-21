@@ -62,7 +62,7 @@ A **Send failed** envelope displays its delivery error code and message in the e
 
 After an envelope reaches **Completed**, the sender can download:
 
-- **Signed PDF** - the completed document with the certificate pages and embedded digital seal.
+- **Signed PDF** - the completed document with its embedded digital seal.
 - **Certificate** - a separate certificate of completion for the envelope.
 
 The completion panel also displays the sealed PDF's SHA-256 hash. Preparing and sealing the final document happens in the background, so there can be a short delay after the last signer finishes.

@@ -423,6 +423,8 @@ class EsignLifecyclePgTests(unittest.TestCase):
             self._run(self.envelope_service.delete_envelope(self.sender_uid, sent_id))
 
     def test_full_sequential_lifecycle_with_seal_and_verify(self) -> None:
+        import fitz
+
         from services.esign.envelope_service import EsignConflict, EsignError
 
         envelope_id = self._create_sent_envelope()
@@ -512,6 +514,20 @@ class EsignLifecyclePgTests(unittest.TestCase):
         self.assertTrue(envelope.has_sealed_document)
         self.assertTrue(envelope.has_certificate)
 
+        sealed_object = next(k for k in self.storage.objects if k.endswith("sealed.pdf"))
+        certificate_object = next(k for k in self.storage.objects if k.endswith("certificate.pdf"))
+        with fitz.open(stream=self.storage.objects[sealed_object], filetype="pdf") as sealed_pdf:
+            self.assertEqual(sealed_pdf.page_count, 2)
+            self.assertNotIn(
+                "Certificate of Completion",
+                "".join(page.get_text() for page in sealed_pdf),
+            )
+        with fitz.open(stream=self.storage.objects[certificate_object], filetype="pdf") as certificate_pdf:
+            self.assertIn(
+                "Certificate of Completion",
+                "".join(page.get_text() for page in certificate_pdf),
+            )
+
         # Verify by envelope id: hash matches, seal valid.
         verify = self._run(
             self.verification_service.verify(user_id=self.sender_uid, envelope_id=envelope_id)
@@ -521,8 +537,7 @@ class EsignLifecyclePgTests(unittest.TestCase):
         self.assertEqual(verify.modification_level, "none")
 
         # Verify a tampered copy: reported invalid.
-        sealed_object = [k for k in self.storage.objects if k.endswith("sealed.pdf")]
-        tampered = bytearray(self.storage.objects[sealed_object[0]])
+        tampered = bytearray(self.storage.objects[sealed_object])
         tampered[len(tampered) // 2] ^= 0xFF
         verify_bad = self._run(
             self.verification_service.verify(user_id=self.sender_uid, pdf_bytes=bytes(tampered))

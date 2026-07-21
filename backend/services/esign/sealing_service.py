@@ -3,9 +3,9 @@
 Runs on the io-tasks queue after the last signer submits:
 1. Advisory lock + idempotency guard (Cloud Tasks may deliver twice).
 2. Flatten all field values into each PDF with PyMuPDF (single pass).
-3. Generate the certificate of completion and append it to the combined PDF
-   *before* sealing so it is covered by the seal.
-4. Apply the PAdES digital signature via Cloud KMS (pyHanko).
+3. Generate and store the certificate of completion as a separate PDF.
+4. Combine the flattened documents and signer attachments, then apply the
+   PAdES digital signature via Cloud KMS (pyHanko).
 5. Store hashes, mark completed, write sealed+completed audit events, email
    all parties.
 
@@ -476,7 +476,9 @@ class EsignSealingService:
             certificate_object = f"esign/{envelope.user_id}/{envelope.id}/certificate.pdf"
             await self.storage.upload_file_content(certificate_bytes, certificate_object)
 
-            # 3) Combine flattened docs + certificate into the final PDF.
+            # 3) Combine flattened docs and signer attachments into the final PDF.
+            # The certificate remains a separate download and is intentionally
+            # not appended to the signed document.
             combined = fitz.open()
             for _document, flat_bytes in flattened:
                 with fitz.open(stream=flat_bytes, filetype="pdf") as part:
@@ -496,8 +498,6 @@ class EsignSealingService:
                         stream=attachment_bytes,
                         keep_proportion=True,
                     )
-            with fitz.open(stream=certificate_bytes, filetype="pdf") as cert_pdf:
-                combined.insert_pdf(cert_pdf)
             combined_bytes = combined.tobytes(deflate=True, garbage=3)
             combined.close()
 

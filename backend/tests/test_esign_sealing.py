@@ -1,10 +1,9 @@
-"""End-to-end seal pipeline tests (flatten -> certificate -> PAdES seal -> verify)
+"""End-to-end seal pipeline tests (flatten + standalone certificate -> PAdES seal -> verify)
 using a local EC key + self-signed cert so no GCP access is needed.
 """
 
 from __future__ import annotations
 
-import hashlib
 import asyncio
 import os
 import sys
@@ -81,7 +80,6 @@ class EsignSealingPipelineTests(unittest.TestCase):
             EsignSignatureType,
             EsignSigningType,
         )
-        from services.esign.certificate_service import build_certificate_pdf
         from services.esign.sealing_service import _stamp_field, esign_sealing_service
 
         now = datetime.now(timezone.utc)
@@ -118,27 +116,8 @@ class EsignSealingPipelineTests(unittest.TestCase):
             id=env_id, title="Test Engagement", sent_at=now, user_id="u1",
             signing_type=EsignSigningType.SEQUENTIAL, status=EsignEnvelopeStatus.IN_PROGRESS,
         )
-        document = NS(
-            id=doc_id, original_filename="letter.pdf",
-            original_sha256=hashlib.sha256(pdf_bytes).hexdigest(),
-            flattened_sha256=None, display_order=0,
-        )
-        event = NS(created_at=now, event_type="signed", actor_email="jane@example.com",
-                   ip_address="1.2.3.4", mfa_verified=True)
-        consent = NS(recipient_id=rec_id, consented_at=now, ip_address="1.2.3.4",
-                     consent_text_sha256="ab" * 32)
-
-        certificate = build_certificate_pdf(
-            envelope=envelope, documents=[document], recipients=[recipient],
-            consent_records=[consent], signature_records=[sig_record], events=[event],
-            sender_email="cpa@firm.com",
-            flattened_hashes={str(doc_id): hashlib.sha256(flattened).hexdigest()},
-        )
-
         combined = fitz.open()
         with fitz.open(stream=flattened, filetype="pdf") as part:
-            combined.insert_pdf(part)
-        with fitz.open(stream=certificate, filetype="pdf") as part:
             combined.insert_pdf(part)
         combined_bytes = combined.tobytes(deflate=True, garbage=3)
         combined.close()
@@ -179,6 +158,14 @@ class EsignSealingPipelineTests(unittest.TestCase):
         self.assertEqual(result["modification_level"], "none")
         self.assertIn("CPAAutomation", result["signer_subject"])
         self.assertIsNotNone(result["signed_at"])
+
+    def test_sealed_pdf_does_not_include_certificate_pages(self) -> None:
+        sealed, _ = self._sealed_envelope_bytes()
+
+        with fitz.open(stream=sealed, filetype="pdf") as pdf:
+            text = "".join(page.get_text() for page in pdf)
+            self.assertEqual(pdf.page_count, 2)
+        self.assertNotIn("Certificate of Completion", text)
 
     def test_tampered_document_fails_verification(self) -> None:
         from services.esign.verification_service import esign_verification_service

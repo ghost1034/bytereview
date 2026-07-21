@@ -50,7 +50,7 @@ const requirements = [
     statute: 'ESIGN/UETA signature attached to or logically associated with the record',
     icon: FileCheck2,
     status: 'Met in completed PDF',
-    description: 'Signed fields are flattened into the PDF, the certificate of completion is appended, and the final combined PDF is sealed as one record.',
+    description: 'Signed fields are flattened into the PDF and the completed PDF is sealed as one record. The certificate of completion is retained as a separate record.',
     evidence: 'Flattened document hashes, signature field records, certificate PDF, and final sealed PDF hash.',
   },
   {
@@ -111,7 +111,7 @@ const esraRequirements = [
   {
     requirement: 'Signature associated with the record',
     status: 'Met',
-    detail: 'Fields are flattened into the signed PDF, the completion certificate is appended, and the final PDF is sealed as one completed record.',
+    detail: 'Fields are flattened into the signed PDF and the final PDF is sealed as one completed record. The completion certificate is retained separately.',
   },
   {
     requirement: 'Tamper evidence after completion',

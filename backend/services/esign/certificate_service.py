@@ -1,8 +1,4 @@
-"""Certificate of completion PDF for sealed e-sign envelopes (reportlab).
-
-The certificate is appended to the combined document *before* the PAdES seal
-is applied, so it is covered by the tamper-evident signature.
-"""
+"""Standalone certificate of completion PDF for sealed e-sign envelopes."""
 
 from __future__ import annotations
 
@@ -420,8 +416,9 @@ def build_certificate_pdf(
             "This envelope was executed electronically under the U.S. ESIGN Act and UETA. Each signer "
             "used the access method recorded above, consented to electronic records, and explicitly "
             "adopted their signature. "
-            "The combined document (including this certificate) carries an embedded PAdES digital "
-            "signature; any modification after completion invalidates that signature. Verify at any time "
+            "The completed signed PDF carries an embedded PAdES digital signature; any modification "
+            "after completion invalidates that signature. This certificate is retained as a separate "
+            "record. Verify the signed PDF at any time "
             "in CPAAutomation under E-Signature → Verify.",
             small,
         )
