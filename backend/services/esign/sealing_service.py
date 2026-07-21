@@ -123,11 +123,7 @@ def _fit_textbox(
     """Insert text sized to fit `box` (display space) and centered vertically.
 
     The field editor and signer previews center content inside the field box,
-    so the flattened output must match; insert_textbox alone pins text to the
-    top of the rect, which made stamps land visibly above where they were
-    placed. Sizing is dry-run on a scratch page because insert_textbox's fit
-    logic doesn't match Font metrics; its leftover return value is the exact
-    unused box height, which is what centering needs.
+    so the flattened output must match.
     """
     target = _derotate(page, box)
     with fitz.open() as scratch:
