@@ -5,6 +5,7 @@ import { Loader2, Paperclip, PenLine, Trash2 } from 'lucide-react'
 
 import { openPdfFromUrl, participantColor, type PdfDocument } from '@/components/esign/pdf'
 import { PdfPageCanvas } from '@/components/esign/PdfPageCanvas'
+import { supportsTextAlignment } from '@/components/esign/editor/anchorPlacement'
 import { formatDateSigned } from '@/components/esign/sign/dateSigned'
 import {
   signatureFontFamily,
@@ -71,6 +72,9 @@ export function SigningDocumentViewer({
           const family = field.properties?.appearance?.font ?? 'Helvetica'
           const pdfFontSize = field.properties?.appearance?.font_size
           const renderedFieldHeight = field.height * size.height
+          const textAlignment = supportsTextAlignment(field.field_type)
+            ? field.properties?.appearance?.alignment
+            : undefined
           const style: React.CSSProperties = {
             left: field.pos_x * size.width,
             top: field.pos_y * size.height,
@@ -86,7 +90,8 @@ export function SigningDocumentViewer({
             fontWeight: field.properties?.appearance?.bold ? 700 : undefined,
             fontStyle: field.properties?.appearance?.italic ? 'italic' : undefined,
             textDecoration: field.properties?.appearance?.underline ? 'underline' : undefined,
-            textAlign: field.properties?.appearance?.alignment ?? undefined,
+            textAlign: textAlignment ?? undefined,
+            justifyContent: textAlignment === 'left' ? 'flex-start' : textAlignment === 'right' ? 'flex-end' : textAlignment === 'center' ? 'center' : undefined,
           }
           const activeRing = field.id === activeFieldId ? 'ring-2 ring-warning ring-offset-1' : ''
           const tooltip = field.properties?.tooltip ?? field.label ?? undefined

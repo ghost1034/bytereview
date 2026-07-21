@@ -44,6 +44,18 @@ def test_all_twenty_types_have_versioned_allowed_contract(field_type, properties
 
 
 @pytest.mark.parametrize(
+    "field_type",
+    [
+        "date_signed", "text", "auto_fill", "dropdown", "formula", "date", "number",
+        "first_name", "last_name", "full_name", "email", "company", "title", "note",
+    ],
+)
+def test_all_text_rendering_fields_accept_alignment(field_type):
+    result = field(field_type, {**VALID_PROPERTIES[field_type], "appearance": {"alignment": "right"}})
+    assert result.properties.appearance.alignment == "right"
+
+
+@pytest.mark.parametrize(
     "field_type,properties",
     [
         ("signature", {"shared_value": True}),

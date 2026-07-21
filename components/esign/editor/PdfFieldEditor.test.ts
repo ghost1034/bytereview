@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import type { EditorField } from './PdfFieldEditor'
+import { supportsTextAlignment, type EditorFieldType } from './anchorPlacement'
 import { getFloatingToolbarPosition } from './floatingToolbar'
 
 const field: EditorField = {
@@ -40,5 +41,20 @@ describe('floating field toolbar positioning', () => {
 
     expect(left.left).toBe(8)
     expect(right.left + right.width).toBe(760)
+  })
+})
+
+describe('text field appearance support', () => {
+  it.each<EditorFieldType>([
+    'date_signed', 'text', 'auto_fill', 'dropdown', 'formula', 'date', 'number',
+    'first_name', 'last_name', 'full_name', 'email', 'company', 'title', 'note',
+  ])('allows alignment for %s fields', (fieldType) => {
+    expect(supportsTextAlignment(fieldType)).toBe(true)
+  })
+
+  it.each<EditorFieldType>([
+    'signature', 'initials', 'stamp', 'checkbox', 'radio', 'attachment',
+  ])('does not offer text alignment for %s fields', (fieldType) => {
+    expect(supportsTextAlignment(fieldType)).toBe(false)
   })
 })
