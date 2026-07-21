@@ -26,8 +26,25 @@ import {
 } from '@/components/ui/sheet'
 import { useToast } from '@/hooks/use-toast'
 import { useReplaceFields, useSaveAsTemplate, useScheduleEnvelope, useSendEnvelope } from '@/hooks/useEnvelopes'
-import { apiClient, type EsignFieldInput } from '@/lib/api'
+import { ApiError, apiClient, type EsignFieldInput, type EsignFieldResponse } from '@/lib/api'
 import { collectFieldIssues } from '@/lib/esign/composerValidation'
+
+function toEditorFields(fields: EsignFieldResponse[]): EditorField[] {
+  return fields.map((field) => ({
+    id: field.id,
+    documentId: field.document_id,
+    participantId: field.recipient_id,
+    fieldType: field.field_type as EditorFieldType,
+    pageNumber: field.page_number,
+    posX: field.pos_x,
+    posY: field.pos_y,
+    width: field.width,
+    height: field.height,
+    required: field.required,
+    label: field.label ?? undefined,
+    properties: coerceEditorProperties(field.properties),
+  }))
+}
 
 export default function EnvelopeFieldsPage() {
   const { envelopeId } = useParams<{ envelopeId: string }>()
@@ -53,26 +70,16 @@ export default function EnvelopeFieldsPage() {
   const saveQueue = React.useRef<Promise<boolean>>(Promise.resolve(true))
 
   React.useEffect(() => {
-    if (!envelope || hydrated) return
-    const initial = envelope.fields.map((field) => ({
-      id: field.id,
-      documentId: field.document_id,
-      participantId: field.recipient_id,
-      fieldType: field.field_type as EditorFieldType,
-      pageNumber: field.page_number,
-      posX: field.pos_x,
-      posY: field.pos_y,
-      width: field.width,
-      height: field.height,
-      required: field.required,
-      label: field.label ?? undefined,
-      properties: coerceEditorProperties(field.properties),
-    }))
+    // A stale cached envelope may be present while this newly mounted wizard
+    // step refetches. Wait for that refetch before capturing draft_revision;
+    // otherwise the first autosave is guaranteed to conflict with the server.
+    if (!envelope || envelopeQuery.isFetching || hydrated) return
+    const initial = toEditorFields(envelope.fields)
     setEditorFields(initial)
     lastSaved.current = JSON.stringify(initial)
     draftRevision.current = envelope.draft_revision
     setHydrated(true)
-  }, [envelope, hydrated])
+  }, [envelope, envelopeQuery.isFetching, hydrated])
 
   const payload = React.useCallback((fields: EditorField[]) => fields.map((field) => ({
     id: field.id,
@@ -99,12 +106,29 @@ export default function EnvelopeFieldsPage() {
       if (snapshot === lastSaved.current) return true
       setSaveState('saving')
       try {
-        const saved = await replaceFields.mutateAsync({ fields: payload(fields), expectedRevision: draftRevision.current })
+        const persist = () => replaceFields.mutateAsync({ fields: payload(fields), expectedRevision: draftRevision.current })
+        let saved: Awaited<ReturnType<typeof persist>>
+        try {
+          saved = await persist()
+        } catch (error) {
+          if (!(error instanceof ApiError) || error.status !== 409) throw error
+
+          // A different wizard save may have advanced the revision without
+          // touching fields. Rebase only in that safe case; genuine concurrent
+          // field edits must still surface as a conflict instead of being lost.
+          const latest = await apiClient.getEsignEnvelope(envelopeId)
+          if (JSON.stringify(toEditorFields(latest.fields)) !== lastSaved.current) throw error
+          draftRevision.current = latest.draft_revision
+          saved = await persist()
+        }
         draftRevision.current = saved.draft_revision
         lastSaved.current = snapshot
         if (queuedSnapshot.current === snapshot) setSaveState('saved')
         return true
       } catch (error) {
+        // Do not permanently memoize a failed snapshot. Review/send and the
+        // next autosave must be able to retry without requiring a page reload.
+        if (queuedSnapshot.current === snapshot) queuedSnapshot.current = ''
         setSaveState('error')
         toast({ title: 'Fields were not saved', description: error instanceof Error ? error.message : 'Try again before sending.', variant: 'destructive' })
         return false
@@ -112,7 +136,7 @@ export default function EnvelopeFieldsPage() {
     })
     saveQueue.current = operation
     return operation
-  }, [editorFields, payload, replaceFields, toast])
+  }, [editorFields, envelopeId, payload, replaceFields, toast])
 
   React.useEffect(() => {
     if (!hydrated || JSON.stringify(editorFields) === lastSaved.current) return
@@ -149,7 +173,7 @@ export default function EnvelopeFieldsPage() {
 
   return (
     <ComposerShell title={envelope?.title ?? 'Add fields'} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign')} onBack={() => { const query = searchParams.toString(); router.push(`/dashboard/esign/${envelopeId}/prepare${query ? `?${query}` : ''}`) }} primary={<Button onClick={openReview}>Review & send <Send className="ml-1.5 size-4" /></Button>}>
-      {!envelope || documentUrlsQuery.isLoading || !documentUrlsQuery.data ? (
+      {!envelope || !hydrated || documentUrlsQuery.isLoading || !documentUrlsQuery.data ? (
         <div className="flex h-full items-center justify-center text-sm text-foreground-muted"><Loader2 className="mr-2 size-4 animate-spin" /> Preparing documents…</div>
       ) : signers.length === 0 ? (
         <div className="mx-auto mt-12 max-w-md rounded-xl border border-success/30 bg-success-soft p-6 text-sm">This envelope has no signature recipients, so no fields are required. Choose Review &amp; send to verify the approval or delivery routing.</div>

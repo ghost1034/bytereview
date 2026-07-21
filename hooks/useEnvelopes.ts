@@ -142,10 +142,15 @@ export function useEsignTemplate(templateId: string | undefined) {
 
 function useInvalidateEnvelope() {
   const queryClient = useQueryClient()
-  return (envelopeId?: string) => {
+  return (envelopeId?: string, envelope?: EsignEnvelopeResponse) => {
     queryClient.invalidateQueries({ queryKey: ['esign', 'envelopes'] })
     queryClient.invalidateQueries({ queryKey: ['esign', 'inbox'] })
     if (envelopeId) {
+      // Keep wizard navigation on the revision returned by the mutation. Merely
+      // invalidating here leaves the previous response in the cache while the
+      // refetch runs, so the next step can initialize with a stale revision and
+      // immediately fail its first optimistic-concurrency check.
+      if (envelope) queryClient.setQueryData(['esign', 'envelope', envelopeId], envelope)
       queryClient.invalidateQueries({ queryKey: ['esign', 'envelope', envelopeId] })
       queryClient.invalidateQueries({ queryKey: ['esign', 'audit', envelopeId] })
     }
@@ -166,7 +171,7 @@ export function useUpdateEnvelope(envelopeId: string) {
   return useMutation({
     mutationFn: (payload: EsignEnvelopeUpdateRequest) =>
       apiClient.updateEsignEnvelope(envelopeId, payload),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
@@ -186,7 +191,7 @@ export function useAddDocuments(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
     mutationFn: (files: File[]) => apiClient.addEsignDocuments(envelopeId, files),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
@@ -194,7 +199,7 @@ export function useDeleteDocument(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
     mutationFn: (documentId: string) => apiClient.deleteEsignDocument(envelopeId, documentId),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
@@ -202,7 +207,7 @@ export function useReorderDocuments(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
     mutationFn: (documentIds: string[]) => apiClient.reorderEsignDocuments(envelopeId, documentIds),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
@@ -211,7 +216,7 @@ export function useReplaceRecipients(envelopeId: string) {
   return useMutation({
     mutationFn: ({ recipients, templateId, expectedRevision }: { recipients: EsignRecipientInput[]; templateId?: string; expectedRevision?: number }) =>
       apiClient.replaceEsignRecipients(envelopeId, recipients, templateId, expectedRevision),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
@@ -219,7 +224,7 @@ export function useReplaceFields(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
     mutationFn: ({ fields, expectedRevision }: { fields: EsignFieldInput[]; expectedRevision?: number }) => apiClient.replaceEsignFields(envelopeId, fields, expectedRevision),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
@@ -227,7 +232,7 @@ export function useSendEnvelope(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
     mutationFn: () => apiClient.sendEsignEnvelope(envelopeId),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
@@ -235,20 +240,20 @@ export function useScheduleEnvelope(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
     mutationFn: (payload: EsignScheduleRequest) => apiClient.scheduleEsignEnvelope(envelopeId, payload),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
 export function useUnscheduleEnvelope(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
-  return useMutation({ mutationFn: () => apiClient.unscheduleEsignEnvelope(envelopeId), onSuccess: () => invalidate(envelopeId) })
+  return useMutation({ mutationFn: () => apiClient.unscheduleEsignEnvelope(envelopeId), onSuccess: (envelope) => invalidate(envelopeId, envelope) })
 }
 
 export function useVoidEnvelope(envelopeId: string) {
   const invalidate = useInvalidateEnvelope()
   return useMutation({
     mutationFn: (reason: string) => apiClient.voidEsignEnvelope(envelopeId, reason),
-    onSuccess: () => invalidate(envelopeId),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }
 
