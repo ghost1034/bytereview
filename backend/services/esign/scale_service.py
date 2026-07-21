@@ -66,6 +66,7 @@ from services.esign.envelope_service import (
     _lock_draft_revision,
     esign_envelope_service,
     normalize_template_roles,
+    validate_field_placement,
 )
 from services.esign.field_logic import remap_property_references, validate_field_graph
 from services.esign.signing_service import esign_signing_service
@@ -277,7 +278,12 @@ class EsignScaleService:
             _lock_draft_revision(db, template, expected_revision)
             firm_id = require_firm_id(db, user_id)
             checked_rules: set[str] = set()
+            documents_by_id = {str(document.id): document for document in template.documents or []}
             for field in template.fields or []:
+                document = documents_by_id.get(str(field.template_document_id))
+                if document is None:
+                    raise EsignError("Template field references an unknown document")
+                validate_field_placement(field, document)
                 props = field.properties or {}
                 anchor = props.get("anchor")
                 if anchor and not (anchor.get("anchor") or anchor.get("text")):
@@ -347,9 +353,11 @@ class EsignScaleService:
                     file_size_bytes=int(source["file_size_bytes"]),
                 ))
             field_ids = {str(field.get("id")): str(uuid.uuid4()) for field in snapshot.get("fields", [])}
+            source_documents = {str(item["id"]): item for item in snapshot.get("documents", [])}
             for field in snapshot.get("fields", []):
                 source_document_id = str(field["template_document_id"])
                 if source_document_id not in document_ids: continue
+                validate_field_placement(field, source_documents[source_document_id])
                 db.add(EsignTemplateField(
                     id=uuid.UUID(field_ids[str(field.get("id"))]), template_id=template.id,
                     template_document_id=document_ids[source_document_id],
@@ -592,6 +600,7 @@ class EsignScaleService:
                 recipient = recipients_by_role_id.get(role_id)
                 if recipient is None:
                     recipient = recipients[int(f["recipient_index"])]
+                validate_field_placement(f, doc_map[f["template_document_id"]])
                 field = EsignField(id=uuid.UUID(id_map[f["id"]]), envelope_id=env.id,
                     document_id=doc_map[f["template_document_id"]].id, recipient_id=recipient.id,
                     field_type=EsignFieldType(f["field_type"]), page_number=f["page_number"], pos_x=f["pos_x"], pos_y=f["pos_y"],

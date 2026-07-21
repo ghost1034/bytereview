@@ -52,6 +52,28 @@ def _ink_bbox(page: fitz.Page) -> tuple[float, float, float, float]:
     return min_x, min_y, max_x, max_y
 
 
+def _longest_ink_runs(page: fitz.Page) -> tuple[int, int]:
+    """Longest horizontal and vertical dark-pixel runs in display space."""
+    pix = page.get_pixmap(dpi=72)
+    dark = [
+        [min(pix.pixel(x, y)[:3]) < 200 for x in range(pix.width)]
+        for y in range(pix.height)
+    ]
+    horizontal = 0
+    for row in dark:
+        current = 0
+        for value in row:
+            current = current + 1 if value else 0
+            horizontal = max(horizontal, current)
+    vertical = 0
+    for x in range(pix.width):
+        current = 0
+        for y in range(pix.height):
+            current = current + 1 if dark[y][x] else 0
+            vertical = max(vertical, current)
+    return horizontal, vertical
+
+
 class EsignCoordinateTests(unittest.TestCase):
     def test_display_rect_matches_fraction_box_unrotated(self) -> None:
         doc = _page_with_rotation(0)
@@ -120,6 +142,32 @@ class EsignCoordinateTests(unittest.TestCase):
                 self.assertGreaterEqual(min_y, ey0 - slack)
                 self.assertLessEqual(max_x, ex1 + slack)
                 self.assertLessEqual(max_y, ey1 + slack)
+
+    def test_underlines_follow_text_for_all_page_rotations(self) -> None:
+        for rotation in (0, 90, 180, 270):
+            with self.subTest(rotation=rotation):
+                doc = _page_with_rotation(rotation)
+                page = doc[0]
+                box = _display_box(page, 0.1, 0.2, 0.5, 0.1)
+                _fit_textbox(
+                    page,
+                    box,
+                    "UNDERLINED FIELD",
+                    fontname="helv",
+                    rotate=page.rotation,
+                    max_fontsize=16,
+                    align=fitz.TEXT_ALIGN_CENTER,
+                    underline=True,
+                )
+                horizontal, vertical = _longest_ink_runs(page)
+                self.assertGreater(horizontal, 80, f"rot {rotation}: underline is missing")
+                self.assertGreater(
+                    horizontal,
+                    vertical * 3,
+                    f"rot {rotation}: underline is not horizontal in display space",
+                )
+                # The browser underlines the glyph run, not the entire field.
+                self.assertLess(horizontal, box.width * 0.8)
 
 
 if __name__ == "__main__":

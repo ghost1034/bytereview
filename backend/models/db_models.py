@@ -1542,6 +1542,8 @@ class EsignField(Base):
         CheckConstraint("pos_y >= 0 AND pos_y <= 1", name="ck_esign_fields_pos_y"),
         CheckConstraint("width > 0 AND width <= 1", name="ck_esign_fields_width"),
         CheckConstraint("height > 0 AND height <= 1", name="ck_esign_fields_height"),
+        CheckConstraint("pos_x + width <= 1", name="ck_esign_fields_horizontal_bounds"),
+        CheckConstraint("pos_y + height <= 1", name="ck_esign_fields_vertical_bounds"),
         CheckConstraint("page_number >= 0", name="ck_esign_fields_page_number"),
         Index("ix_esign_fields_envelope", "envelope_id"),
     )
@@ -1732,6 +1734,8 @@ class EsignTemplateField(Base):
         CheckConstraint("pos_y >= 0 AND pos_y <= 1", name="ck_esign_template_fields_pos_y"),
         CheckConstraint("width > 0 AND width <= 1", name="ck_esign_template_fields_width"),
         CheckConstraint("height > 0 AND height <= 1", name="ck_esign_template_fields_height"),
+        CheckConstraint("pos_x + width <= 1", name="ck_esign_template_fields_horizontal_bounds"),
+        CheckConstraint("pos_y + height <= 1", name="ck_esign_template_fields_vertical_bounds"),
         CheckConstraint("page_number >= 0", name="ck_esign_template_fields_page_number"),
         CheckConstraint("recipient_index >= 0", name="ck_esign_template_fields_recipient_index"),
         Index("ix_esign_template_fields_role", "template_id", "recipient_role_id"),

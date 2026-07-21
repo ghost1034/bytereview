@@ -12,7 +12,7 @@ import fitz
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.esign.envelope_service import EsignEnvelopeService
+from services.esign.envelope_service import EsignEnvelopeService, EsignError, validate_field_placement
 
 
 class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
@@ -124,6 +124,36 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         for value in (row.x, row.y, row.width, row.height):
             self.assertGreater(value, 0)
             self.assertLessEqual(value, 1)
+
+    def test_pdf_widget_geometry_is_clipped_to_the_visible_page(self) -> None:
+        pdf = fitz.open()
+        page = pdf.new_page(width=612, height=792)
+        widget = fitz.Widget()
+        widget.field_name = "Partially clipped"
+        widget.field_type = fitz.PDF_WIDGET_TYPE_TEXT
+        widget.rect = fitz.Rect(560, 740, 660, 830)
+        page.add_widget(widget)
+
+        row = EsignEnvelopeService._pdf_widget_rows(pdf.tobytes(), "document")[0]
+        pdf.close()
+
+        self.assertTrue(row.supported)
+        self.assertAlmostEqual(row.x + row.width, 1.0)
+        self.assertAlmostEqual(row.y + row.height, 1.0)
+        self.assertAlmostEqual(row.width, 52 / 612)
+        self.assertAlmostEqual(row.height, 52 / 792)
+
+    def test_stored_field_validation_checks_page_and_aggregate_bounds(self) -> None:
+        document = types.SimpleNamespace(page_count=2, original_filename="agreement.pdf")
+        valid = types.SimpleNamespace(
+            page_number=1, pos_x=0.7, pos_y=0.8, width=0.3, height=0.2,
+        )
+        validate_field_placement(valid, document)
+
+        with self.assertRaisesRegex(EsignError, "beyond 'agreement.pdf'"):
+            validate_field_placement(types.SimpleNamespace(**{**valid.__dict__, "page_number": 2}), document)
+        with self.assertRaisesRegex(EsignError, "extends beyond"):
+            validate_field_placement(types.SimpleNamespace(**{**valid.__dict__, "pos_x": 0.8}), document)
 
 
 if __name__ == "__main__":

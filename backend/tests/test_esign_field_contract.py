@@ -6,7 +6,7 @@ from pydantic import ValidationError
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from models.esign import EsignFieldInput, EsignSubmitRequest
+from models.esign import EsignFieldInput, EsignSubmitRequest, EsignTemplateFieldInput
 
 
 VALID_PROPERTIES = {
@@ -97,3 +97,34 @@ def test_submit_can_be_text_only_without_adopting_a_signature():
 def test_schema_rejects_unknown_field_types():
     with pytest.raises(ValidationError):
         field("unsupported", {})
+
+
+@pytest.mark.parametrize(
+    "model,payload",
+    [
+        (
+            EsignFieldInput,
+            {"document_id": "doc", "recipient_id": "recipient"},
+        ),
+        (
+            EsignTemplateFieldInput,
+            {"template_document_id": "doc", "recipient_index": 0},
+        ),
+    ],
+)
+@pytest.mark.parametrize(
+    "geometry",
+    [
+        {"pos_x": 0.9, "pos_y": 0.1, "width": 0.2, "height": 0.1},
+        {"pos_x": 0.1, "pos_y": 0.95, "width": 0.2, "height": 0.1},
+    ],
+)
+def test_field_inputs_reject_boxes_that_extend_beyond_the_page(model, payload, geometry):
+    with pytest.raises(ValidationError, match="extends beyond the page bounds"):
+        model.model_validate({
+            **payload,
+            "field_type": "text",
+            "page_number": 0,
+            "properties": {},
+            **geometry,
+        })

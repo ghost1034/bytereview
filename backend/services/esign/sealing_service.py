@@ -162,8 +162,61 @@ def _fit_textbox(
         color=color,
     )
     if underline:
-        target = _derotate(page, box)
-        page.draw_line((target.x0, target.y1 - 1), (target.x1, target.y1 - 1), color=color, width=0.6, overlay=True)
+        # Derotating and normalizing the field rectangle loses which edge is
+        # visually "below" the text.  On rotated pages that made a nominally
+        # horizontal underline vertical (90 / 270 degrees) or put it above the
+        # text (180 degrees).  Lay the same text out on an otherwise-empty page
+        # and use its extracted baselines, which stay in PyMuPDF's unrotated
+        # coordinate space and therefore preserve both rotation and wrapping.
+        with fitz.open() as scratch:
+            spage = scratch.new_page(width=page.mediabox.width, height=page.mediabox.height)
+            try:
+                spage.set_cropbox(page.cropbox)
+            except ValueError:
+                # A malformed/non-standard CropBox should not prevent the
+                # signed value itself from being flattened.
+                pass
+            if rotate:
+                spage.set_rotation(rotate)
+            spage.insert_textbox(
+                _derotate(spage, centered),
+                text,
+                fontname=fontname,
+                fontfile=fontfile,
+                fontsize=fontsize,
+                rotate=rotate,
+                align=align,
+                color=color,
+            )
+            for block in spage.get_text("dict").get("blocks", []):
+                for line in block.get("lines", []):
+                    direction = fitz.Point(*line.get("dir", (1.0, 0.0)))
+                    down = fitz.Point(-direction.y, direction.x)
+                    for span in line.get("spans", []):
+                        if not span.get("text"):
+                            continue
+                        origin = fitz.Point(*span["origin"])
+                        span_box = fitz.Rect(span["bbox"])
+                        projections = [
+                            corner.x * direction.x + corner.y * direction.y
+                            for corner in (
+                                span_box.top_left,
+                                span_box.top_right,
+                                span_box.bottom_left,
+                                span_box.bottom_right,
+                            )
+                        ]
+                        advance = max(projections) - min(projections)
+                        offset = max(0.5, float(span.get("size") or fontsize) * 0.08)
+                        start = origin + down * offset
+                        end = start + direction * advance
+                        page.draw_line(
+                            start,
+                            end,
+                            color=color,
+                            width=max(0.4, min(1.0, float(span.get("size") or fontsize) * 0.05)),
+                            overlay=True,
+                        )
 
 
 def _initials_from_name(name: str) -> str:

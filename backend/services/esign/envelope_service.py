@@ -82,6 +82,25 @@ DOWNLOAD_URL_MINUTES = int(os.getenv("ESIGN_DOWNLOAD_URL_MINUTES", "15"))
 DEFAULT_EXPIRES_DAYS = int(os.getenv("ESIGN_DEFAULT_EXPIRES_DAYS", "30"))
 
 
+def validate_field_placement(field: Any, document: Any) -> None:
+    """Validate an ORM, Pydantic, or snapshot field against its PDF document."""
+    value = field.get if isinstance(field, dict) else lambda key, default=None: getattr(field, key, default)
+    document_value = document.get if isinstance(document, dict) else lambda key, default=None: getattr(document, key, default)
+    page_number = int(value("page_number", -1))
+    page_count = int(document_value("page_count", 0) or 0)
+    filename = str(document_value("original_filename", "PDF") or "PDF")
+    if page_number < 0 or page_number >= page_count:
+        raise EsignError(
+            f"Field page {page_number + 1} is beyond '{filename}' ({page_count} pages)"
+        )
+    pos_x, pos_y = float(value("pos_x", 0)), float(value("pos_y", 0))
+    width, height = float(value("width", 0)), float(value("height", 0))
+    if pos_x < 0 or pos_y < 0 or width <= 0 or height <= 0:
+        raise EsignError("Field geometry must use positive normalized dimensions")
+    if pos_x + width > 1.0 or pos_y + height > 1.0:
+        raise EsignError("Field extends beyond the page bounds")
+
+
 def _lock_draft_revision(db: Session, row: Any, expected_revision: Optional[int]) -> None:
     """Lock a mutable draft and reject stale full-replacement writes."""
     model = EsignTemplate if isinstance(row, EsignTemplate) else EsignEnvelope
@@ -641,6 +660,7 @@ class EsignEnvelopeService:
             tdoc = tdocs_by_id.get(str(tfield.template_document_id))
             if not tdoc:
                 continue
+            validate_field_placement(tfield, tdoc)
             doc = docs_by_order.get(tdoc.display_order)
             if not doc:
                 continue
@@ -1015,12 +1035,7 @@ class EsignEnvelopeService:
                     raise EsignError("Fields can only be assigned to signer, witness, or in-person signer roles")
                 if f.field_type not in {t.value for t in EsignFieldType}:
                     raise EsignError(f"Invalid field type: {f.field_type}")
-                if f.page_number >= (doc.page_count or 0):
-                    raise EsignError(
-                        f"Field page {f.page_number + 1} is beyond '{doc.original_filename}' ({doc.page_count} pages)"
-                    )
-                if f.pos_x + f.width > 1.0001 or f.pos_y + f.height > 1.0001:
-                    raise EsignError("Field extends beyond the page bounds")
+                validate_field_placement(f, doc)
                 try:
                     field_id = uuid.UUID(str(f.id)) if f.id else uuid.uuid4()
                 except ValueError:
@@ -1103,10 +1118,7 @@ class EsignEnvelopeService:
                     raise EsignError("Fields require a signature recipient role")
                 if item.field_type not in {field_type.value for field_type in EsignFieldType}:
                     raise EsignError(f"Invalid field type: {item.field_type}")
-                if item.page_number >= int(document.page_count or 0):
-                    raise EsignError(f"Field page exceeds '{document.original_filename}'")
-                if item.pos_x + item.width > 1.0001 or item.pos_y + item.height > 1.0001:
-                    raise EsignError("Field extends beyond the page bounds")
+                validate_field_placement(item, document)
                 field_id = uuid.UUID(str(item.id)) if item.id else uuid.uuid4()
                 if field_id in seen_ids:
                     raise EsignError(f"Duplicate field id: {field_id}")
@@ -1786,15 +1798,17 @@ class EsignEnvelopeService:
                 template.recipient_roles = normalize_template_roles(supplied)
 
             if fields is not None:
-                doc_ids = {str(d.id) for d in template.documents or []}
+                documents_by_id = {str(d.id): d for d in template.documents or []}
                 roles = normalize_template_roles(template.recipient_roles or [])
                 role_count = len(roles)
                 role_ids = {role["id"] for role in roles}
                 pending: list[EsignTemplateField] = []
                 seen_ids: set[uuid.UUID] = set()
                 for f in fields:
-                    if str(f.template_document_id) not in doc_ids:
+                    document = documents_by_id.get(str(f.template_document_id))
+                    if document is None:
                         raise EsignError(f"Unknown template document: {f.template_document_id}")
+                    validate_field_placement(f, document)
                     if f.recipient_index >= role_count:
                         raise EsignError("Field recipient_index exceeds recipient roles")
                     role_id = f.recipient_role_id or roles[f.recipient_index]["id"]
@@ -1961,6 +1975,23 @@ class EsignEnvelopeService:
                 for index, widget in enumerate(list(page.widgets() or [])):
                     rect = widget.rect * page.rotation_matrix
                     rect.normalize()
+                    bounds = page.rect
+                    x0, y0 = max(bounds.x0, rect.x0), max(bounds.y0, rect.y0)
+                    x1, y1 = min(bounds.x1, rect.x1), min(bounds.y1, rect.y1)
+                    visible = x1 > x0 and y1 > y0
+                    epsilon = 0.0001
+                    if visible:
+                        x = max(0.0, min(1.0 - epsilon, (x0 - bounds.x0) / bounds.width))
+                        y = max(0.0, min(1.0 - epsilon, (y0 - bounds.y0) / bounds.height))
+                        width = max(epsilon, min(1.0 - x, (x1 - x0) / bounds.width))
+                        height = max(epsilon, min(1.0 - y, (y1 - y0) / bounds.height))
+                    else:
+                        # Keep the widget visible in inspection results, but
+                        # make its placeholder geometry valid and prevent it
+                        # from being converted into an unusable signer field.
+                        x = max(0.0, min(1.0 - epsilon, (rect.x0 - bounds.x0) / bounds.width))
+                        y = max(0.0, min(1.0 - epsilon, (rect.y0 - bounds.y0) / bounds.height))
+                        width = height = epsilon
                     name = str(widget.field_name or f"Field {page_number + 1}-{index + 1}")
                     suggested = type_map.get(widget.field_type)
                     lowered = f"{name} {widget.field_label or ''}".lower()
@@ -1975,15 +2006,15 @@ class EsignEnvelopeService:
                         tooltip=str(widget.field_label) if widget.field_label else None,
                         suggested_field_type=suggested,
                         page_number=page_number,
-                        x=max(0.0, min(1.0, rect.x0 / page.rect.width)),
-                        y=max(0.0, min(1.0, rect.y0 / page.rect.height)),
-                        width=max(0.0001, min(1.0, rect.width / page.rect.width)),
-                        height=max(0.0001, min(1.0, rect.height / page.rect.height)),
+                        x=x,
+                        y=y,
+                        width=width,
+                        height=height,
                         required=bool(int(widget.field_flags or 0) & 2),
                         default_value=str(widget.field_value) if widget.field_value not in (None, "") else None,
                         max_length=int(widget.text_maxlen) if getattr(widget, "text_maxlen", 0) else None,
                         choices=choices,
-                        supported=suggested is not None,
+                        supported=suggested is not None and visible,
                     ))
         return rows
 
@@ -2063,14 +2094,16 @@ class EsignEnvelopeService:
                 if mapping.field_type == "radio":
                     props["group"] = {"id": f"acroform:{widget.name}", "label": widget.tooltip or widget.name}
                     props["option_value"] = widget.default_value or mapping.widget_id
-                pending.append(EsignField(
+                converted = EsignField(
                     id=uuid.uuid4(), envelope_id=envelope.id, document_id=document.id,
                     recipient_id=uuid.UUID(str(mapping.recipient_id)), field_type=EsignFieldType(mapping.field_type),
                     page_number=widget.page_number, pos_x=widget.x, pos_y=widget.y,
                     width=widget.width, height=widget.height,
                     required=widget.required if mapping.required is None else mapping.required,
                     label=widget.tooltip or widget.name, properties={key: value for key, value in props.items() if value is not None},
-                ))
+                )
+                validate_field_placement(converted, document)
+                pending.append(converted)
             validate_field_graph(pending)
             db.add_all(pending[len(envelope.fields or []):])
             _bump_draft_revision(envelope)

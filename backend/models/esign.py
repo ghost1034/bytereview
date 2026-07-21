@@ -255,6 +255,12 @@ def _validated_properties(field_type: EsignFieldTypeName, value: Any) -> EsignFi
     return EsignFieldProperties.model_validate(props)
 
 
+def _validate_normalized_field_box(pos_x: float, pos_y: float, width: float, height: float) -> None:
+    """Require a normalized field rectangle to fit wholly on its page."""
+    if pos_x + width > 1.0 or pos_y + height > 1.0:
+        raise ValueError("field extends beyond the page bounds")
+
+
 class EsignFieldInput(BaseModel):
     id: Optional[str] = None
     document_id: str
@@ -271,6 +277,7 @@ class EsignFieldInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_properties(self):
+        _validate_normalized_field_box(self.pos_x, self.pos_y, self.width, self.height)
         self.properties = _validated_properties(self.field_type, self.properties)
         if self.field_type == "formula":
             self.required = False
@@ -839,6 +846,7 @@ class EsignTemplateFieldInput(BaseModel):
 
     @model_validator(mode="after")
     def validate_properties(self):
+        _validate_normalized_field_box(self.pos_x, self.pos_y, self.width, self.height)
         self.properties = _validated_properties(self.field_type, self.properties)
         if self.field_type == "formula":
             self.required = False
