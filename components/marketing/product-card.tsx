@@ -12,7 +12,7 @@ interface ProductCardProps {
   description?: React.ReactNode
   href: string
   /** Status pill shown on the right (e.g. "Soon", "Beta"). */
-  status?: 'live' | 'beta' | 'soon'
+  status?: 'live' | 'beta' | 'soon' | 'free'
   size?: 'sm' | 'md'
   tone?: 'neutral' | 'brand' | 'success' | 'warning' | 'info'
   className?: string
@@ -22,6 +22,7 @@ const STATUS_LABEL: Record<NonNullable<ProductCardProps['status']>, string> = {
   live: 'Live',
   beta: 'Beta',
   soon: 'Soon',
+  free: 'Free',
 }
 
 export function ProductCard({
@@ -61,7 +62,11 @@ export function ProductCard({
           {status && status !== 'live' && (
             <Badge
               variant="secondary"
-              className="h-4 px-1.5 text-[10px] font-medium tabular-nums"
+              className={cn(
+                'h-4 px-1.5 text-[10px] font-medium tabular-nums',
+                status === 'free' &&
+                  'border-emerald-200 bg-emerald-50 text-emerald-700',
+              )}
             >
               {STATUS_LABEL[status]}
             </Badge>

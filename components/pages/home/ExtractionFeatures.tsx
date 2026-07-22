@@ -293,6 +293,7 @@ export default function ExtractionFeatures({
 
       {/* Free CPE-tracker bonus — slim callout instead of a second full video block */}
       <motion.div
+        id="cpe-tracker"
         className="mt-12"
         variants={fadeInUp}
         initial="hidden"

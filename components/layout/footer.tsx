@@ -61,7 +61,14 @@ export default function Footer() {
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <FooterLink href="/features">Document Analysis</FooterLink>
+                <FooterLink href="/features">
+                  Universal Document Analysis
+                </FooterLink>
+              </li>
+              <li>
+                <FooterLink href="/dashboard/cpe-tracker">
+                  CPE Tracker
+                </FooterLink>
               </li>
               <li>
                 <FooterLink href="/dashboard/form-fill">Form Fill</FooterLink>
@@ -82,11 +89,6 @@ export default function Footer() {
               </li>
               <li>
                 <ComingSoonItem label="AI Productivity Suite" />
-              </li>
-              <li>
-                <FooterLink href="/dashboard/cpe-tracker">
-                  CPE Tracker
-                </FooterLink>
               </li>
             </ul>
           </div>

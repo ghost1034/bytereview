@@ -12,6 +12,7 @@ import {
   FileText,
   Files,
   FolderKanban,
+  GraduationCap,
   Handshake,
   LogOut,
   Menu,
@@ -47,15 +48,22 @@ interface ProductLink {
   href: string
   description: string
   icon: React.ComponentType<{ className?: string }>
-  status?: 'soon'
+  status?: 'soon' | 'free'
 }
 
 const PRODUCT_LINKS: ProductLink[] = [
   {
-    label: 'Document Analysis',
+    label: 'Universal Document Analysis',
     href: '/#extraction-features',
     description: 'AI extraction & automations',
     icon: FileText,
+  },
+  {
+    label: 'CPE Tracker',
+    href: '/#cpe-tracker',
+    description: 'Track continuing professional education',
+    icon: GraduationCap,
+    status: 'free',
   },
   {
     label: 'Form Fill',
