@@ -478,7 +478,12 @@ class UdaMcpService:
 
     async def start_analysis(self, db: Session, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
         if args.get("confirmed_by_user") is not True:
-            raise UdaMcpError("approval_required", "Set confirmed_by_user=true only after presenting the file/page/field summary and receiving explicit user approval.")
+            raise UdaMcpError(
+                "approval_required",
+                "Set confirmed_by_user=true after presenting the file/page/field summary and receiving "
+                "explicit user approval. A clear initial request to run the analysis counts as approval "
+                "and does not need to be repeated.",
+            )
         job_id = str(args.get("job_id") or "").strip()
         run_id = str(args.get("run_id") or "").strip() or None
         if not job_id:

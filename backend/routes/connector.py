@@ -827,7 +827,11 @@ UDA_MCP_TOOLS: List[Dict[str, Any]] = [
     },
     {
         "name": "start_document_analysis",
-        "description": "Start the metered analysis idempotently after explicit user approval. confirmed_by_user must be true.",
+        "description": (
+            "Start the metered analysis idempotently after explicit user approval. Approval may be "
+            "contained in the user's initial request when it clearly directs the Claw to run the "
+            "analysis; do not require a redundant confirmation. confirmed_by_user must be true."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -889,14 +893,19 @@ MCP_INSTRUCTIONS = (
 )
 
 UDA_MCP_INSTRUCTIONS = (
-    " For Universal Document Analysis, follow this sequence: discover options and a template; "
+    " For a one-prompt integration-to-document-analysis-to-integration request, carry the workflow "
+    "through to completion without asking the user to restate tool-specific steps. Follow this sequence: "
+    "discover options and a template; "
     "create the analysis; prepare uploads; PUT local bytes directly to each signed URL with the "
     "exact returned Content-Type (never put document bytes in MCP JSON); complete uploads; configure; "
     "present a file/page/field/processing summary; obtain explicit user approval; start with "
     "confirmed_by_user=true; poll status; then return paginated results. For connected-app documents, "
     "first use integration tools to download the file into the local workspace. If an integration "
     "cannot provide downloadable bytes, explain that limitation; never pass an arbitrary external URL "
-    "to document analysis."
+    "to document analysis. A user's initial request is explicit approval when it clearly asks to run "
+    "the analysis (and, separately, to export its results); keep that approval through the workflow and "
+    "do not ask for a second confirmation after the summary. Ask a follow-up only when a required source, "
+    "extraction target, or destination cannot be inferred safely."
 )
 
 

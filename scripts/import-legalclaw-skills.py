@@ -25,6 +25,7 @@ SOURCE_REPO = "https://github.com/HHHHHejia/awesome-legal-aiagent-skills.git"
 # Pin the import so re-runs are reproducible; bump deliberately to take updates.
 SOURCE_COMMIT = "19c01cd63fc9f204bd53bdab6da3724e47437add"
 DEST = pathlib.Path(__file__).resolve().parent.parent / "hermes/legalclaw/profile/skills"
+CPAA_MANAGED_SKILLS = {"integration-document-analysis"}
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.S)
 
@@ -115,11 +116,19 @@ def main() -> None:
         subprocess.run(["git", "clone", SOURCE_REPO, str(source)], check=True)
         subprocess.run(["git", "-C", str(source), "checkout", SOURCE_COMMIT], check=True)
 
+    preserved_dir = tempfile.mkdtemp(prefix="legalclaw-cpaa-skills-")
     try:
         skills = load_skills(source)
         if len(skills) < 1000:
             raise SystemExit(f"expected 1000+ skills, found {len(skills)} — wrong source dir?")
         assign_slugs(skills)
+
+        preserved = []
+        for slug in sorted(CPAA_MANAGED_SKILLS):
+            existing = DEST / slug
+            if existing.is_dir():
+                shutil.copytree(existing, pathlib.Path(preserved_dir) / slug)
+                preserved.append(slug)
 
         if DEST.exists():
             shutil.rmtree(DEST)
@@ -128,13 +137,22 @@ def main() -> None:
             skill_dir.mkdir(parents=True)
             (skill_dir / "SKILL.md").write_text(render_skill(skill), encoding="utf-8")
 
+        for slug in preserved:
+            destination = DEST / slug
+            if destination.exists():
+                shutil.rmtree(destination)
+            shutil.copytree(pathlib.Path(preserved_dir) / slug, destination)
+
         areas = {}
         for skill in skills:
             areas[skill["area"]] = areas.get(skill["area"], 0) + 1
         print(f"Imported {len(skills)} skills into {DEST}")
+        if preserved:
+            print(f"Preserved CPAAutomation-managed skills: {', '.join(preserved)}")
         for area, count in sorted(areas.items(), key=lambda kv: -kv[1]):
             print(f"  {count:4d}  {area}")
     finally:
+        shutil.rmtree(preserved_dir, ignore_errors=True)
         if tmp:
             shutil.rmtree(tmp, ignore_errors=True)
 

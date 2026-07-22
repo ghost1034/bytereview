@@ -11,6 +11,7 @@ from fastapi import HTTPException
 
 from routes.connector import (
     MCP_TOOLS,
+    UDA_MCP_INSTRUCTIONS,
     UDA_MCP_TOOLS,
     _available_mcp_tools,
     _handle_mcp_message,
@@ -45,14 +46,21 @@ class UdaToolContractTests(unittest.TestCase):
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("additionalProperties", tool["inputSchema"])
 
-    def test_feature_flag_is_default_off_and_preserves_integration_tools(self) -> None:
+    def test_one_prompt_authorization_is_part_of_the_mcp_contract(self) -> None:
+        start_tool = next(tool for tool in UDA_MCP_TOOLS if tool["name"] == "start_document_analysis")
+        self.assertIn("initial request", start_tool["description"])
+        self.assertIn("do not require a redundant confirmation", start_tool["description"])
+        self.assertIn("one-prompt", UDA_MCP_INSTRUCTIONS)
+        self.assertIn("do not ask for a second confirmation", UDA_MCP_INSTRUCTIONS)
+
+    def test_feature_flag_defaults_on_and_preserves_integration_tools_when_disabled(self) -> None:
         env = {key: value for key, value in os.environ.items() if key != "CLAW_UDA_MCP_ENABLED"}
         with patch.dict(os.environ, env, clear=True):
-            self.assertEqual(_available_mcp_tools(), MCP_TOOLS)
-        with patch.dict(os.environ, {"CLAW_UDA_MCP_ENABLED": "true"}):
             names = {tool["name"] for tool in _available_mcp_tools()}
         self.assertTrue({tool["name"] for tool in MCP_TOOLS}.issubset(names))
         self.assertIn("start_document_analysis", names)
+        with patch.dict(os.environ, {"CLAW_UDA_MCP_ENABLED": "false"}):
+            self.assertEqual(_available_mcp_tools(), MCP_TOOLS)
 
     def test_result_cursor_round_trip_and_invalid_cursor(self) -> None:
         self.assertEqual(_decode_cursor(_encode_cursor(MAX_RESULT_ROWS)), MAX_RESULT_ROWS)

@@ -1,7 +1,7 @@
 name: accountingclaw
 display_name: AccountingClaw
 description: CPAAutomation.ai accounting agent profile with bundled accounting skills
-version: 0.1.0
+version: 0.2.0
 publisher: CPAAutomation.ai
 license: Commercial
 
@@ -31,6 +31,7 @@ contents:
   - skills/flux-variance-analyst/
   - skills/individual-tax-researcher/
   - skills/intercompany-elimination-bot/
+  - skills/integration-document-analysis/
   - skills/journal-entry-assistant/
   - skills/lease-842-assistant/
   - skills/partnership-tax-researcher/
