@@ -1,4 +1,4 @@
-# AccountingClaw demo script — S3 document intake to structured results
+# AccountingClaw demo script — one-prompt S3 document intake to structured results
 
 ## Producer setup: documents to generate
 
@@ -59,19 +59,20 @@ Use **Individual** processing mode so Universal Document Analysis produces one r
 ## Recording preparation
 
 - Use the AccountingClaw desktop chat or an equivalent Hermes chat session with the CPAAutomation MCP gateway active.
+- Confirm that `universal-document-analysis` appears in `hermes skills list`; restart or refresh the AccountingClaw profile after installing the updated bundle if needed.
 - In **CPAAutomation → Integrations**, connect **AWS S3** with a dedicated, least-privilege demo credential. The credential needs list/read access to `ap-intake/2026-06/` and write access to `ap-processed/2026-06/`. Set `northstar-demo-docs` as the default bucket.
 - Confirm that the connected integration is labeled **AWS S3** and active. Never expose the access key ID, secret access key, session token, signed URLs, or Claw connector token on screen.
 - Confirm that the **AP Invoice Intake** template is visible to the same CPAAutomation user who activated AccountingClaw.
 - Keep an authenticated browser tab ready on **Universal Document Analysis → Jobs** and an AWS console tab open directly to the empty `ap-processed/2026-06/` prefix.
 - Use a fresh AccountingClaw chat. Remove prior runs named **Northstar June 2026 AP Intake** or give the demo run a unique date suffix.
-- Rehearse the analysis once. Confirm that the approval summary says **5 files, 6 pages, 13 fields, Individual processing**, all five expected rows are returned, and the net total is **$12,211.06**.
+- Rehearse the exact prompt once. Confirm that AccountingClaw shows a configuration summary of **5 files, 6 pages, 13 fields, Individual processing**, then continues through analysis and S3 export without asking for another prompt. Confirm that all five expected rows are returned and the net total is **$12,211.06**.
 - Delete the rehearsal output from the destination prefix before the final take.
 - Hide notifications, unrelated clients, browser bookmarks, terminal history, credentials, signed URLs, and local filesystem paths.
 - If processing takes longer than the desired edit, record the submission and completed result as separate takes and bridge them with a short time-lapse.
 
 ## Demo script
 
-Target length: approximately **5½ minutes**.
+Target length: approximately **5 minutes**.
 
 ### 0:00–0:25 — The outcome first
 
@@ -79,7 +80,7 @@ Target length: approximately **5½ minutes**.
 
 **Dialogue:**
 
-> A document workflow usually starts in one system and ends in another. Here, five June AP documents have arrived in an S3 intake folder. I'm going to ask AccountingClaw to bring them into CPAAutomation, run Universal Document Analysis, and return a clean result file to S3—without manually downloading, uploading, or rekeying the documents.
+> A document workflow usually starts in one system and ends in another. Here, five June AP documents have arrived in an S3 intake folder. With one request, AccountingClaw will bring them into CPAAutomation, run Universal Document Analysis, and return a clean result file to S3—without manually downloading, uploading, or rekeying the documents.
 
 ### 0:25–0:47 — A connected integration, without an OAuth app
 
@@ -89,53 +90,42 @@ Target length: approximately **5½ minutes**.
 
 > AWS S3 is connected with a scoped credential, so this workflow doesn't depend on an OAuth app. The connection is available to AccountingClaw through CPAAutomation's authenticated integration gateway.
 
-### 0:47–1:13 — Brief AccountingClaw like a staff accountant
+### 0:47–1:18 — Describe the complete outcome in one prompt
 
-**Action:** Paste the prompt below into AccountingClaw and send it. Keep the full prompt visible long enough to read the entity, period, basis, source, and requested destination.
+**Action:** Paste the prompt below into AccountingClaw and send it. This is the only user message in the workflow. Keep it visible long enough to read the entity, period, source, analysis, and destination.
 
 **Typed prompt:**
 
-> Client: Northstar Outdoor Supply, Inc. Period: June 2026. Basis: US GAAP. Source system: our connected AWS S3 account. Find the ZIP in `s3://northstar-demo-docs/ap-intake/2026-06/`, import its documents into a new Universal Document Analysis job named `Northstar June 2026 AP Intake`, and use the `AP Invoice Intake` extraction template with Individual processing. Before starting the analysis, show me the file, page, and field summary for approval. When processing is complete, summarize the results, flag missing PO numbers, and export a CSV to `s3://northstar-demo-docs/ap-processed/2026-06/northstar_ap_2026-06_results.csv`.
+> Client: Northstar Outdoor Supply, Inc. Period: June 2026. Basis: US GAAP. From our connected AWS S3 account, process the documents in `s3://northstar-demo-docs/ap-intake/2026-06/northstar_ap_2026-06.zip` through Universal Document Analysis. Name the analysis `Northstar June 2026 AP Intake`, use the `AP Invoice Intake` template with Individual processing, summarize the results, and flag missing PO numbers. Export the complete results as CSV to `s3://northstar-demo-docs/ap-processed/2026-06/northstar_ap_2026-06_results.csv`. Complete the workflow end to end.
 
 **Dialogue:**
 
-> The brief supplies the engagement context AccountingClaw needs, identifies the connected source and destination, and tells it to pause before the metered analysis begins.
+> I don't have to name tools or describe the transfer steps. This one brief gives AccountingClaw the engagement context, the connected source, the extraction template, the review question, and the destination.
 
-### 1:13–1:55 — Import from S3 and prepare the analysis
+### 1:18–2:00 — AccountingClaw builds and starts the workflow
 
-**Action:** Let AccountingClaw work. As its progress updates appear, keep the integration and Universal Document Analysis tool activity in view. The expected sequence is: discover the connected S3 account, list the intake prefix, select the ZIP, create the job, download the archive into its workspace, upload it to the job, wait for expansion and page counting, locate the template, and configure Individual processing.
+**Action:** Do not type anything else. Let AccountingClaw work. As progress updates appear, keep the integration and Universal Document Analysis activity in view. The expected sequence is: resolve the connected S3 account, locate and download the ZIP, validate it, create the analysis, upload the archive, wait for expansion and page counting, locate the template, configure Individual processing, show the compact configuration summary, and immediately start analysis under the authority of the original request.
 
 **Expected AccountingClaw response, paraphrased:**
 
-> I found `northstar_ap_2026-06.zip` in the connected S3 intake prefix and imported it into a new Universal Document Analysis job. The archive expanded successfully.
+> I found `northstar_ap_2026-06.zip` in the connected AWS S3 account and imported it into a new Universal Document Analysis job. The archive expanded successfully.
 >
-> Ready for approval:
+> Configuration:
 > - 5 documents
 > - 6 pages
 > - 13 extraction fields from `AP Invoice Intake`
 > - Processing mode: Individual
+> - Result destination: AWS S3, `ap-processed/2026-06/northstar_ap_2026-06_results.csv`
 >
-> This action will start metered document analysis. Shall I proceed?
+> Your request authorizes the analysis and export. Starting the analysis now.
 
 **Dialogue:**
 
-> AccountingClaw is doing more than moving a file. It has created the job in CPAAutomation, expanded the batch, counted the pages, applied the extraction template, and stopped at the approval boundary.
+> AccountingClaw turns the outcome I described into an end-to-end workflow. It finds and validates the source, creates the job, expands the batch, counts the pages, applies the template, and shows me the exact configuration. Because my original request explicitly said to process and export the documents, it continues without asking me to repeat myself.
 
-**Contingency:** If the agent reports that the ZIP is still unpacking or page counting is still in progress, let it poll status. Do not approve until the summary matches **5 documents, 6 pages, and 13 fields**.
+**Contingency:** If the ZIP is still unpacking or page counting is in progress, let AccountingClaw continue polling. Do not send a follow-up. If the eventual summary does not match **5 documents, 6 pages, and 13 fields**, stop the take and correct the demo data.
 
-### 1:55–2:12 — Human approval remains explicit
-
-**Action:** Type and send the approval below.
-
-**Typed prompt:**
-
-> Approved. Start the analysis.
-
-**Dialogue:**
-
-> I can verify the scope and cost driver before anything is submitted. The final decision to start stays with me.
-
-### 2:12–2:48 — Universal Document Analysis runs the batch
+### 2:00–2:38 — Universal Document Analysis runs the batch
 
 **Action:** When AccountingClaw confirms submission, switch to **CPAAutomation → Universal Document Analysis → Jobs**. Open **Northstar June 2026 AP Intake**. Show the processing progress, file count, and task counters. When the run completes, move to **Results**.
 
@@ -143,20 +133,13 @@ Target length: approximately **5½ minutes**.
 
 > The job is visible in Universal Document Analysis just like one created in the web application. Each document is processed individually, and the run continues in the background. I can monitor total, completed, and failed tasks here while AccountingClaw watches the same job through the platform gateway.
 
-### 2:48–3:42 — Review structured results and the exception
+### 2:38–3:30 — Review structured results and the exception
 
-**Action:** In the results table, show the five rows and scroll horizontally only as needed. Pause on `document_type`, `vendor_name`, `document_number`, `purchase_order_number`, and `total_amount`. Select the Alder IT Services row and show that the PO value is not found. Then return to AccountingClaw as its summary appears.
+**Action:** In the results table, show the five rows and scroll horizontally only as needed. Pause on `document_type`, `vendor_name`, `document_number`, `purchase_order_number`, and `total_amount`. Select the Alder IT Services row and show that the PO value is not found. AccountingClaw should continue collecting every result and preparing the CSV in the background.
 
 **Expected AccountingClaw response, paraphrased:**
 
-> Universal Document Analysis completed successfully: 5 of 5 documents processed with no failed tasks.
->
-> - 4 invoices totaling $12,917.94
-> - 1 credit memo totaling -$706.88
-> - Net batch total: $12,211.06
-> - Follow-up: Alder IT Services invoice AIS-2026-0617 does not state a purchase order number
->
-> I prepared the result rows for CSV export.
+> Universal Document Analysis completed successfully: 5 of 5 documents processed with no failed tasks. I collected all 5 result rows and prepared the requested CSV.
 
 **Dialogue:**
 
@@ -164,23 +147,28 @@ Target length: approximately **5½ minutes**.
 
 **On-screen verification:** The five `total_amount` values should be **1,850.00**, **5,089.50**, **2,400.00**, **3,578.44**, and **-706.88**.
 
-### 3:42–4:22 — Export the result file back to S3
+### 3:30–4:08 — AccountingClaw completes the S3 export
 
-**Action:** If AccountingClaw has paused before writing to S3, type the confirmation below. If the original prompt was accepted as sufficient explicit intent and the export has already completed, omit the extra confirmation and hold on the completed export response.
+**Action:** Return to AccountingClaw without entering another message. Hold on its single completion report. It should not claim completion until S3 confirms the write.
 
-**Typed prompt, only if requested:**
+**Expected AccountingClaw completion report, paraphrased:**
 
-> Yes. Export the reviewed result rows as CSV to the S3 destination I specified.
-
-**Expected AccountingClaw response, paraphrased:**
-
-> Export complete. I wrote `northstar_ap_2026-06_results.csv` to `s3://northstar-demo-docs/ap-processed/2026-06/` and verified that the object is present.
+> Completed `Northstar June 2026 AP Intake`.
+>
+> - Imported 5 documents from AWS S3
+> - Universal Document Analysis: 5 rows, 0 failed tasks
+> - 4 invoices totaling $12,917.94
+> - 1 credit memo totaling -$706.88
+> - Net batch total: $12,211.06
+> - Follow-up: Alder IT Services invoice AIS-2026-0617 has no purchase order number stated
+> - Exported and verified `s3://northstar-demo-docs/ap-processed/2026-06/northstar_ap_2026-06_results.csv`
+> - Analysis: [CPAAutomation dashboard link]
 
 **Dialogue:**
 
-> The structured output is now going back through the connected S3 integration. The source archive remains in the intake prefix, and the CSV lands in the processed prefix with a predictable name for the next step in the workflow.
+> With no second prompt, AccountingClaw collects the complete result set, writes the CSV, sends it through the connected S3 integration, and verifies the response. It reports the accounting summary, the exception, the destination, and a link back to the analysis.
 
-### 4:22–4:55 — Verify the handoff in the destination system
+### 4:08–4:38 — Verify the handoff in the destination system
 
 **Action:** Switch to the AWS S3 console at `ap-processed/2026-06/` and refresh. Hold on `northstar_ap_2026-06_results.csv`. Open its details or preview only if this can be done without showing credentials or a signed URL. If preview is safe, show the header and first two result rows.
 
@@ -188,13 +176,13 @@ Target length: approximately **5½ minutes**.
 
 > And here is the completed CSV in S3. It contains the document-level fields we reviewed in CPAAutomation, ready for an AP workflow, a data warehouse, or another downstream process.
 
-### 4:55–5:25 — Traceability and close
+### 4:38–5:05 — Traceability and close
 
 **Action:** Return to the Universal Document Analysis results page. Hold on the file tree, editable results table, and the extraction summary. End on AccountingClaw's completion message beside the job's dashboard link.
 
 **Dialogue:**
 
-> The workflow stays traceable end to end: the original documents remain tied to their extracted rows, the results can be reviewed and corrected in Universal Document Analysis, and AccountingClaw reports the exception and the delivery location. What started as a folder of mixed vendor documents is now structured, reviewable data in the system where the next process begins.
+> One request carried this workflow from intake to verified delivery. The original documents remain tied to their extracted rows, the results stay reviewable in Universal Document Analysis, and AccountingClaw reports the exception and the delivery location. What started as a folder of mixed vendor documents is now structured data in the system where the next process begins.
 
 **Closing title:**
 
@@ -203,7 +191,7 @@ Target length: approximately **5½ minutes**.
 
 ## Optional 90-second cut
 
-Keep the outcome-first opening, the AccountingClaw brief, the approval summary, the five-row results view, and the refreshed S3 destination. Remove the Integrations screen, live processing monitor, detailed exception drill-down, and the second export confirmation.
+Keep the outcome-first opening, the single AccountingClaw prompt, the configuration summary as it automatically continues, the five-row results view, and the refreshed S3 destination. Remove the Integrations screen, live processing monitor, and detailed exception drill-down.
 
 ## Expected CSV
 
@@ -223,7 +211,7 @@ Credit Memo,Redwood Safety Supply,CM-1048,06/27/2026,,NSO-4755,RSS-41002,-650.00
 - Say that AccountingClaw uses the user's connected AWS S3 account through CPAAutomation's authenticated integration gateway. Do not imply that AccountingClaw receives or displays the AWS secret.
 - Say that AWS S3 uses a scoped credential in this demo and does not require CPAAutomation to register an OAuth app.
 - Say that AccountingClaw imports the documents into a Universal Document Analysis job. Behind the scenes, it obtains the object through the integration, stages the bytes in its workspace, and uploads them through the platform's signed upload flow.
-- Preserve the explicit approval moment before starting analysis. The platform requires user confirmation before a metered Universal Document Analysis run begins.
+- The one natural-language request explicitly says to process the documents and export the results. Under the Universal Document Analysis skill, that initial request authorizes both metered analysis and the external S3 write. Show the configuration summary, but do not add a second approval or export-confirmation prompt.
 - Describe results as extracted, editable, and reviewable. Do not claim that the AI's values are authoritative or that the documents were approved for payment.
 - Do not imply that AccountingClaw posts invoices, approves payments, or writes to an ERP in this workflow.
 - A missing value must remain blank or null. Do not let the agent infer a PO number or due date that is not present in the source document.
