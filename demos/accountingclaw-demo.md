@@ -4,7 +4,9 @@
 
 This section is for demo preparation only. Do not show it, refer to generated data, or describe the documents as samples during the recording. All entities and transactions below are fictional.
 
-Create the following five polished vendor documents for **Northstar Outdoor Supply, Inc.** Use distinct, realistic layouts and logos, but keep every key value sharply legible. Export each document as a PDF, then place the PDFs in a ZIP archive named `northstar_ap_2026-06.zip`.
+The generated PDFs and upload-ready ZIP are in `output/pdf/accountingclaw-demo/`. To reproduce them, run `scripts/generate-accountingclaw-demo-docs.py` with the PDF dependencies described by the generator's environment.
+
+The set contains the following five polished vendor documents for **Northstar Outdoor Supply, Inc.** Each uses a distinct, realistic layout and logo while keeping every key value sharply legible. The PDFs are packaged in `northstar_ap_2026-06.zip`.
 
 | # | Filename | Pages | Document design | Values the document must contain |
 |---:|---|---:|---|---|
