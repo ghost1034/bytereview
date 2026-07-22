@@ -1,4 +1,4 @@
-# CPAAutomation (codename ByteReview)
+# CPAAutomation
 
 A web platform for extracting structured fields from documents using LLMs (default Google Gemini), with CSV/XLSX exports, Google Drive/Gmail integrations, and automation via Gmail attachment triggers. Built with Next.js (frontend) and FastAPI (backend), using Firebase for authentication, PostgreSQL for persistence, and Google Cloud (Run, Tasks, Scheduler, GCS, Pub/Sub) for infrastructure.
 
