@@ -4,7 +4,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SKILL_RELATIVE_PATH = Path("profile/skills/integration-document-analysis/SKILL.md")
+SKILL_RELATIVE_PATH = Path("profile/skills/universal-document-analysis/SKILL.md")
 REQUIRED_MCP_TOOLS = {
     "list_apps",
     "search_actions",
@@ -29,7 +29,7 @@ def _skill(product: str) -> str:
 def test_both_shipped_claws_include_the_one_prompt_workflow_skill() -> None:
     for product in ("accountingclaw", "legalclaw"):
         content = _skill(product)
-        assert "name: integration-document-analysis" in content
+        assert "name: universal-document-analysis" in content
         assert "from one natural-language request" in content
         assert "initial prompt is explicit approval" in content
         assert "without asking the user to repeat approval" in content
@@ -50,5 +50,5 @@ def test_accounting_distribution_and_legal_refresh_keep_the_skill() -> None:
         REPO_ROOT / "hermes/accountingclaw/profile/distribution.yaml"
     ).read_text(encoding="utf-8")
     legal_importer = (REPO_ROOT / "scripts/import-legalclaw-skills.py").read_text(encoding="utf-8")
-    assert "skills/integration-document-analysis/" in accounting_distribution
-    assert 'CPAA_MANAGED_SKILLS = {"integration-document-analysis"}' in legal_importer
+    assert "skills/universal-document-analysis/" in accounting_distribution
+    assert 'CPAA_MANAGED_SKILLS = {"universal-document-analysis"}' in legal_importer

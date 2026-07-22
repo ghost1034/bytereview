@@ -25,7 +25,7 @@ SOURCE_REPO = "https://github.com/HHHHHejia/awesome-legal-aiagent-skills.git"
 # Pin the import so re-runs are reproducible; bump deliberately to take updates.
 SOURCE_COMMIT = "19c01cd63fc9f204bd53bdab6da3724e47437add"
 DEST = pathlib.Path(__file__).resolve().parent.parent / "hermes/legalclaw/profile/skills"
-CPAA_MANAGED_SKILLS = {"integration-document-analysis"}
+CPAA_MANAGED_SKILLS = {"universal-document-analysis"}
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.S)
 

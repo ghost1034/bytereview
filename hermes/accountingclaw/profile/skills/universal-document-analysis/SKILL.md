@@ -1,5 +1,5 @@
 ---
-name: integration-document-analysis
+name: universal-document-analysis
 description: Import documents from any CPAAutomation connected integration, run Universal Document Analysis, and export the structured results to a connected integration from one natural-language request
 version: 0.1.0
 metadata:
