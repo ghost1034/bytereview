@@ -1946,7 +1946,7 @@ class AnalyticsComment(Base):
 # OpenConnector integrations (broker over the self-hosted runtime)
 #
 # The runtime at OPENCONNECTOR_URL is single-tenant: connections are global,
-# distinguished only by connectionName. The backend brokers multi-tenancy by
+# distinguished by provider service + connectionName. The backend brokers multi-tenancy by
 # naming every runtime connection u_{user_id} / u_{user_id}__{label} and
 # injecting that alias on every call. These tables are the Postgres side of
 # that contract: per-user listing/status (the runtime has no per-user view),
@@ -1969,7 +1969,10 @@ class ConnectorConnection(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     service = Column(String(100), nullable=False)  # runtime service slug, e.g. 'github'
-    connection_name = Column(String(200), nullable=False, unique=True)  # u_{user_id}[__{label_slug}]
+    # The same per-user alias is intentionally reused across provider services.
+    # OpenConnector scopes a connection by (service, connectionName), while the
+    # user/service/label index below enforces the dashboard's logical identity.
+    connection_name = Column(String(200), nullable=False)  # u_{user_id}[__{label_slug}]
     label = Column(String(100), nullable=True)  # user-facing name for extra connections
     auth_type = Column(String(30), nullable=False)  # 'oauth2' | 'api_key' | 'custom_credential'
     status = Column(String(20), nullable=False, server_default="pending")

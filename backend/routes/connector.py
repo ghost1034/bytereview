@@ -120,6 +120,21 @@ def _get_owned_connection(db: Session, user_id: str, connection_id: str) -> Conn
     return row
 
 
+def _find_existing_connection(
+    db: Session, user_id: str, service: str, label: Optional[str]
+) -> Optional[ConnectorConnection]:
+    """Find the logical connection without treating another provider's alias as a match."""
+    query = db.query(ConnectorConnection).filter(
+        ConnectorConnection.user_id == user_id,
+        ConnectorConnection.service == service,
+    )
+    if label is None:
+        query = query.filter(ConnectorConnection.label.is_(None))
+    else:
+        query = query.filter(ConnectorConnection.label == label)
+    return query.first()
+
+
 def _provider_available(provider: Dict[str, Any], oauth_enabled: set) -> bool:
     auth_types = provider.get("auth_types") or []
     if any(auth in auth_types for auth in DIRECT_AUTH_TYPES):
@@ -325,11 +340,7 @@ async def create_connection(
     except ConnectorError as exc:
         raise _http_error(exc)
 
-    existing = (
-        db.query(ConnectorConnection)
-        .filter(ConnectorConnection.connection_name == connection_name)
-        .first()
-    )
+    existing = _find_existing_connection(db, user_id, req.service, req.label)
     if existing and str(existing.status) == "active":
         raise HTTPException(
             status_code=409,

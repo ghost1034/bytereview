@@ -2,7 +2,7 @@
 Broker over the self-hosted OpenConnector runtime.
 
 The runtime (OPENCONNECTOR_URL, normally https://connect.cpaautomation.ai) is
-single-tenant: connections are global, distinguished only by connectionName.
+single-tenant: connections are global, distinguished by service + connectionName.
 This service is the ONLY code that talks to it, and it enforces CPAAutomation's
 multi-tenancy convention on every call:
 
@@ -526,7 +526,9 @@ class ConnectorService:
                 )
             )
             db.query(ConnectorConnection).filter(
-                ConnectorConnection.connection_name == connection_name
+                ConnectorConnection.user_id == user_id,
+                ConnectorConnection.service == service,
+                ConnectorConnection.connection_name == connection_name,
             ).update({ConnectorConnection.last_used_at: datetime.now(timezone.utc)})
             db.commit()
         except Exception:
