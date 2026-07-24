@@ -58,7 +58,7 @@ export function generateMetadata(page: PageMetadata): Metadata {
 export const pageMetadata = {
   home: {
     title: 'CPAAutomation - The AI Platform for Accounting, Finance & Legal Professionals',
-    description: 'From document intelligence to AI writing, time tracking, and autonomous agents — one AI platform built by CPAs for accounting, finance, and legal professionals.',
+    description: 'From document intelligence to AI writing, e-signatures, time tracking, and autonomous agents — one AI platform built by CPAs for accounting, finance, and legal professionals.',
     canonical: 'https://cpaautomation.ai',
     keywords: [
       'CPA automation',
@@ -68,6 +68,7 @@ export const pageMetadata = {
       'AI for legal',
       'document extraction',
       'AI writing',
+      'electronic signatures',
       'time tracking',
       'AI agents',
       'legal automation',
@@ -100,12 +101,13 @@ export const pageMetadata = {
   },
   features: {
     title: 'Features - AI Tools for Accounting, Finance & Legal',
-    description: 'Discover CPAAutomation\'s features: document extraction, AI writing with citations, time tracking, AI agents, custom fields, and seamless integrations. Built for professional use.',
+    description: 'Discover CPAAutomation\'s features: document extraction, AI writing with citations, e-signatures, time tracking, AI agents, custom fields, and seamless integrations. Built for professional use.',
     canonical: 'https://cpaautomation.ai/features',
     keywords: [
       'AI platform features',
       'document extraction',
       'AI writing',
+      'electronic signatures',
       'time tracking',
       'AI agents',
       'professional integrations'

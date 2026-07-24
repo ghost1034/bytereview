@@ -108,7 +108,7 @@ export default function HeroSection({ onGetStarted }: HeroSectionProps) {
           </span>
         </>
       }
-      description="One platform for document intelligence, AI writing, time tracking, and autonomous agents — built for accounting, finance, and legal teams."
+      description="One platform for document intelligence, AI writing, e-signatures, time tracking, and autonomous agents — built for accounting, finance, and legal teams."
       ctas={
         <motion.div
           variants={fadeInUp}

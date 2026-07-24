@@ -7,6 +7,7 @@ import {
   BarChart3,
   Bot,
   Clock,
+  FileSignature,
   FileText,
   Files,
   LayoutGrid,
@@ -23,7 +24,7 @@ import {
 } from '@/lib/animations'
 import { cn } from '@/lib/utils'
 
-type Status = 'Available now' | 'Coming soon'
+type Status = 'Available now' | 'Beta' | 'Coming soon'
 
 interface Product {
   name: string
@@ -67,6 +68,15 @@ const PRODUCTS: Product[] = [
     href: '#inkwise-showcase',
   },
   {
+    name: 'E-Signature',
+    description:
+      'Prepare, send, sign, and track documents with reusable templates and completion evidence.',
+    icon: FileSignature,
+    tone: 'rose',
+    status: 'Beta',
+    href: '#esign-showcase',
+  },
+  {
     name: 'Chrona',
     description:
       'Automatic time tracking that syncs AI-built daily timelines from staff devices into your firm dashboard.',
@@ -103,6 +113,17 @@ function StatusBadge({ status }: { status: Status }) {
       </span>
     )
   }
+  if (status === 'Beta') {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-rose-400/30 bg-rose-400/10 px-2.5 py-1 text-[11px] font-medium text-rose-300">
+        <span
+          aria-hidden
+          className="size-1.5 rounded-full bg-rose-400 shadow-[0_0_6px_#fb7185]"
+        />
+        Beta
+      </span>
+    )
+  }
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-2.5 py-1 text-[11px] font-medium text-accent-blue-300">
       <span
@@ -125,13 +146,13 @@ export default function ProductSuite() {
       description="Purpose-built for accounting, finance, and legal teams — from document processing to autonomous AI agents."
     >
       <motion.div
-        className="grid auto-rows-fr grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3"
+        className="grid auto-rows-fr grid-cols-1 gap-5 md:grid-cols-4 lg:grid-cols-8"
         variants={staggerContainerSlow}
         initial="hidden"
         whileInView="visible"
         viewport={viewportOnce}
       >
-        {PRODUCTS.map((product) => {
+        {PRODUCTS.map((product, index) => {
           const Icon = product.icon
           const a = accent(product.tone)
 
@@ -140,7 +161,14 @@ export default function ProductSuite() {
               key={product.name}
               variants={staggerChild}
               {...hoverLift}
-              className="h-full"
+              className={cn(
+                'h-full md:col-span-2 lg:col-span-2',
+                // Center the single final card at tablet widths.
+                index === PRODUCTS.length - 1 &&
+                  'md:col-start-2 lg:col-start-auto',
+                // Four cards above, then three equal-width cards centered below.
+                index === 4 && 'lg:col-start-2',
+              )}
             >
               <a
                 href={product.href}

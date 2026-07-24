@@ -11,6 +11,7 @@ import {
   Zap,
   GraduationCap,
   Files,
+  FileSignature,
   PenTool,
 } from 'lucide-react'
 
@@ -61,6 +62,7 @@ const QUICK_ACTIONS: Array<{
       { label: 'CPE Tracker', href: '/dashboard/cpe-tracker', icon: GraduationCap },
       { label: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
       { label: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
+      { label: 'E-Signature', href: '/dashboard/esign', icon: FileSignature },
     ],
   },
 ]

@@ -77,6 +77,9 @@ export default function Footer() {
                 <FooterLink href="/dashboard/inkwise">Inkwise</FooterLink>
               </li>
               <li>
+                <FooterLink href="/#esign-showcase">E-Signature (beta)</FooterLink>
+              </li>
+              <li>
                 <FooterLink href="/#chrona-showcase">Chrona</FooterLink>
               </li>
               <li>

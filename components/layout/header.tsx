@@ -9,6 +9,7 @@ import {
   Bot,
   ChevronDown,
   Clock,
+  FileSignature,
   FileText,
   Files,
   FolderKanban,
@@ -48,7 +49,7 @@ interface ProductLink {
   href: string
   description: string
   icon: React.ComponentType<{ className?: string }>
-  status?: 'soon' | 'free'
+  status?: 'beta' | 'soon' | 'free'
 }
 
 const PRODUCT_LINKS: ProductLink[] = [
@@ -76,6 +77,13 @@ const PRODUCT_LINKS: ProductLink[] = [
     href: '/#inkwise-showcase',
     description: 'AI writing with citations',
     icon: PenTool,
+  },
+  {
+    label: 'E-Signature',
+    href: '/#esign-showcase',
+    description: 'Send, sign, and verify documents',
+    icon: FileSignature,
+    status: 'beta',
   },
   {
     label: 'Chrona',
