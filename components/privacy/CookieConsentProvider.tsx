@@ -113,8 +113,8 @@ export function CookieConsentProvider({ children }: { children: React.ReactNode 
 
   const resetPreferences = useCallback(() => {
     const categories = defaultCategories();
-    setConsent(categories);
-  }, []);
+    persist(categories);
+  }, [persist]);
 
   const isAllowed = useCallback((category: 'analytics' | 'functional' | 'marketing') => {
     if (!consent) return false;

@@ -27,6 +27,10 @@ const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebasestorage.app`,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  // Firebase web config values are public identifiers. Keep the production
+  // stream as the fallback so Analytics cannot silently disappear when an
+  // older deployment environment has not added the build argument yet.
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-QEL07CSS47',
 };
 
 console.log('Firebase config loaded:', {
@@ -36,8 +40,8 @@ console.log('Firebase config loaded:', {
   authDomain: firebaseConfig.authDomain
 });
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+export const firebaseApp = initializeApp(firebaseConfig);
+export const auth = getAuth(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
 
 // Configure Google provider

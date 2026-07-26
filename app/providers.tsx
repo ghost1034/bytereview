@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { CookieConsentProvider } from '@/components/privacy/CookieConsentProvider'
 import CookieBanner from '@/components/privacy/CookieBanner'
 import CookiePreferencesModal from '@/components/privacy/CookiePreferencesModal'
+import FirebaseAnalytics from '@/components/privacy/FirebaseAnalytics'
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(() => new QueryClient({
@@ -24,6 +25,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <TooltipProvider>
         <AuthProvider>
           <CookieConsentProvider>
+            <FirebaseAnalytics />
             {children}
             <CookieBanner />
             <CookiePreferencesModal />
