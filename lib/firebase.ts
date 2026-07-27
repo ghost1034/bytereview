@@ -21,29 +21,31 @@ import {
   type User,
 } from "firebase/auth";
 
+import { resolveFirebaseClientConfig } from './firebase-config'
+
 export const isLocalDevelopment =
   process.env.NEXT_PUBLIC_APP_ENV === 'local' ||
   (!process.env.NEXT_PUBLIC_APP_ENV && process.env.NODE_ENV === 'development');
 
-const firebaseConfig = {
+const resolvedFirebaseConfig = resolveFirebaseClientConfig({
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || (isLocalDevelopment ? 'local-api-key' : undefined),
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || (isLocalDevelopment ? 'localhost' : `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseapp.com`),
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || (isLocalDevelopment ? 'localhost' : undefined),
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || (isLocalDevelopment ? 'cpaautomation-local' : undefined),
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    ? `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebasestorage.app`
-    : (isLocalDevelopment ? 'cpaautomation-local' : undefined),
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || (isLocalDevelopment ? 'local-app-id' : undefined),
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
+})
 
-console.log('Firebase config loaded:', {
-  hasApiKey: !!firebaseConfig.apiKey,
-  hasProjectId: !!firebaseConfig.projectId,
-  hasAppId: !!firebaseConfig.appId,
-  authDomain: firebaseConfig.authDomain
-});
+export const isFirebaseConfigured = resolvedFirebaseConfig.isConfigured
 
-export const firebaseApp = initializeApp(firebaseConfig);
+export const requireFirebaseConfiguration = () => {
+  if (!isFirebaseConfigured) {
+    throw new Error(
+      `Firebase authentication is not configured. Missing: ${resolvedFirebaseConfig.missingVariables.join(', ')}`,
+    )
+  }
+}
+
+export const firebaseApp = initializeApp(resolvedFirebaseConfig.config);
 export const auth = getAuth(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
 
@@ -67,7 +69,11 @@ const localUser = {
   toJSON: () => ({ uid: 'local-developer', email: 'local.developer@example.com' }),
 } as unknown as User;
 
-export const getCurrentAuthUser = (): User | null => isLocalDevelopment ? localUser : auth.currentUser;
+export const getCurrentAuthUser = (): User | null => {
+  if (isLocalDevelopment) return localUser
+  if (!isFirebaseConfigured) return null
+  return auth.currentUser
+}
 
 export const getCurrentAuthToken = async (): Promise<string | null> => {
   const user = getCurrentAuthUser();
@@ -92,6 +98,7 @@ googleProvider.setCustomParameters({ prompt: 'select_account' });
 const POPUP_CLOSED_GRACE_MS = 1000;
 
 const signInWithGooglePopup = (): Promise<Awaited<ReturnType<typeof signInWithPopup>>> => {
+  requireFirebaseConfiguration()
   const popupPromise = signInWithPopup(auth, googleProvider);
 
   // Without a window (SSR) there is nothing to watch — defer entirely to Firebase.
@@ -178,6 +185,7 @@ export const signInWithGoogle = async () => {
 // Handle redirect result
 export const handleRedirectResult = () => {
   if (isLocalDevelopment) return Promise.resolve(null);
+  if (!isFirebaseConfigured) return Promise.resolve(null);
   console.log('Checking for redirect result...');
   return getRedirectResult(auth).then((result) => {
     console.log('Redirect result received:', result);
@@ -191,12 +199,14 @@ export const handleRedirectResult = () => {
 // Sign out
 export const signOutUser = () => {
   if (isLocalDevelopment) return Promise.resolve();
+  if (!isFirebaseConfigured) return Promise.resolve();
   return signOut(auth);
 };
 
 // Email/password authentication
 export const signUpWithEmail = (email: string, password: string) => {
   if (isLocalDevelopment) return Promise.resolve({ user: localUser });
+  requireFirebaseConfiguration()
   console.log('Creating account with email:', email);
   return createUserWithEmailAndPassword(auth, email, password);
 };
@@ -207,17 +217,20 @@ export const updateUserProfile = (user: any, profile: { displayName?: string; ph
     Object.assign(user, profile);
     return Promise.resolve();
   }
+  requireFirebaseConfiguration()
   return updateProfile(user, profile);
 };
 
 export const signInWithEmail = (email: string, password: string) => {
   if (isLocalDevelopment) return Promise.resolve({ user: localUser });
+  requireFirebaseConfiguration()
   console.log('Signing in with email:', email);
   return signInWithEmailAndPassword(auth, email, password);
 };
 
 export const sendVerificationEmailToUser = (user: User) => {
   if (isLocalDevelopment) return Promise.resolve()
+  requireFirebaseConfiguration()
   return sendEmailVerification(user)
 }
 
@@ -243,6 +256,7 @@ export const isMultiFactorAuthRequiredError = (error: unknown) => {
 }
 
 export const getPhoneMfaResolver = (error: unknown): MultiFactorResolver => {
+  requireFirebaseConfiguration()
   return getMultiFactorResolver(auth, error as MultiFactorError)
 }
 
@@ -254,6 +268,10 @@ export const getPreferredPhoneMfaHint = (resolver: MultiFactorResolver): PhoneMu
 export const onAuthStateChange = (callback: (user: any) => void) => {
   if (isLocalDevelopment) {
     queueMicrotask(() => callback(localUser));
+    return () => undefined;
+  }
+  if (!isFirebaseConfigured) {
+    queueMicrotask(() => callback(null));
     return () => undefined;
   }
   return onAuthStateChanged(auth, callback);

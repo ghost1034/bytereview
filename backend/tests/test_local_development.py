@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -71,6 +72,29 @@ class LocalRuntimeTests(unittest.TestCase):
 
 
 class LocalAuthTests(unittest.IsolatedAsyncioTestCase):
+    def test_import_does_not_read_firebase_credentials(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            invalid_credentials = Path(directory) / "not-a-service-account.json"
+            invalid_credentials.write_text("{}", encoding="utf-8")
+            environment_variables = os.environ.copy()
+            environment_variables.update(
+                {
+                    "ENVIRONMENT": "production",
+                    "GOOGLE_APPLICATION_CREDENTIALS": str(invalid_credentials),
+                }
+            )
+
+            result = subprocess.run(
+                [sys.executable, "-c", "import dependencies.auth"],
+                cwd=Path(__file__).resolve().parent.parent,
+                env=environment_variables,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     async def test_missing_environment_rejects_the_fixed_development_token(self) -> None:
         token = HTTPAuthorizationCredentials(scheme="Bearer", credentials="cpaautomation-local-development")
         with patch.dict(os.environ, {"LOCAL_AUTH_BYPASS": "true"}, clear=True), patch(

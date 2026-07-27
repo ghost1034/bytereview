@@ -8,21 +8,25 @@ from typing import Dict, Optional
 import asyncio
 import logging
 import os
+import threading
 
 from core.runtime import is_explicitly_local, local_auth_enabled
 
 logger = logging.getLogger(__name__)
+_firebase_init_lock = threading.Lock()
 
-# Initialize Firebase Admin SDK
 def init_firebase():
-    """Initialize Firebase Admin SDK"""
+    """Initialize Firebase Admin SDK when a Firebase-backed operation needs it."""
     if local_auth_enabled():
         logger.info("Firebase Admin initialization skipped; local development identity is enabled")
         return
-    try:
-        # Check if already initialized
-        import firebase_admin
-        if not firebase_admin._apps:
+
+    import firebase_admin
+
+    with _firebase_init_lock:
+        if firebase_admin._apps:
+            return
+        try:
             service_account_path = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
             if service_account_path and os.path.exists(service_account_path):
                 cred = credentials.Certificate(service_account_path)
@@ -32,12 +36,9 @@ def init_firebase():
                 # Use default credentials for development
                 initialize_app()
                 logger.info("Firebase initialized with default credentials")
-    except Exception as e:
-        logger.warning(f"Firebase initialization failed: {e}")
-        raise
-
-# Initialize on import
-init_firebase()
+        except Exception as e:
+            logger.warning(f"Firebase initialization failed: {e}")
+            raise
 
 security = HTTPBearer()
 
@@ -69,6 +70,7 @@ def get_enrolled_mfa_phone_number(uid: str) -> Optional[str]:
     if local_auth_enabled() and uid == "local-developer":
         return None
     try:
+        init_firebase()
         record = firebase_auth.get_user(uid)
     except Exception as e:
         logger.warning(f"Could not fetch Firebase user {uid} for MFA phone: {e}")
@@ -125,6 +127,7 @@ async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depe
         }
     
     try:
+        init_firebase()
         logger.info(f"Verifying token: {credentials.credentials[:20]}...")
         # Verify the ID token using Firebase Admin SDK
         decoded_token = await asyncio.to_thread(firebase_auth.verify_id_token, credentials.credentials)
@@ -170,6 +173,7 @@ async def verify_token_string(token: str) -> str:
             raise HTTPException(status_code=401, detail="Invalid local development token")
         return "local-developer"
     try:
+        init_firebase()
         logger.info(f"Attempting to verify token: {token[:20]}...")
         decoded_token = await asyncio.to_thread(firebase_auth.verify_id_token, token)
         user_id = decoded_token.get('uid')
