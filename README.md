@@ -496,10 +496,11 @@ localhost OpenConnector runtime. Do not put production credentials in these
 variables. AI extraction remains unavailable until a non-production Google
 Cloud project is opted in.
 
-The launcher automatically reads `CPAA_LOCAL_*` entries from the ignored
-`.local/google-cloud.env` file when it exists. Values already exported in the
-shell take precedence, so the complete stack still starts with `npm run dev`
-without a separate `source` command.
+The launcher automatically reads `CPAA_LOCAL_*` entries from the ignored root
+`.env.local` and `.env` files when they exist. Start from `.env.example`.
+Values already exported in the shell take precedence, followed by `.env.local`
+and then `.env`, so the complete stack still starts with `npm run dev` without
+a separate `source` command.
 
 Useful commands
 

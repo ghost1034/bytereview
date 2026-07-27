@@ -10,7 +10,10 @@ const backendDir = path.join(repoRoot, 'backend')
 const venvDir = path.join(backendDir, '.venv')
 const python = path.join(venvDir, 'bin', 'python')
 const pip = path.join(venvDir, 'bin', 'pip')
-const localOverridesPath = path.join(repoRoot, '.local', 'google-cloud.env')
+const localOverridesPaths = [
+  path.join(repoRoot, '.env.local'),
+  path.join(repoRoot, '.env'),
+]
 
 function loadLocalOverrides(filePath) {
   if (!existsSync(filePath)) return
@@ -32,7 +35,9 @@ function loadLocalOverrides(filePath) {
   console.log(`Loaded local cloud overrides from ${path.relative(repoRoot, filePath)}`)
 }
 
-loadLocalOverrides(localOverridesPath)
+for (const localOverridesPath of localOverridesPaths) {
+  loadLocalOverrides(localOverridesPath)
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
