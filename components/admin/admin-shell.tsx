@@ -14,6 +14,7 @@ import { useAdmin } from './admin-context'
 
 const NAVIGATION = [
   { label: 'Overview', href: '/admin', icon: LayoutDashboard },
+  { label: 'Activity', href: '/admin/activity', icon: Activity },
   { label: 'Users & firms', href: '/admin/users', icon: Users },
   { label: 'Document extraction', href: '/admin/extraction', icon: Files },
   { label: 'Form Fill', href: '/admin/form-fill', icon: FileInput },

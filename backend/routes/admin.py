@@ -4,14 +4,14 @@ import io
 import logging
 import os
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import String, cast, func, literal, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -123,6 +123,32 @@ ADMIN_TABLE_GROUPS: dict[str, dict[str, Any]] = {
     },
 }
 
+# A deliberately small, metadata-only projection of activity-bearing tables.
+# The console never returns JSON payloads, document contents, IP addresses, or
+# other evidence fields from these records. ``owner`` describes an optional
+# join used to attribute child records (runs and device syncs) to a user.
+_ACTIVITY_SOURCES: tuple[dict[str, Any], ...] = (
+    {"table": "analytics_audit_logs", "product": "analytics", "kind": "Analytics audit", "title": "action", "action": "action", "timestamp": "created_at", "user": "user_id"},
+    {"table": "esign_events", "product": "e-sign", "kind": "E-Signature event", "title": "event_type", "action": "event_type", "timestamp": "created_at", "user": "actor_user_id", "actor_email": "actor_email"},
+    {"table": "esign_admin_events", "product": "e-sign", "kind": "E-Signature admin", "title": "event_type", "action": "event_type", "timestamp": "created_at", "user": "actor_user_id", "actor_email": "actor_email"},
+    {"table": "connector_action_logs", "product": "platform", "kind": "Connector action", "title": "action_id", "action": "action_id", "timestamp": "created_at", "user": "user_id", "status": "success", "boolean_status": True, "status_true": "Succeeded", "status_false": "Failed"},
+    {"table": "usage_events", "product": "platform", "kind": "Usage event", "title": "source", "action_value": "Usage recorded", "timestamp": "occurred_at", "user": "user_id"},
+    {"table": "extraction_jobs", "product": "extraction", "kind": "Extraction job", "title": "name", "action_value": "Job created", "timestamp": "created_at", "user": "user_id"},
+    {"table": "job_runs", "product": "extraction", "kind": "Extraction run", "title_value": "Extraction run", "action_value": "Run started", "timestamp": "created_at", "status": "status", "owner": ("extraction_jobs", "job_id", "id", "user_id", "name")},
+    {"table": "form_fill_runs", "product": "form-fill", "kind": "Form Fill run", "title": "target_filename", "action_value": "Run started", "timestamp": "created_at", "status": "status", "user": "user_id"},
+    {"table": "inkwise_documents", "product": "inkwise", "kind": "Inkwise document", "title": "title", "action_value": "Document activity", "timestamp": "updated_at", "user": "user_id"},
+    {"table": "inkwise_retrieval_runs", "product": "inkwise", "kind": "Inkwise retrieval", "title_value": "Reference search", "action_value": "Retrieval run", "timestamp": "created_at", "user": "user_id"},
+    {"table": "analyses", "product": "analytics", "kind": "Analysis", "title": "name", "action_value": "Analysis activity", "timestamp": "updated_at", "status": "status", "user": "created_by_user_id"},
+    {"table": "reconciliations", "product": "analytics", "kind": "Reconciliation", "title": "name", "action_value": "Reconciliation activity", "timestamp": "updated_at", "status": "status", "user": "created_by_user_id"},
+    {"table": "amortizations", "product": "analytics", "kind": "Amortization", "title": "asset_name", "action_value": "Schedule activity", "timestamp": "updated_at", "status": "status", "user": "created_by_user_id"},
+    {"table": "chat_sessions", "product": "analytics", "kind": "Research session", "title": "title", "action_value": "Session activity", "timestamp": "updated_at", "user": "user_id"},
+    {"table": "analytics_comments", "product": "analytics", "kind": "Comment", "title_value": "Comment posted", "action_value": "Comment posted", "timestamp": "created_at", "user": "author_user_id"},
+    {"table": "esign_envelopes", "product": "e-sign", "kind": "E-Signature envelope", "title": "title", "action_value": "Envelope activity", "timestamp": "updated_at", "status": "status", "user": "user_id"},
+    {"table": "automations", "product": "automations", "kind": "Automation", "title": "name", "action_value": "Automation activity", "timestamp": "updated_at", "status": "is_enabled", "boolean_status": True, "status_true": "Enabled", "status_false": "Disabled", "user": "user_id"},
+    {"table": "automation_runs", "product": "automations", "kind": "Automation run", "title_value": "Automation run", "action_value": "Run triggered", "timestamp": "triggered_at", "status": "status", "owner": ("automations", "automation_id", "id", "user_id", "name")},
+    {"table": "chrona_timeline_cards", "product": "chrona", "kind": "Chrona timeline", "title": "title", "action_value": "Timeline synced", "timestamp": "synced_at", "owner": ("chrona_devices", "device_id", "id", "paired_by_user_id", "display_name")},
+)
+
 _SENSITIVE_EXACT = {
     "access_token", "refresh_token", "token", "token_hash", "key_hash",
     "secret", "secret_hash", "encrypted_credentials", "encrypted_token",
@@ -212,6 +238,130 @@ def _safe_count(db: Session, table: Any) -> int | None:
         db.rollback()
         logger.exception("Admin console could not count table %s", table.name)
         return None
+
+
+def _activity_status(source: dict[str, Any], value: Any) -> str | None:
+    if value is None:
+        return None
+    if source.get("boolean_status"):
+        return source.get("status_true", "Succeeded") if bool(value) else source.get("status_false", "Failed")
+    return str(value)
+
+
+def _activity_source_query(
+    db: Session,
+    source: dict[str, Any],
+    *,
+    fetch_limit: int,
+    user_id: str | None,
+    from_time: datetime | None,
+    to_time: datetime | None,
+    status: str | None,
+    search: str | None,
+) -> tuple[int, list[dict[str, Any]]]:
+    """Return a filtered, normalized slice from one configured activity table."""
+    table = Base.metadata.tables.get(source["table"])
+    users = Base.metadata.tables.get("users")
+    if table is None or users is None:
+        return 0, []
+
+    from_clause = table
+    owner_table = None
+    effective_user_column = table.c.get(source.get("user", ""))
+    owner = source.get("owner")
+    if owner:
+        owner_table = Base.metadata.tables.get(owner[0])
+        if owner_table is None:
+            return 0, []
+        from_clause = from_clause.outerjoin(owner_table, table.c[owner[1]] == owner_table.c[owner[2]])
+        effective_user_column = owner_table.c[owner[3]]
+
+    from_clause = from_clause.outerjoin(users, effective_user_column == users.c.id)
+    timestamp_column = table.c[source["timestamp"]]
+    title_column = table.c.get(source.get("title", ""))
+    if title_column is None and owner_table is not None and len(owner) > 4:
+        title_column = owner_table.c.get(owner[4])
+    status_column = table.c.get(source.get("status", ""))
+    action_column = table.c.get(source.get("action", ""))
+    actor_email_column = table.c.get(source.get("actor_email", ""))
+
+    filters = []
+    if user_id == "system":
+        filters.append(effective_user_column.is_(None))
+    elif user_id:
+        filters.append(effective_user_column == user_id)
+    if from_time is not None:
+        filters.append(timestamp_column >= from_time)
+    if to_time is not None:
+        filters.append(timestamp_column <= to_time)
+    if status:
+        if status_column is None:
+            return 0, []
+        if source.get("boolean_status"):
+            true_label = source.get("status_true", "Succeeded").lower()
+            false_label = source.get("status_false", "Failed").lower()
+            if status.lower() == true_label:
+                filters.append(status_column.is_(True))
+            elif status.lower() == false_label:
+                filters.append(status_column.is_(False))
+            else:
+                return 0, []
+        else:
+            filters.append(cast(status_column, String).ilike(status.replace(" ", "_")))
+
+    if search:
+        needle = f"%{search}%"
+        fixed_text = " ".join(str(source.get(key, "")) for key in ("kind", "title_value", "action_value"))
+        if search.lower() not in fixed_text.lower():
+            searchable = [column for column in (title_column, action_column, status_column, actor_email_column, users.c.email, users.c.display_name) if column is not None]
+            if not searchable:
+                return 0, []
+            filters.append(or_(*(cast(column, String).ilike(needle) for column in searchable)))
+
+    count_statement = select(func.count()).select_from(from_clause)
+    if filters:
+        count_statement = count_statement.where(*filters)
+    total = int(db.execute(count_statement).scalar_one())
+    if total == 0:
+        return 0, []
+
+    statement = select(
+        table.c.id.label("record_id"),
+        timestamp_column.label("activity_timestamp"),
+        (title_column if title_column is not None else literal(source.get("title_value"))).label("activity_title"),
+        (action_column if action_column is not None else literal(source.get("action_value"))).label("activity_action"),
+        (status_column if status_column is not None else literal(None)).label("activity_status"),
+        effective_user_column.label("activity_user_id"),
+        users.c.email.label("activity_user_email"),
+        users.c.display_name.label("activity_user_name"),
+        (actor_email_column if actor_email_column is not None else literal(None)).label("activity_actor_email"),
+    ).select_from(from_clause)
+    if filters:
+        statement = statement.where(*filters)
+    statement = statement.order_by(timestamp_column.desc().nullslast()).limit(fetch_limit)
+
+    rows = []
+    product = ADMIN_TABLE_GROUPS[source["product"]]
+    for row in db.execute(statement).mappings():
+        timestamp = _json_value(row["activity_timestamp"])
+        rows.append({
+            "id": f'{source["table"]}:{_json_value(row["record_id"])}',
+            "record_id": _json_value(row["record_id"]),
+            "table": source["table"],
+            "product": source["product"],
+            "product_label": product["label"],
+            "kind": source["kind"],
+            "title": _json_value(row["activity_title"]) or source["kind"],
+            "action": _json_value(row["activity_action"]) or source["kind"],
+            "status": _activity_status(source, row["activity_status"]),
+            "timestamp": timestamp,
+            "user": {
+                "id": _json_value(row["activity_user_id"]),
+                "email": _json_value(row["activity_user_email"] or row["activity_actor_email"]),
+                "display_name": _json_value(row["activity_user_name"]),
+            } if row["activity_user_id"] or row["activity_user_email"] or row["activity_actor_email"] else None,
+        })
+    return total, rows
 
 
 @router.get("/console/auth")
@@ -312,6 +462,119 @@ async def get_console_overview(
         "product_counts": product_counts,
         "table_counts": table_counts,
         "recent_activity": activity[:12],
+    }
+
+
+@router.get("/console/activity")
+async def get_console_activity(
+    page: int = Query(default=1, ge=1, le=500),
+    limit: int = Query(default=50, ge=1, le=100),
+    user_id: str | None = Query(default=None),
+    product: str | None = Query(default=None),
+    source_table: str | None = Query(default=None),
+    status: str | None = Query(default=None, max_length=80),
+    search: str | None = Query(default=None, max_length=200),
+    from_time: datetime | None = Query(default=None, alias="from"),
+    to_time: datetime | None = Query(default=None, alias="to"),
+    db: Session = Depends(get_db),
+    _: None = Depends(_require_console_admin),
+):
+    """Return a unified, filterable stream of safe operational metadata."""
+    if from_time and to_time and from_time > to_time:
+        raise HTTPException(status_code=422, detail="The start time must be before the end time")
+    if product and product not in ADMIN_TABLE_GROUPS:
+        raise HTTPException(status_code=422, detail="Unknown product filter")
+    known_sources = {source["table"] for source in _ACTIVITY_SOURCES}
+    if source_table and source_table not in known_sources:
+        raise HTTPException(status_code=422, detail="Unknown activity source")
+
+    selected_sources = [
+        source for source in _ACTIVITY_SOURCES
+        if (not product or source["product"] == product)
+        and (not source_table or source["table"] == source_table)
+    ]
+    fetch_limit = page * limit
+    total = 0
+    rows: list[dict[str, Any]] = []
+    source_counts: dict[str, int] = {}
+    for source in selected_sources:
+        try:
+            source_total, source_rows = _activity_source_query(
+                db,
+                source,
+                fetch_limit=fetch_limit,
+                user_id=user_id,
+                from_time=from_time,
+                to_time=to_time,
+                status=status.strip() if status else None,
+                search=search.strip() if search else None,
+            )
+            total += source_total
+            source_counts[source["table"]] = source_total
+            rows.extend(source_rows)
+        except SQLAlchemyError:
+            db.rollback()
+            source_counts[source["table"]] = 0
+            logger.exception("Admin console could not load activity from %s", source["table"])
+
+    rows.sort(key=lambda item: item["timestamp"] or "", reverse=True)
+    offset = (page - 1) * limit
+    page_rows = rows[offset:offset + limit]
+
+    user_options = []
+    users = Base.metadata.tables.get("users")
+    if users is not None:
+        try:
+            user_rows = db.execute(
+                select(users.c.id, users.c.email, users.c.display_name)
+                .order_by(func.lower(func.coalesce(users.c.display_name, users.c.email)))
+            ).mappings()
+            user_options = [
+                {
+                    "id": _json_value(row["id"]),
+                    "email": _json_value(row["email"]),
+                    "display_name": _json_value(row["display_name"]),
+                }
+                for row in user_rows
+            ]
+        except SQLAlchemyError:
+            db.rollback()
+            logger.exception("Admin console could not load activity user filters")
+
+    product_counts: dict[str, int] = {}
+    for source in _ACTIVITY_SOURCES:
+        product_counts[source["product"]] = product_counts.get(source["product"], 0) + source_counts.get(source["table"], 0)
+
+    return {
+        "rows": page_rows,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "pages": max(1, (total + limit - 1) // limit),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "source_counts": source_counts,
+        "product_counts": product_counts,
+        "filters": {
+            "users": user_options,
+            "products": [
+                {"value": slug, "label": group["label"]}
+                for slug, group in ADMIN_TABLE_GROUPS.items()
+                if any(source["product"] == slug for source in _ACTIVITY_SOURCES)
+            ],
+            "sources": [
+                {
+                    "value": source["table"],
+                    "label": source["kind"],
+                    "product": source["product"],
+                }
+                for source in _ACTIVITY_SOURCES
+            ],
+            "statuses": [
+                "Succeeded", "Failed", "Completed", "Running", "Processing",
+                "Pending", "Draft", "Active", "Enabled", "Disabled",
+                "In progress", "Partially completed",
+            ],
+        },
     }
 
 
