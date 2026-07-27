@@ -7,6 +7,7 @@ import {
   LifeBuoy,
   LogOut,
   Search,
+  ShieldCheck,
   User as UserIcon,
 } from 'lucide-react'
 
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useAuth } from '@/contexts/AuthContext'
+import { useCurrentUser } from '@/hooks/useUserProfile'
 
 import { DashboardBreadcrumbs } from './dashboard-breadcrumbs'
 
@@ -34,6 +36,7 @@ export function DashboardTopbar({
   className,
 }: DashboardTopbarProps) {
   const { user, signOut } = useAuth()
+  const { user: profile } = useCurrentUser()
   const router = useRouter()
 
   const initials = React.useMemo(() => {
@@ -112,6 +115,14 @@ export function DashboardTopbar({
             )}
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          {profile?.is_system_admin && (
+            <DropdownMenuItem asChild>
+              <Link href="/admin" className="cursor-pointer">
+                <ShieldCheck className="mr-2 size-4" />
+                Admin console
+              </Link>
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem asChild>
             <Link href="/dashboard/settings" className="cursor-pointer">
               <UserIcon className="mr-2 size-4" />

@@ -72,6 +72,7 @@ class UserService:
             created_at=pg_user.created_at,
             updated_at=pg_user.updated_at,
             welcome_tour_seen_at=pg_user.welcome_tour_seen_at,
+            is_system_admin=bool(pg_user.is_system_admin),
         )
 
     def _apply_verified_phone(self, pg_user: DBUser, phone_number: Optional[str], phone_verified_at: Optional[datetime] = None) -> None:

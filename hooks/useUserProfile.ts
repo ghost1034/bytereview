@@ -18,6 +18,7 @@ export interface UserProfile {
   created_at: string
   updated_at: string
   welcome_tour_seen_at?: string | null
+  is_system_admin: boolean
   // Stripe fields will be added when billing is implemented
 }
 

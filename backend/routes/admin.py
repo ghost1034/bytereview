@@ -3,20 +3,20 @@ import csv
 import io
 import logging
 import os
-import secrets
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import String, cast, func, literal, or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from models.db_models import Base
+from dependencies.auth import get_current_user_id
+from models.db_models import Base, User
 # Register Inkwise's models on the shared SQLAlchemy metadata before the
 # database explorer enumerates it.
 from models import inkwise_models as _inkwise_models  # noqa: F401
@@ -162,11 +162,20 @@ _SENSITIVE_TABLE_COLUMNS = {
 }
 
 
-def _require_console_admin(x_admin_token: str | None = Header(default=None)) -> None:
-    """Protect browser console calls without putting the token in the URL."""
-    expected = os.getenv("ADMIN_TOKEN")
-    if not expected or not x_admin_token or not secrets.compare_digest(x_admin_token, expected):
-        raise HTTPException(status_code=401, detail="Invalid admin token")
+async def require_system_admin(
+    user_id: str = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+) -> User:
+    """Require the platform-wide user permission used by the admin console.
+
+    This permission is intentionally independent of ``User.role``. That role is
+    scoped to a firm, so even a firm administrator must not gain platform-wide
+    access to other firms' records.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or not bool(user.is_system_admin):
+        raise HTTPException(status_code=403, detail="System administrator access required")
+    return user
 
 
 def _table_or_404(table_name: str):
@@ -470,14 +479,14 @@ def _activity_source_timeline_query(
 
 
 @router.get("/console/auth")
-async def verify_console_access(_: None = Depends(_require_console_admin)):
+async def verify_console_access(_: User = Depends(require_system_admin)):
     return {"authenticated": True}
 
 
 @router.get("/console/catalog")
 async def get_console_catalog(
     db: Session = Depends(get_db),
-    _: None = Depends(_require_console_admin),
+    _: User = Depends(require_system_admin),
 ):
     tables = []
     grouped_names = {
@@ -508,7 +517,7 @@ async def get_console_catalog(
 @router.get("/console/overview")
 async def get_console_overview(
     db: Session = Depends(get_db),
-    _: None = Depends(_require_console_admin),
+    _: User = Depends(require_system_admin),
 ):
     table_counts: dict[str, int | None] = {}
     for table in Base.metadata.tables.values():
@@ -583,7 +592,7 @@ async def get_console_activity(
     from_time: datetime | None = Query(default=None, alias="from"),
     to_time: datetime | None = Query(default=None, alias="to"),
     db: Session = Depends(get_db),
-    _: None = Depends(_require_console_admin),
+    _: User = Depends(require_system_admin),
 ):
     """Return a unified, filterable stream of safe operational metadata."""
     if from_time and to_time and from_time > to_time:
@@ -720,7 +729,7 @@ async def get_console_table(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _: None = Depends(_require_console_admin),
+    _: User = Depends(require_system_admin),
 ):
     table = _table_or_404(table_name)
     total = _safe_count(db, table)
@@ -747,7 +756,7 @@ async def get_console_table(
 async def export_console_table(
     table_name: str,
     db: Session = Depends(get_db),
-    _: None = Depends(_require_console_admin),
+    _: User = Depends(require_system_admin),
 ):
     table = _table_or_404(table_name)
     output = io.StringIO()

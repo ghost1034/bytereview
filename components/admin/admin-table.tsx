@@ -52,7 +52,7 @@ function displayValue(value: unknown) {
 }
 
 export function AdminDataTable({ tableName }: { tableName: string }) {
-  const { request, token } = useAdmin()
+  const { download, request } = useAdmin()
   const [data, setData] = React.useState<TableResponse | null>(null)
   const [page, setPage] = React.useState(1)
   const [loading, setLoading] = React.useState(true)
@@ -80,8 +80,7 @@ export function AdminDataTable({ tableName }: { tableName: string }) {
   }, [data, search])
 
   const exportTable = async () => {
-    const response = await fetch(`/api/admin/console/tables/${encodeURIComponent(tableName)}/export`, { headers: { 'X-Admin-Token': token } })
-    if (!response.ok) return
+    const response = await download(`/api/admin/console/tables/${encodeURIComponent(tableName)}/export`)
     const url = URL.createObjectURL(await response.blob())
     const anchor = document.createElement('a')
     anchor.href = url

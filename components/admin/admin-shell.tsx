@@ -28,7 +28,7 @@ const NAVIGATION = [
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const { catalog, signOut } = useAdmin()
+  const { catalog } = useAdmin()
   const [collapsed, setCollapsed] = React.useState(false)
   const [mobileOpen, setMobileOpen] = React.useState(false)
 
@@ -80,9 +80,9 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <span className="relative flex size-2 shrink-0"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-400 opacity-50" /><span className="relative inline-flex size-2 rounded-full bg-emerald-400" /></span>
           {!collapsed && <div><p className="text-xs font-medium text-emerald-300">Read-only access</p><p className="mt-0.5 text-[10px] text-slate-500">Sensitive fields redacted</p></div>}
         </div>
-        <button onClick={signOut} className={cn('flex h-9 w-full items-center gap-3 rounded-lg px-3 text-sm text-slate-400 hover:bg-white/[0.06] hover:text-white', collapsed && 'justify-center px-0')}>
-          <LogOut className="size-4" />{!collapsed && 'Lock console'}
-        </button>
+        <Link href="/dashboard" className={cn('flex h-9 w-full items-center gap-3 rounded-lg px-3 text-sm text-slate-400 hover:bg-white/[0.06] hover:text-white', collapsed && 'justify-center px-0')}>
+          <LogOut className="size-4" />{!collapsed && 'Exit console'}
+        </Link>
       </div>
     </>
   )

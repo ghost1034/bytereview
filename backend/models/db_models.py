@@ -73,6 +73,9 @@ class User(Base):
         nullable=False,
         server_default=AnalyticsUserRole.ANALYST.value,
     )
+    # Platform-wide administration is deliberately separate from ``role``.
+    # ``role=admin`` only grants administration within the user's firm.
+    is_system_admin = Column(Boolean, nullable=False, server_default=expression.false())
     persona = Column(
         Enum(AnalyticsUserPersona, name="analytics_user_persona", create_type=False, values_callable=lambda x: [e.value for e in x]),
         nullable=True,

@@ -30,6 +30,7 @@ class UserResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     welcome_tour_seen_at: Optional[datetime] = None
+    is_system_admin: bool = False
     # Stripe and usage fields will be added when billing is implemented  # Free tier limit
 
 class UserInDB(UserResponse):
