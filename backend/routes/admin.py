@@ -4,7 +4,7 @@ import io
 import logging
 import os
 import secrets
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -248,22 +248,20 @@ def _activity_status(source: dict[str, Any], value: Any) -> str | None:
     return str(value)
 
 
-def _activity_source_query(
-    db: Session,
+def _activity_query_parts(
     source: dict[str, Any],
     *,
-    fetch_limit: int,
     user_id: str | None,
     from_time: datetime | None,
     to_time: datetime | None,
     status: str | None,
     search: str | None,
-) -> tuple[int, list[dict[str, Any]]]:
-    """Return a filtered, normalized slice from one configured activity table."""
+) -> dict[str, Any] | None:
+    """Build the shared joins and filters used by activity rows and charts."""
     table = Base.metadata.tables.get(source["table"])
     users = Base.metadata.tables.get("users")
     if table is None or users is None:
-        return 0, []
+        return None
 
     from_clause = table
     owner_table = None
@@ -272,7 +270,7 @@ def _activity_source_query(
     if owner:
         owner_table = Base.metadata.tables.get(owner[0])
         if owner_table is None:
-            return 0, []
+            return None
         from_clause = from_clause.outerjoin(owner_table, table.c[owner[1]] == owner_table.c[owner[2]])
         effective_user_column = owner_table.c[owner[3]]
 
@@ -296,7 +294,7 @@ def _activity_source_query(
         filters.append(timestamp_column <= to_time)
     if status:
         if status_column is None:
-            return 0, []
+            return None
         if source.get("boolean_status"):
             true_label = source.get("status_true", "Succeeded").lower()
             false_label = source.get("status_false", "Failed").lower()
@@ -305,7 +303,7 @@ def _activity_source_query(
             elif status.lower() == false_label:
                 filters.append(status_column.is_(False))
             else:
-                return 0, []
+                return None
         else:
             filters.append(cast(status_column, String).ilike(status.replace(" ", "_")))
 
@@ -315,8 +313,56 @@ def _activity_source_query(
         if search.lower() not in fixed_text.lower():
             searchable = [column for column in (title_column, action_column, status_column, actor_email_column, users.c.email, users.c.display_name) if column is not None]
             if not searchable:
-                return 0, []
+                return None
             filters.append(or_(*(cast(column, String).ilike(needle) for column in searchable)))
+
+    return {
+        "table": table,
+        "users": users,
+        "from_clause": from_clause,
+        "effective_user_column": effective_user_column,
+        "timestamp_column": timestamp_column,
+        "title_column": title_column,
+        "status_column": status_column,
+        "action_column": action_column,
+        "actor_email_column": actor_email_column,
+        "filters": filters,
+    }
+
+
+def _activity_source_query(
+    db: Session,
+    source: dict[str, Any],
+    *,
+    fetch_limit: int,
+    user_id: str | None,
+    from_time: datetime | None,
+    to_time: datetime | None,
+    status: str | None,
+    search: str | None,
+) -> tuple[int, list[dict[str, Any]]]:
+    """Return a filtered, normalized slice from one configured activity table."""
+    parts = _activity_query_parts(
+        source,
+        user_id=user_id,
+        from_time=from_time,
+        to_time=to_time,
+        status=status,
+        search=search,
+    )
+    if parts is None:
+        return 0, []
+
+    table = parts["table"]
+    users = parts["users"]
+    from_clause = parts["from_clause"]
+    effective_user_column = parts["effective_user_column"]
+    timestamp_column = parts["timestamp_column"]
+    title_column = parts["title_column"]
+    status_column = parts["status_column"]
+    action_column = parts["action_column"]
+    actor_email_column = parts["actor_email_column"]
+    filters = parts["filters"]
 
     count_statement = select(func.count()).select_from(from_clause)
     if filters:
@@ -362,6 +408,65 @@ def _activity_source_query(
             } if row["activity_user_id"] or row["activity_user_email"] or row["activity_actor_email"] else None,
         })
     return total, rows
+
+
+def _activity_timeline_granularity(
+    from_time: datetime | None,
+    to_time: datetime | None,
+) -> str:
+    """Choose a readable number of chart buckets for the selected range."""
+    if from_time is None:
+        return "month"
+    now = datetime.now(timezone.utc) if from_time.tzinfo else datetime.now()
+    span = (to_time or now) - from_time
+    if span <= timedelta(days=3):
+        return "hour"
+    if span <= timedelta(days=90):
+        return "day"
+    if span <= timedelta(days=730):
+        return "week"
+    return "month"
+
+
+def _activity_source_timeline_query(
+    db: Session,
+    source: dict[str, Any],
+    *,
+    granularity: str,
+    user_id: str | None,
+    from_time: datetime | None,
+    to_time: datetime | None,
+    status: str | None,
+    search: str | None,
+) -> list[dict[str, Any]]:
+    """Return database-aggregated activity buckets for one source."""
+    parts = _activity_query_parts(
+        source,
+        user_id=user_id,
+        from_time=from_time,
+        to_time=to_time,
+        status=status,
+        search=search,
+    )
+    if parts is None:
+        return []
+
+    timestamp_column = parts["timestamp_column"]
+    bucket_column = func.date_trunc(granularity, timestamp_column)
+    statement = (
+        select(bucket_column.label("activity_bucket"), func.count().label("activity_count"))
+        .select_from(parts["from_clause"])
+        .where(timestamp_column.is_not(None), *parts["filters"])
+        .group_by(bucket_column)
+        .order_by(bucket_column)
+    )
+    return [
+        {
+            "timestamp": _json_value(row["activity_bucket"]),
+            "count": int(row["activity_count"]),
+        }
+        for row in db.execute(statement).mappings()
+    ]
 
 
 @router.get("/console/auth")
@@ -469,6 +574,7 @@ async def get_console_overview(
 async def get_console_activity(
     page: int = Query(default=1, ge=1, le=500),
     limit: int = Query(default=50, ge=1, le=100),
+    include_timeline: bool = Query(default=False),
     user_id: str | None = Query(default=None),
     product: str | None = Query(default=None),
     source_table: str | None = Query(default=None),
@@ -497,6 +603,8 @@ async def get_console_activity(
     total = 0
     rows: list[dict[str, Any]] = []
     source_counts: dict[str, int] = {}
+    granularity = _activity_timeline_granularity(from_time, to_time)
+    timeline_by_timestamp: dict[str, dict[str, Any]] = {}
     for source in selected_sources:
         try:
             source_total, source_rows = _activity_source_query(
@@ -512,6 +620,27 @@ async def get_console_activity(
             total += source_total
             source_counts[source["table"]] = source_total
             rows.extend(source_rows)
+            if include_timeline and source_total:
+                for bucket in _activity_source_timeline_query(
+                    db,
+                    source,
+                    granularity=granularity,
+                    user_id=user_id,
+                    from_time=from_time,
+                    to_time=to_time,
+                    status=status.strip() if status else None,
+                    search=search.strip() if search else None,
+                ):
+                    point = timeline_by_timestamp.setdefault(bucket["timestamp"], {
+                        "timestamp": bucket["timestamp"],
+                        "total": 0,
+                        "product_counts": {},
+                    })
+                    point["total"] += bucket["count"]
+                    product_counts_for_point = point["product_counts"]
+                    product_counts_for_point[source["product"]] = (
+                        product_counts_for_point.get(source["product"], 0) + bucket["count"]
+                    )
         except SQLAlchemyError:
             db.rollback()
             source_counts[source["table"]] = 0
@@ -545,15 +674,22 @@ async def get_console_activity(
     for source in _ACTIVITY_SOURCES:
         product_counts[source["product"]] = product_counts.get(source["product"], 0) + source_counts.get(source["table"], 0)
 
+    generated_at = datetime.now(timezone.utc)
     return {
         "rows": page_rows,
         "page": page,
         "limit": limit,
         "total": total,
         "pages": max(1, (total + limit - 1) // limit),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": generated_at.isoformat(),
         "source_counts": source_counts,
         "product_counts": product_counts,
+        "timeline": {
+            "granularity": granularity,
+            "from": _json_value(from_time),
+            "to": _json_value(to_time or generated_at),
+            "points": [timeline_by_timestamp[key] for key in sorted(timeline_by_timestamp)],
+        },
         "filters": {
             "users": user_options,
             "products": [

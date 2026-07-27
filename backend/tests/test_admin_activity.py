@@ -1,7 +1,13 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
-from routes.admin import _ACTIVITY_SOURCES, _activity_source_query, _activity_status
+from routes.admin import (
+    _ACTIVITY_SOURCES,
+    _activity_source_query,
+    _activity_source_timeline_query,
+    _activity_status,
+    _activity_timeline_granularity,
+)
 
 
 def _source(table_name: str):
@@ -62,3 +68,38 @@ def test_activity_status_uses_source_specific_boolean_labels():
     assert _activity_status(_source("connector_action_logs"), False) == "Failed"
     assert _activity_status(_source("automations"), True) == "Enabled"
     assert _activity_status(_source("automations"), False) == "Disabled"
+
+
+def test_activity_timeline_granularity_tracks_selected_range():
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    assert _activity_timeline_granularity(start, datetime(2026, 1, 2, tzinfo=timezone.utc)) == "hour"
+    assert _activity_timeline_granularity(start, datetime(2026, 2, 1, tzinfo=timezone.utc)) == "day"
+    assert _activity_timeline_granularity(start, datetime(2027, 1, 1, tzinfo=timezone.utc)) == "week"
+    assert _activity_timeline_granularity(start, datetime(2029, 1, 1, tzinfo=timezone.utc)) == "month"
+    assert _activity_timeline_granularity(None, None) == "month"
+
+
+def test_activity_timeline_query_normalizes_database_buckets():
+    result = MagicMock()
+    result.mappings.return_value = [
+        {
+            "activity_bucket": datetime(2026, 7, 27, tzinfo=timezone.utc),
+            "activity_count": 14,
+        }
+    ]
+    db = MagicMock()
+    db.execute.return_value = result
+
+    points = _activity_source_timeline_query(
+        db,
+        _source("form_fill_runs"),
+        granularity="day",
+        user_id=None,
+        from_time=datetime(2026, 7, 1, tzinfo=timezone.utc),
+        to_time=None,
+        status=None,
+        search=None,
+    )
+
+    assert points == [{"timestamp": "2026-07-27T00:00:00+00:00", "count": 14}]
+    db.execute.assert_called_once()

@@ -3,11 +3,16 @@
 import * as React from 'react'
 import Link from 'next/link'
 import {
-  Activity, CalendarClock, ChevronLeft, ChevronRight, ExternalLink,
-  FilterX, Loader2, RefreshCw, Search, UserRound,
+  Activity, BarChart3, CalendarClock, ChevronLeft, ChevronRight, ExternalLink,
+  FilterX, List, Loader2, RefreshCw, Search, UserRound,
 } from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts'
 
 import { Button } from '@/components/ui/button'
+import {
+  ChartConfig, ChartContainer, ChartLegend, ChartLegendContent,
+  ChartTooltip, ChartTooltipContent,
+} from '@/components/ui/chart'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { useAdmin } from './admin-context'
@@ -41,6 +46,16 @@ interface ActivityResponse {
   generated_at: string
   source_counts: Record<string, number>
   product_counts: Record<string, number>
+  timeline: {
+    granularity: 'hour' | 'day' | 'week' | 'month'
+    from: string | null
+    to: string
+    points: {
+      timestamp: string
+      total: number
+      product_counts: Record<string, number>
+    }[]
+  }
   filters: {
     users: ActivityUser[]
     products: { value: string; label: string }[]
@@ -50,6 +65,7 @@ interface ActivityResponse {
 }
 
 type TimeRange = '24h' | '7d' | '30d' | 'all' | 'custom'
+type ActivityView = 'stream' | 'graph'
 
 const RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
   { value: '24h', label: '24 hours' },
@@ -71,6 +87,17 @@ const STATUS_STYLES: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700 ring-slate-500/20',
   disabled: 'bg-slate-100 text-slate-600 ring-slate-500/20',
   failed: 'bg-red-50 text-red-700 ring-red-600/20',
+}
+
+const PRODUCT_COLORS: Record<string, string> = {
+  analytics: '#2563eb',
+  'e-sign': '#0891b2',
+  platform: '#059669',
+  extraction: '#65a30d',
+  'form-fill': '#d97706',
+  inkwise: '#ea580c',
+  automations: '#9333ea',
+  chrona: '#475569',
 }
 
 function startForRange(range: TimeRange) {
@@ -109,6 +136,61 @@ function initials(user: ActivityUser | null) {
   return `${parts[0]?.[0] ?? ''}${parts[1]?.[0] ?? ''}`.toUpperCase() || 'U'
 }
 
+function chartKey(product: string) {
+  return `product_${product.replace(/-/g, '_')}`
+}
+
+function formatTimelineTick(value: string, granularity: ActivityResponse['timeline']['granularity']) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  if (granularity === 'hour') return date.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' })
+  if (granularity === 'month') return date.toLocaleDateString([], { month: 'short', year: '2-digit' })
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+function formatTimelineTooltip(value: string, granularity: ActivityResponse['timeline']['granularity']) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  if (granularity === 'hour') return date.toLocaleString([], { month: 'long', day: 'numeric', year: 'numeric', hour: 'numeric' })
+  if (granularity === 'month') return date.toLocaleDateString([], { month: 'long', year: 'numeric' })
+  if (granularity === 'week') return `Week of ${date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })}`
+  return date.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+function floorTimelineDate(date: Date, granularity: ActivityResponse['timeline']['granularity']) {
+  const result = new Date(date)
+  result.setUTCMinutes(0, 0, 0)
+  if (granularity !== 'hour') result.setUTCHours(0)
+  if (granularity === 'week') result.setUTCDate(result.getUTCDate() - ((result.getUTCDay() + 6) % 7))
+  if (granularity === 'month') result.setUTCDate(1)
+  return result
+}
+
+function incrementTimelineDate(date: Date, granularity: ActivityResponse['timeline']['granularity']) {
+  const result = new Date(date)
+  if (granularity === 'hour') result.setUTCHours(result.getUTCHours() + 1)
+  if (granularity === 'day') result.setUTCDate(result.getUTCDate() + 1)
+  if (granularity === 'week') result.setUTCDate(result.getUTCDate() + 7)
+  if (granularity === 'month') result.setUTCMonth(result.getUTCMonth() + 1)
+  return result
+}
+
+function fillTimelinePoints(timeline: ActivityResponse['timeline']) {
+  if (timeline.points.length === 0) return []
+  const pointByTime = new Map(timeline.points.map((point) => [new Date(point.timestamp).getTime(), point]))
+  const first = floorTimelineDate(new Date(timeline.from ?? timeline.points[0].timestamp), timeline.granularity)
+  const last = floorTimelineDate(new Date(timeline.to), timeline.granularity)
+  const filled = []
+  for (let current = first; current <= last; current = incrementTimelineDate(current, timeline.granularity)) {
+    filled.push(pointByTime.get(current.getTime()) ?? {
+      timestamp: current.toISOString(),
+      total: 0,
+      product_counts: {},
+    })
+  }
+  return filled
+}
+
 export function AdminActivityViewer() {
   const { request } = useAdmin()
   const [data, setData] = React.useState<ActivityResponse | null>(null)
@@ -119,6 +201,7 @@ export function AdminActivityViewer() {
   const [product, setProduct] = React.useState('')
   const [sourceTable, setSourceTable] = React.useState('')
   const [status, setStatus] = React.useState('')
+  const [view, setView] = React.useState<ActivityView>('stream')
   const [timeRange, setTimeRange] = React.useState<TimeRange>('30d')
   const [customFrom, setCustomFrom] = React.useState('')
   const [customTo, setCustomTo] = React.useState('')
@@ -136,6 +219,7 @@ export function AdminActivityViewer() {
   React.useEffect(() => {
     let cancelled = false
     const params = new URLSearchParams({ page: String(page), limit: '50' })
+    if (view === 'graph') params.set('include_timeline', 'true')
     if (deferredSearch.trim()) params.set('search', deferredSearch.trim())
     if (userId) params.set('user_id', userId)
     if (product) params.set('product', product)
@@ -151,7 +235,7 @@ export function AdminActivityViewer() {
       .catch((fetchError) => { if (!cancelled) setError(fetchError instanceof Error ? fetchError.message : 'Could not load activity') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [deferredSearch, page, product, refreshKey, request, sourceTable, status, timeBounds.from, timeBounds.to, userId])
+  }, [deferredSearch, page, product, refreshKey, request, sourceTable, status, timeBounds.from, timeBounds.to, userId, view])
 
   const resetFilters = () => {
     setSearch('')
@@ -232,11 +316,22 @@ export function AdminActivityViewer() {
 
       <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/[0.03]">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-          <div><h2 className="text-sm font-semibold text-slate-900">Activity stream</h2><p className="mt-0.5 text-xs text-slate-400">Newest matching activity first</p></div>
-          {activeFilterCount > 0 && <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700">{activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'}</span>}
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">{view === 'stream' ? 'Activity stream' : 'Activity graph'}</h2>
+            <p className="mt-0.5 text-xs text-slate-400">{view === 'stream' ? 'Newest matching activity first' : 'Filtered activity volume over time'}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {activeFilterCount > 0 && <span className="hidden rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-700 sm:inline">{activeFilterCount} active {activeFilterCount === 1 ? 'filter' : 'filters'}</span>}
+            <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5" role="group" aria-label="Activity view">
+              <button type="button" onClick={() => setView('stream')} aria-pressed={view === 'stream'} className={cn('inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition', view === 'stream' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800')}><List className="size-3.5" />Table</button>
+              <button type="button" onClick={() => setView('graph')} aria-pressed={view === 'graph'} className={cn('inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition', view === 'graph' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800')}><BarChart3 className="size-3.5" />Graph</button>
+            </div>
+          </div>
         </div>
 
-        {loading && !data ? (
+        {view === 'graph' ? (
+          <ActivityGraph data={data} loading={loading} />
+        ) : loading && !data ? (
           <div className="flex h-80 items-center justify-center"><Loader2 className="size-5 animate-spin text-slate-400" /></div>
         ) : data?.rows.length ? (
           <div className={cn('overflow-x-auto transition-opacity', loading && 'opacity-55')}>
@@ -251,13 +346,51 @@ export function AdminActivityViewer() {
           <div className="flex h-80 flex-col items-center justify-center px-6 text-center"><CalendarClock className="size-8 text-slate-300" /><p className="mt-3 text-sm font-medium text-slate-700">No activity matches these filters</p><p className="mt-1 max-w-sm text-xs leading-5 text-slate-400">Try a wider time range, another user, or clear the source and status filters.</p><Button variant="outline" size="sm" className="mt-4 text-xs" onClick={resetFilters}>Clear filters</Button></div>
         )}
 
-        {data && data.total > 0 && (
+        {view === 'stream' && data && data.total > 0 && (
           <div className="flex flex-col gap-3 border-t border-slate-200 px-5 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <p>Showing {((data.page - 1) * data.limit + 1).toLocaleString()}–{Math.min(data.page * data.limit, data.total).toLocaleString()} of {data.total.toLocaleString()}</p>
             <div className="flex items-center gap-2"><span className="mr-1 tabular-nums">Page {data.page} of {data.pages}</span><Button variant="outline" size="icon" className="size-8" disabled={data.page <= 1 || loading} onClick={() => setPage((value) => value - 1)} aria-label="Previous activity page"><ChevronLeft className="size-3.5" /></Button><Button variant="outline" size="icon" className="size-8" disabled={data.page >= data.pages || loading} onClick={() => setPage((value) => value + 1)} aria-label="Next activity page"><ChevronRight className="size-3.5" /></Button></div>
           </div>
         )}
       </section>
+    </div>
+  )
+}
+
+function ActivityGraph({ data, loading }: { data: ActivityResponse | null; loading: boolean }) {
+  const products = data?.filters.products.filter((item) => (data.product_counts[item.value] ?? 0) > 0) ?? []
+  const points = data ? fillTimelinePoints(data.timeline) : []
+  const chartData = points.map((point) => ({
+    timestamp: point.timestamp,
+    total: point.total,
+    ...Object.fromEntries(products.map((item) => [chartKey(item.value), point.product_counts[item.value] ?? 0])),
+  }))
+  const chartConfig = Object.fromEntries(products.map((item) => [chartKey(item.value), {
+    label: item.label,
+    color: PRODUCT_COLORS[item.value] ?? '#64748b',
+  }])) satisfies ChartConfig
+
+  if (loading && points.length === 0) {
+    return <div className="flex h-[420px] items-center justify-center"><Loader2 className="size-5 animate-spin text-slate-400" /></div>
+  }
+  if (points.length === 0) {
+    return <div className="flex h-[420px] flex-col items-center justify-center px-6 text-center"><BarChart3 className="size-8 text-slate-300" /><p className="mt-3 text-sm font-medium text-slate-700">No activity to graph</p><p className="mt-1 max-w-sm text-xs leading-5 text-slate-400">Adjust the filters or select a wider time range to see activity volume over time.</p></div>
+  }
+
+  const granularity = data?.timeline.granularity ?? 'day'
+  return (
+    <div className={cn('px-3 pb-5 pt-6 transition-opacity sm:px-5', loading && 'opacity-55')}>
+      <ChartContainer config={chartConfig} className="h-[360px] w-full">
+        <BarChart data={chartData} margin={{ top: 8, right: 12, left: -14, bottom: 0 }} accessibilityLayer>
+          <CartesianGrid vertical={false} stroke="#e2e8f0" />
+          <XAxis dataKey="timestamp" axisLine={false} tickLine={false} minTickGap={32} tickFormatter={(value) => formatTimelineTick(String(value), granularity)} />
+          <YAxis allowDecimals={false} axisLine={false} tickLine={false} width={44} />
+          <ChartTooltip cursor={{ fill: '#f1f5f9' }} content={<ChartTooltipContent labelFormatter={(value) => formatTimelineTooltip(String(value), granularity)} />} />
+          <ChartLegend content={<ChartLegendContent className="flex-wrap gap-x-4 gap-y-2" />} />
+          {products.map((item, index) => <Bar key={item.value} dataKey={chartKey(item.value)} stackId="activity" fill={`var(--color-${chartKey(item.value)})`} radius={index === products.length - 1 ? [3, 3, 0, 0] : 0} />)}
+        </BarChart>
+      </ChartContainer>
+      <p className="mt-2 text-center text-[11px] text-slate-400">Counts include all matching records, grouped by {granularity}.</p>
     </div>
   )
 }
