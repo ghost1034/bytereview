@@ -201,7 +201,10 @@ export default function ChronaShowcase() {
         viewport={viewportOnce}
       >
         <Collapsible>
-          <CollapsibleTrigger className="group mx-auto flex items-center gap-1.5 text-sm text-foreground-muted transition-colors hover:text-foreground">
+          <CollapsibleTrigger
+            aria-controls="chrona-install-help"
+            className="group mx-auto flex items-center gap-1.5 text-sm text-foreground-muted transition-colors hover:text-foreground"
+          >
             If you see that the app is &ldquo;damaged and can&rsquo;t be
             opened&rdquo;
             <ChevronDown
@@ -209,7 +212,7 @@ export default function ChronaShowcase() {
               aria-hidden
             />
           </CollapsibleTrigger>
-          <CollapsibleContent>
+          <CollapsibleContent id="chrona-install-help">
             <div className="glass-card mt-4 rounded-2xl p-5 text-left text-sm text-foreground-muted">
               <ol className="list-decimal space-y-3 pl-5">
                 <li>Open Terminal</li>

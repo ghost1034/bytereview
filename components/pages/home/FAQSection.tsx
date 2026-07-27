@@ -62,6 +62,7 @@ export default function FAQSection({ onGetStarted }: FAQSectionProps) {
       >
         <FaqAccordion
           items={FAQS}
+          idPrefix="home-faq"
           /* Dark glass accordion with an accent-blue active/open state. */
           className="glass-card divide-y divide-border border-0 [&_[data-state=open]>button]:text-accent-blue-300 [&_button[data-state=open]>svg]:text-accent-blue-400"
         />

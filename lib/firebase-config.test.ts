@@ -13,6 +13,7 @@ describe('resolveFirebaseClientConfig', () => {
       'NEXT_PUBLIC_FIREBASE_APP_ID',
     ])
     expect(result.config.apiKey).toBeTruthy()
+    expect(result.isAnalyticsConfigured).toBe(false)
   })
 
   it('derives the default auth domain for a complete configuration', () => {
@@ -24,7 +25,21 @@ describe('resolveFirebaseClientConfig', () => {
 
     expect(result.isConfigured).toBe(true)
     expect(result.config.authDomain).toBe('project-id.firebaseapp.com')
+    expect(result.isAnalyticsConfigured).toBe(false)
     expect(result.missingVariables).toEqual([])
+  })
+
+  it('enables Analytics only when a complete config includes a measurement ID', () => {
+    const result = resolveFirebaseClientConfig({
+      apiKey: 'api-key',
+      projectId: 'project-id',
+      appId: 'app-id',
+      measurementId: 'G-TEST123',
+    })
+
+    expect(result.isConfigured).toBe(true)
+    expect(result.isAnalyticsConfigured).toBe(true)
+    expect(result.config.measurementId).toBe('G-TEST123')
   })
 
   it('treats whitespace-only values as missing', () => {

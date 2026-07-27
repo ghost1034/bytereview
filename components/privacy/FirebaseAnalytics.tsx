@@ -3,7 +3,7 @@
 import { useEffect } from 'react'
 import type { Analytics } from 'firebase/analytics'
 
-import { firebaseApp, isFirebaseConfigured } from '@/lib/firebase'
+import { firebaseApp, isFirebaseAnalyticsConfigured } from '@/lib/firebase'
 import { useCookieConsentContext } from './CookieConsentProvider'
 
 type AnalyticsSdk = typeof import('firebase/analytics')
@@ -15,7 +15,7 @@ type AnalyticsHandle = {
 let analyticsHandlePromise: Promise<AnalyticsHandle | null> | null = null
 
 function loadAnalytics(): Promise<AnalyticsHandle | null> {
-  if (!isFirebaseConfigured) return Promise.resolve(null)
+  if (!isFirebaseAnalyticsConfigured) return Promise.resolve(null)
 
   if (!analyticsHandlePromise) {
     analyticsHandlePromise = import('firebase/analytics')

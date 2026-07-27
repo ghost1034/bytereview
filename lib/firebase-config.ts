@@ -11,6 +11,7 @@ export interface FirebaseClientEnvironment {
 export interface ResolvedFirebaseClientConfig {
   config: FirebaseOptions
   isConfigured: boolean
+  isAnalyticsConfigured: boolean
   missingVariables: string[]
 }
 
@@ -46,6 +47,7 @@ export function resolveFirebaseClientConfig(
     return {
       config: UNCONFIGURED_FIREBASE_OPTIONS,
       isConfigured: false,
+      isAnalyticsConfigured: false,
       missingVariables,
     }
   }
@@ -60,6 +62,11 @@ export function resolveFirebaseClientConfig(
       measurementId,
     },
     isConfigured: true,
+    // Analytics is optional, but it must not initialize unless this deployment
+    // explicitly supplies a measurement ID. Otherwise the SDK performs a
+    // dynamic-config/Installations request even in environments that only need
+    // Firebase Auth.
+    isAnalyticsConfigured: Boolean(measurementId),
     missingVariables: [],
   }
 }

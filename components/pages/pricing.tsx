@@ -240,7 +240,7 @@ export default function Pricing() {
         eyebrowTone="blue"
         title="Frequently asked questions"
       >
-        <FaqAccordion items={FAQS} />
+        <FaqAccordion items={FAQS} idPrefix="pricing-faq" />
       </SectionShell>
 
       <AuthModal

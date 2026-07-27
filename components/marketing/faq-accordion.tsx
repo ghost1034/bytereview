@@ -17,13 +17,15 @@ export interface FaqItem {
 
 interface FaqAccordionProps {
   items: FaqItem[]
+  /** Stable prefix used for trigger/content accessibility IDs. */
+  idPrefix: string
   /** Visible label rendered above the list (optional). */
   className?: string
   /** Allow multiple items open at once (default: single). */
   multiple?: boolean
 }
 
-export function FaqAccordion({ items, className, multiple }: FaqAccordionProps) {
+export function FaqAccordion({ items, idPrefix, className, multiple }: FaqAccordionProps) {
   return (
     <Accordion
       type={multiple ? 'multiple' : 'single'}
@@ -39,10 +41,18 @@ export function FaqAccordion({ items, className, multiple }: FaqAccordionProps) 
           value={`faq-${idx}`}
           className="border-0 px-5"
         >
-          <AccordionTrigger className="py-4 text-left text-sm font-medium text-foreground hover:no-underline">
+          <AccordionTrigger
+            id={`${idPrefix}-trigger-${idx}`}
+            aria-controls={`${idPrefix}-content-${idx}`}
+            className="py-4 text-left text-sm font-medium text-foreground hover:no-underline"
+          >
             {item.q}
           </AccordionTrigger>
-          <AccordionContent className="pb-5 text-sm text-foreground-muted">
+          <AccordionContent
+            id={`${idPrefix}-content-${idx}`}
+            aria-labelledby={`${idPrefix}-trigger-${idx}`}
+            className="pb-5 text-sm text-foreground-muted"
+          >
             {item.a}
           </AccordionContent>
         </AccordionItem>

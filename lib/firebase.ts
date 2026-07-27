@@ -36,6 +36,8 @@ const resolvedFirebaseConfig = resolveFirebaseClientConfig({
 })
 
 export const isFirebaseConfigured = resolvedFirebaseConfig.isConfigured
+export const isFirebaseAnalyticsConfigured =
+  !isLocalDevelopment && resolvedFirebaseConfig.isAnalyticsConfigured
 
 export const requireFirebaseConfiguration = () => {
   if (!isFirebaseConfigured) {
