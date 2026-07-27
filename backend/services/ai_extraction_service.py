@@ -1,7 +1,4 @@
-"""
-AI-powered data extraction service using Google Gemini
-Direct PDF processing with structured JSON schema output using GCS URIs
-"""
+"""AI-powered data extraction using Google Gemini and storage-backed files."""
 import asyncio
 from google import genai
 from google.genai import types
@@ -11,11 +8,13 @@ import io
 from typing import List, Dict, Any, Optional, Tuple
 import logging
 from models.extraction import FieldConfig, ExtractionResult
+from services.gemini_file_service import part_from_storage_object
 
 logger = logging.getLogger(__name__)
 
 class AIExtractionService:
-    def __init__(self):
+    def __init__(self, storage_service=None):
+        self.storage_service = storage_service
         # Configure Vertex AI (google-genai client)
         project = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
         location = os.getenv("GOOGLE_CLOUD_LOCATION", "global")
@@ -64,6 +63,19 @@ class AIExtractionService:
             self.batch_temperature = float(os.getenv("GEMINI_BATCH_TEMPERATURE", "0.0"))
         except Exception:
             self.batch_temperature = 0.0
+
+    def _part_from_file_data(self, file_data: Dict) -> types.Part:
+        mime_type = file_data.get("mime_type") or "application/pdf"
+        object_name = file_data.get("object_name")
+        if object_name and self.storage_service is not None:
+            return part_from_storage_object(self.storage_service, object_name, mime_type)
+
+        uri = file_data.get("uri")
+        if not uri:
+            raise ValueError("Missing storage object or GCS URI for file")
+        if not uri.startswith("gs://"):
+            raise ValueError(f"Unsupported Gemini file URI: {uri}")
+        return types.Part.from_uri(file_uri=uri, mime_type=mime_type)
 
     def _get_resp_text(self, resp: Any) -> Optional[str]:
         if resp is None:
@@ -629,12 +641,7 @@ Fields:
             for i, file_data in enumerate(files_data):
                 try:
                     logger.info(f"Processing file: {file_data['filename']}")
-                    # Prefer GCS URI if provided, else raise
-                    uri = file_data.get('uri')
-                    if not uri:
-                        raise ValueError("Missing GCS URI for file; expected 'uri' field")
-                    mime_type = file_data.get('mime_type') or 'application/pdf'
-                    file_part = types.Part.from_uri(file_uri=uri, mime_type=mime_type)
+                    file_part = self._part_from_file_data(file_data)
 
                     try:
                         extracted_rows = self._generate_with_continuation(
@@ -740,13 +747,11 @@ Fields:
             file_parts = []
             file_names = []
             for i, file_data in enumerate(files_data):
-                uri = file_data.get('uri')
-                if not uri:
-                    logger.warning(f"Skipping file without URI: {file_data}")
-                    continue
-                mime_type = file_data.get('mime_type') or 'application/pdf'
-                file_parts.append(types.Part.from_uri(file_uri=uri, mime_type=mime_type))
-                file_names.append(file_data.get('filename'))
+                try:
+                    file_parts.append(self._part_from_file_data(file_data))
+                    file_names.append(file_data.get('filename'))
+                except ValueError as exc:
+                    logger.warning("Skipping invalid file input: %s", exc)
 
             if not file_parts:
                 return ExtractionResult(success=False, error="No valid files to process in combined mode")

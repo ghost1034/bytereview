@@ -5,7 +5,7 @@ import sys
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, sentinel
 
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -22,6 +22,28 @@ class AIExtractionServiceContinuationTests(unittest.TestCase):
         self.service.batch_max_rounds = 5
         self.service.batch_tail_rows = 1
         self.service.batch_rows_per_call = 2
+
+    def test_storage_object_is_used_for_gemini_file_part(self) -> None:
+        storage_service = object()
+        service = AIExtractionService(storage_service=storage_service)
+        with patch(
+            "services.ai_extraction_service.part_from_storage_object",
+            return_value=sentinel.file_part,
+        ) as build_part:
+            part = service._part_from_file_data(
+                {
+                    "object_name": "jobs/example/document.pdf",
+                    "uri": "local://local-bucket/jobs/example/document.pdf",
+                    "mime_type": "application/pdf",
+                }
+            )
+
+        self.assertIs(part, sentinel.file_part)
+        build_part.assert_called_once_with(
+            storage_service,
+            "jobs/example/document.pdf",
+            "application/pdf",
+        )
 
     def _response(
         self,

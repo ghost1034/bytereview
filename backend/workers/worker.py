@@ -212,14 +212,10 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
         ]
         
         # Initialize services
-        ai_service = AIExtractionService()
         storage_service = get_storage_service()
+        ai_service = AIExtractionService(storage_service=storage_service)
 
-        # Ensure GCS service supports URI construction (Vertex requires GCS URIs)
-        if not hasattr(storage_service, 'construct_gcs_uri_for_object'):
-            raise Exception("GCS is not available in this environment; Vertex AI extraction requires GCS URIs.")
-
-        # Build files_data with GCS URIs; normalize Office inputs for Gemini when necessary.
+        # Build storage-backed file inputs; normalize Office inputs for Gemini when necessary.
         files_data = []
         processed_source_files = []
         from services.document_conversion_service import (
@@ -258,6 +254,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
                     files_data.append({
                         'filename': f"{stem}.pdf",
                         'uri': gcs_uri,
+                        'object_name': dest_object,
                         'mime_type': 'application/pdf',
                     })
                     processed_source_files.append(source_file)
@@ -281,6 +278,7 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
                     files_data.append({
                         'filename': f"{stem}.txt",
                         'uri': gcs_uri,
+                        'object_name': dest_object,
                         'mime_type': 'text/plain',
                     })
                     processed_source_files.append(source_file)
@@ -303,11 +301,12 @@ async def process_extraction_task(ctx: Dict[str, Any], task_id: str, automation_
                 files_data.append({
                     'filename': filename,
                     'uri': gcs_uri,
+                    'object_name': source_file.gcs_object_name,
                     'mime_type': mime_type or 'application/pdf',
                 })
                 processed_source_files.append(source_file)
 
-        logger.info(f"Processing {len(files_data)} files with AI via Vertex using GCS URIs")
+        logger.info(f"Processing {len(files_data)} storage-backed files with AI via Vertex")
         logger.info(f"Using processing mode: {task.processing_mode}")
         # Augment system prompt with run-level description if provided
         system_prompt_text = system_prompt_record.template_text

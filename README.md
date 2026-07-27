@@ -477,6 +477,9 @@ starts these processes:
 Uploaded objects are stored under `.local/storage/` and are ignored by Git.
 PostgreSQL data lives in the Docker Compose volume. Stop the application with
 Ctrl-C; stop PostgreSQL separately with `docker compose down` when desired.
+If the pre-Compose `bytereview-postgres-dev` container exists, the launcher
+reuses it to preserve its development data; stop that legacy container with
+`docker stop bytereview-postgres-dev`.
 
 ### Local safety model
 

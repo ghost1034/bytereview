@@ -51,6 +51,7 @@ from models.form_fill import (
 )
 from services.cloud_run_task_service import cloud_run_task_service
 from services.document_conversion_service import DOCX_MIME, get_document_conversion_service
+from services.gemini_file_service import part_from_storage_object
 from services.gcs_service import get_storage_service
 from services.natural_sort import natural_text_key, sort_paths_naturally
 from services.page_counting_service import page_counting_service
@@ -1302,8 +1303,8 @@ class FormFillService:
         finally:
             db.close()
 
-    def _part_from_uri(self, uri: str, mime_type: str) -> Any:
-        return types.Part.from_uri(file_uri=uri, mime_type=mime_type)
+    def _part_from_storage_object(self, object_name: str, mime_type: str) -> Any:
+        return part_from_storage_object(self.storage_service, object_name, mime_type)
 
     def _get_resp_text(self, response: Any) -> Optional[str]:
         if response is None:
@@ -2844,7 +2845,7 @@ Rules:
                 source_text_sections.append(f"{label} (DOCX converted to PDF for Gemini input).")
             else:
                 source_text_sections.append(f"{label} (PDF attached).")
-            source_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(source_object_name), part_mime))
+            source_parts.append(self._part_from_storage_object(source_object_name, part_mime))
             return
 
         with tempfile.TemporaryDirectory(prefix="form_fill_source_") as temp_dir:
@@ -3884,7 +3885,7 @@ Instructions:
         if run.target_file_type == PDF_MIME:
             field_metadata_list = self._extract_pdf_form_field_metadata(target_local_path)
             pdf_fields = [meta["name"] for meta in field_metadata_list]
-            target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(target_object_name), PDF_MIME))
+            target_parts.append(self._part_from_storage_object(target_object_name, PDF_MIME))
             if pdf_fields:
                 field_metadata, context_fields = self._align_pdf_field_metadata(pdf_fields, field_metadata_list)
                 processing_strategy = "fillable_pdf"
@@ -4047,7 +4048,7 @@ Instructions:
             converter = get_document_conversion_service()
             preview_object = f"form-fill/{run.user_id}/runs/{run.id}/target-preview.pdf"
             await converter.convert_docx_gcs_to_pdf_gcs(self.storage_service, run.target_gcs_object_name, preview_object)
-            target_parts.append(self._part_from_uri(self.storage_service.construct_gcs_uri_for_object(preview_object), PDF_MIME))
+            target_parts.append(self._part_from_storage_object(preview_object, PDF_MIME))
             placeholders = self._extract_docx_placeholders(target_local_path)
             if placeholders:
                 processing_strategy = "docx_placeholders"

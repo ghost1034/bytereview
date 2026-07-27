@@ -830,7 +830,7 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         converter = SimpleNamespace(convert_docx_gcs_to_pdf_gcs=AsyncMock())
         self.service.storage_service.construct_gcs_uri_for_object = MagicMock(return_value="gs://bucket/target")
 
-        with patch.object(self.service, "_part_from_uri", return_value=object()):
+        with patch.object(self.service, "_part_from_storage_object", return_value=object()):
             with patch("services.form_fill_service.get_document_conversion_service", return_value=converter):
                 with patch.object(self.service, "_generate_mapping_payload") as generate_mapping:
                     with patch.object(self.service, "_generate_collection_json_response") as generate_collection:
@@ -888,7 +888,7 @@ class FormFillServiceSourceContextTests(unittest.IsolatedAsyncioTestCase):
         self.service.storage_service.construct_gcs_uri_for_object = MagicMock(return_value="gs://bucket/target")
         row_payload = {"client_name": "Beta LLC"}
 
-        with patch.object(self.service, "_part_from_uri", return_value=object()):
+        with patch.object(self.service, "_part_from_storage_object", return_value=object()):
             with patch("services.form_fill_service.get_document_conversion_service", return_value=converter):
                 with patch.object(
                     self.service,

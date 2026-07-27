@@ -38,7 +38,36 @@ if (dockerCheck.status !== 0) {
   console.error('Docker Desktop is not running. Start it, then run `npm run dev` again.')
   process.exit(1)
 }
-run('docker', ['compose', 'up', '-d', '--wait', 'postgres'])
+
+const legacyPostgresName = 'bytereview-postgres-dev'
+const legacyPostgresCheck = spawnSync(
+  'docker',
+  ['container', 'inspect', legacyPostgresName],
+  { stdio: 'ignore' },
+)
+if (legacyPostgresCheck.status === 0) {
+  console.log(`Reusing legacy PostgreSQL container ${legacyPostgresName} ...`)
+  run('docker', ['start', legacyPostgresName])
+  let postgresReady = false
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const readiness = spawnSync(
+      'docker',
+      ['exec', legacyPostgresName, 'pg_isready', '-U', 'bytereview', '-d', 'bytereview_dev'],
+      { stdio: 'ignore' },
+    )
+    if (readiness.status === 0) {
+      postgresReady = true
+      break
+    }
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000)
+  }
+  if (!postgresReady) {
+    console.error(`Legacy PostgreSQL container ${legacyPostgresName} did not become ready.`)
+    process.exit(1)
+  }
+} else {
+  run('docker', ['compose', 'up', '-d', '--wait', 'postgres'])
+}
 
 if (!existsSync(python)) {
   console.log('Creating backend/.venv ...')
@@ -116,6 +145,7 @@ const children = services.map(([name, args, cwd]) => {
   return spawn(python, args, { cwd, env: localEnv, stdio: 'inherit' })
 })
 
+let shuttingDown = false
 console.log('Starting frontend at http://localhost:3000 ...')
 const nextBinary = path.join(repoRoot, 'node_modules', '.bin', 'next')
 if (!existsSync(nextBinary)) {
@@ -129,14 +159,14 @@ children.push(spawn(nextBinary, ['dev'], {
   stdio: 'inherit',
 }))
 
-let shuttingDown = false
-function shutdown(signal = 'SIGTERM') {
+function shutdown(signal = 'SIGTERM', exitCode = 0) {
   if (shuttingDown) return
   shuttingDown = true
+  process.exitCode = exitCode
   for (const child of children) {
     if (!child.killed) child.kill(signal)
   }
-  setTimeout(() => process.exit(0), 1000).unref()
+  setTimeout(() => process.exit(exitCode), 1000).unref()
 }
 
 process.on('SIGINT', () => {
@@ -152,7 +182,6 @@ for (const child of children) {
   child.on('exit', (code, signal) => {
     if (shuttingDown) return
     console.error(`A local service exited (${signal || code}); stopping the stack.`)
-    process.exitCode = code || 1
-    shutdown()
+    shutdown('SIGTERM', code || 1)
   })
 }

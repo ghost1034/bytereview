@@ -9,7 +9,7 @@ import asyncio
 import logging
 import os
 
-from core.runtime import is_local, local_auth_enabled
+from core.runtime import is_explicitly_local, local_auth_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def _is_phone_mfa_exempt(decoded_token: Dict) -> bool:
 
 
 def _require_phone_mfa(decoded_token: Dict) -> None:
-    if is_local():
+    if is_explicitly_local():
         return
     if _is_phone_mfa_exempt(decoded_token):
         return

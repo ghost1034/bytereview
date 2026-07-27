@@ -1,7 +1,7 @@
 """Runtime environment helpers.
 
-Local development is the safe default. Cloud resources are selected only by a
-non-local deployment environment or an explicit backend override.
+Local storage and task backends are safe defaults for development. Security
+bypasses additionally require an explicitly selected local environment.
 """
 
 from __future__ import annotations
@@ -24,6 +24,11 @@ def is_production() -> bool:
 
 def is_local() -> bool:
     return environment() in LOCAL_ENVIRONMENTS
+
+
+def is_explicitly_local() -> bool:
+    configured = (os.getenv("ENVIRONMENT") or "").strip().lower()
+    return bool(configured) and configured in LOCAL_ENVIRONMENTS
 
 
 def storage_backend() -> str:
@@ -64,12 +69,14 @@ def public_api_base_url() -> str:
 
 
 def local_auth_enabled() -> bool:
-    if not is_local():
-        return False
-    configured = (os.getenv("LOCAL_AUTH_BYPASS") or "").strip().lower()
-    if configured:
-        return configured in {"1", "true", "yes", "on"}
-    return is_local()
+    environment_is_explicitly_local = (os.getenv("ENVIRONMENT") or "").strip().lower() == "local"
+    bypass_is_explicitly_enabled = (os.getenv("LOCAL_AUTH_BYPASS") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+    return environment_is_explicitly_local and bypass_is_explicitly_enabled
 
 
 def require_cloud_value(name: str) -> str:
