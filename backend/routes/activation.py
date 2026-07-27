@@ -164,10 +164,9 @@ def _provision_connector(
                 name=token_name,
                 rotate_same_name=True,
             )
-        connector_mcp_url = os.getenv(
-            "CONNECTOR_MCP_PUBLIC_URL",
-            "https://api.cpaautomation.ai/api/connector/mcp",
-        )
+        from core.runtime import public_api_base_url
+
+        connector_mcp_url = os.getenv("CONNECTOR_MCP_PUBLIC_URL") or f"{public_api_base_url()}/api/connector/mcp"
         return connector_mcp_url, connector_token
     except Exception as connector_err:
         # Claw activation must keep working if the optional broker is unavailable.

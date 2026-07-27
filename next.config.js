@@ -9,18 +9,16 @@ const nextConfig = {
   },
   // Remove experimental.appDir as it's now stable in Next.js 14
   async rewrites() {
-    if (process.env.NODE_ENV === 'production') {
-      return [
-        {
-          source: '/api/:path*',
-          destination: 'https://api.cpaautomation.ai/api/:path*',
-        },
-      ]
-    }
+    const isProductionDeployment = process.env.NEXT_PUBLIC_APP_ENV === 'production'
+    const backendOrigin = (
+      process.env.BACKEND_API_URL ||
+      (isProductionDeployment ? 'https://api.cpaautomation.ai' : 'http://127.0.0.1:8000')
+    ).replace(/\/$/, '')
+
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:8000/api/:path*',
+        destination: `${backendOrigin}/api/:path*`,
       },
     ]
   },

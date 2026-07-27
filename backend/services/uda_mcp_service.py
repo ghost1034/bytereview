@@ -41,7 +41,8 @@ from services.job_service import JobService
 from services.template_service import TemplateService
 
 
-DASHBOARD_BASE_URL = os.getenv("CPAA_DASHBOARD_PUBLIC_URL", "https://cpaautomation.ai").rstrip("/")
+from core.runtime import frontend_base_url
+DASHBOARD_BASE_URL = frontend_base_url()
 SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".pptx", ".xlsx", ".csv", ".zip"}
 PROCESSING_MODES = {"individual", "combined"}
 MAX_RESULT_ROWS = 200

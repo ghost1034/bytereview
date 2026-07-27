@@ -9,11 +9,16 @@ import asyncio
 import logging
 import os
 
+from core.runtime import is_local, local_auth_enabled
+
 logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
 def init_firebase():
     """Initialize Firebase Admin SDK"""
+    if local_auth_enabled():
+        logger.info("Firebase Admin initialization skipped; local development identity is enabled")
+        return
     try:
         # Check if already initialized
         import firebase_admin
@@ -61,6 +66,8 @@ def get_enrolled_mfa_phone_number(uid: str) -> Optional[str]:
 
     Never raises — logs and returns None on failure so a Firebase outage can't 500 requests.
     """
+    if local_auth_enabled() and uid == "local-developer":
+        return None
     try:
         record = firebase_auth.get_user(uid)
     except Exception as e:
@@ -85,6 +92,8 @@ def _is_phone_mfa_exempt(decoded_token: Dict) -> bool:
 
 
 def _require_phone_mfa(decoded_token: Dict) -> None:
+    if is_local():
+        return
     if _is_phone_mfa_exempt(decoded_token):
         return
 
@@ -103,6 +112,17 @@ async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depe
     if not credentials:
         logger.error("No authorization header provided")
         raise HTTPException(status_code=401, detail="Authorization header required")
+
+    if local_auth_enabled():
+        if credentials.credentials != "cpaautomation-local-development":
+            raise HTTPException(status_code=401, detail="Invalid local development token")
+        return {
+            "uid": "local-developer",
+            "email": os.getenv("LOCAL_AUTH_EMAIL", "local.developer@example.com"),
+            "name": os.getenv("LOCAL_AUTH_NAME", "Local Developer"),
+            "email_verified": True,
+            "local_development": True,
+        }
     
     try:
         logger.info(f"Verifying token: {credentials.credentials[:20]}...")
@@ -145,6 +165,10 @@ async def verify_token_string(token: str) -> str:
     Verify a raw Firebase token string and return user ID
     Used for SSE authentication via query parameter
     """
+    if local_auth_enabled():
+        if token != "cpaautomation-local-development":
+            raise HTTPException(status_code=401, detail="Invalid local development token")
+        return "local-developer"
     try:
         logger.info(f"Attempting to verify token: {token[:20]}...")
         decoded_token = await asyncio.to_thread(firebase_auth.verify_id_token, token)

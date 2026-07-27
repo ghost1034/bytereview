@@ -11,6 +11,8 @@ from google.protobuf import timestamp_pb2
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
+from core.runtime import is_production, require_cloud_value
+
 load_dotenv()
 
 logger = logging.getLogger(__name__)
@@ -19,15 +21,12 @@ class CloudSchedulerService:
     """Service for managing Cloud Scheduler jobs"""
     
     def __init__(self):
-        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "ace-rider-383100")
+        self.project_id = require_cloud_value("GOOGLE_CLOUD_PROJECT_ID")
         self.region = os.getenv("CLOUD_RUN_REGION", "us-central1")
         self.scheduler_client = scheduler_v1.CloudSchedulerClient()
         
         # Maintenance task service URL
-        maintenance_service_url = os.getenv(
-            "TASK_MAINTENANCE_URL",
-            f"https://task-maintenance-{self.project_id}.{self.region}.run.app",
-        ).rstrip("/")
+        maintenance_service_url = require_cloud_value("TASK_MAINTENANCE_URL").rstrip("/")
         self.maintenance_service_url = (
             maintenance_service_url
             if maintenance_service_url.endswith("/execute")
@@ -235,4 +234,4 @@ class CloudSchedulerService:
             raise
 
 # Global instance
-cloud_scheduler_service = CloudSchedulerService()
+cloud_scheduler_service = CloudSchedulerService() if is_production() else None

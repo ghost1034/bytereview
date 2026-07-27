@@ -447,110 +447,67 @@ flowchart TB
 
 ## Local Development
 
-This guide covers prerequisites, environment configuration, database setup, running services, generating types, and troubleshooting.
+Local development is self-contained by default. It uses PostgreSQL in Docker,
+filesystem object storage, local HTTP workers, an automatically signed-in local
+developer identity, and a log-only email sink. Firebase, GCS, Cloud Tasks,
+Stripe, Gmail, and the production API are not contacted.
 
 Prerequisites
+
 - Node.js 20+
 - Python 3.11+
-- Docker Desktop (for Postgres)
-- LibreOffice (`soffice`) for backend DOCX->PDF conversion, including Inkwise DOCX ingestion
-- gcloud CLI (for GCP auth and optional local secrets)
-- Firebase project (for client auth) and a Firebase service account JSON for local backend
+- Docker Desktop
+- LibreOffice (`soffice`) only when testing DOCX-to-PDF conversion
 
-Environment configuration (.env)
-- Create a .env file at the repo root (backend/main.py uses dotenv for local/dev):
-  - Required
-    - DATABASE_URL=postgresql://bytereview:bytereview@localhost:5432/bytereview_dev
-    - STRIPE_SECRET_KEY=sk_test_...
-  - Recommended
-    - ENVIRONMENT=local
-    - LOG_LEVEL=INFO
-    - INIT_DB_AT_STARTUP=false
-  - Google Cloud / Gemini
-    - GOOGLE_CLOUD_PROJECT_ID=your-gcp-project
-    - GOOGLE_CLOUD_LOCATION=global
-    - GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/firebase-service-account.json
-    - GCS_BUCKET_NAME=your-dev-bucket
-    - GEMINI_MAX_OUTPUT_TOKENS=65536 (optional; default 65536)
-    - GEMINI_TEMPERATURE=1.0 (optional; default 1.0)
-    - GEMINI_BATCH_ENABLED=true (optional; default true)
-    - GEMINI_BATCH_MAX_ROUNDS=200 (optional; default 200; up to 100,000 rows at the default batch size)
-    - GEMINI_BATCH_ROWS_PER_CALL=500 (optional; default 500)
-    - FORM_FILL_GEMINI_MAX_OUTPUT_TOKENS=65536 (optional; default 65536)
-    - FORM_FILL_BATCH_ENABLED=true (optional; default true)
-    - FORM_FILL_BATCH_MAX_ROUNDS=200 (optional; default 200; up to 20,000 items/operations at the default batch size)
-    - FORM_FILL_BATCH_ITEMS_PER_CALL=100 (optional; default 100)
-    - FORM_FILL_MAPPING_CHUNK_SIZE=100 (optional; default FORM_FILL_BATCH_ITEMS_PER_CALL)
-    - FORM_FILL_FINALIZE_LOCK_WAIT_SECONDS=30 (optional; default 30; how long an output worker waits for the run finalize lock)
-    - FORM_FILL_FINALIZE_LOCK_POLL_SECONDS=2 (optional; default 2)
-    - FORM_FILL_FINALIZE_RETRY_DELAY_SECONDS=30 (optional; default 30; delay before a re-enqueued finalize retry)
-  - Google OAuth and Integrations
-    - GOOGLE_CLIENT_ID=...
-    - GOOGLE_CLIENT_SECRET=...
-    - GOOGLE_REDIRECT_URI=http://localhost:3000/integrations/google/callback
-    - GMAIL_PUBSUB_DEV_TOKEN=dev-token-for-webhook-testing
-    - GMAIL_PUBSUB_TOPIC=gmail-notifications (optional)
-    - GMAIL_PUBSUB_SUBSCRIPTION=gmail-notifications-sub (optional)
-    - GMAIL_WEBHOOK_URL=http://localhost:8000/api/webhooks/gmail-push
-  - Stripe
-    - STRIPE_WEBHOOK_SECRET=whsec_... (for local webhook testing)
-  - Cloud Run Task service URLs (optional for local; required when using remote task services)
-    - TASK_EXTRACT_URL=https://task-extract-...run.app/execute
-    - TASK_IO_URL=https://task-io-...run.app/execute
-    - TASK_AUTOMATION_URL=https://task-automation-...run.app/execute
-    - TASK_MAINTENANCE_URL=https://task-maintenance-...run.app/execute
+Start the complete stack:
 
-Start dependencies (Postgres)
-- Option A: docker-compose
-  - docker-compose up -d postgres
-- Option B: helper script
-  - scripts/start-dev.sh
+```bash
+npm install
+npm run dev
+```
 
-Backend setup
-- pip install -r backend/requirements.txt
-- Database migrations
-  - cd backend && alembic upgrade head
-  - Optional seed: backend/scripts/seed_initial_data.py
-- Run API
-  - npm run backend (runs uvicorn main:app --reload on port 8000) or
-  - cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000
-- Health and docs
-  - http://localhost:8000/health
-  - http://localhost:8000/api/docs
+The first run creates `backend/.venv`, installs Python dependencies, starts
+PostgreSQL, applies all Alembic migrations, seeds required reference data, and
+starts these processes:
 
-Frontend setup
-- npm install
-- Generate types from backend OpenAPI
-  - npm run generate-types (runs backend/generate-types and writes lib/api-types.ts)
-  - Or: npm run dev:with-types (generate then launch dev)
-- Run frontend
-  - npm run dev (Next.js on http://localhost:3000)
+- Frontend: http://localhost:3000
+- API and docs: http://127.0.0.1:8000 and http://127.0.0.1:8000/api/docs
+- Local task services: ports 8001 through 8004
 
-Types and OpenAPI
-- The backend exposes OpenAPI at /api/openapi.json
-- openapi-typescript generates lib/api-types.ts; lib/api.ts provides a typed client
-- Regenerate types any time backend routes/models change
+Uploaded objects are stored under `.local/storage/` and are ignored by Git.
+PostgreSQL data lives in the Docker Compose volume. Stop the application with
+Ctrl-C; stop PostgreSQL separately with `docker compose down` when desired.
 
-Local Gmail/Drive testing
-- Gmail push development auth: pass Authorization: Bearer ${GMAIL_PUBSUB_DEV_TOKEN} or call from localhost
-- Manual imports
-  - Drive: POST /api/jobs/{jobId}/files:gdrive with file_ids
-  - Gmail: POST /api/jobs/{jobId}/files:gmail with attachments array
+### Local safety model
+
+`npm run dev` overrides safety-sensitive inherited values. In particular it
+sets `ENVIRONMENT=local`, `STORAGE_BACKEND=local`, `TASK_BACKEND=local`, and a
+local authentication identity. It clears production Firebase, Stripe, Google
+Cloud, and OpenConnector credentials. The Next.js API rewrite also defaults to
+`http://127.0.0.1:8000`; a production rewrite is selected only when
+`NEXT_PUBLIC_APP_ENV=production` is explicitly present in the production image.
+
+Cloud integrations are opt-in. Copy the relevant names from `.env.example` and
+use the `CPAA_LOCAL_*` variables for a dedicated non-production project or a
+localhost OpenConnector runtime. Do not put production credentials in these
+variables. AI extraction remains unavailable until a non-production Google
+Cloud project is opted in.
+
+Useful commands
+
+- `npm run dev:frontend` — frontend only (expects an API already on port 8000)
+- `npm run backend` — API only using the bootstrapped virtual environment
+- `npm run generate-types` — regenerate `lib/api-types.ts`
+- `npm run test:unit` — frontend unit tests
+- `cd backend && .venv/bin/pytest tests` — backend tests
 
 Troubleshooting
-- Database connection error at startup
-  - Ensure DATABASE_URL is set and Postgres is running (docker ps; psql test)
-- STRIPE_SECRET_KEY missing (backend will crash early)
-  - Provide a test secret key in .env for local
-- Google credentials / AI errors
-  - Set GOOGLE_CLOUD_PROJECT_ID and GOOGLE_APPLICATION_CREDENTIALS (service account with required scopes)
-  - For the default Gemini provider via google-genai with Vertex, ensure project/location are correct
-- CORS
-  - Backend allows http://localhost:3000 in local; verify ENVIRONMENT and allowed_origins in backend/main.py
-- Types not generated
-  - Run npm run generate-types; verify backend is reachable at /api/openapi.json
-- Gmail webhook not authorized in dev
-  - Set GMAIL_PUBSUB_DEV_TOKEN and include Authorization: Bearer token; for production, implement Google-signed JWT verification
+
+- If startup says Docker is unavailable, start Docker Desktop and rerun `npm run dev`.
+- If ports 3000 or 8000–8004 are occupied, stop the older development stack.
+- Delete `backend/.venv` and rerun `npm run dev` to rebuild Python dependencies.
+- AI endpoints intentionally report missing configuration until a dedicated
+  development cloud project is supplied through `CPAA_LOCAL_*` variables.
 
 ## Deployment and Operations
 

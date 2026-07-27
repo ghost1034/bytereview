@@ -89,13 +89,17 @@ class RoutingTurnTests(unittest.TestCase):
 
 
 class RecipientAccessUrlTests(unittest.TestCase):
-    def test_unconfigured_email_link_defaults_to_production_domain(self) -> None:
+    def test_unconfigured_email_link_defaults_to_local_domain(self) -> None:
         with patch.dict(os.environ, {}, clear=True):
-            self.assertEqual(app_base_url(), "https://cpaautomation.ai")
+            self.assertEqual(app_base_url(), "http://localhost:3000")
             self.assertEqual(
                 signing_url("envelope-id"),
-                "https://cpaautomation.ai/dashboard/esign/sign/envelope-id",
+                "http://localhost:3000/dashboard/esign/sign/envelope-id",
             )
+
+    def test_production_environment_uses_production_domain(self) -> None:
+        with patch.dict(os.environ, {"ENVIRONMENT": "production"}, clear=True):
+            self.assertEqual(app_base_url(), "https://cpaautomation.ai")
 
     def test_local_environment_keeps_local_development_links(self) -> None:
         with patch.dict(os.environ, {"ENVIRONMENT": "local"}, clear=True):

@@ -9,6 +9,8 @@ from fastapi.security import HTTPBearer
 from dotenv import load_dotenv
 import stripe
 
+from core.runtime import environment, is_production
+
 # Load .env only for local/dev; Cloud Run uses env vars
 load_dotenv()
 
@@ -43,8 +45,13 @@ app = FastAPI(
 )
 
 # ---------- CORS ----------
-allowed_origins = ["http://localhost:3000", "http://localhost:5000"]
-if os.getenv("ENVIRONMENT") == "production":
+allowed_origins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5000",
+    "http://127.0.0.1:5000",
+]
+if is_production():
     allowed_origins = [
         "https://cpaautomation.ai",
         "https://www.cpaautomation.ai",
@@ -62,8 +69,10 @@ app.add_middleware(
 # Environment-based configuration (consistent with other settings)
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 if not stripe.api_key:
-    logger.critical("STRIPE_SECRET_KEY is missing")
-    raise RuntimeError("STRIPE_SECRET_KEY environment variable is required")
+    if is_production():
+        logger.critical("STRIPE_SECRET_KEY is missing")
+        raise RuntimeError("STRIPE_SECRET_KEY environment variable is required in production")
+    logger.warning("STRIPE_SECRET_KEY is not set; billing actions are disabled locally")
 
 # ---------- Security ----------
 security = HTTPBearer(auto_error=False)
@@ -89,7 +98,7 @@ async def on_startup():
     logger.info("Starting CPAAutomation API...")
     logger.info(
         "ENVIRONMENT=%s, LOG_LEVEL=%s, INIT_DB_AT_STARTUP=%s",
-        os.getenv("ENVIRONMENT"),
+        environment(),
         LOG_LEVEL,
         INIT_DB_AT_STARTUP,
     )
@@ -136,7 +145,7 @@ from routes import (
     analytics_firms, analytics_clients, analytics_research,
     analytics_assistant, analytics_waterfall, analytics_amortization,
     analytics_reconciliation, analytics_variance, analytics_comments, activation,
-    chrona_devices, chrona_sync, chrona_dashboard, connector,
+    chrona_devices, chrona_sync, chrona_dashboard, connector, local_storage,
 )
 from inkwise.router import router as inkwise_router
 
@@ -170,6 +179,7 @@ app.include_router(connector.admin_router)
 app.include_router(chrona_devices.router)
 app.include_router(chrona_sync.router)
 app.include_router(chrona_dashboard.router)
+app.include_router(local_storage.router, prefix="/api/local-storage", tags=["local-development"])
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
 if __name__ == "__main__":

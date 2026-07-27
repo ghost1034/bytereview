@@ -9,7 +9,7 @@ import {
   RefreshCw, Edit3, FileDown, CheckCircle, Plus, Settings, Layers, Sparkles
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { auth } from '@/lib/firebase';
+import { getCurrentAuthToken } from '@/lib/firebase';
 import { INITIAL_SOURCE_A, INITIAL_SOURCE_B } from '@/lib/analytics/mockReconData';
 
 export type UploadModule = 'variance' | 'reconciliation' | 'amortization' | 'waterfall';
@@ -692,7 +692,7 @@ export default function DataUploadFlow({ module, uploadType = 'bulk', varianceMo
           }
         }
 
-        const token = await auth.currentUser?.getIdToken();
+        const token = await getCurrentAuthToken();
         const response = await fetch(endpoint, {
           method: 'POST',
           headers: {

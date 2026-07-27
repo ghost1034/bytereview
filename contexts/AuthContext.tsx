@@ -13,6 +13,7 @@ import {
   auth,
   getPhoneMfaResolver,
   getPreferredPhoneMfaHint,
+  getCurrentAuthUser,
   handleRedirectResult,
   hasEnrolledPhoneMfa,
   isMultiFactorAuthRequiredError,
@@ -144,14 +145,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [router])
 
   const refreshCurrentUser = useCallback(async () => {
-    const currentUser = auth.currentUser
+    const currentUser = getCurrentAuthUser()
     if (!currentUser) {
       setUser(null)
       return null
     }
 
     await currentUser.reload()
-    const refreshedUser = auth.currentUser
+    const refreshedUser = getCurrentAuthUser()
     setUser(refreshedUser)
     return refreshedUser
   }, [])
@@ -269,7 +270,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         console.log('Email sign-up successful, awaiting MFA enrollment')
         await result.user.reload()
-        const refreshedUser = auth.currentUser ?? result.user
+        const refreshedUser = getCurrentAuthUser() ?? result.user
         setPendingEnrollmentPhoneNumber(requiresPhoneMfaEnrollment(refreshedUser) ? (phoneNumber ?? null) : null)
         setUser(refreshedUser)
         navigateAfterAuthentication(refreshedUser, consumeRedirectTarget())
@@ -298,7 +299,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, [pendingMfaResolver])
 
   const completeMfaEnrollment = useCallback(async (redirectTo?: string) => {
-    const currentUser = auth.currentUser
+    const currentUser = getCurrentAuthUser()
     if (!currentUser) {
       throw new Error('Please sign in again to continue.')
     }
@@ -306,7 +307,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await currentUser.reload()
     await currentUser.getIdToken(true)
 
-    const refreshedUser = auth.currentUser
+    const refreshedUser = getCurrentAuthUser()
     if (!refreshedUser || !hasEnrolledPhoneMfa(refreshedUser)) {
       throw new Error('Phone sign-in verification is not complete yet.')
     }
@@ -325,14 +326,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const result = await pendingMfaResolver.resolveSignIn(assertion)
     await result.user.getIdToken(true)
 
-    const refreshedUser = auth.currentUser ?? result.user
+    const refreshedUser = getCurrentAuthUser() ?? result.user
     setPendingMfaResolver(null)
     setUser(refreshedUser)
     router.push(normalizeAuthRedirectPath(redirectTo ?? consumeRedirectTarget()))
   }, [consumeRedirectTarget, pendingMfaResolver, router])
 
   const sendCurrentUserEmailVerification = useCallback(async () => {
-    const currentUser = auth.currentUser
+    const currentUser = getCurrentAuthUser()
     if (!currentUser) {
       throw new Error('Please sign in again to continue.')
     }

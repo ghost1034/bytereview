@@ -12,6 +12,8 @@ from email.mime.text import MIMEText
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+from core.runtime import is_local
+
 logger = logging.getLogger(__name__)
 
 class EmailService:
@@ -57,6 +59,9 @@ class EmailService:
 
     def send_email(self, to_email: str, subject: str, body_text: str, reply_to: Optional[str] = None) -> bool:
         """Send a simple text email. Returns True on success, False otherwise."""
+        if is_local():
+            logger.info("Local email sink: to=%s subject=%s", to_email, subject)
+            return True
         try:
             service = self._get_gmail_service()
             if not service:
@@ -79,6 +84,9 @@ class EmailService:
         reply_to: Optional[str] = None,
     ) -> bool:
         """Send a multipart/alternative email (HTML with plain-text fallback)."""
+        if is_local():
+            logger.info("Local HTML email sink: to=%s subject=%s", to_email, subject)
+            return True
         try:
             service = self._get_gmail_service()
             if not service:

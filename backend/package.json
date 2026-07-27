@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "generate-types": "venv/bin/python generate_openapi.py --output openapi.json && npx openapi-typescript openapi.json --output ../lib/api-types.ts",
-    "check-openapi": "venv/bin/python generate_openapi.py --check openapi.json",
-    "test": "venv/bin/pytest tests"
+    "generate-types": ".venv/bin/python generate_openapi.py --output openapi.json && npx openapi-typescript openapi.json --output ../lib/api-types.ts",
+    "check-openapi": ".venv/bin/python generate_openapi.py --check openapi.json",
+    "test": ".venv/bin/pytest tests"
   },
   "keywords": [],
   "author": "",

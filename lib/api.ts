@@ -1,5 +1,5 @@
 // Typed API client using generated OpenAPI types
-import { auth } from './firebase'
+import { getCurrentAuthToken } from './firebase'
 import type { paths } from './api-types'
 import { buildEsignReportQuery } from './esign/reportFilters'
 
@@ -114,9 +114,7 @@ export class ApiClient {
   }
 
   private async getAuthToken(): Promise<string | null> {
-    const user = auth.currentUser
-    if (!user) return null
-    return await user.getIdToken()
+    return getCurrentAuthToken()
   }
 
   async request<T>(
@@ -496,9 +494,9 @@ export class ApiClient {
    * Get auth token for SSE connections (public method)
    */
   async getAuthTokenForSSE(): Promise<string> {
-    const user = auth.currentUser
-    if (!user) throw new Error('Not authenticated')
-    return await user.getIdToken()
+    const token = await getCurrentAuthToken()
+    if (!token) throw new Error('Not authenticated')
+    return token
   }
 
   async deleteJob(jobId: string): Promise<void> {

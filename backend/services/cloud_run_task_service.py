@@ -7,13 +7,18 @@ import asyncio
 import json
 import logging
 import hashlib
+import uuid
 from typing import Dict, Any, Optional, List
+from urllib.parse import urlparse
+import httpx
 from google.api_core.exceptions import NotFound
 from google.cloud import tasks_v2
 from google.protobuf import timestamp_pb2
 from google.protobuf import field_mask_pb2
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
+
+from core.runtime import require_cloud_value, task_backend
 
 load_dotenv()
 
@@ -23,16 +28,18 @@ class CloudRunTaskService:
     """Service for managing Cloud Run Tasks execution"""
     
     def __init__(self):
-        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID", "ace-rider-383100")
+        self.backend = task_backend()
+        self.project_id = os.getenv("GOOGLE_CLOUD_PROJECT_ID") or ("local" if self.backend == "local" else require_cloud_value("GOOGLE_CLOUD_PROJECT_ID"))
         self.region = os.getenv("CLOUD_RUN_REGION", "us-central1")
         self._tasks_client = None
+        self._local_tasks: set[asyncio.Task] = set()
         
         # Task service URLs - get from environment variables (Secret Manager)
         self.task_services = {
-            "extract": os.getenv("TASK_EXTRACT_URL", "https://task-extract-oyrpyor7wq-uc.a.run.app"),
-            "io": os.getenv("TASK_IO_URL", "https://task-io-oyrpyor7wq-uc.a.run.app"), 
-            "automation": os.getenv("TASK_AUTOMATION_URL", "https://task-automation-oyrpyor7wq-uc.a.run.app"),
-            "maintenance": os.getenv("TASK_MAINTENANCE_URL", "https://task-maintenance-oyrpyor7wq-uc.a.run.app")
+            "extract": os.getenv("TASK_EXTRACT_URL") or ("http://127.0.0.1:8001" if self.backend == "local" else require_cloud_value("TASK_EXTRACT_URL")),
+            "io": os.getenv("TASK_IO_URL") or ("http://127.0.0.1:8002" if self.backend == "local" else require_cloud_value("TASK_IO_URL")),
+            "automation": os.getenv("TASK_AUTOMATION_URL") or ("http://127.0.0.1:8003" if self.backend == "local" else require_cloud_value("TASK_AUTOMATION_URL")),
+            "maintenance": os.getenv("TASK_MAINTENANCE_URL") or ("http://127.0.0.1:8004" if self.backend == "local" else require_cloud_value("TASK_MAINTENANCE_URL")),
         }
         
         # Debug logging
@@ -368,6 +375,34 @@ class CloudRunTaskService:
         dispatch_deadline_seconds: Optional[int] = None,
     ) -> str:
         """Create a Cloud Task"""
+        if self.backend == "local":
+            parsed = urlparse(service_url)
+            if parsed.scheme != "http" or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}:
+                raise RuntimeError(f"Local task dispatch refused non-local URL: {service_url}")
+
+            task_name = f"local/{uuid.uuid4()}"
+
+            async def dispatch() -> None:
+                if delay_seconds > 0:
+                    await asyncio.sleep(delay_seconds)
+                try:
+                    async with httpx.AsyncClient(timeout=None) as client:
+                        response = await client.post(
+                            service_url,
+                            json=json.loads(json.dumps(task_data, default=str)),
+                            headers={"X-CloudTasks-TaskName": task_name},
+                        )
+                        response.raise_for_status()
+                    logger.info("Completed local task %s", task_name)
+                except Exception:
+                    logger.exception("Local task %s failed", task_name)
+
+            scheduled = asyncio.create_task(dispatch(), name=task_name)
+            self._local_tasks.add(scheduled)
+            scheduled.add_done_callback(self._local_tasks.discard)
+            logger.info("Scheduled local task %s -> %s", task_name, service_url)
+            return task_name
+
         try:
             # Debug logging
             logger.info(f"Creating Cloud Task with URL: {service_url}")

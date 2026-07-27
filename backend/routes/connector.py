@@ -651,7 +651,8 @@ async def revoke_token(
 # ---------------------------------------------------------------------------
 
 MCP_PROTOCOL_VERSION = "2025-03-26"
-DASHBOARD_INTEGRATIONS_URL = "https://cpaautomation.ai/dashboard/integrations"
+from core.runtime import frontend_base_url
+DASHBOARD_INTEGRATIONS_URL = f"{frontend_base_url()}/dashboard/integrations"
 
 MCP_TOOLS: List[Dict[str, Any]] = [
     {

@@ -12,6 +12,9 @@ from google.auth import impersonated_credentials
 from google.auth.transport.requests import Request as AuthRequest
 from google.cloud import storage
 
+from core.runtime import storage_backend
+from services.local_storage_service import LocalStorageClient, local_storage_url
+
 
 class InkwiseGcsError(RuntimeError):
     pass
@@ -61,7 +64,9 @@ def _ensure_access_token(creds: object) -> str:
     return str(token)
 
 
-def storage_client() -> storage.Client:
+def storage_client():
+    if storage_backend() == "local":
+        return LocalStorageClient()
     return storage.Client()
 
 
@@ -94,6 +99,16 @@ def generate_signed_upload_url(
     content_type: str,
     expires_in_seconds: int = 15 * 60,
 ) -> tuple[str, dict[str, str]]:
+    if storage_backend() == "local":
+        return (
+            local_storage_url(
+                "PUT",
+                bucket,
+                object_name,
+                expires_in_seconds=expires_in_seconds,
+            ),
+            {"Content-Type": content_type},
+        )
     try:
         client = storage_client()
         blob = client.bucket(bucket).blob(object_name)
@@ -156,6 +171,15 @@ def generate_signed_download_url(
     disposition_filename: str | None = None,
     inline: bool = False,
 ) -> str:
+    if storage_backend() == "local":
+        return local_storage_url(
+            "GET",
+            bucket,
+            object_name,
+            expires_in_seconds=expires_in_seconds,
+            download_filename=_normalize_disposition_filename(disposition_filename, object_name),
+            inline=inline,
+        )
     try:
         client = storage_client()
         blob = client.bucket(bucket).blob(object_name)

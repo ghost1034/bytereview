@@ -12,6 +12,8 @@ from google.cloud import storage
 from google.cloud.exceptions import NotFound
 import tempfile
 
+from core.runtime import storage_backend
+
 logger = logging.getLogger(__name__)
 
 class GCSService:
@@ -772,6 +774,14 @@ def get_storage_service():
     global _storage_service
     
     if _storage_service is None:
+        if storage_backend() == "local":
+            from services.local_storage_service import LocalStorageService
+
+            _storage_service = LocalStorageService()
+            logger.info("Using filesystem object storage for local development")
+            return _storage_service
+        if storage_backend() != "gcs":
+            raise RuntimeError(f"Unsupported STORAGE_BACKEND: {storage_backend()}")
         gcs_service = GCSService()
         if gcs_service.is_available():
             _storage_service = gcs_service

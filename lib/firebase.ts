@@ -21,16 +21,19 @@ import {
   type User,
 } from "firebase/auth";
 
+export const isLocalDevelopment =
+  process.env.NEXT_PUBLIC_APP_ENV === 'local' ||
+  (!process.env.NEXT_PUBLIC_APP_ENV && process.env.NODE_ENV === 'development');
+
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseapp.com`,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebasestorage.app`,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  // Firebase web config values are public identifiers. Keep the production
-  // stream as the fallback so Analytics cannot silently disappear when an
-  // older deployment environment has not added the build argument yet.
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID || 'G-QEL07CSS47',
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || (isLocalDevelopment ? 'local-api-key' : undefined),
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || (isLocalDevelopment ? 'localhost' : `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebaseapp.com`),
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || (isLocalDevelopment ? 'cpaautomation-local' : undefined),
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    ? `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.firebasestorage.app`
+    : (isLocalDevelopment ? 'cpaautomation-local' : undefined),
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || (isLocalDevelopment ? 'local-app-id' : undefined),
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 console.log('Firebase config loaded:', {
@@ -43,6 +46,33 @@ console.log('Firebase config loaded:', {
 export const firebaseApp = initializeApp(firebaseConfig);
 export const auth = getAuth(firebaseApp);
 export const googleProvider = new GoogleAuthProvider();
+
+const localUser = {
+  uid: 'local-developer',
+  email: 'local.developer@example.com',
+  displayName: 'Local Developer',
+  photoURL: null,
+  phoneNumber: null,
+  emailVerified: true,
+  isAnonymous: false,
+  providerId: 'local',
+  providerData: [],
+  metadata: {},
+  tenantId: null,
+  refreshToken: 'local',
+  delete: async () => undefined,
+  getIdToken: async () => 'cpaautomation-local-development',
+  getIdTokenResult: async () => ({ token: 'cpaautomation-local-development', claims: {}, authTime: '', issuedAtTime: '', expirationTime: '', signInProvider: null, signInSecondFactor: null }),
+  reload: async () => undefined,
+  toJSON: () => ({ uid: 'local-developer', email: 'local.developer@example.com' }),
+} as unknown as User;
+
+export const getCurrentAuthUser = (): User | null => isLocalDevelopment ? localUser : auth.currentUser;
+
+export const getCurrentAuthToken = async (): Promise<string | null> => {
+  const user = getCurrentAuthUser();
+  return user ? user.getIdToken() : null;
+};
 
 // Configure Google provider
 googleProvider.addScope('email');
@@ -114,6 +144,7 @@ const signInWithGooglePopup = (): Promise<Awaited<ReturnType<typeof signInWithPo
 // NEVER silently fall back into a second account-selection prompt. We only fall back to
 // a full-page redirect when the popup genuinely could not open.
 export const signInWithGoogle = async () => {
+  if (isLocalDevelopment) return { user: localUser };
   console.log('Initiating Google sign-in popup...');
   try {
     const result = await signInWithGooglePopup();
@@ -146,6 +177,7 @@ export const signInWithGoogle = async () => {
 
 // Handle redirect result
 export const handleRedirectResult = () => {
+  if (isLocalDevelopment) return Promise.resolve(null);
   console.log('Checking for redirect result...');
   return getRedirectResult(auth).then((result) => {
     console.log('Redirect result received:', result);
@@ -158,26 +190,34 @@ export const handleRedirectResult = () => {
 
 // Sign out
 export const signOutUser = () => {
+  if (isLocalDevelopment) return Promise.resolve();
   return signOut(auth);
 };
 
 // Email/password authentication
 export const signUpWithEmail = (email: string, password: string) => {
+  if (isLocalDevelopment) return Promise.resolve({ user: localUser });
   console.log('Creating account with email:', email);
   return createUserWithEmailAndPassword(auth, email, password);
 };
 
 // Update user profile
 export const updateUserProfile = (user: any, profile: { displayName?: string; photoURL?: string }) => {
+  if (isLocalDevelopment) {
+    Object.assign(user, profile);
+    return Promise.resolve();
+  }
   return updateProfile(user, profile);
 };
 
 export const signInWithEmail = (email: string, password: string) => {
+  if (isLocalDevelopment) return Promise.resolve({ user: localUser });
   console.log('Signing in with email:', email);
   return signInWithEmailAndPassword(auth, email, password);
 };
 
 export const sendVerificationEmailToUser = (user: User) => {
+  if (isLocalDevelopment) return Promise.resolve()
   return sendEmailVerification(user)
 }
 
@@ -194,6 +234,7 @@ export const getEnrolledPhoneMfaFactors = (user: User | null | undefined): Phone
 }
 
 export const hasEnrolledPhoneMfa = (user: User | null | undefined) => {
+  if (isLocalDevelopment) return true
   return getEnrolledPhoneMfaFactors(user).length > 0
 }
 
@@ -211,5 +252,9 @@ export const getPreferredPhoneMfaHint = (resolver: MultiFactorResolver): PhoneMu
 
 // Auth state observer
 export const onAuthStateChange = (callback: (user: any) => void) => {
+  if (isLocalDevelopment) {
+    queueMicrotask(() => callback(localUser));
+    return () => undefined;
+  }
   return onAuthStateChanged(auth, callback);
 };

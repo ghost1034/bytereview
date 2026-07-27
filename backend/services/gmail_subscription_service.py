@@ -15,10 +15,7 @@ class GmailSubscriptionService:
         self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT_ID')
         self.topic_name = os.getenv('GMAIL_PUBSUB_TOPIC', 'gmail-notifications')
         self.subscription_name = os.getenv('GMAIL_PUBSUB_SUBSCRIPTION', 'gmail-notifications-sub')
-        self.webhook_url = os.getenv('GMAIL_WEBHOOK_URL', 'https://your-domain.com/api/webhooks/gmail-push')
-        
-        if not self.project_id:
-            raise ValueError("GOOGLE_CLOUD_PROJECT_ID environment variable is required")
+        self.webhook_url = os.getenv('GMAIL_WEBHOOK_URL', 'http://127.0.0.1:8000/api/webhooks/gmail-push')
     
     def setup_pubsub_infrastructure(self) -> bool:
         """
@@ -27,6 +24,9 @@ class GmailSubscriptionService:
         Returns:
             True if setup successful, False otherwise
         """
+        if not self.project_id:
+            logger.warning("Gmail Pub/Sub is disabled because GOOGLE_CLOUD_PROJECT_ID is not configured")
+            return False
         try:
             from google.cloud import pubsub_v1
             from google.api_core import exceptions

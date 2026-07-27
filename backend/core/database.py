@@ -9,6 +9,8 @@ from models.db_models import Base
 from models import inkwise_models  # noqa: F401
 import logging
 
+from core.runtime import is_local
+
 logger = logging.getLogger(__name__)
 
 class DatabaseConfig:
@@ -17,7 +19,10 @@ class DatabaseConfig:
     def __init__(self):
         self.database_url = os.getenv("DATABASE_URL")
         if not self.database_url:
-            raise ValueError("DATABASE_URL environment variable is required")
+            if not is_local():
+                raise ValueError("DATABASE_URL environment variable is required outside local development")
+            self.database_url = "postgresql://bytereview:bytereview@127.0.0.1:5432/bytereview_dev"
+            logger.info("DATABASE_URL not set; using the local development database")
         
         # Create engine
         self.engine = create_engine(
