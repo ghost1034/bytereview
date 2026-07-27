@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -10,6 +10,29 @@ const backendDir = path.join(repoRoot, 'backend')
 const venvDir = path.join(backendDir, '.venv')
 const python = path.join(venvDir, 'bin', 'python')
 const pip = path.join(venvDir, 'bin', 'pip')
+const localOverridesPath = path.join(repoRoot, '.local', 'google-cloud.env')
+
+function loadLocalOverrides(filePath) {
+  if (!existsSync(filePath)) return
+
+  for (const line of readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:export\s+)?(CPAA_LOCAL_[A-Z0-9_]+)\s*=\s*(.*)\s*$/)
+    if (!match) continue
+
+    const [, key, rawValue] = match
+    if (Object.hasOwn(process.env, key)) continue
+
+    const quote = rawValue[0]
+    const value = (quote === '"' || quote === "'") && rawValue.at(-1) === quote
+      ? rawValue.slice(1, -1)
+      : rawValue
+    process.env[key] = value
+  }
+
+  console.log(`Loaded local cloud overrides from ${path.relative(repoRoot, filePath)}`)
+}
+
+loadLocalOverrides(localOverridesPath)
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
