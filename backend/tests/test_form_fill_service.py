@@ -2723,12 +2723,12 @@ class FormFillExampleFixtureTests(unittest.TestCase):
         self.assertEqual(names["Marcus Bell"], ("Bell & Sons Electrical", ""))
         self.assertEqual(names["Sofia Herrera"], ("Herrera Translations Inc.", ""))
 
-    def test_request_letter_placeholders_match_contractor_columns(self) -> None:
+    def test_request_letter_replaces_only_matching_contractor_columns(self) -> None:
         records = self.service._load_csv_records(str(_CONTRACTORS_EXAMPLE_PATH))
         placeholders = self.service._extract_docx_placeholders(str(_W9_REQUEST_LETTER_PATH))
         replacements = self.service._record_placeholder_replacements(placeholders, records[0]["record_payload"])
 
-        self.assertEqual(set(replacements), set(placeholders))
+        self.assertEqual(set(placeholders) - set(replacements), {"{{Business Name}}"})
 
 
 class FormFillDroppedValueWarningTests(unittest.TestCase):

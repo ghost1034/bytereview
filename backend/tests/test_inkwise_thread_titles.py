@@ -37,7 +37,7 @@ class ThreadTitleHelperTests(unittest.TestCase):
 
 
 class ThreadAutoNameRouteTests(unittest.IsolatedAsyncioTestCase):
-    async def test_maybe_auto_name_thread_uses_small_output_cap(self) -> None:
+    async def test_maybe_auto_name_thread_uses_model_output_cap(self) -> None:
         with patch(
             "inkwise.routes.chat.generate_text",
             new=AsyncMock(return_value=SimpleNamespace(text="Lease termination summary")),
@@ -53,7 +53,7 @@ class ThreadAutoNameRouteTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(details.get("updated"))
         update_thread_title_mock.assert_called_once()
-        self.assertEqual(generate_text_mock.await_args.kwargs["max_output_tokens"], 32)
+        self.assertEqual(generate_text_mock.await_args.kwargs["max_output_tokens"], 65536)
 
     async def test_auto_name_thread_after_response_closes_session_on_failure(self) -> None:
         fake_db = MagicMock()
