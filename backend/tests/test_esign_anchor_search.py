@@ -71,6 +71,43 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertAlmostEqual(matches["after"].x, matches["after"].reference_x)
         self.assertLess(matches["right"].x, matches["after"].x)
 
+    async def test_field_is_vertically_centered_on_anchor_text(self) -> None:
+        pdf = fitz.open()
+        page = pdf.new_page(width=612, height=792)
+        page.insert_text((72, 200), "Signature:")
+        anchor_rect = page.search_for("Signature:")[0]
+        content = pdf.tobytes()
+        pdf.close()
+        service = self._service_for_pdf(content)
+        document = types.SimpleNamespace(id=uuid.uuid4(), gcs_object_name="anchor.pdf")
+
+        field_height = 0.06
+        result = await service._search_anchors(
+            [document], anchor="Signature:", case_sensitive=True,
+            horizontal_alignment="after", field_width=0.2, field_height=field_height,
+        )
+
+        match = result.matches[0]
+        anchor_center = (anchor_rect.y0 + anchor_rect.y1) / 2 / 792
+        self.assertAlmostEqual(match.reference_y, anchor_center)
+        self.assertAlmostEqual(match.y + field_height / 2, anchor_center)
+
+    async def test_point_only_anchor_search_preserves_top_edge_y(self) -> None:
+        pdf = fitz.open()
+        page = pdf.new_page(width=612, height=792)
+        page.insert_text((72, 200), "Signature:")
+        anchor_rect = page.search_for("Signature:")[0]
+        content = pdf.tobytes()
+        pdf.close()
+        service = self._service_for_pdf(content)
+        document = types.SimpleNamespace(id=uuid.uuid4(), gcs_object_name="anchor.pdf")
+
+        result = await service._search_anchors(
+            [document], anchor="Signature:", case_sensitive=True,
+        )
+
+        self.assertAlmostEqual(result.matches[0].y, anchor_rect.y0 / 792)
+
     async def test_field_box_is_clamped_inside_page_after_offsets(self) -> None:
         pdf = fitz.open()
         page = pdf.new_page(width=612, height=792)
@@ -98,6 +135,13 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertAlmostEqual(x, 0.65)
         self.assertAlmostEqual(y, 0.88)
+
+        x, y = EsignEnvelopeService._anchor_field_position(
+            0.4, 0.5, horizontal_alignment="after",
+            field_width=0.2, field_height=0.12,
+        )
+        self.assertAlmostEqual(x, 0.4)
+        self.assertAlmostEqual(y, 0.44)
 
     def test_pdf_widget_inspection_preserves_metadata_and_geometry(self) -> None:
         pdf = fitz.open()

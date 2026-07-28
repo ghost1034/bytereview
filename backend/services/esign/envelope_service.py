@@ -2137,15 +2137,20 @@ class EsignEnvelopeService:
         field_width: float,
         field_height: float,
     ) -> tuple[float, float]:
-        """Turn an anchor reference point into a bounded field top-left."""
+        """Turn an anchor center-line reference point into a bounded field top-left."""
         x = reference_x
         if horizontal_alignment == "center":
             x -= field_width / 2
         elif horizontal_alignment == "right":
             x -= field_width
+        # PDF text search rectangles are usually much shorter than signer
+        # fields. Center the field on the anchor text instead of treating the
+        # text's top edge as the field's top edge, which makes the field grow
+        # downward over the following line.
+        y = reference_y - field_height / 2
         return (
             max(0.0, min(max(0.0, 1.0 - field_width), x)),
-            max(0.0, min(max(0.0, 1.0 - field_height), reference_y)),
+            max(0.0, min(max(0.0, 1.0 - field_height), y)),
         )
 
     async def _search_anchors(
@@ -2197,7 +2202,7 @@ class EsignEnvelopeService:
                             reference_x = ((rect.x0 + rect.x1) / 2 + dx) / page.rect.width
                         else:  # right-edge alignment and placement after the anchor
                             reference_x = (rect.x1 + dx) / page.rect.width
-                        reference_y = (rect.y0 + dy) / page.rect.height
+                        reference_y = ((rect.y0 + rect.y1) / 2 + dy) / page.rect.height
                         field_x, field_y = self._anchor_field_position(
                             reference_x,
                             reference_y,
@@ -2205,6 +2210,10 @@ class EsignEnvelopeService:
                             field_width=field_width,
                             field_height=field_height,
                         )
+                        if field_height == 0:
+                            # Keep point-only responses compatible with older
+                            # clients that expect y to be the anchor's top.
+                            field_y = max(0.0, min(1.0, (rect.y0 + dy) / page.rect.height))
                         matches.append(
                             EsignAnchorMatch(
                                 document_id=str(document.id),

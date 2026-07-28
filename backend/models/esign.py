@@ -917,9 +917,9 @@ class EsignAnchorMatch(BaseModel):
     y: float
     width: float
     height: float
-    # Unclamped alignment point after offsets. Send-time resolution reuses it
-    # with each field's current dimensions, including fields resized after the
-    # original anchor search.
+    # Unclamped horizontal alignment point and vertical anchor center after
+    # offsets. Send-time resolution reuses them with each field's current
+    # dimensions, including fields resized after the original anchor search.
     reference_x: Optional[float] = None
     reference_y: Optional[float] = None
 
