@@ -109,7 +109,7 @@ export default function EsignTemplatesPage() {
           <EmptyState
             icon={FileText}
             title="No templates yet"
-            description="Create a template from PDFs, or save an envelope as a template from its review step."
+            description="Create a template from PDFs or Word documents, or save an envelope as a template from its review step."
             action={
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus className="mr-1.5 size-4" /> New template
@@ -195,7 +195,7 @@ export default function EsignTemplatesPage() {
           <DialogHeader>
             <DialogTitle>New template</DialogTitle>
             <DialogDescription>
-              Upload the PDFs and name the signer roles. You&apos;ll place fields next.
+              Upload PDFs or Word documents and name the signer roles. You&apos;ll place fields next.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -243,12 +243,16 @@ export default function EsignTemplatesPage() {
             <div className="space-y-2">
               <Label>Documents</Label>
               <Dropzone
-                onFiles={(incoming) =>
-                  setFiles((prev) => [...prev, ...incoming.filter((f) => f.name.toLowerCase().endsWith('.pdf'))])
-                }
-                accept="application/pdf,.pdf"
-                title="Drop PDFs here or click to upload"
-                description=""
+                onFiles={(incoming) => {
+                  const supported = incoming.filter((file) => /\.(pdf|docx)$/i.test(file.name))
+                  if (supported.length !== incoming.length) {
+                    toast({ title: 'Only PDF and Word (.docx) documents are supported', variant: 'destructive' })
+                  }
+                  setFiles((prev) => [...prev, ...supported])
+                }}
+                accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx"
+                title="Drop PDF or Word documents here or click to upload"
+                description="Word documents are converted to PDF for signing."
               />
               {files.length > 0 && (
                 <ul className="divide-y divide-border rounded-md border border-border">

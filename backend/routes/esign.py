@@ -890,7 +890,7 @@ async def add_documents(
     files: list[UploadFile] = File(...),
     token: dict = Depends(verify_firebase_token),
 ):
-    """Attach additional PDFs to a draft envelope."""
+    """Attach additional PDF or Word documents to a draft envelope."""
     try:
         return await esign_envelope_service.add_documents(
             _uid(token), envelope_id, await _read_uploads(files)

@@ -62,7 +62,7 @@ export default function NewEnvelopePage() {
       <PageHeader
         eyebrow="E-Signature"
         title="New envelope"
-        description="Set up the envelope, or start from a saved template. You’ll add PDFs on the preparation screen."
+        description="Set up the envelope, or start from a saved template. You’ll add PDFs or Word documents on the preparation screen."
         actions={
           <Button variant="ghost" asChild>
             <Link href="/dashboard/esign">
@@ -103,7 +103,7 @@ export default function NewEnvelopePage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No template — add PDFs next</SelectItem>
+                <SelectItem value="none">No template — add documents next</SelectItem>
                 {templatesQuery.data!.templates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}

@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import re
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -71,6 +72,7 @@ from services.esign.audit_service import EsignRequestMeta
 from services.esign.field_logic import FieldLogicError, remap_property_references, validate_field_graph
 from services.gcs_service import get_storage_service
 from services.analytics.firm_scope import require_firm_id
+from services.document_conversion_service import get_document_conversion_service
 from services.esign.authorization_service import esign_authorization_service
 
 logger = logging.getLogger(__name__)
@@ -220,6 +222,43 @@ def _validate_pdf(content: bytes, filename: str) -> int:
     if page_count < 1:
         raise EsignError(f"'{filename}' has no pages")
     return page_count
+
+
+async def _prepare_esign_document(filename: str, content: bytes) -> tuple[str, bytes, int]:
+    """Return a canonical PDF for an uploaded PDF or Word document."""
+    safe_filename = os.path.basename(filename or "document.pdf")
+    if len(content) > MAX_DOCUMENT_BYTES:
+        raise EsignError(
+            f"'{safe_filename}' exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)}MB limit"
+        )
+
+    extension = os.path.splitext(safe_filename)[1].lower()
+    if extension == ".pdf":
+        return safe_filename, content, _validate_pdf(content, safe_filename)
+    if extension != ".docx":
+        raise EsignError(f"'{safe_filename}' must be a PDF or Word (.docx) document")
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="esign_docx_") as temp_dir:
+            input_path = os.path.join(temp_dir, "input.docx")
+            output_dir = os.path.join(temp_dir, "output")
+            with open(input_path, "wb") as handle:
+                handle.write(content)
+            pdf_path = await get_document_conversion_service().convert_docx_local_to_pdf_local(
+                input_path, out_dir=output_dir
+            )
+            with open(pdf_path, "rb") as handle:
+                pdf_content = handle.read()
+    except Exception as exc:
+        logger.warning("Could not convert E-Signature Word document %s", safe_filename, exc_info=True)
+        raise EsignError(f"'{safe_filename}' could not be converted to PDF") from exc
+
+    if len(pdf_content) > MAX_DOCUMENT_BYTES:
+        raise EsignError(
+            f"Converted '{safe_filename}' exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)}MB limit"
+        )
+    pdf_filename = f"{os.path.splitext(safe_filename)[0]}.pdf"
+    return pdf_filename, pdf_content, _validate_pdf(pdf_content, pdf_filename)
 
 
 def _normalize_email(email: str) -> str:
@@ -539,9 +578,7 @@ class EsignEnvelopeService:
         if len(files) > MAX_DOCUMENTS_PER_ENVELOPE:
             raise EsignError(f"At most {MAX_DOCUMENTS_PER_ENVELOPE} documents per envelope")
         for order, (filename, content) in enumerate(files):
-            if len(content) > MAX_DOCUMENT_BYTES:
-                raise EsignError(f"'{filename}' exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)}MB limit")
-            page_count = _validate_pdf(content, filename)
+            filename, content, page_count = await _prepare_esign_document(filename, content)
             digest = sha256_hex(content)
             object_name = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(filename)}"
             await self.storage.upload_file_content(content, object_name)
@@ -692,7 +729,7 @@ class EsignEnvelopeService:
         self, user_id: str, envelope_id: str, files: list[tuple[str, bytes]]
     ) -> EsignEnvelopeResponse:
         if not files:
-            raise EsignError("Provide at least one PDF")
+            raise EsignError("Provide at least one PDF or Word document")
         db = self._get_session()
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
@@ -705,9 +742,7 @@ class EsignEnvelopeService:
 
             next_order = max((int(d.display_order or 0) for d in existing), default=-1) + 1
             for offset, (filename, content) in enumerate(files):
-                if len(content) > MAX_DOCUMENT_BYTES:
-                    raise EsignError(f"'{filename}' exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)}MB limit")
-                page_count = _validate_pdf(content, filename)
+                filename, content, page_count = await _prepare_esign_document(filename, content)
                 digest = sha256_hex(content)
                 object_name = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(filename)}"
                 await self.storage.upload_file_content(content, object_name)
@@ -1175,14 +1210,12 @@ class EsignEnvelopeService:
         from services.esign.routing_engine import assert_routing_version
         from services.esign.signing_service import ACTIVE_ENVELOPE_STATUSES, esign_signing_service
 
-        if len(content) > MAX_DOCUMENT_BYTES:
-            raise EsignError("Replacement PDF exceeds the document size limit")
-        page_count = _validate_pdf(content, filename)
         db = self._get_session()
         new_object: Optional[str] = None
         old_object: Optional[str] = None
         try:
             envelope = self._load_envelope(db, user_id, envelope_id)
+            filename, content, page_count = await _prepare_esign_document(filename, content)
             db.query(EsignEnvelope).filter(EsignEnvelope.id == envelope.id).with_for_update().one()
             if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
                 raise EsignConflict("Documents can only be corrected on an active envelope")
@@ -1193,7 +1226,7 @@ class EsignEnvelopeService:
             if document is None:
                 raise EsignNotFound("Document not found")
             if any(str(field.document_id) == str(document.id) and int(field.page_number) >= page_count for field in envelope.fields or []):
-                raise EsignError("Replacement PDF has fewer pages than existing field placements")
+                raise EsignError("Replacement document has fewer pages than existing field placements")
             new_object = f"esign/{user_id}/{envelope.id}/original/{uuid.uuid4()}_{os.path.basename(filename)}"
             await self.storage.upload_file_content(content, new_object)
             old_object = document.gcs_object_name
@@ -1687,7 +1720,7 @@ class EsignEnvelopeService:
         if not name or not name.strip():
             raise EsignError("Template name is required")
         if not files:
-            raise EsignError("At least one PDF is required")
+            raise EsignError("At least one PDF or Word document is required")
         if not recipient_roles:
             recipient_roles = [EsignTemplateRoleInput(label="Signer 1", role="signer", routing_order=1)]
 
@@ -1720,9 +1753,7 @@ class EsignEnvelopeService:
             db.flush()
 
             for order, (filename, content) in enumerate(files):
-                if len(content) > MAX_DOCUMENT_BYTES:
-                    raise EsignError(f"'{filename}' exceeds the {MAX_DOCUMENT_BYTES // (1024 * 1024)}MB limit")
-                page_count = _validate_pdf(content, filename)
+                filename, content, page_count = await _prepare_esign_document(filename, content)
                 object_name = f"esign_templates/{user_id}/{template.id}/{uuid.uuid4()}_{os.path.basename(filename)}"
                 await self.storage.upload_file_content(content, object_name)
                 db.add(
@@ -1918,7 +1949,7 @@ class EsignEnvelopeService:
 
     async def add_template_documents(self, user_id: str, template_id: str,
                                      files: list[tuple[str, bytes]]) -> EsignTemplateResponse:
-        if not files: raise EsignError("Provide at least one PDF")
+        if not files: raise EsignError("Provide at least one PDF or Word document")
         db = self._get_session(); created_objects: list[str] = []
         try:
             template = self._load_template(db, user_id, template_id)
@@ -1926,8 +1957,7 @@ class EsignEnvelopeService:
                 raise EsignError(f"At most {MAX_DOCUMENTS_PER_ENVELOPE} documents per template")
             next_order = max((int(item.display_order) for item in template.documents or []), default=-1) + 1
             for offset, (filename, content) in enumerate(files):
-                if len(content) > MAX_DOCUMENT_BYTES: raise EsignError(f"'{filename}' is too large")
-                page_count = _validate_pdf(content, filename); document_id = uuid.uuid4()
+                filename, content, page_count = await _prepare_esign_document(filename, content); document_id = uuid.uuid4()
                 object_name = f"esign_templates/{user_id}/{template.id}/{document_id}_{os.path.basename(filename)}"
                 await self.storage.upload_file_content(content, object_name); created_objects.append(object_name)
                 db.add(EsignTemplateDocument(id=document_id, template_id=template.id,

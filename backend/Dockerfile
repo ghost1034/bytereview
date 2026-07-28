@@ -7,9 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
     HOME=/tmp
 
-# System deps kept small for the API. Heavy document tooling lives in task-extract.
+# The API converts E-Signature Word uploads to canonical PDFs synchronously.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ libpq-dev \
+    gcc g++ libpq-dev libreoffice-writer libreoffice-core libreoffice-common \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

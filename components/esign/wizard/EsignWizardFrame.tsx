@@ -15,7 +15,7 @@ import type { EsignEnvelopeResponse } from '@/lib/api'
 import { cn } from '@/lib/utils'
 
 export const ESIGN_WIZARD_STEPS: Step[] = [
-  { id: 'documents', label: 'Documents', description: 'Add PDFs', href: 'documents' },
+  { id: 'documents', label: 'Documents', description: 'Add PDF or Word files', href: 'documents' },
   { id: 'recipients', label: 'Recipients', description: 'Who signs, in order', href: 'recipients' },
   { id: 'fields', label: 'Fields', description: 'Place signature fields', href: 'fields' },
   { id: 'review', label: 'Review', description: 'Confirm and send', href: 'review' },
