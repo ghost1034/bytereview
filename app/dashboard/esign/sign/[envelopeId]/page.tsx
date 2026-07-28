@@ -3,120 +3,56 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import {
-  ArrowDown,
-  CheckCircle2,
-  Download,
-  FileBadge,
-  Loader2,
-  PenLine,
-  ShieldAlert,
-  ShieldCheck,
-} from 'lucide-react'
+import { Loader2, ShieldAlert } from 'lucide-react'
 
-import { ConsentGate } from '@/components/esign/sign/ConsentGate'
-import { formatDateSigned } from '@/components/esign/sign/dateSigned'
-import { DeclineDialog } from '@/components/esign/sign/DeclineDialog'
-import { SigningDocumentViewer } from '@/components/esign/sign/SigningDocumentViewer'
 import {
-  SignatureAdoptionModal,
-  type AdoptedSignature,
-} from '@/components/esign/sign/SignatureAdoptionModal'
+  SigningCeremony,
+  type SigningCeremonyTransport,
+} from '@/components/esign/sign/SigningCeremony'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
-import { useToast } from '@/hooks/use-toast'
-import {
-  useDeclineEnvelope,
-  useRecordConsent,
-  useSaveSigningProgress,
-  useSigningSession,
-  useSubmitSignature,
-} from '@/hooks/useEnvelopes'
-import { ApiError, apiClient, type EsignFieldResponse, type EsignSubmitRequest } from '@/lib/api'
-import type { EsignSignerAttachmentResponse } from '@/lib/api'
-import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility, validationErrors } from '@/lib/esign/fieldLogic'
-import { adoptedToMarks, marksToAdopted, mergeCeremonyState } from '@/lib/esign/ceremony'
-
-type CeremonyState = 'signing' | 'submitted' | 'declined'
-
-function ReadOnlyDocuments({ session }: { session: NonNullable<ReturnType<typeof useSigningSession>['data']> }) {
-  return <div className="space-y-8 rounded-lg bg-surface-muted p-3 sm:p-5">{(session.documents ?? []).map((doc) => <div key={doc.id} className="space-y-2">{session.documents.length > 1 && <h2 className="text-sm font-medium text-foreground-muted">{doc.original_filename}</h2>}<SigningDocumentViewer url={doc.download_url} name={doc.original_filename} fields={[]} fieldValues={{}} adopted={null} activeFieldId={null} onFieldClick={() => {}} onTextChange={() => {}} attachments={[]} onAttachmentUpload={() => {}} onAttachmentDelete={() => {}} /></div>)}</div>
-}
+import { useSigningSession } from '@/hooks/useEnvelopes'
+import { ApiError, apiClient } from '@/lib/api'
 
 export default function SigningCeremonyPage() {
   const params = useParams<{ envelopeId: string }>()
   const envelopeId = params?.envelopeId
   const router = useRouter()
-  const { toast } = useToast()
   const { user } = useAuth()
-
   const sessionQuery = useSigningSession(envelopeId)
-  const recordConsent = useRecordConsent(envelopeId!)
-  const submitSignature = useSubmitSignature(envelopeId!)
-  const declineEnvelope = useDeclineEnvelope(envelopeId!)
-  const saveProgress = useSaveSigningProgress(envelopeId!)
+  const refetchSession = sessionQuery.refetch
 
-  const [ceremonyState, setCeremonyState] = React.useState<CeremonyState>('signing')
-  const [adopted, setAdopted] = React.useState<AdoptedSignature | null>(null)
-  const [adoptionOpen, setAdoptionOpen] = React.useState(false)
-  const [declineOpen, setDeclineOpen] = React.useState(false)
-  const [fieldValues, setFieldValues] = React.useState<Record<string, string>>({})
-  const [attachments, setAttachments] = React.useState<EsignSignerAttachmentResponse[]>([])
-  const [downloading, setDownloading] = React.useState<'sealed' | 'certificate' | null>(null)
-  const [guideStarted, setGuideStarted] = React.useState(false)
-  const [activeFieldId, setActiveFieldId] = React.useState<string | null>(null)
-  const [pendingApplyFieldId, setPendingApplyFieldId] = React.useState<string | null>(null)
-  const [roleBusy, setRoleBusy] = React.useState(false)
-  const [handoffName, setHandoffName] = React.useState('')
-  const [guestLink, setGuestLink] = React.useState<string | null>(null)
-  const [witnessName, setWitnessName] = React.useState('')
-  const [witnessEmail, setWitnessEmail] = React.useState('')
-  const [witnessMode, setWitnessMode] = React.useState<'remote' | 'in_person'>('remote')
-  const [witnessOccupation, setWitnessOccupation] = React.useState('')
-  const [witnessAddress, setWitnessAddress] = React.useState('')
-  const [replacementName, setReplacementName] = React.useState('')
-  const [replacementEmail, setReplacementEmail] = React.useState('')
-  const [reassignmentReason, setReassignmentReason] = React.useState('')
-  const [managedValues, setManagedValues] = React.useState<Record<string, { name: string; email: string }>>({})
+  const transport = React.useMemo<SigningCeremonyTransport>(() => ({
+    access: 'authenticated',
+    recordConsent: (expectedRoutingVersion) => apiClient.recordEsignConsent(envelopeId!, expectedRoutingVersion),
+    saveProgress: ({ fieldValues, expectedRoutingVersion, marks }) =>
+      apiClient.saveEsignSigningProgress(envelopeId!, fieldValues, expectedRoutingVersion, marks ?? undefined),
+    submit: (payload) => apiClient.submitEsignSignature(envelopeId!, payload),
+    decline: (reason, expectedRoutingVersion) =>
+      apiClient.declineEsignEnvelope(envelopeId!, reason, expectedRoutingVersion),
+    uploadAttachment: (fieldId, file) => apiClient.uploadEsignSignerAttachment(envelopeId!, fieldId, file),
+    deleteAttachment: (attachmentId) => apiClient.deleteEsignSignerAttachment(envelopeId!, attachmentId),
+    reassign: (payload) => apiClient.reassignEsignRecipient(envelopeId!, payload),
+    approve: (expectedRoutingVersion) => apiClient.approveEsignEnvelope(envelopeId!, expectedRoutingVersion),
+    completeManagerStep: (expectedRoutingVersion) =>
+      apiClient.completeEsignManagerStep(envelopeId!, expectedRoutingVersion),
+    updateManagedRecipients: (payload) => apiClient.updateEsignManagedRecipients(envelopeId!, payload),
+    configureWitness: (payload) => apiClient.configureEsignWitness(envelopeId!, payload),
+    startInPerson: (payload) => apiClient.startEsignInPerson(envelopeId!, payload),
+    downloadCompleted: async (kind) => {
+      const result = kind === 'sealed'
+        ? await apiClient.getEsignSealedDownload(envelopeId!)
+        : await apiClient.getEsignCertificateDownload(envelopeId!)
+      window.open(result.url, '_blank', 'noopener')
+    },
+    refresh: async () => {
+      const result = await refetchSession()
+      if (!result.data) throw new Error('The signing session could not be refreshed')
+      return result.data
+    },
+    afterFinishLater: () => router.push('/dashboard/esign'),
+  }), [envelopeId, refetchSession, router])
 
-  const session = sessionQuery.data
-
-  React.useEffect(() => {
-    if (!session?.managed_recipients) return
-    setManagedValues(Object.fromEntries((session.managed_recipients ?? []).map((recipient) => [recipient.id, { name: recipient.name ?? '', email: recipient.email ?? '' }])))
-  }, [session?.managed_recipients])
-
-  // Save signer entries as they work; Finish Later remains an explicit exit.
-  React.useEffect(() => {
-    if (!session || session.consent_required || session.recipient_role === 'cc') return
-    if (Object.keys(fieldValues).length === 0) return
-    const timer = window.setTimeout(() => {
-      saveProgress.mutate(
-        {
-          fieldValues: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
-          expectedRoutingVersion: session.routing_version,
-          marks: adoptedToMarks(adopted),
-        },
-      )
-    }, 1000)
-    return () => window.clearTimeout(timer)
-    // The mutation object is intentionally excluded; field/session changes drive autosave.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fieldValues, adopted, session?.consent_required, session?.recipient_role])
-
-  React.useEffect(() => {
-    if (!session) return
-    setAttachments(session.attachments ?? [])
-    setFieldValues((previous) => mergeCeremonyState(previous, session))
-    setAdopted((previous) => previous ?? marksToAdopted(session.draft_marks))
-  }, [session])
-
-  // ---- error / terminal states -------------------------------------------
   if (sessionQuery.isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-foreground-muted">
@@ -126,547 +62,27 @@ export default function SigningCeremonyPage() {
   }
 
   if (sessionQuery.isError) {
-    const error = sessionQuery.error
-    const message =
-      error instanceof ApiError
-        ? error.message
-        : 'This envelope is not available for signing.'
+    const message = sessionQuery.error instanceof ApiError
+      ? sessionQuery.error.message
+      : 'This envelope is not available for signing.'
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-20 text-center">
         <ShieldAlert className="size-10 text-warning" />
         <h1 className="text-lg font-semibold">Can&apos;t open signing session</h1>
         <p className="text-sm text-foreground-muted">{message}</p>
-        <Button asChild variant="outline">
-          <Link href="/dashboard/esign">Go to E-Signature</Link>
-        </Button>
+        <Button asChild variant="outline"><Link href="/dashboard/esign">Go to E-Signature</Link></Button>
       </div>
     )
   }
 
-  if (!session) return null
-
-  const handleRoleDecline = async (reason: string) => {
-    try {
-      await declineEnvelope.mutateAsync({ reason, expectedRoutingVersion: session.routing_version })
-      setDeclineOpen(false)
-      setCeremonyState('declined')
-    } catch (error) {
-      toast({ title: 'Failed to decline', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
-    }
-  }
-  const performReassignment = async () => {
-    setRoleBusy(true)
-    try {
-      await apiClient.reassignEsignRecipient(session.envelope_id, {
-        replacement_name: replacementName.trim(), replacement_email: replacementEmail.trim(),
-        reason: reassignmentReason.trim(), expected_routing_version: session.routing_version,
-      })
-      setCeremonyState('submitted')
-      toast({ title: 'Recipient reassigned', description: 'Your access has been revoked and the replacement now owns this routing slot.' })
-    } catch (error) {
-      toast({ title: 'Reassignment failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
-    } finally { setRoleBusy(false) }
-  }
-
-  if (session.envelope_status === 'completed') {
-    const openDownload = async (kind: 'sealed' | 'certificate') => {
-      setDownloading(kind)
-      try {
-        const result =
-          kind === 'sealed'
-            ? await apiClient.getEsignSealedDownload(session.envelope_id)
-            : await apiClient.getEsignCertificateDownload(session.envelope_id)
-        window.open(result.url, '_blank', 'noopener')
-      } catch (error) {
-        toast({
-          title: 'Download failed',
-          description: error instanceof Error ? error.message : undefined,
-          variant: 'destructive',
-        })
-      } finally {
-        setDownloading(null)
-      }
-    }
-    return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-20 text-center">
-        <ShieldCheck className="size-12 text-success" />
-        <h1 className="text-xl font-semibold">Completed and digitally sealed</h1>
-        <p className="text-sm text-foreground-muted">
-          All parties have signed &quot;{session.title}&quot;. The sealed PDF carries an embedded
-          digital signature — any modification after completion will invalidate it.
-        </p>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button onClick={() => openDownload('sealed')} disabled={downloading === 'sealed'}>
-            {downloading === 'sealed' ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
-            ) : (
-              <Download className="mr-1.5 size-4" />
-            )}
-            Signed PDF
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => openDownload('certificate')}
-            disabled={downloading === 'certificate'}
-          >
-            {downloading === 'certificate' ? (
-              <Loader2 className="mr-1.5 size-4 animate-spin" />
-            ) : (
-              <FileBadge className="mr-1.5 size-4" />
-            )}
-            Certificate
-          </Button>
-        </div>
-        <Button asChild variant="ghost">
-          <Link href="/dashboard/esign">Back to E-Signature</Link>
-        </Button>
-      </div>
-    )
-  }
-
-  if (ceremonyState === 'submitted') {
-    return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-20 text-center">
-        <CheckCircle2 className="size-12 text-success" />
-        <h1 className="text-xl font-semibold">You&apos;re done signing</h1>
-        <p className="text-sm text-foreground-muted">
-          Your signature on &quot;{session.title}&quot; has been recorded with your identity
-          evidence. When every signer has finished, the document is digitally sealed and you&apos;ll
-          receive the completed copy by email.
-        </p>
-        <Button asChild>
-          <Link href="/dashboard/esign">Back to E-Signature</Link>
-        </Button>
-      </div>
-    )
-  }
-
-  if (ceremonyState === 'declined') {
-    return (
-      <div className="mx-auto flex max-w-md flex-col items-center gap-4 py-20 text-center">
-        <ShieldAlert className="size-12 text-warning" />
-        <h1 className="text-xl font-semibold">Envelope declined</h1>
-        <p className="text-sm text-foreground-muted">
-          The sender has been notified of your decision and reason.
-        </p>
-        <Button asChild variant="outline">
-          <Link href="/dashboard/esign">Back to E-Signature</Link>
-        </Button>
-      </div>
-    )
-  }
-
-  if (['approver', 'certified_delivery', 'agent', 'editor', 'in_person_signer'].includes(session.recipient_role)) {
-    const roleLabel = session.recipient_role.replace(/_/g, ' ')
-    const act = async (action: 'approve' | 'manager' | 'handoff') => {
-      setRoleBusy(true)
-      try {
-        if (action === 'approve') {
-          await apiClient.approveEsignEnvelope(session.envelope_id, session.routing_version)
-          setCeremonyState('submitted')
-        } else if (action === 'manager') {
-          await apiClient.completeEsignManagerStep(session.envelope_id, session.routing_version)
-          setCeremonyState('submitted')
-        } else {
-          const invitation = await apiClient.startEsignInPerson(session.envelope_id, { signer_name: handoffName, expected_routing_version: session.routing_version })
-          setGuestLink(invitation.guest_url)
-        }
-      } catch (error) {
-        toast({ title: 'Action could not be completed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
-      } finally { setRoleBusy(false) }
-    }
-    const saveManaged = async () => {
-      setRoleBusy(true)
-      try {
-        await apiClient.updateEsignManagedRecipients(session.envelope_id, {
-          expected_routing_version: session.routing_version,
-          recipients: Object.entries(managedValues).map(([recipient_id, value]) => ({ recipient_id, ...value })),
-        })
-        await sessionQuery.refetch()
-        toast({ title: 'Recipient identities updated' })
-      } catch (error) {
-        toast({ title: 'Recipients could not be updated', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
-      } finally { setRoleBusy(false) }
-    }
-    return <div className="space-y-5">
-      <div className="sticky top-0 z-40 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface/95 px-4 py-3 backdrop-blur"><div><h1 className="text-base font-semibold">{session.title}</h1><p className="text-xs capitalize text-foreground-muted">{roleLabel} ceremony · routing version {session.routing_version}</p></div><div className="flex gap-2">{(session.available_actions ?? []).includes('decline') && <Button variant="outline" onClick={() => setDeclineOpen(true)}>Decline</Button>}{(session.available_actions ?? []).includes('approve') && <Button disabled={roleBusy} onClick={() => void act('approve')}>Approve</Button>}{(session.available_actions ?? []).includes('manager_complete') && <Button disabled={roleBusy} onClick={() => void act('manager')}>Complete step</Button>}</div></div>
-      {session.private_message && <p className="rounded-lg border border-primary/20 bg-primary-soft p-4 text-sm"><span className="font-medium">Private message:</span> {session.private_message}</p>}
-      {(session.available_actions ?? []).includes('reassign') && <section className="grid gap-2 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3"><Input placeholder="Replacement name" value={replacementName} onChange={(event) => setReplacementName(event.target.value)} /><Input type="email" placeholder="Replacement email" value={replacementEmail} onChange={(event) => setReplacementEmail(event.target.value)} /><Input placeholder="Reason (required)" value={reassignmentReason} onChange={(event) => setReassignmentReason(event.target.value)} /><Button variant="outline" disabled={roleBusy || !replacementName.trim() || !replacementEmail.trim() || !reassignmentReason.trim()} onClick={() => void performReassignment()}>Reassign this step</Button></section>}
-      {session.recipient_role === 'certified_delivery' && <p className="rounded-lg border border-success/30 bg-success-soft p-4 text-sm">Delivery was recorded when this authenticated document session opened. No signature is required.</p>}
-      {['agent', 'editor'].includes(session.recipient_role) && <section className="space-y-3 rounded-lg border border-border bg-surface p-4"><div><h2 className="font-semibold">Managed recipients</h2><p className="text-sm text-foreground-muted">Resolve assigned placeholders. Editors may update any outstanding recipient.</p></div>{(session.managed_recipients ?? []).map((recipient) => <div key={recipient.id} className="grid gap-2 sm:grid-cols-2"><Input aria-label={`${recipient.role_label ?? 'Recipient'} name`} placeholder={recipient.role_label ?? 'Recipient name'} value={managedValues[recipient.id]?.name ?? ''} onChange={(event) => setManagedValues((current) => ({ ...current, [recipient.id]: { ...(current[recipient.id] ?? { email: '' }), name: event.target.value } }))} /><Input type="email" aria-label={`${recipient.role_label ?? 'Recipient'} email`} placeholder="recipient@example.com" value={managedValues[recipient.id]?.email ?? ''} onChange={(event) => setManagedValues((current) => ({ ...current, [recipient.id]: { ...(current[recipient.id] ?? { name: '' }), email: event.target.value } }))} /></div>)}<Button variant="outline" disabled={roleBusy || !(session.managed_recipients ?? []).length} onClick={() => void saveManaged()}>Save identities</Button></section>}
-      {session.recipient_role === 'in_person_signer' && <section className="space-y-3 rounded-lg border border-border bg-surface p-4"><h2 className="font-semibold">Hosted handoff</h2><p className="text-sm text-foreground-muted">Confirm the person signing on this device, then hand them the screen for consent and signing.</p><Input placeholder="In-person signer name" value={handoffName} onChange={(event) => setHandoffName(event.target.value)} /><Button disabled={roleBusy || !handoffName.trim()} onClick={() => void act('handoff')}>Start secure handoff</Button>{guestLink && <Button asChild variant="outline"><Link href={guestLink}>Continue to guest ceremony</Link></Button>}</section>}
-      <ReadOnlyDocuments session={session} />
-      <DeclineDialog open={declineOpen} onOpenChange={setDeclineOpen} declining={declineEnvelope.isPending} onDecline={handleRoleDecline} />
-    </div>
-  }
-
-  // ---- copy recipient (read-only) ----------------------------------------
-  if (session.recipient_role === 'cc') {
-    return (
-      <div className="space-y-4">
-        <div className="sticky top-0 z-40 -mx-1 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface/95 px-4 py-3 backdrop-blur">
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-semibold">{session.title}</h1>
-            <p className="text-xs text-foreground-muted">
-              From {session.sender_email} · You&apos;re receiving a copy — no action is needed
-            </p>
-          </div>
-          <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-medium text-foreground-muted">
-            Copy
-          </span>
-        </div>
-        {session.message && (
-          <p className="rounded-lg border border-border bg-surface p-4 text-sm text-foreground-muted">
-            {session.message}
-          </p>
-        )}
-        <ReadOnlyDocuments session={session} />
-      </div>
-    )
-  }
-
-  // ---- signing ------------------------------------------------------------
-  // Reading order (document, page, top-to-bottom, left-to-right) so guided
-  // navigation walks the envelope the way a person reads it.
-  const documentOrder = new Map((session.documents ?? []).map((d, i) => [d.id, i]))
-  const contextValues = Object.fromEntries((session.context_fields ?? []).map((field) => [field.id, field.value ?? '']))
-  const logicFields = [...(session.fields ?? []), ...(session.context_fields ?? [])]
-  const baseValues = { ...contextValues, ...fieldValues }
-  const displayValues = { ...baseValues, ...computeFormulas(logicFields, baseValues) }
-  const visibility = resolveVisibility(logicFields, displayValues)
-  const myFields = [...(session.fields ?? [])].filter((field) => visibility[field.id]).sort(
-    (a, b) =>
-      (documentOrder.get(a.document_id) ?? 0) - (documentOrder.get(b.document_id) ?? 0) ||
-      a.page_number - b.page_number ||
-      a.pos_y - b.pos_y ||
-      a.pos_x - b.pos_x,
-  )
-  const incompleteFields = findIncompleteFields(logicFields, displayValues, !!adopted)
-    .filter((field) => myFields.some((candidate) => candidate.id === field.id)) as EsignFieldResponse[]
-  const allFieldErrors = validationErrors(logicFields, displayValues, !!adopted)
-  const fieldErrors = Object.fromEntries(Object.entries(allFieldErrors).filter(([id]) => myFields.some((field) => field.id === id)))
-  const countedRadioGroups = new Set<string>()
-  const totalRequired = myFields.filter((field) => {
-    if (['signature', 'initials', 'stamp'].includes(field.field_type)) return isFieldRequired(field, logicFields, displayValues, visibility)
-    if (field.field_type === 'date_signed') return false
-    if (field.field_type === 'formula') return false
-    if (field.field_type === 'radio') {
-      const group = field.properties?.group?.id ?? field.id
-      if (countedRadioGroups.has(group)) return false
-      countedRadioGroups.add(group)
-      return myFields.filter((member) => member.field_type === 'radio' && member.properties?.group?.id === group)
-        .some((member) => isFieldRequired(member, logicFields, displayValues, visibility))
-    }
-    return isFieldRequired(field, logicFields, displayValues, visibility)
-  }).length
-  const completedCount = Math.max(0, totalRequired - incompleteFields.length)
-  const witnessEvidenceComplete = session.recipient_role !== 'witness' || (!!witnessOccupation.trim() && !!witnessAddress.trim())
-  const hasAppliedMarks = myFields.some((field) => ['signature', 'initials', 'stamp'].includes(field.field_type) && fieldValues[field.id] === 'true')
-  const hasSignatureLikeFields = myFields.some((field) => ['signature', 'initials', 'stamp'].includes(field.field_type))
-  const canFinish = (!hasAppliedMarks || !!adopted) && incompleteFields.length === 0 && witnessEvidenceComplete
-
-  const goToNextField = () => {
-    setGuideStarted(true)
-    const next = incompleteFields[0]
-    if (!next) return
-    setActiveFieldId(next.id)
-    const el = document.getElementById(`esign-field-${next.id}`)
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-    ;(el as HTMLElement | null)?.focus({ preventScroll: true })
-  }
-
-  const handleFieldClick = (field: EsignFieldResponse) => {
-    const hasMatchingMark = !!adopted && (
-      field.field_type === 'stamp' ? !!adopted.stampImageDataUrl
-        : field.field_type === 'initials' ? !!(adopted.initialsText || adopted.initialsImageDataUrl)
-          : adopted.signatureType === 'typed' ? !!adopted.typedText : !!adopted.imageDataUrl
-    )
-    if (hasMatchingMark) {
-      setFieldValues((previous) => ({ ...previous, [field.id]: previous[field.id] === 'true' ? 'false' : 'true' }))
-      return
-    }
-    setPendingApplyFieldId(field.id)
-    setAdoptionOpen(true)
-  }
-
-  const handleAttachmentUpload = async (fieldId: string, file: File) => {
-    try {
-      const uploaded = await apiClient.uploadEsignSignerAttachment(session.envelope_id, fieldId, file)
-      setAttachments((previous) => [...previous.filter((item) => item.field_id !== fieldId), uploaded])
-      setFieldValues((previous) => ({ ...previous, [fieldId]: uploaded.id }))
-    } catch (error) {
-      toast({ title: 'Attachment upload failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
-    }
-  }
-
-  const handleAttachmentDelete = async (attachmentId: string) => {
-    try {
-      const item = attachments.find((attachment) => attachment.id === attachmentId)
-      await apiClient.deleteEsignSignerAttachment(session.envelope_id, attachmentId)
-      setAttachments((previous) => previous.filter((attachment) => attachment.id !== attachmentId))
-      if (item) setFieldValues((previous) => ({ ...previous, [item.field_id]: '' }))
-    } catch (error) {
-      toast({ title: 'Could not remove attachment', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
-    }
-  }
-
-  const handleValueChange = (fieldId: string, value: string) => {
-    const source = myFields.find((field) => field.id === fieldId)
-    setFieldValues((previous) => {
-      const next = { ...previous, [fieldId]: value }
-      const label = source?.properties?.data_label
-      if (label && source?.properties?.shared_value) {
-        myFields.filter((field) => field.properties?.shared_value && field.properties?.data_label === label)
-          .forEach((field) => { next[field.id] = value })
-      }
-      return next
-    })
-  }
-
-  const handleFinish = async () => {
-    try {
-      const submittedFields: NonNullable<EsignSubmitRequest['field_values']> = []
-      for (const field of myFields) {
-        if (['signature', 'initials', 'stamp'].includes(field.field_type)) submittedFields.push({ field_id: field.id, completed: fieldValues[field.id] === 'true' })
-        else if (Object.prototype.hasOwnProperty.call(fieldValues, field.id)) submittedFields.push({ field_id: field.id, value: fieldValues[field.id] })
-      }
-      const result = await submitSignature.mutateAsync({
-        expected_routing_version: session.routing_version,
-        marks: adoptedToMarks(adopted),
-        field_values: submittedFields,
-        occupation: session.recipient_role === 'witness' ? witnessOccupation.trim() : undefined,
-        address: session.recipient_role === 'witness' ? witnessAddress.trim() : undefined,
-      })
-      setCeremonyState('submitted')
-      if (result.sealing_enqueued) {
-        toast({
-          title: 'All signatures collected',
-          description: 'The document is being digitally sealed now.',
-        })
-      }
-    } catch (error) {
-      toast({
-        title: 'Failed to submit signature',
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleFinishLater = async () => {
-    try {
-      await saveProgress.mutateAsync({
-        fieldValues: Object.entries(fieldValues).map(([field_id, value]) => ({ field_id, value })),
-        expectedRoutingVersion: session.routing_version,
-        marks: adoptedToMarks(adopted),
-      })
-      toast({
-        title: 'Progress saved',
-        description: 'You can resume signing anytime from your E-Signature inbox.',
-      })
-      router.push('/dashboard/esign')
-    } catch (error) {
-      toast({
-        title: 'Failed to save progress',
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      })
-    }
-  }
-
-  const handleDecline = async (reason: string) => {
-    try {
-      await declineEnvelope.mutateAsync({ reason, expectedRoutingVersion: session.routing_version })
-      setDeclineOpen(false)
-      setCeremonyState('declined')
-    } catch (error) {
-      toast({
-        title: 'Failed to decline',
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      })
-    }
-  }
+  if (!sessionQuery.data) return null
 
   return (
-    <div className="min-h-dvh space-y-4 bg-surface-muted/50 pb-24 sm:pb-4">
-      {/* Sticky action bar */}
-      <div className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="min-w-0">
-          <h1 className="truncate text-base font-semibold">{session.title}</h1>
-          <p className="text-xs text-foreground-muted">
-            From {session.sender_email} · {completedCount} of {totalRequired} required fields complete
-            {session.expires_at && (
-              <> · Expires {new Date(session.expires_at).toLocaleDateString()}</>
-            )}
-          </p>
-        </div>
-        <div className="hidden items-center gap-2 sm:flex">
-          <Button variant="outline" onClick={() => setDeclineOpen(true)}>
-            Decline
-          </Button>
-          {!session.consent_required && (
-            <Button
-              variant="outline"
-              onClick={handleFinishLater}
-              disabled={saveProgress.isPending}
-            >
-              {saveProgress.isPending && <Loader2 className="mr-1.5 size-4 animate-spin" />}
-              Finish Later
-            </Button>
-          )}
-          {!adopted && hasSignatureLikeFields ? (
-            <Button onClick={() => setAdoptionOpen(true)}>
-              <PenLine className="mr-1.5 size-4" /> Adopt signature
-            </Button>
-          ) : (
-            <Button onClick={handleFinish} disabled={!canFinish || submitSignature.isPending}>
-              {submitSignature.isPending ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              ) : (
-                <ShieldCheck className="mr-1.5 size-4" />
-              )}
-              Finish signing
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-50 flex min-h-16 items-center gap-2 border-t border-border bg-surface/95 px-3 py-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur sm:hidden">
-        <Button variant="outline" className="min-h-11 flex-1" onClick={handleFinishLater} disabled={saveProgress.isPending}>Finish later</Button>
-        {incompleteFields.length > 0 ? (
-          <Button className="min-h-11 flex-1" onClick={goToNextField}>{guideStarted ? 'Next' : 'Start'} <ArrowDown className="ml-1.5 size-4" /></Button>
-        ) : (
-          <Button className="min-h-11 flex-1" onClick={handleFinish} disabled={!canFinish || submitSignature.isPending}>Finish</Button>
-        )}
-        <Button variant="ghost" size="icon" className="min-h-11 min-w-11 text-destructive" onClick={() => setDeclineOpen(true)} aria-label="Decline envelope"><ShieldAlert className="size-5" /></Button>
-      </div>
-
-      {session.message && (
-        <p className="rounded-lg border border-border bg-surface p-4 text-sm text-foreground-muted">
-          {session.message}
-        </p>
-      )}
-      {session.private_message && (
-        <p className="rounded-lg border border-primary/20 bg-primary-soft p-4 text-sm">
-          <span className="font-medium">Private message:</span> {session.private_message}
-        </p>
-      )}
-      {session.recipient_role === 'witness' && (
-        <section className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2">
-          <div><Label htmlFor="witness-occupation">Occupation</Label><Input id="witness-occupation" value={witnessOccupation} onChange={(event) => setWitnessOccupation(event.target.value)} /></div>
-          <div><Label htmlFor="witness-address">Address</Label><Textarea id="witness-address" value={witnessAddress} onChange={(event) => setWitnessAddress(event.target.value)} /></div>
-        </section>
-      )}
-      {Object.keys(fieldErrors).length > 0 && guideStarted && <div role="alert" className="mx-auto max-w-5xl rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><p className="font-medium">Complete or correct these fields:</p><ul className="mt-1 list-disc pl-5">{Object.entries(fieldErrors).map(([id, message]) => <li key={id}><button type="button" className="underline" onClick={() => { setActiveFieldId(id); document.getElementById(`esign-field-${id}`)?.focus() }}>{message}</button></li>)}</ul></div>}
-      {(session.available_actions ?? []).includes('configure_witness') && (
-        <section className="space-y-3 rounded-lg border border-border bg-surface p-4">
-          <div><h2 className="font-semibold">Confirm your witness</h2><p className="text-sm text-foreground-muted">The witness signs after you through an audited, account-protected invitation.</p></div>
-          <div className="grid gap-2 sm:grid-cols-2"><Select value={witnessMode} onValueChange={(value) => setWitnessMode(value as 'remote' | 'in_person')}><SelectTrigger aria-label="Witness mode"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="remote">Remote witness</SelectItem><SelectItem value="in_person">In person on this device</SelectItem></SelectContent></Select><Input placeholder="Witness full name" value={witnessName} onChange={(event) => setWitnessName(event.target.value)} />{witnessMode === 'remote' && <Input className="sm:col-span-2" type="email" placeholder="Witness email (required)" value={witnessEmail} onChange={(event) => setWitnessEmail(event.target.value)} />}</div>
-          <Button variant="outline" disabled={roleBusy || !witnessName.trim() || (witnessMode === 'remote' && !witnessEmail.trim())} onClick={async () => { setRoleBusy(true); try { const invitation = await apiClient.configureEsignWitness(session.envelope_id, { name: witnessName.trim(), email: witnessMode === 'remote' ? witnessEmail.trim() : null, mode: witnessMode, expected_routing_version: session.routing_version }); setGuestLink(witnessMode === 'in_person' ? invitation.guest_url : null); await sessionQuery.refetch(); toast({ title: 'Witness confirmed', description: witnessMode === 'remote' ? 'A durable invitation was queued for the witness email.' : 'The audited in-person handoff is ready.' }) } catch (error) { toast({ title: 'Witness could not be configured', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } finally { setRoleBusy(false) } }}>Confirm witness</Button>
-          {guestLink && witnessMode === 'in_person' && <p className="break-all rounded bg-surface-muted p-2 text-xs text-foreground-muted">Audited in-person handoff: {guestLink}</p>}
-        </section>
-      )}
-      {(session.available_actions ?? []).includes('reassign') && (
-        <section className="grid gap-2 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3"><Input placeholder="Replacement name" value={replacementName} onChange={(event) => setReplacementName(event.target.value)} /><Input type="email" placeholder="Replacement email" value={replacementEmail} onChange={(event) => setReplacementEmail(event.target.value)} /><Input placeholder="Reason (required)" value={reassignmentReason} onChange={(event) => setReassignmentReason(event.target.value)} /><Button variant="outline" disabled={roleBusy || !replacementName.trim() || !replacementEmail.trim() || !reassignmentReason.trim()} onClick={() => void performReassignment()}>Reassign this step</Button></section>
-      )}
-
-      {/* Floating guided-navigation button (DocuSign-style Start/Next). */}
-      {!session.consent_required && (
-        <div className="fixed left-4 top-1/2 z-40 hidden -translate-y-1/2 sm:block">
-          {incompleteFields.length > 0 ? (
-            <Button size="sm" className="shadow-lg" onClick={goToNextField}>
-              {guideStarted ? 'Next' : 'Start'}
-              <ArrowDown className="ml-1.5 size-3.5" />
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              className="shadow-lg"
-              onClick={handleFinish}
-              disabled={!canFinish || submitSignature.isPending}
-            >
-              Finish
-            </Button>
-          )}
-        </div>
-      )}
-
-      {/* Documents (blurred + inert until consent) */}
-      <div
-        className={cn(
-          'mx-auto max-w-5xl space-y-8 p-3 sm:p-5',
-          session.consent_required && 'pointer-events-none select-none blur-sm',
-        )}
-        aria-hidden={session.consent_required || undefined}
-      >
-        {session.documents.map((doc) => (
-          <div key={doc.id} className="space-y-2">
-            {session.documents.length > 1 && (
-              <h2 className="text-sm font-medium text-foreground-muted">{doc.original_filename}</h2>
-            )}
-            <SigningDocumentViewer
-              url={doc.download_url}
-              name={doc.original_filename}
-              fields={myFields.filter((f) => f.document_id === doc.id)}
-              fieldValues={displayValues}
-              adopted={adopted}
-              activeFieldId={activeFieldId}
-              onFieldClick={handleFieldClick}
-              onTextChange={(fieldId, value) =>
-                handleValueChange(fieldId, value)
-              }
-              attachments={attachments}
-              onAttachmentUpload={handleAttachmentUpload}
-              onAttachmentDelete={handleAttachmentDelete}
-              dateFormat={session.date_format}
-              fieldErrors={fieldErrors}
-            />
-          </div>
-        ))}
-      </div>
-
-      {session.consent_required && (
-        <ConsentGate
-          disclosureText={session.consent_disclosure_text}
-          senderEmail={session.sender_email}
-          agreeing={recordConsent.isPending}
-          onAgree={async () => {
-            try {
-              await recordConsent.mutateAsync(session.routing_version)
-            } catch (error) {
-              toast({
-                title: 'Failed to record consent',
-                description: error instanceof Error ? error.message : undefined,
-                variant: 'destructive',
-              })
-            }
-          }}
-          onDecline={() => setDeclineOpen(true)}
-        />
-      )}
-
-      <SignatureAdoptionModal
-        open={adoptionOpen}
-        onOpenChange={setAdoptionOpen}
-        defaultName={user?.displayName || session.recipient_name}
-        requireStamp={!!pendingApplyFieldId && myFields.find((field) => field.id === pendingApplyFieldId)?.field_type === 'stamp'}
-        onAdopt={(artifact) => {
-          const targetType = myFields.find((field) => field.id === pendingApplyFieldId)?.field_type
-          setAdopted((previous) => targetType === 'stamp' && previous
-            ? { ...previous, stampType: artifact.stampType, stampImageDataUrl: artifact.stampImageDataUrl }
-            : { ...artifact, stampType: artifact.stampType ?? previous?.stampType, stampImageDataUrl: artifact.stampImageDataUrl ?? previous?.stampImageDataUrl })
-          if (pendingApplyFieldId) setFieldValues((previous) => ({ ...previous, [pendingApplyFieldId]: 'true' }))
-          setPendingApplyFieldId(null)
-        }}
-      />
-
-      <DeclineDialog
-        open={declineOpen}
-        onOpenChange={setDeclineOpen}
-        onDecline={handleDecline}
-        declining={declineEnvelope.isPending}
-      />
-    </div>
+    <SigningCeremony
+      initialSession={sessionQuery.data}
+      transport={transport}
+      displayName={user?.displayName}
+      exitHref="/dashboard/esign"
+    />
   )
 }
