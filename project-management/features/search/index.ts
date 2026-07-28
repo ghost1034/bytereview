@@ -1,0 +1,5 @@
+export { SearchPage } from './SearchPage'
+export { SearchTabs, type SearchTab } from './SearchTabs'
+export { SearchResultsList } from './SearchResultsList'
+export { HighlightText } from './HighlightText'
+export { useSearchIndex } from './useSearchIndex'
