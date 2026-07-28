@@ -554,7 +554,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   if (!documents.length || !participants.length) return <p className="text-sm text-foreground-muted">Add documents and recipients before placing fields.</p>
 
   return <div ref={containerRef} tabIndex={0} className={cn('flex flex-col gap-4 outline-none lg:flex-row', className)}>
-    <aside className="w-full shrink-0 space-y-4 lg:w-64">
+    <aside className="w-full shrink-0 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-6rem)] lg:w-64 lg:self-start lg:overflow-y-auto lg:pr-1">
       {documents.length > 1 && <Select value={activeDocument?.id} onValueChange={setActiveDocumentId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documents.map((doc) => <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>)}</SelectContent></Select>}
       <div className="space-y-1.5"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Assign to</p>{participants.map((participant, index) => {
         const color = participantColor(index); return <button key={participant.id} type="button" onClick={() => setActiveParticipantId(participant.id)}
