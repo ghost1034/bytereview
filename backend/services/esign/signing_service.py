@@ -390,12 +390,7 @@ class EsignSigningService:
                     field_width=float(members[0].width), field_height=float(members[0].height),
                 )
                 by_index = {int(((field.properties or {}).get("anchor") or {}).get("match_index", index)): field for index, field in enumerate(members)}
-                if not result.matches and str(rule.get("missing_policy", "fail")) == "fail" and any(field.required for field in members):
-                    logger.warning("Required anchor resolution failed envelope=%s rule=%s field_type=%s", envelope.id, rule_id, members[0].field_type.value)
-                    raise EsignError(f"Required anchor '{rule.get('anchor') or rule.get('text')}' was not found")
                 removed = [field for index, field in by_index.items() if index >= len(result.matches)]
-                if removed and str(rule.get("missing_policy", "fail")) == "fail" and any(field.required for field in removed):
-                    raise EsignError(f"Required anchor '{rule.get('anchor') or rule.get('text')}' has fewer matches than when it was placed")
                 for field in removed:
                     if not field.required:
                         db.delete(field)

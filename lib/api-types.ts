@@ -6275,12 +6275,6 @@ export interface components {
              * @enum {string}
              */
             placement_mode: "automatic" | "individual";
-            /**
-             * Missing Policy
-             * @default fail
-             * @enum {string}
-             */
-            missing_policy: "fail" | "ignore";
         };
         /** AssistantStreamRequest */
         AssistantStreamRequest: {

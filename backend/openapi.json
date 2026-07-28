@@ -21013,15 +21013,6 @@
             ],
             "title": "Placement Mode",
             "default": "automatic"
-          },
-          "missing_policy": {
-            "type": "string",
-            "enum": [
-              "fail",
-              "ignore"
-            ],
-            "title": "Missing Policy",
-            "default": "fail"
           }
         },
         "type": "object",

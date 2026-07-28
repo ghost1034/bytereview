@@ -300,8 +300,6 @@ class EsignScaleService:
                             offset_x=float(anchor.get("offset_x", 0)), offset_y=float(anchor.get("offset_y", 0)),
                             offset_unit=str(anchor.get("offset_unit", "point")),
                             field_width=float(field.width), field_height=float(field.height))
-                        if not result.matches and field.required and anchor.get("missing_policy", "fail") == "fail":
-                            raise EsignError(f"Required anchor '{anchor.get('anchor') or anchor.get('text')}' was not found")
                 if props.get("conversion_source") == "acroform" and not props.get("acroform_widget_id"):
                     raise EsignError("Every PDF-field mapping must retain its widget ID")
             latest = db.query(func.max(EsignTemplateVersion.version)).filter(EsignTemplateVersion.template_id == template.id).scalar() or 0

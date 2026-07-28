@@ -74,7 +74,6 @@ class AnchorProps(BaseModel):
     # Automatic rules materialize every match at send time. Individual rules
     # only keep the matches explicitly accepted in the field editor.
     placement_mode: Literal["automatic", "individual"] = "automatic"
-    missing_policy: Literal["fail", "ignore"] = "fail"
 
 
 class TextValidation(BaseModel):

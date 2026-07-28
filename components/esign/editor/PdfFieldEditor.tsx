@@ -46,7 +46,7 @@ export interface EditorFieldProperties {
     text?: string; anchor: string; rule_id: string; match_index?: number
     case_sensitive: boolean; whole_word: boolean; document_ids?: string[]; page_numbers?: number[]
     horizontal_alignment: 'left' | 'center' | 'right' | 'after'; offset_x: number; offset_y: number
-    offset_unit: 'point' | 'mm' | 'inch'; match_mode: 'first' | 'all'; placement_mode?: 'automatic' | 'individual'; missing_policy: 'fail' | 'ignore'
+    offset_unit: 'point' | 'mm' | 'inch'; match_mode: 'first' | 'all'; placement_mode?: 'automatic' | 'individual'
   }
   allowed_types?: string[]
   data_label?: string
@@ -113,7 +113,6 @@ interface AnchorPlacementSession {
   offsetX: number
   offsetY: number
   offsetUnit: 'point' | 'mm' | 'inch'
-  ignoreMissing: boolean
   matches: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number; anchor_x?: number | null; anchor_y?: number | null }>
 }
 
@@ -384,7 +383,6 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [anchorOffsetX, setAnchorOffsetX] = React.useState(0)
   const [anchorOffsetY, setAnchorOffsetY] = React.useState(0)
   const [anchorOffsetUnit, setAnchorOffsetUnit] = React.useState<'point' | 'mm' | 'inch'>('point')
-  const [anchorIgnoreMissing, setAnchorIgnoreMissing] = React.useState(false)
   const [anchorSearching, setAnchorSearching] = React.useState(false)
   const [anchorSession, setAnchorSession] = React.useState<AnchorPlacementSession | null>(null)
   const past = React.useRef<EditorField[][]>([])
@@ -568,7 +566,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         setAnchorSession({ ruleId, documentId: activeDocument.id, participantId: activeParticipantId, type, size,
           radioGroup: anchorRadioGroup, anchor, caseSensitive: anchorCaseSensitive, wholeWord: anchorWholeWord,
           firstOnly: anchorFirstOnly, alignment: anchorAlignment, offsetX: anchorOffsetX, offsetY: anchorOffsetY,
-          offsetUnit: anchorOffsetUnit, ignoreMissing: anchorIgnoreMissing, matches })
+          offsetUnit: anchorOffsetUnit, matches })
         setAnchorResult('')
         setAnchorOpen(false); setArmedType(null); setRadioGroup(null)
         focusAnchorMatch(ruleId, 0)
@@ -597,8 +595,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           case_sensitive: anchorSession.caseSensitive, whole_word: anchorSession.wholeWord,
           document_ids: [anchorSession.documentId], horizontal_alignment: anchorSession.alignment,
           offset_x: anchorSession.offsetX, offset_y: anchorSession.offsetY, offset_unit: anchorSession.offsetUnit,
-          match_mode: anchorSession.firstOnly ? 'first' : 'all', placement_mode: 'individual',
-          missing_policy: anchorSession.ignoreMissing ? 'ignore' : 'fail' } } }
+          match_mode: anchorSession.firstOnly ? 'first' : 'all', placement_mode: 'individual' } } }
     commit([...fields, field]); setSelectedIds(new Set([id])); setAnchorResult('')
     const placedCount = placedAnchorMatchIndexes.size + 1
     if (placedCount === anchorSession.matches.length) setAnchorSession(null)
@@ -693,7 +690,6 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorFirstOnly} onChange={(event) => setAnchorFirstOnly(event.target.checked)} /> First match only</label>
           <div className="grid grid-cols-2 gap-2"><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorAlignment} onChange={(event) => setAnchorAlignment(event.target.value as typeof anchorAlignment)}><option value="after">Place after anchor</option><option value="left">Align left edges</option><option value="center">Align centers</option><option value="right">Align right edges</option></select><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorOffsetUnit} onChange={(event) => setAnchorOffsetUnit(event.target.value as typeof anchorOffsetUnit)}><option value="point">Points</option><option value="mm">Millimeters</option><option value="inch">Inches</option></select></div>
           <div className="grid grid-cols-2 gap-2"><Input type="number" value={anchorOffsetX} onChange={(event) => setAnchorOffsetX(Number(event.target.value))} placeholder="Horizontal offset" /><Input type="number" value={anchorOffsetY} onChange={(event) => setAnchorOffsetY(Number(event.target.value))} placeholder="Vertical offset" /></div>
-          <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorIgnoreMissing} onChange={(event) => setAnchorIgnoreMissing(event.target.checked)} /> Allow missing anchor</label>
           {anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
         <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={findAnchorMatches} disabled={!anchorText.trim() || anchorSearching}>{anchorSearching && <Loader2 className="mr-1.5 size-4 animate-spin" />}Find matches</Button></DialogFooter>
       </DialogContent>
