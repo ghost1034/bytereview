@@ -17,9 +17,10 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+from urllib.parse import urlencode
 
 import fitz
-from sqlalchemy import func, or_, text
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session, joinedload
 
 from core.database import db_config
@@ -123,22 +124,9 @@ def signing_url(envelope_id) -> str:
     return f"{app_base_url()}/esign/sign/{envelope_id}"
 
 
-def recipient_has_account(db: Session, recipient: EsignRecipient) -> bool:
-    """Whether the address receiving this notification belongs to an app user."""
-    email = (
-        recipient.host_email
-        if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER
-        else recipient.email
-    )
-    normalized = (email or "").strip().lower()
-    if not normalized:
-        return False
-    return (
-        db.query(User.id)
-        .filter(func.lower(User.email) == normalized)
-        .first()
-        is not None
-    )
+def guest_capable_signing_url(envelope_id, invitation_token: str) -> str:
+    """Account entry URL carrying an opaque guest fallback from the recipient email."""
+    return f"{signing_url(envelope_id)}?{urlencode({'guest_token': invitation_token})}"
 
 
 def _advisory_lock_keys(lock_id: str) -> tuple[int, int]:
@@ -292,8 +280,12 @@ class EsignSigningService:
     # ------------------------------------------------------------------
 
     def recipient_signing_url(self, db: Session, envelope: EsignEnvelope, recipient: EsignRecipient) -> str:
-        """Return the account-gated signing entry for every envelope recipient."""
-        return signing_url(envelope.id)
+        """Return an account entry with a secure guest fallback for remote recipients."""
+        if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER:
+            return signing_url(envelope.id)
+        from services.esign.recipient_service import esign_recipient_service
+        invitation = esign_recipient_service._issue_invitation(db, envelope, recipient)
+        return guest_capable_signing_url(envelope.id, invitation.invitation_token)
 
     def _cc_recipients_due(
         self, envelope: EsignEnvelope, active_order: int
@@ -1971,6 +1963,7 @@ class EsignSigningService:
     def queue_completion_emails(self, db: Session, envelope: EsignEnvelope) -> None:
         """Queue completion notices in the same transaction as completion."""
         sender_email = self._sender_email(db, envelope)
+        from services.esign.recipient_service import esign_recipient_service
         # Re-running this idempotent method must not revoke the completed-copy
         # bearer links already persisted in queued delivery bodies.
         self._revoke_guest_access(db, envelope.id, invitation_purpose="ceremony")
@@ -1986,7 +1979,10 @@ class EsignSigningService:
                 EsignEmailDelivery.idempotency_key == idempotency_key
             ).first():
                 continue
-            url = signing_url(envelope.id)
+            invitation = esign_recipient_service._issue_invitation(
+                db, envelope, recipient, purpose="completed_copy",
+            )
+            url = guest_capable_signing_url(envelope.id, invitation.invitation_token)
             esign_outbox_service.queue_email(
                 db, envelope=envelope, kind="completion", to_email=email,
                 content=email_templates.completed(title=envelope.title, url=url, is_sender=False),

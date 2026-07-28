@@ -36,6 +36,7 @@ async function parseResponse<T>(response: Response): Promise<T> {
 export default function GuestSigningPage() {
   const search = useSearchParams()
   const { loading: authLoading, user } = useAuth()
+  const [continueAsGuest, setContinueAsGuest] = React.useState(search.get('continue') === 'guest')
   const searchString = search.toString()
   const redirectTo = `/esign/guest${searchString ? `?${searchString}` : ''}`
   const invitation = search.get('token')
@@ -68,10 +69,9 @@ export default function GuestSigningPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [done, setDone] = React.useState<'signed' | 'declined' | 'reassigned' | 'completed' | 'saved' | null>(null)
 
-  const authenticatedFetch = React.useCallback(async (input: RequestInfo | URL, options: RequestInit = {}) => {
-    if (!user) throw new Error('Sign in to access this envelope')
+  const ceremonyFetch = React.useCallback(async (input: RequestInfo | URL, options: RequestInit = {}) => {
     const headers = new Headers(options.headers)
-    headers.set('Authorization', `Bearer ${await user.getIdToken()}`)
+    if (user) headers.set('Authorization', `Bearer ${await user.getIdToken()}`)
     return fetch(input, { ...options, headers })
   }, [user])
 
@@ -83,19 +83,19 @@ export default function GuestSigningPage() {
       if (!csrf) throw new Error('Guest session security token is unavailable; reopen the email link')
       headers.set('X-CSRF-Token', csrf)
     }
-    return parseResponse<T>(await authenticatedFetch(`/api/esign/guest/sessions/${sessionId}${path}`, {
+    return parseResponse<T>(await ceremonyFetch(`/api/esign/guest/sessions/${sessionId}${path}`, {
       ...options, credentials: 'include', headers,
     }))
-  }, [authenticatedFetch, csrf, sessionId])
+  }, [ceremonyFetch, csrf, sessionId])
 
   const load = React.useCallback(async () => {
-    if (authLoading || !user) return
+    if (authLoading || (!user && !continueAsGuest)) return
     setBusy(true)
     setError(null)
     try {
       let token = invitation
       if (powerFormVerification) {
-        const verified = await parseResponse<{ invitation_token: string }>(await authenticatedFetch(
+        const verified = await parseResponse<{ invitation_token: string }>(await ceremonyFetch(
           '/api/esign/public/powerforms/verification/exchange',
           { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: powerFormVerification }) },
         ))
@@ -104,7 +104,7 @@ export default function GuestSigningPage() {
       let currentId = existingSession
       let currentCsrf = existingSession ? sessionStorage.getItem(`esign_guest_csrf_${existingSession}`) : null
       if (token) {
-        const exchanged = await parseResponse<{ session_id: string; csrf_token: string }>(await authenticatedFetch(
+        const exchanged = await parseResponse<{ session_id: string; csrf_token: string }>(await ceremonyFetch(
           '/api/esign/guest/exchange',
           { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invitation_token: token }) },
         ))
@@ -118,7 +118,7 @@ export default function GuestSigningPage() {
       if (!currentId) throw new Error('Open the secure link from your recipient email')
       setSessionId(currentId)
       setCsrf(currentCsrf)
-      const current = await parseResponse<Session>(await authenticatedFetch(
+      const current = await parseResponse<Session>(await ceremonyFetch(
         `/api/esign/guest/sessions/${currentId}`, { credentials: 'include' },
       ))
       setSession(current)
@@ -131,7 +131,7 @@ export default function GuestSigningPage() {
     } finally {
       setBusy(false)
     }
-  }, [authLoading, authenticatedFetch, existingSession, invitation, powerFormVerification, user])
+  }, [authLoading, ceremonyFetch, continueAsGuest, existingSession, invitation, powerFormVerification, user])
 
   React.useEffect(() => { void load() }, [load])
 
@@ -257,12 +257,14 @@ export default function GuestSigningPage() {
     finally { setBusy(false) }
   }
 
-  if (authLoading || !user) return <EsignAccountGate redirectTo={redirectTo} />
+  if (authLoading || (!user && !continueAsGuest)) {
+    return <EsignAccountGate redirectTo={redirectTo} onContinueAsGuest={() => setContinueAsGuest(true)} />
+  }
   if (busy && !session) return <div className="flex min-h-[50vh] items-center justify-center text-sm text-foreground-muted"><Loader2 className="mr-2 size-5 animate-spin" /> Opening secure ceremony…</div>
   if (error && !session) return <div className="mx-auto max-w-md space-y-4 py-20 text-center"><ShieldAlert className="mx-auto size-10 text-warning" /><h1 className="text-lg font-semibold">Secure ceremony unavailable</h1><p className="text-sm text-destructive">{error}</p><Button asChild variant="outline"><Link href="/">Return home</Link></Button></div>
   if (!session) return null
 
-  if (done === 'completed') return <CompletedCopy session={session} sessionId={sessionId!} authenticatedFetch={authenticatedFetch} />
+  if (done === 'completed') return <CompletedCopy session={session} sessionId={sessionId!} ceremonyFetch={ceremonyFetch} />
   if (done) return <div className="mx-auto max-w-md space-y-4 py-20 text-center"><CheckCircle2 className="mx-auto size-12 text-success" /><h1 className="text-xl font-semibold">{done === 'signed' ? 'Signature recorded' : done === 'reassigned' ? 'Signing step reassigned' : done === 'saved' ? 'Progress saved' : 'Envelope declined'}</h1><p className="text-sm text-foreground-muted">{done === 'signed' ? 'You are finished. A secure link to the completed documents will be emailed after all parties finish.' : done === 'saved' ? 'You can safely close this tab and return through your secure email link.' : 'The sender has been notified.'}</p>{done === 'saved' && <Button variant="outline" onClick={() => setDone(null)}>Continue signing</Button>}</div>
 
   if (!['signer', 'witness', 'in_person_signer'].includes(session.recipient_role)) {
@@ -367,9 +369,9 @@ export default function GuestSigningPage() {
   </div>
 }
 
-function CompletedCopy({ session, sessionId, authenticatedFetch }: { session: Session; sessionId: string; authenticatedFetch: typeof fetch }) {
+function CompletedCopy({ session, sessionId, ceremonyFetch }: { session: Session; sessionId: string; ceremonyFetch: typeof fetch }) {
   const download = async (kind: 'sealed' | 'certificate') => {
-    const result = await parseResponse<{ url: string }>(await authenticatedFetch(`/api/esign/guest/sessions/${sessionId}/completed/${kind}`, { credentials: 'include' }))
+    const result = await parseResponse<{ url: string }>(await ceremonyFetch(`/api/esign/guest/sessions/${sessionId}/completed/${kind}`, { credentials: 'include' }))
     window.location.assign(result.url)
   }
   return <div className="mx-auto max-w-lg space-y-5 py-20 text-center"><CheckCircle2 className="mx-auto size-12 text-success" /><h1 className="text-xl font-semibold">Completed: {session.title}</h1><p className="text-sm text-foreground-muted">This read-only link expires 30 days after completion.</p><div className="flex justify-center gap-2">{session.has_sealed_document && <Button onClick={() => void download('sealed')}><Download className="mr-2 size-4" />Completed PDF</Button>}{session.has_certificate && <Button variant="outline" onClick={() => void download('certificate')}><Download className="mr-2 size-4" />Certificate</Button>}</div></div>

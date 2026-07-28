@@ -11,9 +11,10 @@ import { buildMfaEnrollmentRedirect } from '@/lib/auth-redirect'
 
 interface EsignAccountGateProps {
   redirectTo: string
+  onContinueAsGuest?: () => void
 }
 
-export function EsignAccountGate({ redirectTo }: EsignAccountGateProps) {
+export function EsignAccountGate({ redirectTo, onContinueAsGuest }: EsignAccountGateProps) {
   const { loading, requiresMfaEnrollment, user } = useAuth()
   const router = useRouter()
   const [authOpen, setAuthOpen] = React.useState(true)
@@ -58,10 +59,12 @@ export function EsignAccountGate({ redirectTo }: EsignAccountGateProps) {
             Secure document signing
           </p>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            Create a free account to sign
+            {onContinueAsGuest ? 'Review and sign your document' : 'Create a free account to sign'}
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-foreground-muted">
-            Sign up for a free CPAAutomation account to review and sign this document. Already have an account? Sign in and we’ll take you directly to the envelope.
+            {onContinueAsGuest
+              ? 'Create a free CPAAutomation account, sign in to an existing account, or continue as a guest to review and sign this document.'
+              : 'Sign up for a free CPAAutomation account to review and sign this document. Already have an account? Sign in and we’ll take you directly to the envelope.'}
           </p>
 
           <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
@@ -71,12 +74,17 @@ export function EsignAccountGate({ redirectTo }: EsignAccountGateProps) {
             <Button size="lg" variant="outline" onClick={() => openAuth('signin')}>
               Sign in
             </Button>
+            {onContinueAsGuest && (
+              <Button size="lg" variant="outline" onClick={onContinueAsGuest}>
+                Continue as guest
+              </Button>
+            )}
           </div>
 
           <div className="mt-8 grid gap-3 text-left text-sm text-foreground-muted sm:grid-cols-2">
             <div className="flex gap-3 rounded-lg bg-surface-muted p-3">
               <LockKeyhole className="mt-0.5 size-4 shrink-0 text-primary" />
-              <span>Your account confirms who is accessing the envelope.</span>
+              <span>Your private email link controls access to the envelope.</span>
             </div>
             <div className="flex gap-3 rounded-lg bg-surface-muted p-3">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -92,8 +100,11 @@ export function EsignAccountGate({ redirectTo }: EsignAccountGateProps) {
         onClose={() => setAuthOpen(false)}
         redirectTo={redirectTo}
         defaultTab={defaultTab}
-        title="Create a free account to sign"
-        description="After signup or signin, you’ll return directly to this envelope."
+        title={onContinueAsGuest ? 'Review and sign your document' : 'Create a free account to sign'}
+        description={onContinueAsGuest
+          ? 'Use an account or continue as a guest. Either way, you’ll go directly to this envelope.'
+          : 'After signup or signin, you’ll return directly to this envelope.'}
+        onContinueAsGuest={onContinueAsGuest}
       />
     </>
   )

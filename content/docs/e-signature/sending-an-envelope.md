@@ -23,7 +23,7 @@ Prepare keeps the complete delivery setup on one screen:
 - Set sequential or any-order signing.
 - Edit the email message, expiration date, and reminder interval.
 
-Every recipient needs a name and unique email address, and at least one recipient must be a signer. CPAAutomation sends a private access link to that address. Recipients must sign in with a free CPAAutomation account using the same email address before they can open and sign the envelope.
+Every recipient needs a name and unique email address, and at least one recipient must be a signer. CPAAutomation sends a private, expiring access link to that address. Recipients can sign in, create a free account, or continue as a guest without an account.
 
 Use **Recipient reassignment** to choose one clear policy for the envelope: nobody, all eligible recipients, or only recipients you select. When you choose specific recipients, enable **May reassign this step** on their recipient cards. Copy recipients, witnesses, and in-person signers cannot initiate reassignment.
 

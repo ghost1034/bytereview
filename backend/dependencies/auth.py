@@ -1,7 +1,7 @@
 """
 Authentication dependencies - Firebase token verification only
 """
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from firebase_admin import auth as firebase_auth, credentials, initialize_app
 from typing import Dict, Optional
@@ -145,6 +145,20 @@ async def verify_firebase_token(credentials: HTTPAuthorizationCredentials = Depe
         logger.error(f"Token verification failed: {e}")
         logger.error(f"Token was: {credentials.credentials[:50]}...")
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")
+
+
+async def verify_optional_firebase_token(
+    request: Request,
+) -> Optional[Dict]:
+    """Verify a Firebase token when supplied, while allowing bearer-link guests."""
+    authorization = request.headers.get("authorization", "").strip()
+    if not authorization:
+        return None
+    scheme, separator, credential = authorization.partition(" ")
+    if not separator or scheme.lower() != "bearer" or not credential.strip():
+        raise HTTPException(status_code=401, detail="Invalid authorization header")
+    credentials = HTTPAuthorizationCredentials(scheme=scheme, credentials=credential.strip())
+    return await verify_firebase_token(credentials)
 
 async def get_current_user_id(token_data: Dict = Depends(verify_firebase_token)) -> str:
     """

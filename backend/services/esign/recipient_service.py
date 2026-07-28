@@ -59,7 +59,6 @@ from services.esign.routing_engine import (
 from services.esign.signing_service import (
     ACTIVE_ENVELOPE_STATUSES,
     acquire_envelope_lock,
-    recipient_has_account,
 )
 from services.esign.url_service import app_base_url
 from services.esign import email_templates
@@ -661,8 +660,8 @@ class EsignRecipientService:
         invitation_token: str,
         meta: EsignRequestMeta,
         *,
-        user_id: str,
-        user_email: str,
+        user_id: Optional[str],
+        user_email: Optional[str],
     ) -> tuple[EsignGuestExchangeResponse, str, str]:
         db = self._get_session()
         try:
@@ -678,19 +677,13 @@ class EsignRecipientService:
                 for value in (recipient.email, recipient.host_email)
                 if value and value.strip()
             }
-            if not account_email or account_email not in allowed_emails:
+            if account_email and account_email not in allowed_emails:
                 raise PermissionError("Sign in with the account matching this invitation email")
             purpose = getattr(invitation, "purpose", "ceremony") or "ceremony"
             if purpose == "completed_copy":
                 if envelope.status != EsignEnvelopeStatus.COMPLETED:
                     raise PermissionError("Completed-copy access is not available")
             elif purpose == "ceremony":
-                special_guest = role_value(recipient) in (
-                    EsignRecipientRole.WITNESS, EsignRecipientRole.IN_PERSON_SIGNER,
-                ) or getattr(envelope, "source_type", None) == "powerform"
-                legacy_guest_mode = getattr(envelope, "recipient_access_mode", "account") == "email_link"
-                if recipient_has_account(db, recipient) and not legacy_guest_mode and not special_guest:
-                    raise PermissionError("Guest access is not available for this recipient")
                 if envelope.status not in ACTIVE_ENVELOPE_STATUSES:
                     raise EsignConflict("This envelope is no longer active")
             session_token = secrets.token_urlsafe(32)
@@ -706,7 +699,8 @@ class EsignRecipientService:
             ))
             audit_service.record_event(
                 db, envelope_id=envelope.id, event_type=EsignEventType.GUEST_INVITATION_EXCHANGED,
-                actor_user_id=user_id, actor_email=account_email,
+                actor_user_id=user_id,
+                actor_email=account_email or recipient.email or recipient.host_email,
                 recipient_id=recipient.id, meta=meta,
                 details={"invitation_id": str(invitation.id), "routing_version": envelope.routing_version},
             )
@@ -780,10 +774,10 @@ class EsignRecipientService:
 
     async def guest_signing_session(
         self, session_id: str, session_token: str, meta: EsignRequestMeta,
-        *, user_id: str, user_email: str,
+        *, user_id: Optional[str], user_email: Optional[str],
     ) -> EsignSigningSessionResponse:
         access = self.resolve_guest_access(session_id, session_token)
-        if (access["recipient_email"] or "").strip().lower() != (user_email or "").strip().lower():
+        if user_email and (access["recipient_email"] or "").strip().lower() != user_email.strip().lower():
             raise PermissionError("Sign in with the account matching this invitation email")
         meta.access_method = "email_link"
         meta.invitation_id = access["invitation_id"]
@@ -811,18 +805,18 @@ class EsignRecipientService:
                 db.close()
         from services.esign.signing_service import esign_signing_service
         result = await esign_signing_service.get_signing_session(
-            user_id=user_id, user_email=user_email, envelope_id=access["envelope_id"],
+            user_id=user_id, user_email=user_email or access["recipient_email"], envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], meta=meta,
         )
         return result.model_copy(update={"access_purpose": "ceremony"})
 
     async def guest_completed_download(
-        self, session_id: str, session_token: str, kind: str, *, user_email: str,
+        self, session_id: str, session_token: str, kind: str, *, user_email: Optional[str],
     ) -> dict[str, str]:
         access = self.resolve_guest_access(
             session_id, session_token, required_purpose="completed_copy",
         )
-        if (access["recipient_email"] or "").strip().lower() != (user_email or "").strip().lower():
+        if user_email and (access["recipient_email"] or "").strip().lower() != user_email.strip().lower():
             raise PermissionError("Sign in with the account matching this invitation email")
         db = self._get_session()
         try:

@@ -11178,12 +11178,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/esign/guest/sessions/{session_id}": {
@@ -11193,11 +11188,6 @@
         ],
         "summary": "Get Guest Session",
         "operationId": "get_guest_session_api_esign_guest_sessions__session_id__get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11240,11 +11230,6 @@
         ],
         "summary": "Record Guest Consent",
         "operationId": "record_guest_consent_api_esign_guest_sessions__session_id__consent_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11313,11 +11298,6 @@
         ],
         "summary": "Save Guest Progress",
         "operationId": "save_guest_progress_api_esign_guest_sessions__session_id__progress_put",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11386,11 +11366,6 @@
         ],
         "summary": "Upload Guest Attachment",
         "operationId": "upload_guest_attachment_api_esign_guest_sessions__session_id__attachments_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11459,11 +11434,6 @@
         ],
         "summary": "Delete Guest Attachment",
         "operationId": "delete_guest_attachment_api_esign_guest_sessions__session_id__attachments__attachment_id__delete",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11529,11 +11499,6 @@
         ],
         "summary": "Submit Guest Signature",
         "operationId": "submit_guest_signature_api_esign_guest_sessions__session_id__submit_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11602,11 +11567,6 @@
         ],
         "summary": "Decline Guest Envelope",
         "operationId": "decline_guest_envelope_api_esign_guest_sessions__session_id__decline_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11675,11 +11635,6 @@
         ],
         "summary": "Approve Guest Envelope",
         "operationId": "approve_guest_envelope_api_esign_guest_sessions__session_id__approve_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11748,11 +11703,6 @@
         ],
         "summary": "Reassign Guest Recipient",
         "operationId": "reassign_guest_recipient_api_esign_guest_sessions__session_id__reassign_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11821,11 +11771,6 @@
         ],
         "summary": "Update Guest Managed Recipients",
         "operationId": "update_guest_managed_recipients_api_esign_guest_sessions__session_id__managed_recipients_patch",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11894,11 +11839,6 @@
         ],
         "summary": "Complete Guest Manager Step",
         "operationId": "complete_guest_manager_step_api_esign_guest_sessions__session_id__manager_complete_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -11967,11 +11907,6 @@
         ],
         "summary": "Correct Guest Recipients",
         "operationId": "correct_guest_recipients_api_esign_guest_sessions__session_id__corrections_post",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -12040,11 +11975,6 @@
         ],
         "summary": "Configure Guest Witness",
         "operationId": "configure_guest_witness_api_esign_guest_sessions__session_id__witness_put",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",
@@ -12113,11 +12043,6 @@
         ],
         "summary": "Download Guest Completed",
         "operationId": "download_guest_completed_api_esign_guest_sessions__session_id__completed__kind__get",
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "session_id",

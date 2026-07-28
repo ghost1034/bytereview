@@ -4,11 +4,11 @@ description: "Open a signature request, consent to electronic records, complete 
 order: 3
 ---
 
-Open the secure link in the signature-request email. You must sign in with a CPAAutomation account whose email matches the recipient email. If you do not have an account, the link opens a free signup page and returns you directly to the envelope after signup and sign-in security setup. Signed-in users may also use **E-Signature > Awaiting my signature**.
+Open the secure link in the signature-request email. You can sign in, create a free CPAAutomation account, or select **Continue as guest** to review and sign without an account. Signed-in users may also use **E-Signature > Awaiting my signature**.
 
 ## Before you begin
 
-Do not forward the email or share the link. CPAAutomation checks both the signed-in account and the recipient email before opening the envelope. If you close the browser, reopen the same email link to resume saved progress until the envelope expires.
+Do not forward the email or share the link. The private, expiring email link identifies the intended recipient; when an account is used, CPAAutomation also checks its email address. If you close the browser, reopen the same email link to resume saved progress until the envelope expires.
 
 For sequential envelopes, the inbox can show **Waiting on others**. The **Review & sign** button becomes available when all signers in earlier routing orders have finished.
 

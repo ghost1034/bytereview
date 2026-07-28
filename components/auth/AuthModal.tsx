@@ -23,6 +23,7 @@ interface AuthModalProps {
   defaultTab?: 'signin' | 'signup';
   title?: string;
   description?: string;
+  onContinueAsGuest?: () => void;
 }
 
 interface SignUpData {
@@ -50,6 +51,7 @@ export default function AuthModal({
   defaultTab = 'signin',
   title = 'Welcome to CPAAutomation',
   description,
+  onContinueAsGuest,
 }: AuthModalProps) {
   const { signIn, signInWithEmailAndPassword, signUpWithEmailAndPassword } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
@@ -189,6 +191,32 @@ export default function AuthModal({
         
         <div className="space-y-6">
           <>
+            {onContinueAsGuest && (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-12 w-full"
+                  disabled={isLoading}
+                  onClick={() => {
+                    closeModal();
+                    onContinueAsGuest();
+                  }}
+                >
+                  Continue as guest
+                </Button>
+                <p className="text-center text-xs text-gray-500">
+                  No CPAAutomation account is required to review and sign this document.
+                </p>
+                <div className="relative">
+                  <Separator />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="bg-white px-2 text-sm text-gray-500">or use an account</span>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Google Sign In */}
             <Button
               onClick={handleGoogleSignIn}
@@ -358,6 +386,7 @@ export default function AuthModal({
                   </form>
                 </TabsContent>
             </Tabs>
+
           </>
 
           {/* Error Message */}
