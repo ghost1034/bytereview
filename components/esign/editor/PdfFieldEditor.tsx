@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import {
-  Calculator, CalendarDays, CheckSquare, CircleDot, Copy,
+  Calculator, CalendarDays, Check, CheckSquare, CircleDot, Copy,
   ListChecks, Loader2, Paperclip, PenLine, Redo2, Search, Trash2, Type, Undo2, UserRound,
 } from 'lucide-react'
 
@@ -46,7 +46,7 @@ export interface EditorFieldProperties {
     text?: string; anchor: string; rule_id: string; match_index?: number
     case_sensitive: boolean; whole_word: boolean; document_ids?: string[]; page_numbers?: number[]
     horizontal_alignment: 'left' | 'center' | 'right' | 'after'; offset_x: number; offset_y: number
-    offset_unit: 'point' | 'mm' | 'inch'; match_mode: 'first' | 'all'; missing_policy: 'fail' | 'ignore'
+    offset_unit: 'point' | 'mm' | 'inch'; match_mode: 'first' | 'all'; placement_mode?: 'automatic' | 'individual'; missing_policy: 'fail' | 'ignore'
   }
   allowed_types?: string[]
   data_label?: string
@@ -93,7 +93,26 @@ interface PdfFieldEditorProps {
     anchor: string; case_sensitive: boolean; whole_word: boolean; document_ids: string[]
     match_mode: 'first' | 'all'; horizontal_alignment: 'left' | 'center' | 'right' | 'after'
     offset_x: number; offset_y: number; offset_unit: 'point' | 'mm' | 'inch'; field_width: number; field_height: number
-  }) => Promise<{ matches?: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number }> }>
+  }) => Promise<{ matches?: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number; anchor_x?: number | null; anchor_y?: number | null }> }>
+}
+
+interface AnchorPlacementSession {
+  ruleId: string
+  documentId: string
+  participantId: string
+  type: EditorFieldType
+  size: { width: number; height: number }
+  radioGroup: string | null
+  anchor: string
+  caseSensitive: boolean
+  wholeWord: boolean
+  firstOnly: boolean
+  alignment: 'left' | 'center' | 'right' | 'after'
+  offsetX: number
+  offsetY: number
+  offsetUnit: 'point' | 'mm' | 'inch'
+  ignoreMissing: boolean
+  matches: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number; anchor_x?: number | null; anchor_y?: number | null }>
 }
 
 const FIELD_TYPES: Array<{ type: EditorFieldType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
@@ -369,6 +388,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [anchorOffsetUnit, setAnchorOffsetUnit] = React.useState<'point' | 'mm' | 'inch'>('point')
   const [anchorIgnoreMissing, setAnchorIgnoreMissing] = React.useState(false)
   const [anchorSearching, setAnchorSearching] = React.useState(false)
+  const [anchorSession, setAnchorSession] = React.useState<AnchorPlacementSession | null>(null)
   const past = React.useRef<EditorField[][]>([])
   const future = React.useRef<EditorField[][]>([])
   const clipboard = React.useRef<EditorField[]>([])
@@ -377,6 +397,10 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const activeDocumentUrl = activeDocument?.url
   const resolvedActiveDocumentId = activeDocument?.id
   const participantIndexById = React.useMemo(() => new Map(participants.map((participant, index) => [participant.id, index])), [participants])
+  const placedAnchorMatchIndexes = React.useMemo(() => new Set(fields.flatMap((field) => {
+    const anchor = field.properties?.anchor
+    return anchorSession && anchor?.rule_id === anchorSession.ruleId && anchor.match_index !== undefined ? [anchor.match_index] : []
+  })), [anchorSession, fields])
 
   // Parent pages derive `documents` inline. Watch stable values so field edits
   // do not turn new object references into unnecessary PDF reloads.
@@ -527,7 +551,11 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   }
   const endInteraction = () => { const state = drag.current; if (!state) return; past.current.push(state.before); future.current = []; drag.current = null; setGuides([]) }
 
-  const placeByAnchor = async () => {
+  const focusAnchorMatch = (ruleId: string, matchIndex: number) => {
+    window.setTimeout(() => document.getElementById(`esign-anchor-match-${ruleId}-${matchIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
+  }
+
+  const findAnchorMatches = async () => {
     if (!activeDocument || !activeParticipantId || !onAnchorSearch) { setAnchorResult('Server anchor search is unavailable.'); return }
     const anchor = anchorText.trim(); if (!anchor) return
     const type = resolveAnchorFieldType(armedType); const size = DEFAULT_SIZES[type]
@@ -537,25 +565,54 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       const result = await onAnchorSearch({ anchor, case_sensitive: anchorCaseSensitive, whole_word: anchorWholeWord,
         document_ids: [activeDocument.id], match_mode: anchorFirstOnly ? 'first' : 'all', horizontal_alignment: anchorAlignment, offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit,
         field_width: size.width, field_height: size.height })
-      const generated = (result.matches ?? []).map((match, matchIndex): EditorField => ({ id: newId(), documentId: match.document_id,
-        participantId: activeParticipantId, fieldType: type, pageNumber: match.page_number,
-        posX: clamp(match.x, 0, 1 - size.width), posY: clamp(match.y, 0, 1 - size.height), width: size.width, height: size.height,
-        required: !['formula', 'note'].includes(type), properties: { ...defaultProperties(type, anchorRadioGroup), data_label: `${type}_${ruleId.slice(0, 8)}${anchorInstancesShareValue(type) ? '' : `_${matchIndex + 1}`}`,
-          shared_value: anchorInstancesShareValue(type), read_only: type === 'note',
-          anchor: { anchor, rule_id: ruleId, match_index: matchIndex, case_sensitive: anchorCaseSensitive, whole_word: anchorWholeWord,
-            document_ids: [activeDocument.id], horizontal_alignment: anchorAlignment, offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit,
-            match_mode: anchorFirstOnly ? 'first' : 'all', missing_policy: anchorIgnoreMissing ? 'ignore' : 'fail' } } }))
-      if (generated.length) { commit([...fields, ...generated]); setSelectedIds(new Set(generated.map((field) => field.id))); setAnchorResult(`Placed ${generated.length} field${generated.length === 1 ? '' : 's'} for “${anchor}”.`) }
-      else setAnchorResult(`No matches found for “${anchor}”. Required anchors will prevent sending.`)
+      const matches = result.matches ?? []
+      if (matches.length) {
+        setAnchorSession({ ruleId, documentId: activeDocument.id, participantId: activeParticipantId, type, size,
+          radioGroup: anchorRadioGroup, anchor, caseSensitive: anchorCaseSensitive, wholeWord: anchorWholeWord,
+          firstOnly: anchorFirstOnly, alignment: anchorAlignment, offsetX: anchorOffsetX, offsetY: anchorOffsetY,
+          offsetUnit: anchorOffsetUnit, ignoreMissing: anchorIgnoreMissing, matches })
+        setAnchorResult(`Found ${matches.length} match${matches.length === 1 ? '' : 'es'} for “${anchor}”. Select each highlighted location where you want a field.`)
+        setAnchorOpen(false); setArmedType(null); setRadioGroup(null)
+        focusAnchorMatch(ruleId, 0)
+      } else {
+        setAnchorSession(null)
+        setAnchorResult(`No matches found for “${anchor}”.`)
+      }
     } catch (error) { setAnchorResult(error instanceof Error ? error.message : 'Anchor search failed.') }
     finally { setAnchorSearching(false) }
+  }
+
+  const placeAnchorMatch = (matchIndex: number) => {
+    if (!anchorSession || placedAnchorMatchIndexes.has(matchIndex)) return
+    const match = anchorSession.matches[matchIndex]
+    if (!match) return
+    const id = newId()
+    const field: EditorField = { id, documentId: match.document_id, participantId: anchorSession.participantId,
+      fieldType: anchorSession.type, pageNumber: match.page_number,
+      posX: clamp(match.x, 0, 1 - anchorSession.size.width), posY: clamp(match.y, 0, 1 - anchorSession.size.height),
+      width: anchorSession.size.width, height: anchorSession.size.height,
+      required: !['formula', 'note'].includes(anchorSession.type),
+      properties: { ...defaultProperties(anchorSession.type, anchorSession.radioGroup),
+        data_label: `${anchorSession.type}_${anchorSession.ruleId.slice(0, 8)}${anchorInstancesShareValue(anchorSession.type) ? '' : `_${matchIndex + 1}`}`,
+        shared_value: anchorInstancesShareValue(anchorSession.type), read_only: anchorSession.type === 'note',
+        anchor: { anchor: anchorSession.anchor, rule_id: anchorSession.ruleId, match_index: matchIndex,
+          case_sensitive: anchorSession.caseSensitive, whole_word: anchorSession.wholeWord,
+          document_ids: [anchorSession.documentId], horizontal_alignment: anchorSession.alignment,
+          offset_x: anchorSession.offsetX, offset_y: anchorSession.offsetY, offset_unit: anchorSession.offsetUnit,
+          match_mode: anchorSession.firstOnly ? 'first' : 'all', placement_mode: 'individual',
+          missing_policy: anchorSession.ignoreMissing ? 'ignore' : 'fail' } } }
+    commit([...fields, field]); setSelectedIds(new Set([id]))
+    const placedCount = placedAnchorMatchIndexes.size + 1
+    setAnchorResult(placedCount === anchorSession.matches.length
+      ? `Placed fields at all ${placedCount} matches for “${anchorSession.anchor}”.`
+      : `Placed ${placedCount} of ${anchorSession.matches.length} matches for “${anchorSession.anchor}”.`)
   }
 
   if (!documents.length || !participants.length) return <p className="text-sm text-foreground-muted">Add documents and recipients before placing fields.</p>
 
   return <div ref={containerRef} tabIndex={0} className={cn('flex flex-col gap-4 outline-none lg:flex-row', className)}>
     <aside className="w-full shrink-0 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-6rem)] lg:w-64 lg:self-start lg:overflow-y-auto lg:pr-1">
-      {documents.length > 1 && <Select value={activeDocument?.id} onValueChange={setActiveDocumentId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documents.map((doc) => <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>)}</SelectContent></Select>}
+      {documents.length > 1 && <Select value={activeDocument?.id} onValueChange={(documentId) => { setActiveDocumentId(documentId); if (anchorSession?.documentId !== documentId) { setAnchorSession(null); setAnchorResult('') } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documents.map((doc) => <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>)}</SelectContent></Select>}
       <div className="space-y-1.5"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Assign to</p>{participants.map((participant, index) => {
         const color = participantColor(index); return <button key={participant.id} type="button" onClick={() => setActiveParticipantId(participant.id)}
           className={cn('flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm', participant.id === activeParticipantId ? 'border-primary bg-primary-soft' : 'border-border bg-surface')}>
@@ -565,6 +622,15 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           onClick={() => { const next = armedType === type ? null : type; setArmedType(next); setRadioGroup(next === 'radio' ? newId() : null) }}
           className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', armedType === type ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setAnchorResult(''); setAnchorOpen(true) }}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
+        {anchorSession && <div className="space-y-2 rounded-md border border-primary/30 bg-primary-soft p-2.5 text-xs">
+          <div className="flex items-center justify-between gap-2"><span className="font-medium text-foreground">Anchor matches</span><span className="rounded-full bg-surface px-2 py-0.5 font-medium text-primary">{placedAnchorMatchIndexes.size}/{anchorSession.matches.length} placed</span></div>
+          <p className="text-foreground-muted">Matched “{anchorSession.anchor}”. Select a dashed field box on the document to place {SHORT[anchorSession.type].toLowerCase()} at that match.</p>
+          {anchorResult && <p className="text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}
+          <div className="flex gap-1.5"><Button type="button" variant="outline" size="sm" className="h-7 flex-1 text-xs" disabled={placedAnchorMatchIndexes.size === anchorSession.matches.length} onClick={() => {
+            const next = anchorSession.matches.findIndex((_, index) => !placedAnchorMatchIndexes.has(index))
+            if (next >= 0) focusAnchorMatch(anchorSession.ruleId, next)
+          }}>Next unplaced</Button><Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => { setAnchorSession(null); setAnchorResult('') }}>Done</Button></div>
+        </div>}
         <div className="flex gap-1"><Button type="button" variant="ghost" size="sm" onClick={undo} title="Undo"><Undo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={redo} title="Redo"><Redo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={() => duplicate(fields.filter((field) => selectedIds.has(field.id)))} title="Duplicate"><Copy className="size-4" /></Button></div>
         <p className="text-xs text-foreground-subtle">{armedType ? armedType === 'radio' ? 'Click repeatedly to add options; Escape ends the group.' : 'Click a page to place.' : 'Shift/Cmd-click or drag a marquee to multi-select. Alt disables snapping.'}</p>
       </div>
@@ -583,6 +649,25 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         }} onPointerDown={(event) => { if (armedType) { const rect = event.currentTarget.getBoundingClientRect(); placeField(pageIndex, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height) } else { const rect = event.currentTarget.getBoundingClientRect(); setSelectedIds(new Set()); setMarquee({ page: pageIndex, x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height, width: 0, height: 0 }) } }}>
           <AlignmentGuides guides={guides} width={size.width} height={size.height} />
           {marquee?.page === pageIndex && <span className="pointer-events-none absolute border border-primary bg-primary/10" style={{ left: Math.min(marquee.x, marquee.x + marquee.width) * size.width, top: Math.min(marquee.y, marquee.y + marquee.height) * size.height, width: Math.abs(marquee.width) * size.width, height: Math.abs(marquee.height) * size.height }} />}
+          {anchorSession?.documentId === activeDocument.id && anchorSession.matches.map((match, matchIndex) => {
+            if (match.page_number !== pageIndex) return null
+            const placed = placedAnchorMatchIndexes.has(matchIndex)
+            const anchorX = match.anchor_x ?? match.x
+            const anchorY = match.anchor_y ?? match.y
+            return <React.Fragment key={`${anchorSession.ruleId}-${matchIndex}`}>
+              <span id={`esign-anchor-match-${anchorSession.ruleId}-${matchIndex}`} className={cn('pointer-events-none absolute z-10 rounded-sm ring-2', placed ? 'bg-success/20 ring-success' : 'bg-amber-300/40 ring-amber-500')}
+                style={{ left: anchorX * size.width, top: anchorY * size.height, width: Math.max(match.width * size.width, 4), height: Math.max(match.height * size.height, 4) }}>
+                <span className={cn('absolute -left-2 -top-3 flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm', placed ? 'bg-success' : 'bg-amber-600')}>{placed ? <Check className="size-3" /> : matchIndex + 1}</span>
+              </span>
+              {!placed && <button type="button" className="absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/15 text-[10px] font-semibold text-primary shadow-sm transition-colors hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                style={{ left: match.x * size.width, top: match.y * size.height, width: anchorSession.size.width * size.width, height: anchorSession.size.height * size.height }}
+                aria-label={`Place ${anchorSession.type.replace(/_/g, ' ')} field at anchor match ${matchIndex + 1}`}
+                title={`Match ${matchIndex + 1}: place ${anchorSession.type.replace(/_/g, ' ')} field`}
+                onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); placeAnchorMatch(matchIndex) }}>
+                <span className="pointer-events-none truncate px-1">+ {SHORT[anchorSession.type]}</span>
+              </button>}
+            </React.Fragment>
+          })}
           {fields.filter((field) => field.documentId === activeDocument.id && field.pageNumber === pageIndex).map((field) => { const color = participantColor(participantIndexById.get(field.participantId) ?? 0); const selected = selectedIds.has(field.id); const isConditionalParent = selectedField?.properties?.conditional?.parent_field_id === field.id; const canStyleText = supportsTextAppearance(field.fieldType); const appearance = field.properties?.appearance
             return <div key={field.id} id={`esign-editor-field-${field.id}`} onPointerDown={(event) => startInteraction(event, field, 'move', size)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
               className={cn('absolute flex touch-none select-none items-center justify-center overflow-visible rounded-sm border text-[10px] font-medium', selected && 'ring-2 ring-offset-1', isConditionalParent && 'ring-2 ring-fuchsia-500 ring-offset-1')}
@@ -605,7 +690,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     </main>
     <Dialog open={anchorOpen} onOpenChange={setAnchorOpen}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader><DialogTitle>Place fields by anchor</DialogTitle><DialogDescription>Find matching text in the active document and place the selected field at each match.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Place fields by anchor</DialogTitle><DialogDescription>Find matching text in the active document, review every highlighted location, then place fields one at a time.</DialogDescription></DialogHeader>
         <div className="space-y-2"><label htmlFor="esign-anchor-text" className="text-sm font-medium">Anchor text</label><Input id="esign-anchor-text" value={anchorText} onChange={(event) => setAnchorText(event.target.value)} placeholder="e.g. Client signature" autoFocus />
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorCaseSensitive} onChange={(event) => setAnchorCaseSensitive(event.target.checked)} /> Case sensitive</label>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorWholeWord} onChange={(event) => setAnchorWholeWord(event.target.checked)} /> Whole word</label>
@@ -614,7 +699,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           <div className="grid grid-cols-2 gap-2"><Input type="number" value={anchorOffsetX} onChange={(event) => setAnchorOffsetX(Number(event.target.value))} placeholder="Horizontal offset" /><Input type="number" value={anchorOffsetY} onChange={(event) => setAnchorOffsetY(Number(event.target.value))} placeholder="Vertical offset" /></div>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorIgnoreMissing} onChange={(event) => setAnchorIgnoreMissing(event.target.checked)} /> Allow missing anchor</label>
           {anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
-        <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={placeByAnchor} disabled={!anchorText.trim() || anchorSearching}>{anchorSearching && <Loader2 className="mr-1.5 size-4 animate-spin" />}Find & place</Button></DialogFooter>
+        <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={findAnchorMatches} disabled={!anchorText.trim() || anchorSearching}>{anchorSearching && <Loader2 className="mr-1.5 size-4 animate-spin" />}Find matches</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

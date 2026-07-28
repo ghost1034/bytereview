@@ -29,12 +29,24 @@ from services.esign.envelope_service import EsignError
 from services.esign.sealing_service import _initials_from_name
 from services.esign.signing_service import (
     _advisory_lock_keys,
+    _should_materialize_anchor_match,
     esign_signing_service,
     signing_url,
 )
 from services.esign.url_service import app_base_url
 
 NS = types.SimpleNamespace
+
+
+class AnchorMaterializationTests(unittest.TestCase):
+    def test_automatic_rules_materialize_unclaimed_matches(self) -> None:
+        self.assertTrue(_should_materialize_anchor_match({"match_mode": "all"}, None))
+
+    def test_individual_rules_do_not_materialize_unselected_matches(self) -> None:
+        self.assertFalse(_should_materialize_anchor_match({"match_mode": "all", "placement_mode": "individual"}, None))
+
+    def test_existing_match_is_never_materialized_again(self) -> None:
+        self.assertFalse(_should_materialize_anchor_match({"match_mode": "all"}, NS(id="field")))
 
 
 def _envelope(status=EsignEnvelopeStatus.SENT, signing_type=EsignSigningType.SEQUENTIAL, current=1):

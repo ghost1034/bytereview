@@ -6253,6 +6253,12 @@ export interface components {
              */
             match_mode: "first" | "all";
             /**
+             * Placement Mode
+             * @default automatic
+             * @enum {string}
+             */
+            placement_mode: "automatic" | "individual";
+            /**
              * Missing Policy
              * @default fail
              * @enum {string}
@@ -7486,6 +7492,10 @@ export interface components {
             width: number;
             /** Height */
             height: number;
+            /** Anchor X */
+            anchor_x?: number | null;
+            /** Anchor Y */
+            anchor_y?: number | null;
             /** Reference X */
             reference_x?: number | null;
             /** Reference Y */

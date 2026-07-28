@@ -102,6 +102,16 @@ ALLOWED_TYPED_FONTS = {"dancing-script", "caveat", "great-vibes", "homemade-appl
 
 ACTIVE_ENVELOPE_STATUSES = (EsignEnvelopeStatus.SENT, EsignEnvelopeStatus.IN_PROGRESS)
 
+
+def _should_materialize_anchor_match(rule: dict, field: Optional[EsignField]) -> bool:
+    """Whether send-time resolution should create a field for an unclaimed hit."""
+    return (
+        field is None
+        and str(rule.get("match_mode", "all")) == "all"
+        and str(rule.get("placement_mode", "automatic")) != "individual"
+    )
+
+
 def format_date_signed(dt: datetime, date_format: Optional[str] = None) -> str:
     """Canonical storage value; ceremony and sealing apply display format."""
     return dt.date().isoformat()
@@ -386,7 +396,7 @@ class EsignSigningService:
                         envelope.fields.remove(field)
                 for index, match in enumerate(result.matches):
                     field = by_index.get(index)
-                    if field is None and str(rule.get("match_mode", "all")) == "all":
+                    if _should_materialize_anchor_match(rule, field):
                         base = members[0]
                         properties = copy.deepcopy(base.properties or {})
                         properties["anchor"]["match_index"] = index

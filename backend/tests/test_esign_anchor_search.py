@@ -13,6 +13,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.esign.envelope_service import EsignEnvelopeService, EsignError, validate_field_placement
+from models.esign import AnchorProps
 
 
 class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
@@ -91,6 +92,16 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         anchor_center = (anchor_rect.y0 + anchor_rect.y1) / 2 / 792
         self.assertAlmostEqual(match.reference_y, anchor_center)
         self.assertAlmostEqual(match.y + field_height / 2, anchor_center)
+        self.assertAlmostEqual(match.anchor_x, anchor_rect.x0 / 612)
+        self.assertAlmostEqual(match.anchor_y, anchor_rect.y0 / 792)
+
+    def test_individual_anchor_placement_mode_is_preserved(self) -> None:
+        props = AnchorProps.model_validate({
+            "anchor": "Signature:",
+            "placement_mode": "individual",
+        })
+
+        self.assertEqual(props.placement_mode, "individual")
 
     async def test_point_only_anchor_search_preserves_top_edge_y(self) -> None:
         pdf = fitz.open()

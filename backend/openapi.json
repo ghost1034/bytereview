@@ -21023,6 +21023,15 @@
             "title": "Match Mode",
             "default": "all"
           },
+          "placement_mode": {
+            "type": "string",
+            "enum": [
+              "automatic",
+              "individual"
+            ],
+            "title": "Placement Mode",
+            "default": "automatic"
+          },
           "missing_policy": {
             "type": "string",
             "enum": [
@@ -24439,6 +24448,28 @@
           "height": {
             "type": "number",
             "title": "Height"
+          },
+          "anchor_x": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor X"
+          },
+          "anchor_y": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Anchor Y"
           },
           "reference_x": {
             "anyOf": [

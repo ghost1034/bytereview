@@ -2252,6 +2252,8 @@ class EsignEnvelopeService:
                                 y=field_y,
                                 width=max(0.0, min(1.0, rect.width / page.rect.width)),
                                 height=max(0.0, min(1.0, rect.height / page.rect.height)),
+                                anchor_x=max(0.0, min(1.0, rect.x0 / page.rect.width)),
+                                anchor_y=max(0.0, min(1.0, rect.y0 / page.rect.height)),
                                 reference_x=reference_x,
                                 reference_y=reference_y,
                             )

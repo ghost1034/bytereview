@@ -71,6 +71,9 @@ class AnchorProps(BaseModel):
     offset_y: float = 0
     offset_unit: Literal["point", "mm", "inch"] = "point"
     match_mode: Literal["first", "all"] = "all"
+    # Automatic rules materialize every match at send time. Individual rules
+    # only keep the matches explicitly accepted in the field editor.
+    placement_mode: Literal["automatic", "individual"] = "automatic"
     missing_policy: Literal["fail", "ignore"] = "fail"
 
 
@@ -917,6 +920,11 @@ class EsignAnchorMatch(BaseModel):
     y: float
     width: float
     height: float
+    # Exact normalized bounds of the text search hit. ``x``/``y`` describe the
+    # proposed field position and therefore cannot be used to highlight the
+    # source text when an offset or edge alignment is configured.
+    anchor_x: Optional[float] = None
+    anchor_y: Optional[float] = None
     # Unclamped horizontal alignment point and vertical anchor center after
     # offsets. Send-time resolution reuses them with each field's current
     # dimensions, including fields resized after the original anchor search.
