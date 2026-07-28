@@ -30,7 +30,9 @@ export default function NewEnvelopePage() {
   const [title, setTitle] = React.useState('')
   const [message, setMessage] = React.useState('')
   const [signingType, setSigningType] = React.useState('sequential')
+  const [expirationEnabled, setExpirationEnabled] = React.useState(true)
   const [expiresInDays, setExpiresInDays] = React.useState('30')
+  const [remindersEnabled, setRemindersEnabled] = React.useState(true)
   const [reminderHours, setReminderHours] = React.useState('72')
   const [templateId, setTemplateId] = React.useState<string>(searchParams?.get('template') ?? 'none')
 
@@ -42,8 +44,8 @@ export default function NewEnvelopePage() {
         title: title.trim() || undefined,
         message: message.trim() || undefined,
         signingType,
-        expiresInDays: expiresInDays ? Number(expiresInDays) : undefined,
-        reminderIntervalHours: reminderHours ? Number(reminderHours) : undefined,
+        expiresInDays: expirationEnabled && expiresInDays ? Number(expiresInDays) : undefined,
+        reminderIntervalHours: remindersEnabled && reminderHours ? Number(reminderHours) : undefined,
         templateId: usingTemplate ? templateId : undefined,
       })
       const envelopeId = result.envelope.id
@@ -128,7 +130,15 @@ export default function NewEnvelopePage() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="esign-expires">Expires in (days)</Label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={expirationEnabled}
+                onChange={(e) => setExpirationEnabled(e.target.checked)}
+              />
+              Envelope expires
+            </label>
+            <Label htmlFor="esign-expires" className="sr-only">Expires in (days)</Label>
             <Input
               id="esign-expires"
               type="number"
@@ -136,10 +146,21 @@ export default function NewEnvelopePage() {
               max={365}
               value={expiresInDays}
               onChange={(e) => setExpiresInDays(e.target.value)}
+              disabled={!expirationEnabled}
+              aria-label="Expires in days"
             />
+            <p className="text-xs text-foreground-muted">{expirationEnabled ? 'Days until expiration' : 'No expiration date'}</p>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="esign-reminder">Remind every (hours)</Label>
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={remindersEnabled}
+                onChange={(e) => setRemindersEnabled(e.target.checked)}
+              />
+              Automatic reminders
+            </label>
+            <Label htmlFor="esign-reminder" className="sr-only">Remind every (hours)</Label>
             <Input
               id="esign-reminder"
               type="number"
@@ -147,7 +168,10 @@ export default function NewEnvelopePage() {
               max={720}
               value={reminderHours}
               onChange={(e) => setReminderHours(e.target.value)}
+              disabled={!remindersEnabled}
+              aria-label="Reminder interval in hours"
             />
+            <p className="text-xs text-foreground-muted">{remindersEnabled ? 'Hours between reminders' : 'No automatic reminders'}</p>
           </div>
         </div>
 

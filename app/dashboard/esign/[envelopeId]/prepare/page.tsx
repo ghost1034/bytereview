@@ -82,6 +82,10 @@ const ROLE_OPTIONS: Array<{ value: EsignRole; label: string }> = [
 ]
 const newRecipient = (routingOrder = 1): RecipientRow => ({ key: crypto.randomUUID(), name: '', email: '', role: 'signer', routingOrder, privateMessage: '', witnessMode: 'remote', hostName: '', hostEmail: '', allowReassignment: false })
 
+function defaultExpirationDate() {
+  return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
 function SortHandle({ id, label, disabled = false }: { id: string; label: string; disabled?: boolean }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled })
   return (
@@ -124,7 +128,9 @@ export default function EnvelopePreparePage() {
   const [signingType, setSigningType] = React.useState('sequential')
   const [allowReassignment, setAllowReassignment] = React.useState(false)
   const [dateFormat, setDateFormat] = React.useState('MM/DD/YYYY')
+  const [remindersEnabled, setRemindersEnabled] = React.useState(false)
   const [reminderHours, setReminderHours] = React.useState('')
+  const [expirationEnabled, setExpirationEnabled] = React.useState(false)
   const [expiresAt, setExpiresAt] = React.useState('')
   const [rows, setRows] = React.useState<RecipientRow[]>([])
   const [documents, setDocuments] = React.useState<EsignDocumentResponse[]>([])
@@ -157,22 +163,25 @@ export default function EnvelopePreparePage() {
     setSigningType(envelope.signing_type)
     setAllowReassignment(envelope.allow_reassignment)
     setDateFormat(envelope.date_format)
-    setReminderHours(envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '')
-    setExpiresAt(envelope.expires_at ? envelope.expires_at.slice(0, 10) : '')
+    setRemindersEnabled(envelope.reminder_interval_hours != null)
+    setReminderHours(envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '72')
+    setExpirationEnabled(envelope.expires_at != null)
+    const expirationDate = envelope.expires_at ? envelope.expires_at.slice(0, 10) : defaultExpirationDate()
+    setExpiresAt(expirationDate)
     setRows(envelope.recipients.length
       ? envelope.recipients.map((recipient, index) => ({ key: recipient.id, id: recipient.id, name: recipient.name ?? '', email: recipient.email ?? '', role: recipient.role as EsignRole, roleLabel: recipient.role_label ?? templateRoles[index]?.label, routingOrder: recipient.routing_order, privateMessage: recipient.private_message ?? '', managedByRecipientId: recipient.managed_by_recipient_id ?? undefined, witnessForRecipientId: recipient.witness_for_recipient_id ?? undefined, witnessMode: recipient.witness_mode ?? (recipient.email ? 'remote' : 'in_person'), hostName: recipient.host_name ?? '', hostEmail: recipient.host_email ?? '', allowReassignment: recipient.allow_reassignment }))
       : templateRoles.length
         ? templateRoles.map((role) => ({ ...newRecipient(role.routing_order ?? 1), role: (role.role as EsignRole) ?? 'signer', roleLabel: role.label || 'Recipient' }))
         : [newRecipient()])
     setDocuments([...envelope.documents].sort((a, b) => a.display_order - b.display_order))
-    lastMetadata.current = JSON.stringify({ title: envelope.title, message: envelope.message ?? '', signingType: envelope.signing_type, allowReassignment: envelope.allow_reassignment, dateFormat: envelope.date_format, reminderHours: envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '', expiresAt: envelope.expires_at ? envelope.expires_at.slice(0, 10) : '' })
+    lastMetadata.current = JSON.stringify({ title: envelope.title, message: envelope.message ?? '', signingType: envelope.signing_type, allowReassignment: envelope.allow_reassignment, dateFormat: envelope.date_format, remindersEnabled: envelope.reminder_interval_hours != null, reminderHours: envelope.reminder_interval_hours ? String(envelope.reminder_interval_hours) : '72', expirationEnabled: envelope.expires_at != null, expiresAt: expirationDate })
     draftRevision.current = envelope.draft_revision
     setHydrated(true)
   }, [envelope, hydrated, template, templateId, templateRoles])
 
   React.useEffect(() => {
     if (!hydrated) return
-    const snapshot = JSON.stringify({ title, message, signingType, allowReassignment, dateFormat, reminderHours, expiresAt })
+    const snapshot = JSON.stringify({ title, message, signingType, allowReassignment, dateFormat, remindersEnabled, reminderHours, expirationEnabled, expiresAt })
     if (snapshot === lastMetadata.current || !title.trim()) return
     const timer = window.setTimeout(async () => {
       setSaveState('saving')
@@ -184,8 +193,8 @@ export default function EnvelopePreparePage() {
           signing_type: signingType,
           allow_reassignment: allowReassignment,
           date_format: dateFormat as 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD' | 'MMM D, YYYY',
-          reminder_interval_hours: reminderHours ? Number(reminderHours) : null,
-          expires_at: expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : null,
+          reminder_interval_hours: remindersEnabled && reminderHours ? Number(reminderHours) : null,
+          expires_at: expirationEnabled && expiresAt ? new Date(`${expiresAt}T23:59:59`).toISOString() : null,
         }))
         lastMetadata.current = snapshot
         setSaveState('saved')
@@ -195,7 +204,7 @@ export default function EnvelopePreparePage() {
       }
     }, 750)
     return () => window.clearTimeout(timer)
-  }, [allowReassignment, dateFormat, enqueueDraftSave, expiresAt, hydrated, message, reminderHours, signingType, title, toast, updateEnvelope])
+  }, [allowReassignment, dateFormat, enqueueDraftSave, expirationEnabled, expiresAt, hydrated, message, reminderHours, remindersEnabled, signingType, title, toast, updateEnvelope])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -294,7 +303,7 @@ export default function EnvelopePreparePage() {
 
         <aside className="space-y-5">
           <section className="rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="mb-4 font-semibold">Message</h2><Label htmlFor="prepare-message">Email message</Label><Textarea id="prepare-message" rows={7} value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Add a note for recipients…" /></section>
-          <section className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="font-semibold">Delivery settings</h2><div><Label>Signing order</Label><Select value={signingType} onValueChange={setSigningType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sequential">Routing steps</SelectItem><SelectItem value="parallel">All actionable recipients</SelectItem></SelectContent></Select></div>{advancedRecipients && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={allowReassignment} onChange={(event) => setAllowReassignment(event.target.checked)} /> Permit recipient reassignment</label>}<div><Label>Date format</Label><Select value={dateFormat} onValueChange={setDateFormat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem><SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem><SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem><SelectItem value="MMM D, YYYY">MMM D, YYYY</SelectItem></SelectContent></Select></div><div><Label htmlFor="prepare-expires">Expiration date</Label><Input id="prepare-expires" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></div><div><Label htmlFor="prepare-reminders">Remind every (hours)</Label><Input id="prepare-reminders" type="number" min={1} max={720} value={reminderHours} onChange={(event) => setReminderHours(event.target.value)} /></div></section>
+          <section className="space-y-4 rounded-xl border border-border bg-surface p-5 shadow-sm"><h2 className="font-semibold">Delivery settings</h2><div><Label>Signing order</Label><Select value={signingType} onValueChange={setSigningType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sequential">Routing steps</SelectItem><SelectItem value="parallel">All actionable recipients</SelectItem></SelectContent></Select></div>{advancedRecipients && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={allowReassignment} onChange={(event) => setAllowReassignment(event.target.checked)} /> Permit recipient reassignment</label>}<div><Label>Date format</Label><Select value={dateFormat} onValueChange={setDateFormat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem><SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem><SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem><SelectItem value="MMM D, YYYY">MMM D, YYYY</SelectItem></SelectContent></Select></div><div className="space-y-2"><label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={expirationEnabled} onChange={(event) => setExpirationEnabled(event.target.checked)} /> Envelope expires</label><Label htmlFor="prepare-expires" className="sr-only">Expiration date</Label><Input id="prepare-expires" type="date" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} disabled={!expirationEnabled} /><p className="text-xs text-foreground-muted">{expirationEnabled ? 'Expiration date' : 'This envelope will not expire'}</p></div><div className="space-y-2"><label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={remindersEnabled} onChange={(event) => setRemindersEnabled(event.target.checked)} /> Automatic reminders</label><Label htmlFor="prepare-reminders" className="sr-only">Remind every (hours)</Label><Input id="prepare-reminders" type="number" min={1} max={720} value={reminderHours} onChange={(event) => setReminderHours(event.target.value)} disabled={!remindersEnabled} aria-label="Reminder interval in hours" /><p className="text-xs text-foreground-muted">{remindersEnabled ? 'Hours between reminders' : 'No automatic reminders will be sent'}</p></div></section>
         </aside>
       </div>
 

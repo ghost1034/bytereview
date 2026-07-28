@@ -81,9 +81,6 @@ MAX_DOCUMENTS_PER_ENVELOPE = int(os.getenv("ESIGN_MAX_DOCUMENTS", "10"))
 MAX_DOCUMENT_BYTES = int(os.getenv("ESIGN_MAX_DOCUMENT_BYTES", str(25 * 1024 * 1024)))
 MAX_RECIPIENTS = int(os.getenv("ESIGN_MAX_RECIPIENTS", "20"))
 DOWNLOAD_URL_MINUTES = int(os.getenv("ESIGN_DOWNLOAD_URL_MINUTES", "15"))
-DEFAULT_EXPIRES_DAYS = int(os.getenv("ESIGN_DEFAULT_EXPIRES_DAYS", "30"))
-
-
 def validate_field_placement(field: Any, document: Any) -> None:
     """Validate an ORM, Pydantic, or snapshot field against its PDF document."""
     value = field.get if isinstance(field, dict) else lambda key, default=None: getattr(field, key, default)

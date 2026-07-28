@@ -380,6 +380,59 @@ class EsignLifecyclePgTests(unittest.TestCase):
                 )
             )
 
+    def test_send_preserves_disabled_expiration_and_reminders(self) -> None:
+        from models.esign import EsignFieldInput, EsignRecipientInput
+
+        envelope = self._run(
+            self.envelope_service.create_envelope(
+                user_id=self.sender_uid,
+                user_email=self.sender_email,
+                title="No expiration or reminders",
+                message=None,
+                signing_type="sequential",
+                files=[("agreement.pdf", _make_pdf(1))],
+                template_id=None,
+                expires_in_days=None,
+                reminder_interval_hours=None,
+                meta=self.meta,
+            )
+        )
+        self.__class__._created_envelope_ids.append(envelope.id)
+        envelope = self.envelope_service.replace_recipients(
+            self.sender_uid,
+            envelope.id,
+            [EsignRecipientInput(email=self.signer1_email, name="Signer One", routing_order=1)],
+        )
+        self.envelope_service.replace_fields(
+            self.sender_uid,
+            envelope.id,
+            [
+                EsignFieldInput(
+                    document_id=envelope.documents[0].id,
+                    recipient_id=envelope.recipients[0].id,
+                    field_type="signature",
+                    page_number=0,
+                    pos_x=0.1,
+                    pos_y=0.7,
+                    width=0.3,
+                    height=0.05,
+                )
+            ],
+        )
+
+        sent = self._run(
+            self.signing_service.send_envelope(
+                user_id=self.sender_uid,
+                user_email=self.sender_email,
+                envelope_id=envelope.id,
+                meta=self.meta,
+            )
+        )
+
+        self.assertEqual(sent.status, "sent")
+        self.assertIsNone(sent.expires_at)
+        self.assertIsNone(sent.reminder_interval_hours)
+
     def test_delete_draft_envelope(self) -> None:
         from models.db_models import EsignEnvelope, EsignEvent
         from services.esign.envelope_service import EsignConflict

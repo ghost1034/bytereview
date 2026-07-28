@@ -65,7 +65,6 @@ from services.esign.audit_service import EsignRequestMeta
 from services.esign.email_templates import EmailContent
 from services.esign.envelope_service import (
     DOWNLOAD_URL_MINUTES,
-    DEFAULT_EXPIRES_DAYS,
     EsignConflict,
     EsignError,
     EsignNotFound,
@@ -331,6 +330,11 @@ class EsignSigningService:
                 if not overrides.get("date_format", True): envelope.date_format = settings.date_format
                 if not overrides.get("signing_type", True): envelope.signing_type = EsignSigningType(settings.signing_type)
                 if not overrides.get("reminders", True): envelope.reminder_interval_hours = settings.reminder_interval_hours
+                if not overrides.get("expiration", True):
+                    envelope.expires_at = (
+                        datetime.now(timezone.utc) + timedelta(days=int(settings.expiration_days))
+                        if settings.expiration_days else None
+                    )
                 if not overrides.get("reassignment", True): envelope.allow_reassignment = settings.allow_reassignment
                 if not overrides.get("brand", True): envelope.brand_id = settings.default_brand_id
                 envelope.settings_snapshot = {
@@ -490,8 +494,6 @@ class EsignSigningService:
             now = datetime.now(timezone.utc)
             envelope.status = EsignEnvelopeStatus.SENT
             envelope.sent_at = now
-            if envelope.expires_at is None:
-                envelope.expires_at = now + timedelta(days=DEFAULT_EXPIRES_DAYS)
             _, first_order = recompute_current_routing_order(envelope)
             assert first_order is not None
 
