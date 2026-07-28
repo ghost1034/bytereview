@@ -25,6 +25,8 @@ Prepare keeps the complete delivery setup on one screen:
 
 Every recipient needs a name and unique email address, and at least one recipient must be a signer. CPAAutomation sends a private access link to that address. Recipients must sign in with a free CPAAutomation account using the same email address before they can open and sign the envelope.
 
+Use **Recipient reassignment** to choose one clear policy for the envelope: nobody, all eligible recipients, or only recipients you select. When you choose specific recipients, enable **May reassign this step** on their recipient cards. Copy recipients, witnesses, and in-person signers cannot initiate reassignment.
+
 Removing a document also removes fields placed on that document. Removing a recipient removes only fields assigned to that recipient. CPAAutomation shows the exact number of affected fields before either destructive change. Editing a recipient's name, email, role, or routing position preserves that recipient's identity and placed fields.
 
 Click **Next** when the setup is valid. Pending changes are saved before the composer advances.
