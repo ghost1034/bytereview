@@ -17,7 +17,7 @@ interface EsignAccountGateProps {
 export function EsignAccountGate({ redirectTo, onContinueAsGuest }: EsignAccountGateProps) {
   const { loading, requiresMfaEnrollment, user } = useAuth()
   const router = useRouter()
-  const [authOpen, setAuthOpen] = React.useState(true)
+  const [authOpen, setAuthOpen] = React.useState(false)
   const [defaultTab, setDefaultTab] = React.useState<'signin' | 'signup'>('signup')
 
   React.useEffect(() => {
