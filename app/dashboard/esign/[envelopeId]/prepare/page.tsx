@@ -36,7 +36,6 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Dropzone } from '@/components/ui/dropzone'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -51,7 +50,7 @@ import {
   useReplaceRecipients,
   useUpdateEnvelope,
 } from '@/hooks/useEnvelopes'
-import { apiClient, type EsignDocumentResponse, type EsignPdfWidget, type EsignRecipientInput } from '@/lib/api'
+import { type EsignDocumentResponse, type EsignRecipientInput } from '@/lib/api'
 import { recipientValidationError } from '@/lib/esign/composerValidation'
 import { hasEsignAccess } from '@/lib/esign/access'
 import {
@@ -143,10 +142,6 @@ export default function EnvelopePreparePage() {
   const [hydrated, setHydrated] = React.useState(false)
   const [saveState, setSaveState] = React.useState<ComposerSaveState>('idle')
   const [removeTarget, setRemoveTarget] = React.useState<{ type: 'document' | 'recipient'; id: string; label: string; fieldCount: number } | null>(null)
-  const [widgetDialog, setWidgetDialog] = React.useState<{ documentId: string; widgets: EsignPdfWidget[] } | null>(null)
-  const [widgetMappings, setWidgetMappings] = React.useState<Record<string, { recipient_id: string; field_type: 'text' | 'signature' | 'checkbox' | 'radio' | 'dropdown' | 'number' | 'date'; included: boolean; required: boolean; data_label: string }>>({})
-  const [unsupportedConfirmed, setUnsupportedConfirmed] = React.useState(false)
-  const [convertingWidgets, setConvertingWidgets] = React.useState(false)
   const lastMetadata = React.useRef('')
   const draftRevision = React.useRef(1)
   const saveQueue = React.useRef<Promise<void>>(Promise.resolve())
@@ -287,40 +282,14 @@ export default function EnvelopePreparePage() {
     router.push(`/dashboard/esign/${envelopeId}/fields`)
   }
 
-  const inspectWidgets = async (documentId: string) => {
-    try {
-      const result = await apiClient.inspectEsignPdfWidgets(envelopeId, documentId)
-      if (!(result.widgets ?? []).length) { toast({ title: 'No fillable PDF fields found' }); return }
-      const firstSigner = envelope?.recipients.find((recipient) => recipient.role === 'signer')?.id ?? ''
-      const mappings: typeof widgetMappings = {}
-      for (const widget of result.widgets ?? []) mappings[widget.widget_id] = { recipient_id: firstSigner, field_type: (widget.suggested_field_type || 'text') as typeof mappings[string]['field_type'], included: widget.supported, required: widget.required, data_label: widget.name }
-      setUnsupportedConfirmed(false); setWidgetMappings(mappings); setWidgetDialog({ documentId, widgets: result.widgets ?? [] })
-    } catch (error) { toast({ title: 'Could not inspect PDF fields', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) }
-  }
-
-  const convertWidgets = async () => {
-    if (!widgetDialog) return
-    setConvertingWidgets(true)
-    try {
-      const result = await enqueueDraftSave(() => apiClient.convertEsignPdfWidgets(envelopeId, widgetDialog.documentId, { mappings: widgetDialog.widgets.flatMap((widget) => {
-        const mapping = widgetMappings[widget.widget_id]
-        return mapping?.included && mapping.recipient_id ? [{ widget_id: widget.widget_id, recipient_id: mapping.recipient_id, field_type: mapping.field_type, required: mapping.required, data_label: mapping.data_label }] : []
-      }), confirm_unsupported_flatten: unsupportedConfirmed }))
-      draftRevision.current = result.draft_revision
-      toast({ title: 'PDF form fields imported', description: 'Review their placement and recipient assignments on the Fields step.' })
-      setWidgetDialog(null)
-    } catch (error) { toast({ title: 'Could not import PDF form fields', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) }
-    finally { setConvertingWidgets(false) }
-  }
-
   return (
     <ComposerShell title={title || envelope?.title || 'Untitled envelope'} onTitleChange={setTitle} stage="prepare" saveState={saveState} onClose={() => router.push('/dashboard/esign')} primary={<Button onClick={continueToFields} disabled={!envelope || documents.length === 0 || replaceRecipients.isPending}>Next <ArrowRight className="ml-1.5 size-4" /></Button>}>
       <div className="mx-auto grid max-w-6xl gap-5 p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:p-6">
         <div className="space-y-5">
           <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
-            <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="font-semibold">Documents</h2><p className="text-sm text-foreground-muted">Drag to set the order signers will review. If a PDF already has fillable form fields, import them to reuse their positions as E-Signature fields.</p></div><Upload className="size-5 text-foreground-subtle" /></div>
+            <div className="mb-4 flex items-start justify-between gap-3"><div><h2 className="font-semibold">Documents</h2><p className="text-sm text-foreground-muted">Drag to set the order signers will review.</p></div><Upload className="size-5 text-foreground-subtle" /></div>
             <Dropzone onFiles={async (files) => { const supported = files.filter((file) => /\.(pdf|docx)$/i.test(file.name)); if (supported.length !== files.length) toast({ title: 'Only PDF and Word (.docx) documents are supported', variant: 'destructive' }); if (!supported.length) return; try { const result = await enqueueDraftSave(() => addDocuments.mutateAsync(supported)); setDocuments([...result.documents].sort((a, b) => a.display_order - b.display_order)) } catch (error) { toast({ title: 'Upload failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }} accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" title="Drop PDF or Word documents here or browse" description="Up to 25 MB each. Word documents are converted to PDF." />
-            {documents.length > 0 && <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDocumentDrag}><SortableContext items={documents.map((item) => item.id)} strategy={verticalListSortingStrategy}><ul className="mt-4 divide-y divide-border rounded-lg border border-border">{documents.map((document) => <li key={document.id} className="flex items-center gap-2 px-2 py-2.5"><SortHandle id={document.id} label={document.original_filename} /><FileText className="size-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-sm font-medium">{document.original_filename}</span><span className="text-xs text-foreground-subtle">{document.page_count} page{document.page_count === 1 ? '' : 's'}</span><Button variant="outline" size="sm" onClick={() => void inspectWidgets(document.id)}>Import fillable fields</Button><Button variant="ghost" size="icon" disabled={documents.length <= 1} onClick={() => setRemoveTarget({ type: 'document', id: document.id, label: document.original_filename, fieldCount: envelope?.fields.filter((field) => field.document_id === document.id).length ?? 0 })} aria-label={`Remove ${document.original_filename}`}><Trash2 className="size-4" /></Button></li>)}</ul></SortableContext></DndContext>}
+            {documents.length > 0 && <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDocumentDrag}><SortableContext items={documents.map((item) => item.id)} strategy={verticalListSortingStrategy}><ul className="mt-4 divide-y divide-border rounded-lg border border-border">{documents.map((document) => <li key={document.id} className="flex items-center gap-2 px-2 py-2.5"><SortHandle id={document.id} label={document.original_filename} /><FileText className="size-4 shrink-0 text-primary" /><span className="min-w-0 flex-1 truncate text-sm font-medium">{document.original_filename}</span><span className="text-xs text-foreground-subtle">{document.page_count} page{document.page_count === 1 ? '' : 's'}</span><Button variant="ghost" size="icon" disabled={documents.length <= 1} onClick={() => setRemoveTarget({ type: 'document', id: document.id, label: document.original_filename, fieldCount: envelope?.fields.filter((field) => field.document_id === document.id).length ?? 0 })} aria-label={`Remove ${document.original_filename}`}><Trash2 className="size-4" /></Button></li>)}</ul></SortableContext></DndContext>}
           </section>
 
           <section className="rounded-xl border border-border bg-surface p-5 shadow-sm">
@@ -338,21 +307,6 @@ export default function EnvelopePreparePage() {
       </div>
 
       <AlertDialog open={!!removeTarget} onOpenChange={(open) => { if (!open) setRemoveTarget(null) }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Remove {removeTarget?.type}?</AlertDialogTitle><AlertDialogDescription>Removing “{removeTarget?.label}” will also remove {removeTarget?.fieldCount ?? 0} placed field{removeTarget?.fieldCount === 1 ? '' : 's'} assigned to it. This cannot be undone.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={async () => { if (!removeTarget) return; if (removeTarget.type === 'document') { try { const result = await enqueueDraftSave(() => deleteDocument.mutateAsync(removeTarget.id)); setDocuments([...result.documents].sort((a, b) => a.display_order - b.display_order)) } catch (error) { toast({ title: 'Could not remove document', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } } else { const next = rows.filter((row) => row.key !== removeTarget.id); setRows(next); await saveRecipients(next) } setRemoveTarget(null) }}>Remove</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
-      <Dialog open={!!widgetDialog} onOpenChange={(open) => { if (!open) setWidgetDialog(null) }}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-3xl">
-          <DialogHeader><DialogTitle>Import fillable PDF fields</DialogTitle><DialogDescription>Select the existing PDF form fields you want to turn into E-Signature fields, then choose who completes each one. Imported fields keep their positions and can be edited on the Fields step.</DialogDescription></DialogHeader>
-          <div className="space-y-3">{widgetDialog?.widgets.map((widget) => {
-            const mapping = widgetMappings[widget.widget_id]
-            if (!widget.supported) return <div key={widget.widget_id} className="rounded border border-warning/40 bg-warning-soft p-3 text-sm"><p className="font-medium">Unsupported widget · {widget.name}</p><p className="text-xs text-foreground-muted">Page {widget.page_number + 1}. This widget cannot be imported as an E-Signature field and will be flattened into the completed PDF after confirmation.</p></div>
-            return <div key={widget.widget_id} className="space-y-2 rounded border border-border p-3 text-sm">
-              <div className="grid gap-2 sm:grid-cols-[auto_1fr_130px_190px]"><input aria-label={`Import ${widget.name}`} type="checkbox" checked={mapping?.included ?? false} onChange={(event) => setWidgetMappings((current) => ({ ...current, [widget.widget_id]: { ...current[widget.widget_id], included: event.target.checked } }))} /><span title={widget.tooltip ?? widget.name}><span className="font-medium">{widget.name}</span><span className="block text-xs text-foreground-muted">Page {widget.page_number + 1}{widget.default_value ? ` · Default: ${widget.default_value}` : ''}{(widget.choices ?? []).length ? ` · Options: ${(widget.choices ?? []).join(', ')}` : ''}</span></span><select className="rounded border border-border bg-background p-1" value={mapping?.field_type ?? 'text'} onChange={(event) => setWidgetMappings((current) => ({ ...current, [widget.widget_id]: { ...current[widget.widget_id], field_type: event.target.value as typeof mapping.field_type } }))}>{['text', 'signature', 'checkbox', 'radio', 'dropdown', 'number', 'date'].map((type) => <option key={type} value={type}>{type}</option>)}</select><select className="rounded border border-border bg-background p-1" value={mapping?.recipient_id ?? ''} onChange={(event) => setWidgetMappings((current) => ({ ...current, [widget.widget_id]: { ...current[widget.widget_id], recipient_id: event.target.value } }))}><option value="">Choose signing role…</option>{envelope?.recipients.filter((recipient) => ['signer', 'witness', 'in_person_signer'].includes(recipient.role)).map((recipient) => <option key={recipient.id} value={recipient.id}>{recipient.name || recipient.role_label || recipient.role.replace(/_/g, ' ')} · {recipient.role.replace(/_/g, ' ')}</option>)}</select></div>
-              <div className="grid gap-2 sm:grid-cols-[1fr_auto]"><Input aria-label={`${widget.name} data label`} value={mapping?.data_label ?? widget.name} onChange={(event) => setWidgetMappings((current) => ({ ...current, [widget.widget_id]: { ...current[widget.widget_id], data_label: event.target.value } }))} /><label className="flex items-center gap-2"><input type="checkbox" checked={mapping?.required ?? false} onChange={(event) => setWidgetMappings((current) => ({ ...current, [widget.widget_id]: { ...current[widget.widget_id], required: event.target.checked } }))} /> Required</label></div>
-            </div>
-          })}</div>
-          {widgetDialog?.widgets.some((widget) => !widget.supported) && <label className="flex items-start gap-2 rounded border border-warning/40 bg-warning-soft p-3 text-sm"><input className="mt-0.5" type="checkbox" checked={unsupportedConfirmed} onChange={(event) => setUnsupportedConfirmed(event.target.checked)} /><span>I confirm unsupported widgets cannot be imported and may be flattened in the completed document.</span></label>}
-          <DialogFooter><Button variant="outline" onClick={() => setWidgetDialog(null)}>Cancel</Button><Button onClick={convertWidgets} disabled={convertingWidgets || (widgetDialog?.widgets.some((widget) => !widget.supported) && !unsupportedConfirmed) || !Object.values(widgetMappings).some((mapping) => mapping.included && mapping.recipient_id)}>Import selected fields</Button></DialogFooter>
-        </DialogContent>
-      </Dialog>
     </ComposerShell>
   )
 }

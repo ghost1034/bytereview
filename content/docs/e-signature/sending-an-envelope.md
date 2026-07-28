@@ -35,6 +35,8 @@ Click **Next** when the setup is valid. Pending changes are saved before the com
 
 Select a signer under **Assign to**, choose a field from the palette, and click the PDF to place it. You can also drag, resize, multi-select, duplicate, and move fields with the keyboard. Undo and redo are available in the palette.
 
+If the active PDF already contains fillable form fields, click **Import fillable fields** in the field palette. Choose which fields to import and assign each one to a signer. Imported fields keep their original positions and appear immediately in the editor.
+
 Available fields include:
 
 | Field | Behavior |

@@ -3,7 +3,7 @@
 import * as React from 'react'
 import {
   Calculator, CalendarDays, Check, CheckSquare, CircleDot, Copy,
-  ListChecks, Loader2, Paperclip, PenLine, Redo2, Search, Trash2, Type, Undo2, UserRound,
+  FileInput, ListChecks, Loader2, Paperclip, PenLine, Redo2, Search, Trash2, Type, Undo2, UserRound,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -89,6 +89,8 @@ interface PdfFieldEditorProps {
   onChange: (fields: EditorField[]) => void
   className?: string
   focusFieldId?: string | null
+  importingFillableFields?: boolean
+  onImportFillableFields?: (documentId: string) => void
   onAnchorSearch?: (payload: {
     anchor: string; case_sensitive: boolean; whole_word: boolean; document_ids: string[]
     match_mode: 'first' | 'all'; horizontal_alignment: 'left' | 'center' | 'right' | 'after'
@@ -362,7 +364,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove }: {
   </div>
 }
 
-export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId, onAnchorSearch }: PdfFieldEditorProps) {
+export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId, importingFillableFields = false, onImportFillableFields, onAnchorSearch }: PdfFieldEditorProps) {
   const [activeDocumentId, setActiveDocumentId] = React.useState(documents[0]?.id)
   const [activeParticipantId, setActiveParticipantId] = React.useState(participants[0]?.id)
   const [armedType, setArmedType] = React.useState<EditorFieldType | null>(null)
@@ -617,6 +619,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         <div className="grid grid-cols-2 gap-1.5">{FIELD_TYPES.map(({ type, label, icon: Icon }) => <button key={type} type="button" title={label}
           onClick={() => { const next = armedType === type ? null : type; setArmedType(next); setRadioGroup(next === 'radio' ? newId() : null) }}
           className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', armedType === type ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
+        {onImportFillableFields && activeDocument && <Button type="button" variant="outline" size="sm" className="w-full" disabled={importingFillableFields} onClick={() => onImportFillableFields(activeDocument.id)}>{importingFillableFields ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <FileInput className="mr-1.5 size-3.5" />} Import fillable fields</Button>}
         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setAnchorResult(''); setAnchorOpen(true) }}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
         {anchorSession && <div className="space-y-2 rounded-md border border-primary/30 bg-primary-soft p-2.5 text-xs">
           <div className="flex items-center justify-between gap-2"><span className="font-medium text-foreground">Anchor matches</span><span className="rounded-full bg-surface px-2 py-0.5 font-medium text-primary">{placedAnchorMatchIndexes.size}/{anchorSession.matches.length} placed</span></div>
