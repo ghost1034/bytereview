@@ -569,7 +569,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           radioGroup: anchorRadioGroup, anchor, caseSensitive: anchorCaseSensitive, wholeWord: anchorWholeWord,
           firstOnly: anchorFirstOnly, alignment: anchorAlignment, offsetX: anchorOffsetX, offsetY: anchorOffsetY,
           offsetUnit: anchorOffsetUnit, ignoreMissing: anchorIgnoreMissing, matches })
-        setAnchorResult(`Found ${matches.length} match${matches.length === 1 ? '' : 'es'} for “${anchor}”. Select each highlighted location where you want a field.`)
+        setAnchorResult('')
         setAnchorOpen(false); setArmedType(null); setRadioGroup(null)
         focusAnchorMatch(ruleId, 0)
       } else {
@@ -599,14 +599,9 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           offset_x: anchorSession.offsetX, offset_y: anchorSession.offsetY, offset_unit: anchorSession.offsetUnit,
           match_mode: anchorSession.firstOnly ? 'first' : 'all', placement_mode: 'individual',
           missing_policy: anchorSession.ignoreMissing ? 'ignore' : 'fail' } } }
-    commit([...fields, field]); setSelectedIds(new Set([id]))
+    commit([...fields, field]); setSelectedIds(new Set([id])); setAnchorResult('')
     const placedCount = placedAnchorMatchIndexes.size + 1
-    if (placedCount === anchorSession.matches.length) {
-      setAnchorSession(null)
-      setAnchorResult('')
-    } else {
-      setAnchorResult(`Placed ${placedCount} of ${anchorSession.matches.length} matches for “${anchorSession.anchor}”.`)
-    }
+    if (placedCount === anchorSession.matches.length) setAnchorSession(null)
   }
 
   if (!documents.length || !participants.length) return <p className="text-sm text-foreground-muted">Add documents and recipients before placing fields.</p>
@@ -626,7 +621,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setAnchorResult(''); setAnchorOpen(true) }}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
         {anchorSession && <div className="space-y-2 rounded-md border border-primary/30 bg-primary-soft p-2.5 text-xs">
           <div className="flex items-center justify-between gap-2"><span className="font-medium text-foreground">Anchor matches</span><span className="rounded-full bg-surface px-2 py-0.5 font-medium text-primary">{placedAnchorMatchIndexes.size}/{anchorSession.matches.length} placed</span></div>
-          <p className="text-foreground-muted">Matched “{anchorSession.anchor}”. Select a dashed field box on the document to place {SHORT[anchorSession.type].toLowerCase()} at that match.</p>
+          <p className="text-foreground-muted">Select a dashed box to place {SHORT[anchorSession.type].toLowerCase()}.</p>
           {anchorResult && <p className="text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}
           <div className="flex gap-1.5"><Button type="button" variant="outline" size="sm" className="h-7 flex-1 text-xs" disabled={placedAnchorMatchIndexes.size === anchorSession.matches.length} onClick={() => {
             const next = anchorSession.matches.findIndex((_, index) => !placedAnchorMatchIndexes.has(index))
