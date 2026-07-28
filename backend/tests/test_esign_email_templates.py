@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.esign import email_templates
 
-URL = "https://cpaautomation.ai/dashboard/esign/sign/abc"
+URL = "https://cpaautomation.ai/esign/sign/abc"
 EXPIRES = datetime(2026, 8, 1, 12, 0, tzinfo=timezone.utc)
 
 

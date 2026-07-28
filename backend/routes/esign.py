@@ -1,4 +1,4 @@
-"""Routes for authenticated senders and accountless e-sign recipients."""
+"""Routes for authenticated e-sign senders and recipients."""
 
 from __future__ import annotations
 
@@ -1483,6 +1483,7 @@ def _enforce_guest_rate_limit(request: Request, action: str, *, limit: int, wind
 @router.post("/guest/exchange", response_model=EsignGuestExchangeResponse)
 async def exchange_guest_invitation(
     payload: EsignGuestExchangeRequest, request: Request, response: Response,
+    token: dict = Depends(verify_firebase_token),
 ):
     _enforce_guest_rate_limit(request, "exchange", limit=20, window_seconds=3600)
     token_key = hashlib.sha256(payload.invitation_token.encode("utf-8")).hexdigest()
@@ -1490,7 +1491,8 @@ async def exchange_guest_invitation(
         raise HTTPException(status_code=429, detail="Too many guest ceremony requests; try again later")
     try:
         result, session_token, _ = esign_recipient_service.exchange_invitation(
-            payload.invitation_token, extract_request_meta(request, None)
+            payload.invitation_token, extract_request_meta(request, token),
+            user_id=_uid(token), user_email=_email(token),
         )
         response.set_cookie(
             GUEST_COOKIE, session_token, httponly=True, secure=True, samesite="strict",
@@ -1510,7 +1512,7 @@ def _guest_cookie(request: Request) -> str:
 
 
 def _guest_actor(
-    session_id: str, request: Request, csrf_token: str | None = None,
+    session_id: str, request: Request, token: dict, csrf_token: str | None = None,
     *, purpose: str = "ceremony",
 ) -> tuple[dict, object]:
     if csrf_token is None and request.method not in ("GET", "HEAD"):
@@ -1518,7 +1520,9 @@ def _guest_actor(
     access = esign_recipient_service.resolve_guest_access(
         session_id, _guest_cookie(request), csrf_token, required_purpose=purpose,
     )
-    meta = extract_request_meta(request, None)
+    if (access["recipient_email"] or "").strip().lower() != _email(token).strip().lower():
+        raise PermissionError("Sign in with the account matching this invitation email")
+    meta = extract_request_meta(request, token)
     meta.access_method = "email_link"
     meta.invitation_id = access["invitation_id"]
     meta.session_id = access["session_id"]
@@ -1533,11 +1537,15 @@ def _consume_guest(response: Response, session_id: str, request: Request) -> Non
 
 
 @router.get("/guest/sessions/{session_id}", response_model=EsignSigningSessionResponse)
-async def get_guest_session(session_id: str, request: Request, response: Response):
+async def get_guest_session(
+    session_id: str, request: Request, response: Response,
+    token: dict = Depends(verify_firebase_token),
+):
     _enforce_guest_rate_limit(request, "session", limit=120, window_seconds=60)
     try:
         result = await esign_recipient_service.guest_signing_session(
-            session_id, _guest_cookie(request), extract_request_meta(request, None),
+            session_id, _guest_cookie(request), extract_request_meta(request, token),
+            user_id=_uid(token), user_email=_email(token),
         )
         response.headers["Cache-Control"] = "no-store"
         return result
@@ -1549,12 +1557,13 @@ async def get_guest_session(session_id: str, request: Request, response: Respons
 async def record_guest_consent(
     session_id: str, payload: EsignConsentRequest, request: Request,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     _enforce_guest_rate_limit(request, "consent", limit=30, window_seconds=60)
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         return esign_signing_service.record_consent(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], expected_routing_version=payload.expected_routing_version,
             meta=meta,
         )
@@ -1566,12 +1575,13 @@ async def record_guest_consent(
 async def save_guest_progress(
     session_id: str, payload: EsignProgressRequest, request: Request,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     _enforce_guest_rate_limit(request, "progress", limit=120, window_seconds=60)
     try:
-        access, _ = _guest_actor(session_id, request, csrf_token)
+        access, _ = _guest_actor(session_id, request, token, csrf_token)
         saved = esign_signing_service.save_progress(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], field_values=payload.field_values,
             marks=payload.marks,
             expected_routing_version=payload.expected_routing_version,
@@ -1585,11 +1595,12 @@ async def save_guest_progress(
 async def upload_guest_attachment(
     session_id: str, request: Request, field_id: str = Form(...), file: UploadFile = File(...),
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, _ = _guest_actor(session_id, request, csrf_token)
+        access, _ = _guest_actor(session_id, request, token, csrf_token)
         return await esign_signing_service.upload_attachment(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], field_id=field_id,
             filename=file.filename or "attachment", content_type=file.content_type or "application/octet-stream",
             content=await file.read(),
@@ -1602,11 +1613,12 @@ async def upload_guest_attachment(
 async def delete_guest_attachment(
     session_id: str, attachment_id: str, request: Request,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, _ = _guest_actor(session_id, request, csrf_token)
+        access, _ = _guest_actor(session_id, request, token, csrf_token)
         await esign_signing_service.delete_attachment(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], attachment_id=attachment_id,
         )
         return {"message": "Attachment deleted"}
@@ -1618,12 +1630,13 @@ async def delete_guest_attachment(
 async def submit_guest_signature(
     session_id: str, payload: EsignGuestSubmitRequest, request: Request, response: Response,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     _enforce_guest_rate_limit(request, "submit", limit=20, window_seconds=300)
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         result = await esign_signing_service.submit_signature(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], signature=payload.signature,
             marks=payload.marks,
             field_values=payload.field_values, expected_routing_version=payload.expected_routing_version,
@@ -1639,11 +1652,12 @@ async def submit_guest_signature(
 async def decline_guest_envelope(
     session_id: str, payload: EsignDeclineRequest, request: Request, response: Response,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         result = await esign_signing_service.decline(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], reason=payload.reason,
             expected_routing_version=payload.expected_routing_version, meta=meta,
         )
@@ -1657,11 +1671,12 @@ async def decline_guest_envelope(
 async def approve_guest_envelope(
     session_id: str, payload: EsignApproveRequest, request: Request, response: Response,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         result = await esign_recipient_service.approve(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             actor_recipient_id=access["recipient_id"], expected_routing_version=payload.expected_routing_version,
             meta=meta,
         )
@@ -1675,11 +1690,12 @@ async def approve_guest_envelope(
 async def reassign_guest_recipient(
     session_id: str, payload: EsignReassignRequest, request: Request, response: Response,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         result = esign_recipient_service.reassign(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             actor_recipient_id=access["recipient_id"], payload=payload, meta=meta,
         )
         await esign_signing_service.notify_reassigned_recipient(access["envelope_id"], result.id)
@@ -1693,11 +1709,12 @@ async def reassign_guest_recipient(
 async def update_guest_managed_recipients(
     session_id: str, payload: EsignManagedRecipientsRequest, request: Request,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         return esign_recipient_service.manage_recipients(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             actor_recipient_id=access["recipient_id"], payload=payload, meta=meta,
         )
     except Exception as exc:
@@ -1708,11 +1725,12 @@ async def update_guest_managed_recipients(
 async def complete_guest_manager_step(
     session_id: str, payload: EsignVersionedActionRequest, request: Request, response: Response,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         result = await esign_recipient_service.manager_complete(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             actor_recipient_id=access["recipient_id"], expected_routing_version=payload.expected_routing_version,
             meta=meta,
         )
@@ -1726,11 +1744,12 @@ async def complete_guest_manager_step(
 async def correct_guest_recipients(
     session_id: str, payload: EsignCorrectionRequest, request: Request,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         return esign_recipient_service.correct_recipients(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             actor_recipient_id=access["recipient_id"], payload=payload, meta=meta,
         )
     except Exception as exc:
@@ -1741,11 +1760,12 @@ async def correct_guest_recipients(
 async def configure_guest_witness(
     session_id: str, payload: EsignWitnessRequest, request: Request,
     csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    token: dict = Depends(verify_firebase_token),
 ):
     try:
-        access, meta = _guest_actor(session_id, request, csrf_token)
+        access, meta = _guest_actor(session_id, request, token, csrf_token)
         return esign_recipient_service.configure_witness(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=_uid(token), user_email=_email(token), envelope_id=access["envelope_id"],
             actor_recipient_id=access["recipient_id"], payload=payload, meta=meta,
         )
     except Exception as exc:
@@ -1753,10 +1773,13 @@ async def configure_guest_witness(
 
 
 @router.get("/guest/sessions/{session_id}/completed/{kind}", response_model=EsignDownloadResponse)
-async def download_guest_completed(session_id: str, kind: Literal["sealed", "certificate"], request: Request):
+async def download_guest_completed(
+    session_id: str, kind: Literal["sealed", "certificate"], request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
     try:
         return await esign_recipient_service.guest_completed_download(
-            session_id, _guest_cookie(request), kind,
+            session_id, _guest_cookie(request), kind, user_email=_email(token),
         )
     except Exception as exc:
         _raise_http(exc)

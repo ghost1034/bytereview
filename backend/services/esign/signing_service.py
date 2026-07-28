@@ -111,7 +111,7 @@ COMPLETED_INBOX_LIMIT = int(os.getenv("ESIGN_COMPLETED_INBOX_LIMIT", "25"))
 
 
 def signing_url(envelope_id) -> str:
-    return f"{app_base_url()}/dashboard/esign/sign/{envelope_id}"
+    return f"{app_base_url()}/esign/sign/{envelope_id}"
 
 
 def recipient_has_account(db: Session, recipient: EsignRecipient) -> bool:
@@ -283,13 +283,8 @@ class EsignSigningService:
     # ------------------------------------------------------------------
 
     def recipient_signing_url(self, db: Session, envelope: EsignEnvelope, recipient: EsignRecipient) -> str:
-        """Return an account URL for users and a secure guest URL for non-users."""
-        if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER:
-            return signing_url(envelope.id)
-        if recipient_has_account(db, recipient):
-            return signing_url(envelope.id)
-        from services.esign.recipient_service import esign_recipient_service
-        return esign_recipient_service._issue_invitation(db, envelope, recipient).guest_url
+        """Return the account-gated signing entry for every envelope recipient."""
+        return signing_url(envelope.id)
 
     def _cc_recipients_due(
         self, envelope: EsignEnvelope, active_order: int
@@ -1964,7 +1959,6 @@ class EsignSigningService:
     def queue_completion_emails(self, db: Session, envelope: EsignEnvelope) -> None:
         """Queue completion notices in the same transaction as completion."""
         sender_email = self._sender_email(db, envelope)
-        from services.esign.recipient_service import esign_recipient_service
         # Re-running this idempotent method must not revoke the completed-copy
         # bearer links already persisted in queued delivery bodies.
         self._revoke_guest_access(db, envelope.id, invitation_purpose="ceremony")
@@ -1980,13 +1974,7 @@ class EsignSigningService:
                 EsignEmailDelivery.idempotency_key == idempotency_key
             ).first():
                 continue
-            if recipient_has_account(db, recipient):
-                url = signing_url(envelope.id)
-            else:
-                invitation = esign_recipient_service._issue_invitation(
-                    db, envelope, recipient, purpose="completed_copy",
-                )
-                url = invitation.guest_url
+            url = signing_url(envelope.id)
             esign_outbox_service.queue_email(
                 db, envelope=envelope, kind="completion", to_email=email,
                 content=email_templates.completed(title=envelope.title, url=url, is_sender=False),

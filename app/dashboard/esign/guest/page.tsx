@@ -7,12 +7,14 @@ import { ArrowDown, CheckCircle2, Download, Loader2, PenLine, ShieldAlert, Shiel
 
 import { ConsentGate } from '@/components/esign/sign/ConsentGate'
 import { DeclineDialog } from '@/components/esign/sign/DeclineDialog'
+import { EsignAccountGate } from '@/components/esign/EsignAccountGate'
 import { SignatureAdoptionModal, type AdoptedSignature } from '@/components/esign/sign/SignatureAdoptionModal'
 import { SigningDocumentViewer } from '@/components/esign/sign/SigningDocumentViewer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useAuth } from '@/contexts/AuthContext'
 import type { components } from '@/lib/api-types'
 import type { EsignFieldResponse } from '@/lib/api'
 import { computeFormulas, incompleteFields as findIncompleteFields, isFieldRequired, resolveVisibility, validationErrors } from '@/lib/esign/fieldLogic'
@@ -33,6 +35,9 @@ async function parseResponse<T>(response: Response): Promise<T> {
 
 export default function GuestSigningPage() {
   const search = useSearchParams()
+  const { loading: authLoading, user } = useAuth()
+  const searchString = search.toString()
+  const redirectTo = `/esign/guest${searchString ? `?${searchString}` : ''}`
   const invitation = search.get('token')
   const existingSession = search.get('session')
   const powerFormVerification = search.get('powerform_token')
@@ -63,6 +68,13 @@ export default function GuestSigningPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [done, setDone] = React.useState<'signed' | 'declined' | 'reassigned' | 'completed' | 'saved' | null>(null)
 
+  const authenticatedFetch = React.useCallback(async (input: RequestInfo | URL, options: RequestInit = {}) => {
+    if (!user) throw new Error('Sign in to access this envelope')
+    const headers = new Headers(options.headers)
+    headers.set('Authorization', `Bearer ${await user.getIdToken()}`)
+    return fetch(input, { ...options, headers })
+  }, [user])
+
   const guestRequest = React.useCallback(async <T,>(path: string, options: RequestInit = {}) => {
     if (!sessionId) throw new Error('Guest session is unavailable')
     const headers = new Headers(options.headers)
@@ -71,18 +83,19 @@ export default function GuestSigningPage() {
       if (!csrf) throw new Error('Guest session security token is unavailable; reopen the email link')
       headers.set('X-CSRF-Token', csrf)
     }
-    return parseResponse<T>(await fetch(`/api/esign/guest/sessions/${sessionId}${path}`, {
+    return parseResponse<T>(await authenticatedFetch(`/api/esign/guest/sessions/${sessionId}${path}`, {
       ...options, credentials: 'include', headers,
     }))
-  }, [csrf, sessionId])
+  }, [authenticatedFetch, csrf, sessionId])
 
   const load = React.useCallback(async () => {
+    if (authLoading || !user) return
     setBusy(true)
     setError(null)
     try {
       let token = invitation
       if (powerFormVerification) {
-        const verified = await parseResponse<{ invitation_token: string }>(await fetch(
+        const verified = await parseResponse<{ invitation_token: string }>(await authenticatedFetch(
           '/api/esign/public/powerforms/verification/exchange',
           { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: powerFormVerification }) },
         ))
@@ -91,7 +104,7 @@ export default function GuestSigningPage() {
       let currentId = existingSession
       let currentCsrf = existingSession ? sessionStorage.getItem(`esign_guest_csrf_${existingSession}`) : null
       if (token) {
-        const exchanged = await parseResponse<{ session_id: string; csrf_token: string }>(await fetch(
+        const exchanged = await parseResponse<{ session_id: string; csrf_token: string }>(await authenticatedFetch(
           '/api/esign/guest/exchange',
           { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invitation_token: token }) },
         ))
@@ -105,7 +118,7 @@ export default function GuestSigningPage() {
       if (!currentId) throw new Error('Open the secure link from your recipient email')
       setSessionId(currentId)
       setCsrf(currentCsrf)
-      const current = await parseResponse<Session>(await fetch(
+      const current = await parseResponse<Session>(await authenticatedFetch(
         `/api/esign/guest/sessions/${currentId}`, { credentials: 'include' },
       ))
       setSession(current)
@@ -118,7 +131,7 @@ export default function GuestSigningPage() {
     } finally {
       setBusy(false)
     }
-  }, [existingSession, invitation, powerFormVerification])
+  }, [authLoading, authenticatedFetch, existingSession, invitation, powerFormVerification, user])
 
   React.useEffect(() => { void load() }, [load])
 
@@ -244,11 +257,12 @@ export default function GuestSigningPage() {
     finally { setBusy(false) }
   }
 
+  if (authLoading || !user) return <EsignAccountGate redirectTo={redirectTo} />
   if (busy && !session) return <div className="flex min-h-[50vh] items-center justify-center text-sm text-foreground-muted"><Loader2 className="mr-2 size-5 animate-spin" /> Opening secure ceremony…</div>
   if (error && !session) return <div className="mx-auto max-w-md space-y-4 py-20 text-center"><ShieldAlert className="mx-auto size-10 text-warning" /><h1 className="text-lg font-semibold">Secure ceremony unavailable</h1><p className="text-sm text-destructive">{error}</p><Button asChild variant="outline"><Link href="/">Return home</Link></Button></div>
   if (!session) return null
 
-  if (done === 'completed') return <CompletedCopy session={session} sessionId={sessionId!} />
+  if (done === 'completed') return <CompletedCopy session={session} sessionId={sessionId!} authenticatedFetch={authenticatedFetch} />
   if (done) return <div className="mx-auto max-w-md space-y-4 py-20 text-center"><CheckCircle2 className="mx-auto size-12 text-success" /><h1 className="text-xl font-semibold">{done === 'signed' ? 'Signature recorded' : done === 'reassigned' ? 'Signing step reassigned' : done === 'saved' ? 'Progress saved' : 'Envelope declined'}</h1><p className="text-sm text-foreground-muted">{done === 'signed' ? 'You are finished. A secure link to the completed documents will be emailed after all parties finish.' : done === 'saved' ? 'You can safely close this tab and return through your secure email link.' : 'The sender has been notified.'}</p>{done === 'saved' && <Button variant="outline" onClick={() => setDone(null)}>Continue signing</Button>}</div>
 
   if (!['signer', 'witness', 'in_person_signer'].includes(session.recipient_role)) {
@@ -340,7 +354,7 @@ export default function GuestSigningPage() {
     {error && <p className="mx-auto max-w-5xl rounded border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</p>}
     {Object.keys(fieldErrors).length > 0 && guideStarted && <div role="alert" className="mx-auto max-w-5xl rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><p className="font-medium">Complete or correct these fields:</p><ul className="mt-1 list-disc pl-5">{Object.entries(fieldErrors).map(([id, message]) => <li key={id}><button type="button" className="underline" onClick={() => { setActiveFieldId(id); document.getElementById(`esign-field-${id}`)?.focus() }}>{message}</button></li>)}</ul></div>}
     {session.message && <p className="rounded-lg border border-border bg-surface p-4 text-sm text-foreground-muted">{session.message}</p>}
-    {(session.available_actions ?? []).includes('configure_witness') && <section className="space-y-3 rounded-lg border border-border bg-surface p-4"><div><h2 className="font-semibold">Confirm your witness</h2><p className="text-sm text-foreground-muted">The witness signs after you through an audited guest invitation.</p></div><div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Witness full name" value={witnessName} onChange={(event) => setWitnessName(event.target.value)} /><Input type="email" placeholder="Witness email (optional)" value={witnessEmail} onChange={(event) => setWitnessEmail(event.target.value)} /></div><Button variant="outline" disabled={busy || !witnessName.trim()} onClick={() => void configureWitness()}>Confirm witness</Button>{witnessLink && <p className="break-all rounded bg-surface-muted p-2 text-xs text-foreground-muted">Guest invitation: {witnessLink}</p>}</section>}
+    {(session.available_actions ?? []).includes('configure_witness') && <section className="space-y-3 rounded-lg border border-border bg-surface p-4"><div><h2 className="font-semibold">Confirm your witness</h2><p className="text-sm text-foreground-muted">The witness signs after you through an audited, account-protected invitation.</p></div><div className="grid gap-2 sm:grid-cols-2"><Input placeholder="Witness full name" value={witnessName} onChange={(event) => setWitnessName(event.target.value)} /><Input type="email" placeholder="Witness email (required)" value={witnessEmail} onChange={(event) => setWitnessEmail(event.target.value)} /></div><Button variant="outline" disabled={busy || !witnessName.trim() || !witnessEmail.trim()} onClick={() => void configureWitness()}>Confirm witness</Button>{witnessLink && <p className="break-all rounded bg-surface-muted p-2 text-xs text-foreground-muted">Secure invitation: {witnessLink}</p>}</section>}
     {(session.available_actions ?? []).includes('reassign') && <section className="grid gap-2 rounded-lg border border-border bg-surface p-4 sm:grid-cols-3"><Input placeholder="Replacement name" value={replacementName} onChange={(event) => setReplacementName(event.target.value)} /><Input type="email" placeholder="Replacement email" value={replacementEmail} onChange={(event) => setReplacementEmail(event.target.value)} /><Input placeholder="Reason (required)" value={replacementReason} onChange={(event) => setReplacementReason(event.target.value)} /><Button variant="outline" disabled={busy || !replacementName.trim() || !replacementEmail.trim() || !replacementReason.trim()} onClick={() => void reassign()}>Reassign this step</Button></section>}
     {session.recipient_role === 'witness' && <section className="grid gap-3 rounded-lg border border-border bg-surface p-4 sm:grid-cols-2"><div><Label htmlFor="occupation">Occupation</Label><Input id="occupation" value={occupation} onChange={(event) => setOccupation(event.target.value)} /></div><div><Label htmlFor="address">Address</Label><Textarea id="address" value={address} onChange={(event) => setAddress(event.target.value)} /></div></section>}
     {!session.consent_required && <div className="fixed left-4 top-1/2 z-40 hidden -translate-y-1/2 sm:block">{incomplete.length > 0 ? <Button size="sm" className="shadow-lg" onClick={goToNextField}>{guideStarted ? 'Next' : 'Start'}<ArrowDown className="ml-1.5 size-3.5" /></Button> : <Button size="sm" className="shadow-lg" onClick={() => void submit()} disabled={busy || !canFinish}>Finish</Button>}</div>}
@@ -353,9 +367,9 @@ export default function GuestSigningPage() {
   </div>
 }
 
-function CompletedCopy({ session, sessionId }: { session: Session; sessionId: string }) {
+function CompletedCopy({ session, sessionId, authenticatedFetch }: { session: Session; sessionId: string; authenticatedFetch: typeof fetch }) {
   const download = async (kind: 'sealed' | 'certificate') => {
-    const result = await parseResponse<{ url: string }>(await fetch(`/api/esign/guest/sessions/${sessionId}/completed/${kind}`, { credentials: 'include' }))
+    const result = await parseResponse<{ url: string }>(await authenticatedFetch(`/api/esign/guest/sessions/${sessionId}/completed/${kind}`, { credentials: 'include' }))
     window.location.assign(result.url)
   }
   return <div className="mx-auto max-w-lg space-y-5 py-20 text-center"><CheckCircle2 className="mx-auto size-12 text-success" /><h1 className="text-xl font-semibold">Completed: {session.title}</h1><p className="text-sm text-foreground-muted">This read-only link expires 30 days after completion.</p><div className="flex justify-center gap-2">{session.has_sealed_document && <Button onClick={() => void download('sealed')}><Download className="mr-2 size-4" />Completed PDF</Button>}{session.has_certificate && <Button variant="outline" onClick={() => void download('certificate')}><Download className="mr-2 size-4" />Certificate</Button>}</div></div>

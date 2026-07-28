@@ -199,7 +199,7 @@ export default function EsignLegalPage() {
                   <KeyRound className="size-4 text-success" aria-hidden />
                   Authentication
                 </div>
-                <p className="mt-2 text-sm leading-6 text-foreground-muted">Recipients may use a secure email link without an account. Account and phone-MFA evidence is captured when that optional access path is used.</p>
+                <p className="mt-2 text-sm leading-6 text-foreground-muted">Recipients must use a CPAAutomation account whose email matches the envelope recipient. Account and phone-MFA evidence is captured for the signing session.</p>
               </div>
               <div className="rounded-xl border border-border bg-surface p-4">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">

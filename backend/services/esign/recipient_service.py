@@ -656,7 +656,14 @@ class EsignRecipientService:
         finally:
             db.close()
 
-    def exchange_invitation(self, invitation_token: str, meta: EsignRequestMeta) -> tuple[EsignGuestExchangeResponse, str, str]:
+    def exchange_invitation(
+        self,
+        invitation_token: str,
+        meta: EsignRequestMeta,
+        *,
+        user_id: str,
+        user_email: str,
+    ) -> tuple[EsignGuestExchangeResponse, str, str]:
         db = self._get_session()
         try:
             now = _now()
@@ -665,6 +672,14 @@ class EsignRecipientService:
                 raise EsignNotFound("Guest invitation is invalid or expired")
             envelope = self._load(db, str(invitation.envelope_id))
             recipient = next(item for item in envelope.recipients if item.id == invitation.recipient_id)
+            account_email = (user_email or "").strip().lower()
+            allowed_emails = {
+                value.strip().lower()
+                for value in (recipient.email, recipient.host_email)
+                if value and value.strip()
+            }
+            if not account_email or account_email not in allowed_emails:
+                raise PermissionError("Sign in with the account matching this invitation email")
             purpose = getattr(invitation, "purpose", "ceremony") or "ceremony"
             if purpose == "completed_copy":
                 if envelope.status != EsignEnvelopeStatus.COMPLETED:
@@ -691,6 +706,7 @@ class EsignRecipientService:
             ))
             audit_service.record_event(
                 db, envelope_id=envelope.id, event_type=EsignEventType.GUEST_INVITATION_EXCHANGED,
+                actor_user_id=user_id, actor_email=account_email,
                 recipient_id=recipient.id, meta=meta,
                 details={"invitation_id": str(invitation.id), "routing_version": envelope.routing_version},
             )
@@ -729,7 +745,7 @@ class EsignRecipientService:
         self, session_id: str, session_token: str, csrf_token: Optional[str] = None,
         *, required_purpose: Optional[str] = None,
     ) -> dict:
-        """Resolve an opaque cookie session to a recipient without an account."""
+        """Resolve an opaque invitation session to its account-bound recipient."""
         db = self._get_session()
         try:
             session, envelope, recipient = self._guest_context(
@@ -749,7 +765,8 @@ class EsignRecipientService:
             result = {
                 "session_id": str(session.id), "invitation_id": str(invitation.id),
                 "purpose": purpose, "envelope_id": str(envelope.id),
-                "recipient_id": str(recipient.id), "recipient_email": recipient.email or "",
+                "recipient_id": str(recipient.id),
+                "recipient_email": recipient.email or recipient.host_email or "",
                 "recipient_role": role_value(recipient).value,
                 "routing_version": int(envelope.routing_version),
             }
@@ -763,8 +780,11 @@ class EsignRecipientService:
 
     async def guest_signing_session(
         self, session_id: str, session_token: str, meta: EsignRequestMeta,
+        *, user_id: str, user_email: str,
     ) -> EsignSigningSessionResponse:
         access = self.resolve_guest_access(session_id, session_token)
+        if (access["recipient_email"] or "").strip().lower() != (user_email or "").strip().lower():
+            raise PermissionError("Sign in with the account matching this invitation email")
         meta.access_method = "email_link"
         meta.invitation_id = access["invitation_id"]
         meta.session_id = access["session_id"]
@@ -791,17 +811,19 @@ class EsignRecipientService:
                 db.close()
         from services.esign.signing_service import esign_signing_service
         result = await esign_signing_service.get_signing_session(
-            user_id=None, user_email=access["recipient_email"], envelope_id=access["envelope_id"],
+            user_id=user_id, user_email=user_email, envelope_id=access["envelope_id"],
             recipient_id=access["recipient_id"], meta=meta,
         )
         return result.model_copy(update={"access_purpose": "ceremony"})
 
     async def guest_completed_download(
-        self, session_id: str, session_token: str, kind: str,
+        self, session_id: str, session_token: str, kind: str, *, user_email: str,
     ) -> dict[str, str]:
         access = self.resolve_guest_access(
             session_id, session_token, required_purpose="completed_copy",
         )
+        if (access["recipient_email"] or "").strip().lower() != (user_email or "").strip().lower():
+            raise PermissionError("Sign in with the account matching this invitation email")
         db = self._get_session()
         try:
             envelope = self._load(db, access["envelope_id"])

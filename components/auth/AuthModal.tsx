@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
@@ -21,6 +21,8 @@ interface AuthModalProps {
   onClose: () => void;
   redirectTo?: string;
   defaultTab?: 'signin' | 'signup';
+  title?: string;
+  description?: string;
 }
 
 interface SignUpData {
@@ -41,7 +43,14 @@ function createEmptySignUpData(): SignUpData {
   };
 }
 
-export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 'signin' }: AuthModalProps) {
+export default function AuthModal({
+  isOpen,
+  onClose,
+  redirectTo,
+  defaultTab = 'signin',
+  title = 'Welcome to CPAAutomation',
+  description,
+}: AuthModalProps) {
   const { signIn, signInWithEmailAndPassword, signUpWithEmailAndPassword } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -169,8 +178,13 @@ export default function AuthModal({ isOpen, onClose, redirectTo, defaultTab = 's
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-2xl font-bold">
-            Welcome to CPAAutomation
+            {title}
           </DialogTitle>
+          {description && (
+            <DialogDescription className="text-center">
+              {description}
+            </DialogDescription>
+          )}
         </DialogHeader>
         
         <div className="space-y-6">
