@@ -30,6 +30,7 @@ from models.esign import (
     EsignEnvelopeCreateResponse,
     EsignEnvelopeListResponse,
     EsignEnvelopeResponse,
+    EsignEnvelopeDeliverySettingsUpdateRequest,
     EsignEnvelopeUpdateRequest,
     EsignFieldsReplaceRequest,
     EsignFieldCorrectionRequest,
@@ -880,6 +881,25 @@ async def update_envelope(
 ):
     try:
         return esign_envelope_service.update_envelope(_uid(token), envelope_id, payload)
+    except Exception as exc:
+        _raise_http(exc)
+
+
+@router.patch("/envelopes/{envelope_id}/delivery-settings", response_model=EsignEnvelopeResponse)
+async def update_active_envelope_delivery_settings(
+    envelope_id: str,
+    payload: EsignEnvelopeDeliverySettingsUpdateRequest,
+    request: Request,
+    token: dict = Depends(verify_firebase_token),
+):
+    try:
+        return esign_envelope_service.update_active_delivery_settings(
+            user_id=_uid(token),
+            user_email=_email(token),
+            envelope_id=envelope_id,
+            payload=payload,
+            meta=extract_request_meta(request, token),
+        )
     except Exception as exc:
         _raise_http(exc)
 

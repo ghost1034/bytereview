@@ -2382,6 +2382,16 @@ export class ApiClient {
     })
   }
 
+  async updateEsignEnvelopeDeliverySettings(
+    envelopeId: string,
+    payload: EsignEnvelopeDeliverySettingsUpdateRequest,
+  ): Promise<EsignEnvelopeResponse> {
+    return this.request(`/api/esign/envelopes/${envelopeId}/delivery-settings`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  }
+
   async deleteEsignEnvelope(envelopeId: string): Promise<{ message: string }> {
     return this.request(`/api/esign/envelopes/${envelopeId}`, {
       method: 'DELETE',
@@ -2920,6 +2930,7 @@ export type EsignEnvelopeCreateResponse = apiComponents['schemas']['EsignEnvelop
 export type EsignEnvelopeListResponse = apiComponents['schemas']['EsignEnvelopeListResponse']
 export type EsignEnvelopeListItem = apiComponents['schemas']['EsignEnvelopeListItem']
 export type EsignEnvelopeUpdateRequest = apiComponents['schemas']['EsignEnvelopeUpdateRequest']
+export type EsignEnvelopeDeliverySettingsUpdateRequest = apiComponents['schemas']['EsignEnvelopeDeliverySettingsUpdateRequest']
 export type EsignRecipientInput = apiComponents['schemas']['EsignRecipientInput']
 export type EsignRecipientResponse = apiComponents['schemas']['EsignRecipientResponse']
 export type EsignFieldInput = apiComponents['schemas']['EsignFieldInput']

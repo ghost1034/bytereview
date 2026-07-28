@@ -9098,13 +9098,70 @@
         }
       }
     },
+    "/api/esign/envelopes/{envelope_id}/delivery-settings": {
+      "patch": {
+        "tags": [
+          "esign"
+        ],
+        "summary": "Update Active Envelope Delivery Settings",
+        "operationId": "update_active_envelope_delivery_settings_api_esign_envelopes__envelope_id__delivery_settings_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "envelope_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Envelope Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EsignEnvelopeDeliverySettingsUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EsignEnvelopeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/esign/envelopes/{envelope_id}/documents": {
       "post": {
         "tags": [
           "esign"
         ],
         "summary": "Add Documents",
-        "description": "Attach additional PDFs to a draft envelope.",
+        "description": "Attach additional PDF or Word documents to a draft envelope.",
         "operationId": "add_documents_api_esign_envelopes__envelope_id__documents_post",
         "security": [
           {
@@ -25354,6 +25411,38 @@
           "envelope"
         ],
         "title": "EsignEnvelopeCreateResponse"
+      },
+      "EsignEnvelopeDeliverySettingsUpdateRequest": {
+        "properties": {
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "reminder_interval_hours": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 720.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reminder Interval Hours"
+          }
+        },
+        "type": "object",
+        "title": "EsignEnvelopeDeliverySettingsUpdateRequest",
+        "description": "Settings that remain mutable while an envelope is awaiting action."
       },
       "EsignEnvelopeGrantRequest": {
         "properties": {

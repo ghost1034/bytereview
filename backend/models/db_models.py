@@ -1233,6 +1233,7 @@ class EsignEventType(str, enum.Enum):
     ACCESS_GRANTED = "access_granted"
     ACCESS_REVOKED = "access_revoked"
     OWNERSHIP_TRANSFERRED = "ownership_transferred"
+    SETTINGS_UPDATED = "settings_updated"
     WEBHOOK_TEST = "webhook.test"
 
 

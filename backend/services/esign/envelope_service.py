@@ -10,7 +10,7 @@ import os
 import re
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import fitz
@@ -28,6 +28,7 @@ from models.db_models import (
     EsignField,
     EsignFieldType,
     EsignRecipient,
+    EsignGuestInvitation,
     EsignRecipientChange,
     EsignRecipientRole,
     EsignRecipientStatus,
@@ -49,6 +50,7 @@ from models.esign import (
     EsignEnvelopeListItem,
     EsignEnvelopeListResponse,
     EsignEnvelopeResponse,
+    EsignEnvelopeDeliverySettingsUpdateRequest,
     EsignEnvelopeUpdateRequest,
     EsignEventResponse,
     EsignFieldInput,
@@ -333,6 +335,8 @@ class EsignEnvelopeService:
         actions = ["view", "download"]
         if access_level in ("owner", "manage", "admin"):
             actions.extend(["edit", "send", "correct", "remind", "void", "webhooks"])
+            if envelope.status in ACTIVE_STATUSES:
+                actions.append("manage_settings")
         if access_level in ("owner", "admin"):
             actions.extend(["delete_draft", "share", "transfer"])
         if access_level in ("owner", "manage", "admin") and getattr(envelope, "sealing_state", None) in ("retry", "terminal"):
@@ -917,6 +921,89 @@ class EsignEnvelopeService:
             _bump_draft_revision(envelope)
             db.commit()
             db.refresh(envelope)
+            return self._serialize_envelope(envelope)
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    def update_active_delivery_settings(
+        self,
+        *,
+        user_id: str,
+        user_email: str,
+        envelope_id: str,
+        payload: EsignEnvelopeDeliverySettingsUpdateRequest,
+        meta: EsignRequestMeta,
+    ) -> EsignEnvelopeResponse:
+        """Update expiration and automatic reminders after an envelope is sent."""
+        db = self._get_session()
+        try:
+            envelope = self._load_envelope(db, user_id, envelope_id)
+            db.query(EsignEnvelope).filter(EsignEnvelope.id == envelope.id).with_for_update().populate_existing().one()
+            if envelope.status not in ACTIVE_STATUSES:
+                raise EsignConflict("Delivery settings can only be changed on an active envelope")
+
+            supplied = payload.model_fields_set
+            mutable_fields = {"expires_at", "reminder_interval_hours"}
+            if not supplied.intersection(mutable_fields):
+                raise EsignError("Provide an expiration date or reminder interval")
+
+            now = datetime.now(timezone.utc)
+            if "expires_at" in supplied and payload.expires_at is not None:
+                if payload.expires_at.tzinfo is None or payload.expires_at.utcoffset() is None:
+                    raise EsignError("Expiration date must include a timezone")
+                if payload.expires_at <= now:
+                    raise EsignError("Expiration date must be in the future")
+
+            def serialized(value: Any) -> Any:
+                return value.isoformat() if isinstance(value, datetime) else value
+
+            changes: dict[str, dict[str, Any]] = {}
+            if "expires_at" in supplied and payload.expires_at != envelope.expires_at:
+                changes["expires_at"] = {
+                    "from": serialized(envelope.expires_at),
+                    "to": serialized(payload.expires_at),
+                }
+                envelope.expires_at = payload.expires_at
+                # A changed deadline needs a fresh warning decision. Existing
+                # short-lived guest sessions keep their security boundary, but
+                # unused ceremony invitations follow the revised deadline.
+                envelope.expiration_warning_sent_at = None
+                invitation_expiry = payload.expires_at or (now + timedelta(days=30))
+                db.query(EsignGuestInvitation).filter(
+                    EsignGuestInvitation.envelope_id == envelope.id,
+                    EsignGuestInvitation.purpose == "ceremony",
+                    EsignGuestInvitation.revoked_at.is_(None),
+                    EsignGuestInvitation.exchanged_at.is_(None),
+                ).update(
+                    {EsignGuestInvitation.expires_at: invitation_expiry},
+                    synchronize_session=False,
+                )
+
+            if (
+                "reminder_interval_hours" in supplied
+                and payload.reminder_interval_hours != envelope.reminder_interval_hours
+            ):
+                changes["reminder_interval_hours"] = {
+                    "from": envelope.reminder_interval_hours,
+                    "to": payload.reminder_interval_hours,
+                }
+                envelope.reminder_interval_hours = payload.reminder_interval_hours
+
+            if changes:
+                audit_service.record_event(
+                    db,
+                    envelope_id=envelope.id,
+                    event_type=EsignEventType.SETTINGS_UPDATED,
+                    actor_user_id=user_id,
+                    actor_email=user_email,
+                    meta=meta,
+                    details={"changes": changes},
+                )
+                db.commit()
+                db.refresh(envelope)
             return self._serialize_envelope(envelope)
         except Exception:
             db.rollback()

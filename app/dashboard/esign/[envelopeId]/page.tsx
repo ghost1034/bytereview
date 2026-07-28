@@ -14,6 +14,7 @@ import {
   FileBadge,
   Loader2,
   RotateCcw,
+  Settings2,
   ShieldCheck,
   UserRoundPen,
   Users,
@@ -51,6 +52,7 @@ import {
   useEnvelopeAudit,
   useRemindEnvelope,
   useUnscheduleEnvelope,
+  useUpdateEnvelopeDeliverySettings,
   useVoidEnvelope,
 } from '@/hooks/useEnvelopes'
 import { apiClient } from '@/lib/api'
@@ -67,6 +69,12 @@ function formatDateTime(value?: string | null) {
     hour: 'numeric',
     minute: '2-digit',
   })
+}
+
+function formatDateInput(value?: string | null) {
+  const date = value ? new Date(value) : new Date()
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return localDate.toISOString().slice(0, 10)
 }
 
 const RECIPIENT_STATUS_LABEL: Record<string, string> = {
@@ -94,6 +102,7 @@ const EVENT_LABEL: Record<string, string> = {
   sealed: 'Digitally sealed',
   expired: 'Expired',
   expiration_warning: 'Expiration warning sent',
+  settings_updated: 'Delivery settings updated',
   corrected: 'Recipients corrected',
   reassigned: 'Recipient reassigned',
   approved: 'Approved',
@@ -136,12 +145,18 @@ export default function EnvelopeDetailPage() {
   const remind = useRemindEnvelope(envelopeId!)
   const voidEnvelope = useVoidEnvelope(envelopeId!)
   const unschedule = useUnscheduleEnvelope(envelopeId!)
+  const updateDeliverySettings = useUpdateEnvelopeDeliverySettings(envelopeId!)
 
   const [voidOpen, setVoidOpen] = React.useState(false)
   const [voidReason, setVoidReason] = React.useState('')
   const [downloading, setDownloading] = React.useState<string | null>(null)
   const [shareUserId, setShareUserId] = React.useState(''); const [shareLevel, setShareLevel] = React.useState<'view' | 'manage'>('view')
   const [transferOpen, setTransferOpen] = React.useState(false); const [successorId, setSuccessorId] = React.useState(''); const [retainView, setRetainView] = React.useState(true)
+  const [settingsOpen, setSettingsOpen] = React.useState(false)
+  const [expirationEnabled, setExpirationEnabled] = React.useState(false)
+  const [expirationDate, setExpirationDate] = React.useState('')
+  const [remindersEnabled, setRemindersEnabled] = React.useState(false)
+  const [reminderHours, setReminderHours] = React.useState('72')
 
   const envelope = envelopeQuery.data
   const accessQuery = useQuery({
@@ -196,6 +211,14 @@ export default function EnvelopeDetailPage() {
     }
   }
 
+  const openDeliverySettings = () => {
+    setExpirationEnabled(envelope.expires_at != null)
+    setExpirationDate(envelope.expires_at ? formatDateInput(envelope.expires_at) : '')
+    setRemindersEnabled(envelope.reminder_interval_hours != null)
+    setReminderHours(String(envelope.reminder_interval_hours ?? 72))
+    setSettingsOpen(true)
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -220,6 +243,9 @@ export default function EnvelopeDetailPage() {
             </Button>
             {isActive && (
               <>
+                {envelope.available_actions?.includes('manage_settings') && <Button variant="outline" onClick={openDeliverySettings}>
+                  <Settings2 className="mr-1.5 size-4" /> Manage settings
+                </Button>}
                 {envelope.available_actions?.includes('correct') && <Button variant="outline" asChild><Link href={`/dashboard/esign/${envelope.id}/correct`}><UserRoundPen className="mr-1.5 size-4" /> Correct recipients</Link></Button>}
                 {envelope.available_actions?.includes('remind') && <Button
                   variant="outline"
@@ -313,6 +339,7 @@ export default function EnvelopeDetailPage() {
           <TabsTrigger value="history" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent">History</TabsTrigger>
         </TabsList>
         <TabsContent value="summary">
+          <div className="space-y-4">
           <section className="rounded-lg border border-border bg-surface p-5">
             <h2 className="text-base font-semibold">Status timeline</h2>
             <div className="mt-4 grid gap-4 sm:grid-cols-4">
@@ -322,6 +349,18 @@ export default function EnvelopeDetailPage() {
               <div><p className="text-xs text-foreground-subtle">Completed</p><p className="mt-1 text-sm font-medium">{formatDateTime(envelope.completed_at)}</p></div>
             </div>
           </section>
+          <section className="rounded-lg border border-border bg-surface p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><h2 className="text-base font-semibold">Delivery settings</h2><p className="text-xs text-foreground-muted">These settings remain adjustable while recipients are still completing the envelope.</p></div>
+              {isActive && envelope.available_actions?.includes('manage_settings') && <Button size="sm" variant="outline" onClick={openDeliverySettings}><Settings2 className="mr-1.5 size-4" /> Manage</Button>}
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div><p className="text-xs text-foreground-subtle">Expiration</p><p className="mt-1 text-sm font-medium">{envelope.expires_at ? formatDateTime(envelope.expires_at) : 'No expiration'}</p></div>
+              <div><p className="text-xs text-foreground-subtle">Automatic reminders</p><p className="mt-1 text-sm font-medium">{envelope.reminder_interval_hours ? `Every ${envelope.reminder_interval_hours} hours` : 'Off'}</p></div>
+              <div><p className="text-xs text-foreground-subtle">Last reminder</p><p className="mt-1 text-sm font-medium">{formatDateTime(envelope.last_reminder_at)}</p></div>
+            </div>
+          </section>
+          </div>
         </TabsContent>
         <TabsContent value="access">
           <section className="space-y-4 rounded-lg border border-border bg-surface p-5">
@@ -479,6 +518,48 @@ export default function EnvelopeDetailPage() {
       </section>
       </TabsContent>
       </Tabs>
+
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Manage delivery settings</DialogTitle>
+            <DialogDescription>
+              Change the deadline and automatic reminder schedule for this active envelope. Changes are recorded in the audit trail.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={expirationEnabled} onChange={(event) => setExpirationEnabled(event.target.checked)} /> Envelope expires</label>
+              <Label htmlFor="active-envelope-expires" className="sr-only">Expiration date</Label>
+              <Input id="active-envelope-expires" type="date" min={formatDateInput()} value={expirationDate} onChange={(event) => setExpirationDate(event.target.value)} disabled={!expirationEnabled} />
+              <p className="text-xs text-foreground-muted">{expirationEnabled ? 'Recipients must finish by the end of this date.' : 'The envelope will remain active until completed, declined, or voided.'}</p>
+            </div>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={remindersEnabled} onChange={(event) => setRemindersEnabled(event.target.checked)} /> Automatic reminders</label>
+              <Label htmlFor="active-envelope-reminders">Reminder interval (hours)</Label>
+              <Input id="active-envelope-reminders" type="number" min={1} max={720} step={1} value={reminderHours} onChange={(event) => setReminderHours(event.target.value)} disabled={!remindersEnabled} />
+              <p className="text-xs text-foreground-muted">{remindersEnabled ? 'Pending recipients are reminded after this interval.' : 'You can still use the Remind button manually.'}</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSettingsOpen(false)}>Cancel</Button>
+            <Button disabled={updateDeliverySettings.isPending} onClick={async () => {
+              const interval = Number(reminderHours)
+              if (expirationEnabled && !expirationDate) { toast({ title: 'Choose an expiration date', variant: 'destructive' }); return }
+              if (remindersEnabled && (!Number.isInteger(interval) || interval < 1 || interval > 720)) { toast({ title: 'Reminder interval must be between 1 and 720 hours', variant: 'destructive' }); return }
+              const expiresAt = expirationEnabled ? new Date(`${expirationDate}T23:59:59`).toISOString() : null
+              if (expiresAt && new Date(expiresAt) <= new Date()) { toast({ title: 'Expiration date must be in the future', variant: 'destructive' }); return }
+              try {
+                await updateDeliverySettings.mutateAsync({ expires_at: expiresAt, reminder_interval_hours: remindersEnabled ? interval : null })
+                setSettingsOpen(false)
+                toast({ title: 'Delivery settings updated' })
+              } catch (error) {
+                toast({ title: 'Could not update delivery settings', description: error instanceof Error ? error.message : undefined, variant: 'destructive' })
+              }
+            }}>{updateDeliverySettings.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
         <DialogContent className="sm:max-w-md">

@@ -2819,6 +2819,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/envelopes/{envelope_id}/delivery-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Active Envelope Delivery Settings */
+        patch: operations["update_active_envelope_delivery_settings_api_esign_envelopes__envelope_id__delivery_settings_patch"];
+        trace?: never;
+    };
     "/api/esign/envelopes/{envelope_id}/documents": {
         parameters: {
             query?: never;
@@ -2830,7 +2847,7 @@ export interface paths {
         put?: never;
         /**
          * Add Documents
-         * @description Attach additional PDFs to a draft envelope.
+         * @description Attach additional PDF or Word documents to a draft envelope.
          */
         post: operations["add_documents_api_esign_envelopes__envelope_id__documents_post"];
         delete?: never;
@@ -7812,6 +7829,16 @@ export interface components {
              * @default Envelope created
              */
             message: string;
+        };
+        /**
+         * EsignEnvelopeDeliverySettingsUpdateRequest
+         * @description Settings that remain mutable while an envelope is awaiting action.
+         */
+        EsignEnvelopeDeliverySettingsUpdateRequest: {
+            /** Expires At */
+            expires_at?: string | null;
+            /** Reminder Interval Hours */
+            reminder_interval_hours?: number | null;
         };
         /** EsignEnvelopeGrantRequest */
         EsignEnvelopeGrantRequest: {
@@ -17732,6 +17759,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_active_envelope_delivery_settings_api_esign_envelopes__envelope_id__delivery_settings_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignEnvelopeDeliverySettingsUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignEnvelopeResponse"];
                 };
             };
             /** @description Validation Error */

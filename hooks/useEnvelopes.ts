@@ -10,6 +10,7 @@ import { apiClient } from '@/lib/api'
 import type { components } from '@/lib/api-types'
 import type {
   EsignEnvelopeResponse,
+  EsignEnvelopeDeliverySettingsUpdateRequest,
   EsignEnvelopeUpdateRequest,
   EsignFieldInput,
   EsignRecipientInput,
@@ -171,6 +172,15 @@ export function useUpdateEnvelope(envelopeId: string) {
   return useMutation({
     mutationFn: (payload: EsignEnvelopeUpdateRequest) =>
       apiClient.updateEsignEnvelope(envelopeId, payload),
+    onSuccess: (envelope) => invalidate(envelopeId, envelope),
+  })
+}
+
+export function useUpdateEnvelopeDeliverySettings(envelopeId: string) {
+  const invalidate = useInvalidateEnvelope()
+  return useMutation({
+    mutationFn: (payload: EsignEnvelopeDeliverySettingsUpdateRequest) =>
+      apiClient.updateEsignEnvelopeDeliverySettings(envelopeId, payload),
     onSuccess: (envelope) => invalidate(envelopeId, envelope),
   })
 }

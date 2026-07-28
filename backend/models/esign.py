@@ -397,6 +397,13 @@ class EsignEnvelopeUpdateRequest(BaseModel):
     brand_id: Optional[str] = None
 
 
+class EsignEnvelopeDeliverySettingsUpdateRequest(BaseModel):
+    """Settings that remain mutable while an envelope is awaiting action."""
+
+    expires_at: Optional[datetime] = None
+    reminder_interval_hours: Optional[int] = Field(default=None, ge=1, le=24 * 30)
+
+
 class EsignRecipientsReplaceRequest(BaseModel):
     recipients: list[EsignRecipientInput]
     expected_revision: Optional[int] = Field(default=None, ge=1)
