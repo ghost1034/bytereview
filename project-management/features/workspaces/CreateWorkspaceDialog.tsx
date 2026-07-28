@@ -90,7 +90,7 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: Props) {
       setActiveWorkspaceId(workspaceId)
       onOpenChange(false)
       reset()
-      router.push(`/dashboard/tasklytic/w/${workspaceId}/home`)
+      router.push(`/dashboard/project-management/w/${workspaceId}/home`)
     } finally {
       setLoading(false)
     }

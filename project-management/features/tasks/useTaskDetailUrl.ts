@@ -61,7 +61,7 @@ export function useTaskDetailUrl(explicitTaskId?: string | null) {
   const copyTaskLink = useCallback(
     (id: string, workspaceId: string) => {
       const origin = typeof window !== 'undefined' ? window.location.origin : ''
-      const url = `${origin}/dashboard/tasklytic/w/${workspaceId}/tasks/${id}`
+      const url = `${origin}/dashboard/project-management/w/${workspaceId}/tasks/${id}`
       void navigator.clipboard.writeText(url)
       return url
     },
@@ -69,7 +69,7 @@ export function useTaskDetailUrl(explicitTaskId?: string | null) {
   )
 
   const fullScreenHref = useCallback(
-    (id: string, workspaceId: string) => `/dashboard/tasklytic/w/${workspaceId}/tasks/${id}`,
+    (id: string, workspaceId: string) => `/dashboard/project-management/w/${workspaceId}/tasks/${id}`,
     []
   )
 

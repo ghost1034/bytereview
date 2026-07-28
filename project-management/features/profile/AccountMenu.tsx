@@ -32,8 +32,8 @@ export function AccountMenu({ theme = 'system', onThemeCycle, compact }: Props) 
   if (!user) return null
 
   const settingsHref = workspaceId
-    ? `/dashboard/tasklytic/w/${workspaceId}/settings`
-    : '/dashboard/tasklytic'
+    ? `/dashboard/project-management/w/${workspaceId}/settings`
+    : '/dashboard/project-management'
 
   const themeLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System'
 

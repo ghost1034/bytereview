@@ -38,7 +38,7 @@ export function WorkspaceSwitcher({ fullWidth }: { fullWidth?: boolean }) {
 
   const switchTo = (id: string) => {
     setActive(id)
-    router.push(`/dashboard/tasklytic/w/${id}/home`)
+    router.push(`/dashboard/project-management/w/${id}/home`)
   }
 
   if (!active) return null

@@ -94,7 +94,7 @@ export function CreateProjectDetailsStep(props: DetailsProps) {
     return (
       <p className="py-4 text-sm" style={{ color: 'var(--ink-muted)' }}>
         You need a team first.{' '}
-        <Link href={`/dashboard/tasklytic/w/${props.workspaceId}/teams/new`} className="underline" style={{ color: 'var(--primary)' }}>
+        <Link href={`/dashboard/project-management/w/${props.workspaceId}/teams/new`} className="underline" style={{ color: 'var(--primary)' }}>
           Create a team
         </Link>
       </p>

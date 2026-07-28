@@ -55,15 +55,15 @@ export function ProjectPage({ projectId }: Props) {
   const starred = starredIds.includes(projectId)
 
   const basePath = workspaceId
-    ? `/dashboard/tasklytic/w/${workspaceId}/projects/${projectId}`
+    ? `/dashboard/project-management/w/${workspaceId}/projects/${projectId}`
     : '#'
 
   const breadcrumbs = useMemo(
     () =>
       project && workspaceId
         ? [
-            { label: 'Tasklytic', href: `/dashboard/tasklytic/w/${workspaceId}/home` },
-            { label: 'Projects', href: `/dashboard/tasklytic/w/${workspaceId}/projects` },
+            { label: 'Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+            { label: 'Projects', href: `/dashboard/project-management/w/${workspaceId}/projects` },
             { label: project.name },
           ]
         : [],

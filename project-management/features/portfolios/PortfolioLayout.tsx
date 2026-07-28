@@ -23,7 +23,7 @@ type Props = {
 
 export function PortfolioLayout({ portfolio, workspaceId, currentUserId, activeTab }: Props) {
   const owner = useUsersStore((s) => s.getById(portfolio.ownerId))
-  const base = `/dashboard/tasklytic/w/${workspaceId}/portfolios/${portfolio.id}`
+  const base = `/dashboard/project-management/w/${workspaceId}/portfolios/${portfolio.id}`
 
   const content = useMemo(() => {
     switch (activeTab) {

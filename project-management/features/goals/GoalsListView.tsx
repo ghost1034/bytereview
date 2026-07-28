@@ -29,7 +29,7 @@ function ListRow({ goal, depth, workspaceId }: { goal: Goal; depth: number; work
     <tr className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
       <td className="py-3 pr-4">
         <Link
-          href={`/dashboard/tasklytic/w/${workspaceId}/goals/${goal.id}`}
+          href={`/dashboard/project-management/w/${workspaceId}/goals/${goal.id}`}
           className="font-medium hover:underline"
           style={{ paddingLeft: depth * 20 }}
         >

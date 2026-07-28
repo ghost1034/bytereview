@@ -21,7 +21,7 @@ export function PortfolioWorkloadTab({ portfolio, workspaceId }: Props) {
         Use the workspace workload view in the meantime.
       </p>
       <Button asChild className="mt-4" variant="outline" size="sm">
-        <Link href={`/dashboard/tasklytic/w/${workspaceId}/workload`}>Open workspace workload</Link>
+        <Link href={`/dashboard/project-management/w/${workspaceId}/workload`}>Open workspace workload</Link>
       </Button>
     </div>
   )

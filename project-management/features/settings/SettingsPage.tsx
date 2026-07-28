@@ -66,7 +66,7 @@ export function SettingsPage() {
 
   if (!workspaceId) return null
 
-  const base = `/dashboard/tasklytic/w/${workspaceId}`
+  const base = `/dashboard/project-management/w/${workspaceId}`
 
   return (
     <div className="space-y-6">

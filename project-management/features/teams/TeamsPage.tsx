@@ -95,7 +95,7 @@ export function TeamsPage() {
               key={team.id}
               team={team}
               workspaceId={workspaceId}
-              href={`/dashboard/tasklytic/w/${workspaceId}/teams/${team.id}`}
+              href={`/dashboard/project-management/w/${workspaceId}/teams/${team.id}`}
               onJoin={() => void handleJoin(team)}
             />
           ))}

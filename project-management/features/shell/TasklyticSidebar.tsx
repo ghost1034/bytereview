@@ -91,7 +91,7 @@ export function TasklyticSidebar({ onNavigate }: Props) {
     [projects, starredIds]
   )
 
-  const base = workspaceId ? `/dashboard/tasklytic/w/${workspaceId}` : null
+  const base = workspaceId ? `/dashboard/project-management/w/${workspaceId}` : null
 
   const pinned: NavItem[] = useMemo(
     () =>
@@ -154,7 +154,7 @@ export function TasklyticSidebar({ onNavigate }: Props) {
       <aside
         className="relative flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out"
         style={{ width, borderColor: 'var(--border-subtle)', background: 'var(--bg-sunken)' }}
-        aria-label="Tasklytic navigation"
+        aria-label="Project management navigation"
         data-tour="sidebar"
       >
         <SidebarResizeHandle width={sidebarWidth} collapsed={collapsed} onWidthChange={setSidebarWidth} />

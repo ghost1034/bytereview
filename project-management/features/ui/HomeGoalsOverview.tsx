@@ -16,7 +16,7 @@ function GoalRow({ goalId, workspaceId }: { goalId: string; workspaceId: string 
   if (!goal) return null
   return (
     <Link
-      href={`/dashboard/tasklytic/w/${workspaceId}/goals/${goal.id}`}
+      href={`/dashboard/project-management/w/${workspaceId}/goals/${goal.id}`}
       className="tl-card-hover block rounded-lg border px-3 py-2 shadow-paper-sm"
       style={{ borderColor: 'var(--border-subtle)' }}
     >
@@ -38,7 +38,7 @@ export function HomeGoalsOverview({ workspaceId }: Props) {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 3)
   )
-  const base = `/dashboard/tasklytic/w/${workspaceId}/goals`
+  const base = `/dashboard/project-management/w/${workspaceId}/goals`
 
   if (!goals.length) return null
 

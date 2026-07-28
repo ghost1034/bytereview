@@ -41,7 +41,7 @@ async function sanitizeStatusFieldOptions(workspaceId: string, actorId: string):
       nextOptions.find((o) => o.label.toLowerCase() === 'on track') ?? nextOptions[0]
     for (const task of useTasksStore.getState().list()) {
       const current = task.customFieldValues[field.id]
-      if (current?.type === 'dropdown' && removedIds.has(current.value)) {
+      if (current?.type === 'dropdown' && current.value && removedIds.has(current.value)) {
         await updateTask(
           task.id,
           {

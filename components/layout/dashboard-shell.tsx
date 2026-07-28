@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Briefcase,
   FileText,
+  FolderKanban,
   Home,
   Plug,
   Settings as SettingsIcon,
@@ -62,6 +63,11 @@ const QUICK_ACTIONS: Array<{
       { label: 'CPE Tracker', href: '/dashboard/cpe-tracker', icon: GraduationCap },
       { label: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
       { label: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
+      {
+        label: 'Project Management',
+        href: '/dashboard/project-management',
+        icon: FolderKanban,
+      },
       { label: 'E-Signature', href: '/dashboard/esign', icon: FileSignature },
     ],
   },
@@ -80,6 +86,7 @@ export function DashboardShell({
     pathname.startsWith('/dashboard/esign/sign/') ||
     /\/dashboard\/esign\/[^/]+\/(prepare|fields|review|documents|recipients)$/.test(pathname) ||
     /\/dashboard\/esign\/templates\/[^/]+/.test(pathname)
+  const isProjectManagement = pathname.startsWith('/dashboard/project-management')
   const [paletteOpen, setPaletteOpen] = React.useState(false)
 
   React.useEffect(() => {
@@ -101,7 +108,7 @@ export function DashboardShell({
     [],
   )
 
-  if (isImmersiveEsign) {
+  if (isImmersiveEsign || isProjectManagement) {
     return (
       <main id="main-content" tabIndex={-1} className="min-h-dvh bg-surface outline-none">
         <ProductTourProvider>{children}</ProductTourProvider>

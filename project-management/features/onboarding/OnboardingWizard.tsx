@@ -247,11 +247,11 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
 
       const targetProject = result.targetProjectId
       if (replay) {
-        router.replace(`/dashboard/tasklytic/w/${workspaceId}/home`)
+        router.replace(`/dashboard/project-management/w/${workspaceId}/home`)
       } else if (targetProject) {
-        router.replace(`/dashboard/tasklytic/w/${workspaceId}/projects/${targetProject}`)
+        router.replace(`/dashboard/project-management/w/${workspaceId}/projects/${targetProject}`)
       } else {
-        router.replace(`/dashboard/tasklytic/w/${workspaceId}/home`)
+        router.replace(`/dashboard/project-management/w/${workspaceId}/home`)
       }
 
       if (!replay) {
@@ -299,7 +299,7 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
             industries={industries}
             selectedIds={selectedTemplates}
             onToggle={toggleTemplate}
-            onBrowseAll={() => workspaceId && router.push(`/dashboard/tasklytic/w/${workspaceId}/templates`)}
+            onBrowseAll={() => workspaceId && router.push(`/dashboard/project-management/w/${workspaceId}/templates`)}
           />
         ) : null}
         {step === 'invite' ? (

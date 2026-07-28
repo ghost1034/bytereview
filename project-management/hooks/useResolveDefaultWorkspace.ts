@@ -39,7 +39,7 @@ export function useResolveDefaultWorkspace(): void {
   useEffect(() => {
     if (rawId !== 'default' || !resolvedId || !hydrated || !pathname) return
     const suffix = pathname.replace(/^\/dashboard\/tasklytic\/w\/default/, '') || '/home'
-    router.replace(`/dashboard/tasklytic/w/${resolvedId}${suffix}`)
+    router.replace(`/dashboard/project-management/w/${resolvedId}${suffix}`)
   }, [hydrated, pathname, rawId, resolvedId, router])
 }
 

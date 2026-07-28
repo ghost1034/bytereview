@@ -71,7 +71,7 @@ export function GoalCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              href={`/dashboard/tasklytic/w/${workspaceId}/goals/${goal.id}`}
+              href={`/dashboard/project-management/w/${workspaceId}/goals/${goal.id}`}
               className="font-medium hover:underline"
               onClick={(e) => e.stopPropagation()}
             >

@@ -1,7 +1,7 @@
 'use client'
 
 /** Placeholder routes for Goals and Reporting (steps 23–26). */
-import { usePageMeta } from '@/components/project management/hooks/usePageMeta'
+import { usePageMeta } from '@/project-management/hooks/usePageMeta'
 
 export function PlaceholderPage({ title, step }: { title: string; step: string }) {
   usePageMeta({ breadcrumbs: [{ label: title }] })

@@ -2,7 +2,6 @@
 
 /** Team detail page with Overview, Projects, Messages, Calendar, Settings tabs. */
 import Link from 'next/link'
-import { useParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useTeam } from '../../hooks/useTeam'
@@ -17,9 +16,7 @@ import { TeamOverviewTab } from './TeamOverviewTab'
 import { TeamProjectsTab } from './TeamProjectsTab'
 import { TeamSettingsTab } from './TeamSettingsTab'
 
-export function TeamPage() {
-  const params = useParams()
-  const teamId = typeof params?.teamId === 'string' ? params.teamId : null
+export function TeamPage({ teamId }: { teamId?: string | null } = {}) {
   const { workspaceId, workspace } = useWorkspaceContext()
   const team = useTeam(teamId)
   const currentUserId = useAuthStore((s) => s.currentUserId)
@@ -27,7 +24,7 @@ export function TeamPage() {
 
   usePageMeta({
     breadcrumbs: [
-      { label: 'Teams', href: workspaceId ? `/dashboard/tasklytic/w/${workspaceId}/teams` : undefined },
+      { label: 'Teams', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/teams` : undefined },
       { label: team?.name ?? 'Team' },
     ],
   })
@@ -93,7 +90,7 @@ export function TeamPage() {
 
       {isTeamMember(team, currentUserId) && (
         <Link
-          href={`/dashboard/tasklytic/w/${workspaceId}/teams/${team.id}/settings`}
+          href={`/dashboard/project-management/w/${workspaceId}/teams/${team.id}/settings`}
           className="text-xs underline"
           style={{ color: 'var(--ink-muted)' }}
         >

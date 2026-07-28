@@ -34,8 +34,8 @@ export const TOUR_STEPS: TourStep[] = [
   {
     id: 'ai-panel',
     target: '[data-tour="ai-sparkles"]',
-    title: 'Tasklytic AI',
-    body: 'Tasklytic AI drafts updates, suggests subtasks, and writes status posts for you.',
+    title: 'Project Management AI',
+    body: 'Project Management AI drafts updates, suggests subtasks, and writes status posts for you.',
   },
   {
     id: 'reporting',

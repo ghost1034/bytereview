@@ -18,7 +18,7 @@ export function useTemplateInstantiate(workspaceId: string) {
       try {
         const result = await instantiateTemplate(templateId, { ...input, workspaceId })
         if (result?.project) {
-          router.push(`/dashboard/tasklytic/w/${workspaceId}/projects/${result.project.id}`)
+          router.push(`/dashboard/project-management/w/${workspaceId}/projects/${result.project.id}`)
           return result
         }
         return null

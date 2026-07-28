@@ -14,7 +14,7 @@ export async function queueDashboardDigest(dashboard: ReportingDashboard, recipi
     '',
     chartLines || 'No charts configured.',
     '',
-    '— Sent by Tasklytic Reporting (V1 local queue; replace EmailAdapter in production).',
+    '— Sent by CPAAutomation Project Management Reporting.',
   ].join('\n')
 
   await adapter.send({

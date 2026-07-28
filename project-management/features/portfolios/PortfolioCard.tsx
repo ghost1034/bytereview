@@ -26,7 +26,7 @@ export function PortfolioCard({ portfolio, workspaceId }: Props) {
     [portfolio, projects, tasks]
   )
   const linked = projects.filter((p) => portfolio.projectIds.includes(p.id))
-  const href = `/dashboard/tasklytic/w/${workspaceId}/portfolios/${portfolio.id}`
+  const href = `/dashboard/project-management/w/${workspaceId}/portfolios/${portfolio.id}`
   const tileColor = portfolio.color === 'primary' ? 'var(--primary-soft)' : `var(--${portfolio.color}-soft, var(--primary-soft))`
 
   return (

@@ -44,7 +44,7 @@ export function CommandPalette() {
   }, [open])
 
   const flatItems = useMemo(() => {
-    const base = workspaceId ? `/dashboard/tasklytic/w/${workspaceId}` : '/dashboard/tasklytic'
+    const base = workspaceId ? `/dashboard/project-management/w/${workspaceId}` : '/dashboard/project-management'
     const q = query.trim().toLowerCase()
     const items: FlatItem[] = []
 
@@ -154,10 +154,10 @@ export function CommandPalette() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onInputKeyDown}
-            placeholder="Search Tasklytic…"
+            placeholder="Search project management…"
             className="w-full bg-transparent text-sm outline-none focus-visible:ring-0"
             style={{ color: 'var(--ink-primary)' }}
-            aria-label="Search Tasklytic"
+            aria-label="Search project management"
           />
         </div>
         <div ref={listRef} className="max-h-80 overflow-y-auto p-2">

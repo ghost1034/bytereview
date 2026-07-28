@@ -62,7 +62,7 @@ export function WorkspaceGeneralTab({ workspace, currentUser }: Props) {
     if (confirmName !== workspace.name) return
     await deleteWorkspace(workspace.id)
     setDeleteOpen(false)
-    router.push('/dashboard/tasklytic')
+    router.push('/dashboard/project-management')
   }
 
   return (

@@ -1,13 +1,13 @@
 /**
  * Shared authenticated fetch helper for Tasklytic backend routes.
  */
-import { getClientAuthToken } from '@/lib/dev-auth'
+import { getCurrentAuthToken } from '@/lib/firebase'
 
 export const TASKLYTIC_API_BASE = '/api/tasklytic'
 const FETCH_TIMEOUT_MS = 20_000
 
 export async function tasklyticAuthHeaders(): Promise<Record<string, string>> {
-  const token = await getClientAuthToken()
+  const token = await getCurrentAuthToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 

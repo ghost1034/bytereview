@@ -31,7 +31,7 @@ export function MyTasksPage() {
   )
   const defaultProjectId = projects[0]?.id
 
-  const basePath = workspaceId ? `/dashboard/tasklytic/w/${workspaceId}/my-tasks` : '#'
+  const basePath = workspaceId ? `/dashboard/project-management/w/${workspaceId}/my-tasks` : '#'
 
   usePageMeta({ breadcrumbs: [{ label: 'My Tasks' }] })
 

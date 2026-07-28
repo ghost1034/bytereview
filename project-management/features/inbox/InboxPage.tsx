@@ -43,7 +43,7 @@ export function InboxPage() {
 
   usePageMeta({
     breadcrumbs: workspaceId
-      ? [{ label: 'Tasklytic', href: `/dashboard/tasklytic/w/${workspaceId}/home` }, { label: 'Inbox' }]
+      ? [{ label: 'Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` }, { label: 'Inbox' }]
       : [{ label: 'Inbox' }],
   })
 

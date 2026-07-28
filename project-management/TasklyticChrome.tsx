@@ -86,7 +86,7 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
     <TasklyticErrorBoundary>
       <div
         ref={rootRef}
-        className={`tasklytic-root flex min-h-[calc(100vh-var(--header-height))] w-full min-w-0${reducedMotion ? ' reduce-motion' : ''}`}
+        className={`tasklytic-root flex min-h-dvh w-full min-w-0${reducedMotion ? ' reduce-motion' : ''}`}
       >
         <a
           href="#tasklytic-main"

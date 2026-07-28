@@ -137,7 +137,7 @@ export function PortfolioProjectsTab({ portfolio, workspaceId }: Props) {
                   </TableCell>
                   <TableCell><GripVertical className="h-4 w-4 cursor-grab" style={{ color: 'var(--ink-muted)' }} /></TableCell>
                   <TableCell>
-                    <Link href={`/dashboard/tasklytic/w/${workspaceId}/projects/${p.id}`} className="flex items-center gap-2 hover:underline">
+                    <Link href={`/dashboard/project-management/w/${workspaceId}/projects/${p.id}`} className="flex items-center gap-2 hover:underline">
                       <span>{p.iconEmoji ?? '📁'}</span>
                       <span className="font-medium">{p.name}</span>
                     </Link>

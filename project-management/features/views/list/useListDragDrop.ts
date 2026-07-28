@@ -85,7 +85,7 @@ export function useListDragDrop({
       if (!targetSectionId && overTask) {
         targetSectionId = overTask.sectionIdByProject[project.id]
       }
-      const validSection = (id: string | undefined) =>
+      const validSection = (id: string | undefined): id is string =>
         Boolean(id && id !== '__none__' && sections.some((s) => s.id === id))
       if (!validSection(targetSectionId)) return
 

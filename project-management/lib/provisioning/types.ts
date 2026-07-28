@@ -8,6 +8,7 @@ export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'guest'
 export type WorkspaceProfileInput = {
   teamSize?: string
   industry?: string
+  industries?: string[]
   primaryUseCase?: string
   role?: string
   signedUpAt?: ISODateTime

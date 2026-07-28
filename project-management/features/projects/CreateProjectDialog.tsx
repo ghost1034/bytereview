@@ -85,7 +85,7 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: Props) 
         templateId: mode === 'template' ? templateId : undefined,
       })
       onOpenChange(false)
-      router.push(`/dashboard/tasklytic/w/${workspaceId}/projects/${project.id}`)
+      router.push(`/dashboard/project-management/w/${workspaceId}/projects/${project.id}`)
     } finally {
       setLoading(false)
     }

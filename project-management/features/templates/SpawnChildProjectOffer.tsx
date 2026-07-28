@@ -48,7 +48,7 @@ export function SpawnChildProjectOffer({ project, workspaceId }: Props) {
       await useProjectsStore.getState().update(project.id, { pendingChildOffer: undefined } as Partial<ProjectWithTemplateMeta>)
       if (child) {
         tasklyticToast('Child project created', { description: child.name, status: 'success' })
-        router.push(`/dashboard/tasklytic/w/${workspaceId}/projects/${child.id}`)
+        router.push(`/dashboard/project-management/w/${workspaceId}/projects/${child.id}`)
       }
     } finally {
       setLoading(false)

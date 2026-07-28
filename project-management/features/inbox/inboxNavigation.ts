@@ -6,7 +6,7 @@ export function notificationScopeHref(
   scope: Notification['scope'],
   metadata?: Record<string, unknown>
 ): string {
-  const base = `/dashboard/tasklytic/w/${workspaceId}`
+  const base = `/dashboard/project-management/w/${workspaceId}`
   switch (scope.type) {
     case 'task':
       return `${base}/tasks/${scope.id}`

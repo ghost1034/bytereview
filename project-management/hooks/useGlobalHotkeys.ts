@@ -29,7 +29,7 @@ export function useGlobalHotkeys(options: Options = {}) {
   } = options
 
   useEffect(() => {
-    const base = workspaceId ? `/dashboard/tasklytic/w/${workspaceId}` : null
+    const base = workspaceId ? `/dashboard/project-management/w/${workspaceId}` : null
     let pendingG = false
     let gTimer: ReturnType<typeof setTimeout> | null = null
 

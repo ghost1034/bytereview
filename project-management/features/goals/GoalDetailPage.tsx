@@ -54,7 +54,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
 
   usePageMeta({
     breadcrumbs: [
-      { label: 'Goals', href: `/dashboard/tasklytic/w/${workspaceId}/goals` },
+      { label: 'Goals', href: `/dashboard/project-management/w/${workspaceId}/goals` },
       { label: goal?.name ?? 'Goal' },
     ],
   })
@@ -63,7 +63,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
     return (
       <div className="tl-card p-8 text-center">
         <p style={{ color: 'var(--ink-muted)' }}>Goal not found.</p>
-        <Link href={`/dashboard/tasklytic/w/${workspaceId}/goals`} className="mt-2 inline-block text-sm underline">
+        <Link href={`/dashboard/project-management/w/${workspaceId}/goals`} className="mt-2 inline-block text-sm underline">
           Back to goals
         </Link>
       </div>
@@ -121,7 +121,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
           <MetricBlock goal={goal} />
           {parent ? (
             <Section title="Parent goal">
-              <Link href={`/dashboard/tasklytic/w/${workspaceId}/goals/${parent.id}`} className="text-sm underline">{parent.name}</Link>
+              <Link href={`/dashboard/project-management/w/${workspaceId}/goals/${parent.id}`} className="text-sm underline">{parent.name}</Link>
             </Section>
           ) : null}
           <Section title="Supporting projects">
@@ -133,7 +133,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
                   const pct = getProjectCompletionPercent(pid)
                   return (
                     <li key={pid} className="flex items-center justify-between rounded-lg p-2 text-sm" style={{ background: 'var(--bg-muted)' }}>
-                      <Link href={`/dashboard/tasklytic/w/${workspaceId}/projects/${p.id}`}>{p.iconEmoji ?? '📁'} {p.name}</Link>
+                      <Link href={`/dashboard/project-management/w/${workspaceId}/projects/${p.id}`}>{p.iconEmoji ?? '📁'} {p.name}</Link>
                       <span className="tabular-nums">{pct}% complete</span>
                     </li>
                   )
@@ -147,7 +147,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
         </TabsContent>
         <TabsContent value="subgoals" className="mt-4 space-y-2">
           {children.map((c) => (
-            <Link key={c.id} href={`/dashboard/tasklytic/w/${workspaceId}/goals/${c.id}`} className="block rounded-lg p-3 text-sm" style={{ background: 'var(--bg-muted)' }}>
+            <Link key={c.id} href={`/dashboard/project-management/w/${workspaceId}/goals/${c.id}`} className="block rounded-lg p-3 text-sm" style={{ background: 'var(--bg-muted)' }}>
               {c.name}
             </Link>
           ))}

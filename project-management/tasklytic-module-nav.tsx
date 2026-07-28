@@ -29,7 +29,7 @@ export function TasklyticModuleNav() {
 
   if (!workspaceId) return null
 
-  const base = `/dashboard/tasklytic/w/${workspaceId}`
+  const base = `/dashboard/project-management/w/${workspaceId}`
   const items = [
     { href: `${base}/home`, label: 'Home', icon: Home },
     { href: `${base}/my-tasks`, label: 'My Tasks', icon: CheckSquare },
@@ -45,7 +45,7 @@ export function TasklyticModuleNav() {
   ]
 
   return (
-    <nav className="flex flex-wrap gap-1 rounded-2xl border p-1.5 shadow-paper-sm" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }} aria-label="Tasklytic sections">
+    <nav className="flex flex-wrap gap-1 rounded-2xl border p-1.5 shadow-paper-sm" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }} aria-label="Project management sections">
       {items.map((item) => {
         const Icon = item.icon
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`)

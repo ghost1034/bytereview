@@ -39,7 +39,7 @@ export function SearchPage() {
   const [tab, setTab] = useState<SearchTab>('all')
   const [includeArchived, setIncludeArchived] = useState(false)
 
-  const basePath = workspaceId ? `/dashboard/tasklytic/w/${workspaceId}` : '/dashboard/tasklytic'
+  const basePath = workspaceId ? `/dashboard/project-management/w/${workspaceId}` : '/dashboard/project-management'
   const workspaceProjects = useMemo(
     () => projects.filter((p) => p.workspaceId === workspaceId),
     [projects, workspaceId]
@@ -62,7 +62,7 @@ export function SearchPage() {
   usePageMeta({
     breadcrumbs: workspaceId
       ? [
-          { label: 'Tasklytic', href: `${basePath}/home` },
+          { label: 'Project Management', href: `${basePath}/home` },
           { label: 'Search' },
         ]
       : [],

@@ -96,7 +96,7 @@ function SubmissionRow({
       <td className="p-3">
         {sub.taskId && workspaceId ? (
           <Link
-            href={`/dashboard/tasklytic/w/${workspaceId}/projects/${form.projectId}?task=${sub.taskId}`}
+            href={`/dashboard/project-management/w/${workspaceId}/projects/${form.projectId}?task=${sub.taskId}`}
             className="underline"
             style={{ color: 'var(--primary)' }}
             onClick={(e) => e.stopPropagation()}
@@ -134,7 +134,7 @@ function SubmissionDetail({
       <p className="text-sm"><strong>Submitted:</strong> {format(new Date(sub.createdAt), 'PPpp')}</p>
       {sub.taskId && workspaceId ? (
         <Link
-          href={`/dashboard/tasklytic/w/${workspaceId}/projects/${form.projectId}?task=${sub.taskId}`}
+          href={`/dashboard/project-management/w/${workspaceId}/projects/${form.projectId}?task=${sub.taskId}`}
           className="text-sm underline"
           style={{ color: 'var(--primary)' }}
         >

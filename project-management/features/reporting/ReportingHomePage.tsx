@@ -27,7 +27,7 @@ import { useReportingScheduler } from './useReportingScheduler'
 export function ReportingHomePage() {
   const router = useRouter()
   const { workspaceId } = useWorkspaceContext()
-  const basePath = workspaceId ? `/dashboard/tasklytic/w/${workspaceId}` : ''
+  const basePath = workspaceId ? `/dashboard/project-management/w/${workspaceId}` : ''
   const dashboards = useDashboardsStore((s) => s.list()) as ReportingDashboard[]
   const users = useUsersStore((s) => s.list())
   const dataCtx = useReportingData(workspaceId)

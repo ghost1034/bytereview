@@ -30,7 +30,7 @@ export function WorkspaceSettingsPage() {
 
   usePageMeta({
     breadcrumbs: [
-      { label: 'Settings', href: workspaceId ? `/dashboard/tasklytic/w/${workspaceId}/settings` : undefined },
+      { label: 'Settings', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/settings` : undefined },
       { label: 'Workspace' },
     ],
   })

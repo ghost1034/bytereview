@@ -54,7 +54,7 @@ export function MyTasksSummary({ workspaceId }: Props) {
   }, [mine])
 
   const items = (buckets[tab] ?? []).slice(0, 5)
-  const basePath = `/dashboard/tasklytic/w/${workspaceId}/my-tasks`
+  const basePath = `/dashboard/project-management/w/${workspaceId}/my-tasks`
 
   const toggle = async (taskId: string, completed: boolean) => {
     if (!currentUserId) return

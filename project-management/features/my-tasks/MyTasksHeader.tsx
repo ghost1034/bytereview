@@ -23,7 +23,7 @@ type Props = {
 
 /** Page header with view switcher for My Tasks. */
 export function MyTasksHeader({ workspaceId, userId, viewMode, layout, onUpdateLayout }: Props) {
-  const base = `/dashboard/tasklytic/w/${workspaceId}/my-tasks`
+  const base = `/dashboard/project-management/w/${workspaceId}/my-tasks`
 
   return (
     <div className="space-y-3">

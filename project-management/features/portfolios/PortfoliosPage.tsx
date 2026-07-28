@@ -149,7 +149,7 @@ export function PortfoliosPage() {
                   return (
                     <TableRow key={p.id}>
                       <TableCell>
-                        <Link href={`/dashboard/tasklytic/w/${workspaceId}/portfolios/${p.id}`} className="font-medium hover:underline">
+                        <Link href={`/dashboard/project-management/w/${workspaceId}/portfolios/${p.id}`} className="font-medium hover:underline">
                           {p.iconEmoji ?? '📊'} {p.name}
                         </Link>
                       </TableCell>

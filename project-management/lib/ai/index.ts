@@ -12,7 +12,7 @@ const pausedAdapter: AiAdapter = {
   capabilities: { provider: 'local_fallback' },
   async generate() {
     return {
-      text: 'Tasklytic AI is paused. Turn it back on from the panel header.',
+      text: 'Project Management AI is paused. Turn it back on from the panel header.',
       proposals: [],
     }
   },

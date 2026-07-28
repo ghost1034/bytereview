@@ -74,7 +74,7 @@ export function GoalDetailPanel({ goal, workspaceId, currentUserId, onClose }: P
                 </ul>
               </div>
             ) : null}
-            <Link href={`/dashboard/tasklytic/w/${workspaceId}/goals/${goal.id}`} className="text-sm underline" style={{ color: 'var(--primary)' }}>
+            <Link href={`/dashboard/project-management/w/${workspaceId}/goals/${goal.id}`} className="text-sm underline" style={{ color: 'var(--primary)' }}>
               Open full detail →
             </Link>
           </TabsContent>
@@ -83,7 +83,7 @@ export function GoalDetailPanel({ goal, workspaceId, currentUserId, onClose }: P
           </TabsContent>
           <TabsContent value="subgoals" className="mt-0 space-y-2">
             {children.length ? children.map((c) => (
-              <Link key={c.id} href={`/dashboard/tasklytic/w/${workspaceId}/goals/${c.id}`} className="block rounded-lg p-2 text-sm hover:bg-muted" style={{ background: 'var(--bg-muted)' }}>
+              <Link key={c.id} href={`/dashboard/project-management/w/${workspaceId}/goals/${c.id}`} className="block rounded-lg p-2 text-sm hover:bg-muted" style={{ background: 'var(--bg-muted)' }}>
                 {c.name}
               </Link>
             )) : <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No sub-goals yet.</p>}

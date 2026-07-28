@@ -30,7 +30,7 @@ export function PortfolioPage({ portfolioId, tab }: Props) {
     breadcrumbs:
       portfolio && workspaceId
         ? [
-            { label: 'Portfolios', href: `/dashboard/tasklytic/w/${workspaceId}/portfolios` },
+            { label: 'Portfolios', href: `/dashboard/project-management/w/${workspaceId}/portfolios` },
             { label: portfolio.name },
           ]
         : [],

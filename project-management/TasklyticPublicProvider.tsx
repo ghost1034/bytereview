@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { hydrateTasklytic } from '@/components/project management/stores/hydrate'
-import { usesTasklyticBackend } from '@/components/project management/lib/forms/publicFormApi'
-import '@/components/project management/styles/tasklytic.css'
+import { hydrateTasklytic } from '@/project-management/stores/hydrate'
+import { usesTasklyticBackend } from '@/project-management/lib/forms/publicFormApi'
+import '@/project-management/styles/tasklytic.css'
 
 /** Minimal provider for public Tasklytic routes (no auth shell). */
 export function TasklyticPublicProvider({ children }: { children: ReactNode }) {

@@ -230,11 +230,11 @@ async function sendWorkspaceInvitesLocally(input: InviteInput): Promise<InviteRe
 
           ${noteBlock}
 
-          <p><a href="/dashboard/tasklytic/accept-invite?token=${encodeURIComponent(token)}">Accept invitation</a></p>
+          <p><a href="/dashboard/project-management/accept-invite?token=${encodeURIComponent(token)}">Accept invitation</a></p>
 
         `.trim(),
 
-        bodyText: `${input.invitedByName} invited you to ${input.workspaceName}. Accept: /dashboard/tasklytic/accept-invite?token=${token}`,
+        bodyText: `${input.invitedByName} invited you to ${input.workspaceName}. Accept: /dashboard/project-management/accept-invite?token=${token}`,
 
         metadata: { invitationId: invitation.id, role: input.role },
 

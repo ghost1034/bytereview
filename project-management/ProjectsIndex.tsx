@@ -42,7 +42,7 @@ export function ProjectsIndex() {
   usePageMeta({
     breadcrumbs: workspaceId
       ? [
-          { label: 'Tasklytic', href: `/dashboard/tasklytic/w/${workspaceId}/home` },
+          { label: 'Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
           { label: 'Projects' },
         ]
       : [{ label: 'Projects' }],
@@ -118,7 +118,7 @@ export function ProjectsIndex() {
             <ProjectCard
               key={p.id}
               project={p}
-              href={`/dashboard/tasklytic/w/${workspaceId}/projects/${p.id}`}
+              href={`/dashboard/project-management/w/${workspaceId}/projects/${p.id}`}
               starred={starredIds.includes(p.id)}
               currentUserId={currentUserId ?? undefined}
               onToggleStar={
@@ -149,7 +149,7 @@ export function ProjectsIndex() {
                 return (
                   <tr key={p.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
                     <td className="px-4 py-3">
-                      <Link href={`/dashboard/tasklytic/w/${workspaceId}/projects/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
+                      <Link href={`/dashboard/project-management/w/${workspaceId}/projects/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
                         <span>{p.iconEmoji}</span>
                         {p.name}
                       </Link>

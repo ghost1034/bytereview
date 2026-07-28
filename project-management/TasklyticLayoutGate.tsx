@@ -2,8 +2,8 @@
 
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
-import { TasklyticChrome } from '@/components/project management/TasklyticChrome'
-import { TasklyticProvider } from '@/components/project management/TasklyticProvider'
+import { TasklyticChrome } from '@/project-management/TasklyticChrome'
+import { TasklyticProvider } from '@/project-management/TasklyticProvider'
 
 /**
  * Skips chrome for public form pages. ByteReview's dashboard already gates
@@ -12,7 +12,7 @@ import { TasklyticProvider } from '@/components/project management/TasklyticProv
  */
 export function TasklyticLayoutGate({ children }: { children: ReactNode }) {
   const pathname = usePathname()
-  const isPublic = pathname?.startsWith('/dashboard/tasklytic/public/')
+  const isPublic = pathname?.startsWith('/project-management/forms/')
 
   if (isPublic) {
     return <>{children}</>

@@ -47,7 +47,7 @@ export function AiInputArea({ scope, disabled, onSend }: Props) {
           value={prompt}
           disabled={disabled}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder={disabled ? 'AI is paused' : 'Ask Tasklytic AI…'}
+          placeholder={disabled ? 'AI is paused' : 'Ask Project Management AI…'}
           className="min-h-[72px] flex-1 resize-none text-sm"
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {

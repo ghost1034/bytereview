@@ -8,6 +8,7 @@ import { useParams, useRouter, usePathname } from 'next/navigation'
 import { usesTasklyticBackend } from './lib/forms/publicFormApi'
 import { useAuth } from '@/contexts/AuthContext'
 import { identify } from './lib/analytics/track'
+import { now } from './lib/time'
 import { ensureRecommendedFields } from './lib/customFields/seedRecommendedFields'
 import { buildStarterContent } from './lib/provision'
 import { hydrateTasklytic, rehydrateWorkspaceStores } from './stores/hydrate'
@@ -174,6 +175,29 @@ export function TasklyticProvider({ children }: Props) {
 
         await useAuthStore.getState().setCurrentUser(userId, { partition: 'default' })
 
+        const users = useUsersStore.getState()
+        const existingUser = users.getById(userId)
+        const firebaseName = firebaseUser!.displayName || firebaseUser!.email?.split('@')[0] || 'User'
+        const firebaseEmail = firebaseUser!.email || ''
+        if (!existingUser) {
+          await users.add({
+            id: userId,
+            name: firebaseName,
+            email: firebaseEmail,
+            avatarColor: '#cc785c',
+            role: 'member',
+            onboarding: {
+              completed: true,
+              completedSteps: [],
+              completedAt: now(),
+              tourCompletedAt: now(),
+            },
+            createdAt: now(),
+          })
+        } else if (existingUser.name !== firebaseName || existingUser.email !== firebaseEmail) {
+          await users.update(userId, { name: firebaseName, email: firebaseEmail })
+        }
+
         if (workspaceId && usesTasklyticBackend()) {
           await rehydrateWorkspaceStores(workspaceId)
           void ensureRecommendedFields(workspaceId, userId).catch((err) => {
@@ -205,8 +229,8 @@ export function TasklyticProvider({ children }: Props) {
 
   useEffect(() => {
     if (!bootReady || !resolvedWorkspaceId || !pathname) return
-    if (pathname === '/dashboard/tasklytic' || pathname.includes('/w/default')) {
-      router.replace(`/dashboard/tasklytic/w/${resolvedWorkspaceId}/home`)
+    if (pathname === '/dashboard/project-management' || pathname.includes('/w/default')) {
+      router.replace(`/dashboard/project-management/w/${resolvedWorkspaceId}/home`)
     }
   }, [bootReady, pathname, resolvedWorkspaceId, router])
 
@@ -221,7 +245,7 @@ export function TasklyticProvider({ children }: Props) {
   if (waitingOnAuth) {
     return (
       <div className="tasklytic-root flex min-h-[320px] items-center justify-center">
-        <p className="text-sm text-[var(--ink-muted)]">Loading Tasklytic…</p>
+        <p className="text-sm text-[var(--ink-muted)]">Loading project management…</p>
       </div>
     )
   }

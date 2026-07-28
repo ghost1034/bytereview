@@ -41,7 +41,7 @@ export function TasklyticHome() {
 
   usePageMeta({
     breadcrumbs: workspace
-      ? [{ label: 'Tasklytic', href: '#' }, { label: workspace.name }]
+      ? [{ label: 'Project Management', href: '#' }, { label: workspace.name }]
       : [],
   })
 
@@ -58,7 +58,7 @@ export function TasklyticHome() {
   if (!workspaceId) {
     return (
       <TasklyticEmptyState
-        headline="Welcome to Tasklytic"
+        headline="Welcome to Project Management"
         subhead="Pick a workspace to begin organizing projects, tasks, and goals."
       />
     )
@@ -68,7 +68,7 @@ export function TasklyticHome() {
     <ProjectCard
       key={project.id}
       project={project}
-      href={`/dashboard/tasklytic/w/${workspaceId}/projects/${project.id}`}
+      href={`/dashboard/project-management/w/${workspaceId}/projects/${project.id}`}
       starred={starredIds.includes(project.id)}
       currentUserId={currentUserId ?? undefined}
       onToggleStar={

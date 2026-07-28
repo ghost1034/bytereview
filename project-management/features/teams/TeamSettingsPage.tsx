@@ -1,7 +1,6 @@
 'use client'
 
 /** Dedicated team settings route. */
-import { useParams } from 'next/navigation'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useTeam } from '../../hooks/useTeam'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
@@ -11,9 +10,7 @@ import { useUsersStore } from '../../stores/entities'
 import { TeamSettingsTab } from './TeamSettingsTab'
 import { TeamIcon } from './TeamIcon'
 
-export function TeamSettingsPage() {
-  const params = useParams()
-  const teamId = typeof params?.teamId === 'string' ? params.teamId : null
+export function TeamSettingsPage({ teamId }: { teamId?: string | null } = {}) {
   const { workspaceId, workspace } = useWorkspaceContext()
   const team = useTeam(teamId)
   const currentUserId = useAuthStore((s) => s.currentUserId)
@@ -21,8 +18,8 @@ export function TeamSettingsPage() {
 
   usePageMeta({
     breadcrumbs: [
-      { label: 'Teams', href: workspaceId ? `/dashboard/tasklytic/w/${workspaceId}/teams` : undefined },
-      { label: team?.name ?? 'Team', href: teamId && workspaceId ? `/dashboard/tasklytic/w/${workspaceId}/teams/${teamId}` : undefined },
+      { label: 'Teams', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/teams` : undefined },
+      { label: team?.name ?? 'Team', href: teamId && workspaceId ? `/dashboard/project-management/w/${workspaceId}/teams/${teamId}` : undefined },
       { label: 'Settings' },
     ],
   })

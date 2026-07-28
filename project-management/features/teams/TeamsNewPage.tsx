@@ -15,7 +15,7 @@ export function TeamsNewPage() {
 
   useEffect(() => {
     if (!open && workspaceId) {
-      router.replace(`/dashboard/tasklytic/w/${workspaceId}/teams`)
+      router.replace(`/dashboard/project-management/w/${workspaceId}/teams`)
     }
   }, [open, router, workspaceId])
 
@@ -27,7 +27,7 @@ export function TeamsNewPage() {
       onOpenChange={setOpen}
       workspaceId={workspaceId}
       currentUserId={currentUserId}
-      onCreated={(teamId) => router.replace(`/dashboard/tasklytic/w/${workspaceId}/teams/${teamId}`)}
+      onCreated={(teamId) => router.replace(`/dashboard/project-management/w/${workspaceId}/teams/${teamId}`)}
     />
   )
 }

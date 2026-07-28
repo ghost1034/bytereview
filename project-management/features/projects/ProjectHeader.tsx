@@ -82,19 +82,19 @@ export function ProjectHeader({
   }
 
   const share = async () => {
-    const url = `${window.location.origin}/dashboard/tasklytic/w/${workspaceId}/projects/${project.id}`
+    const url = `${window.location.origin}/dashboard/project-management/w/${workspaceId}/projects/${project.id}`
     await navigator.clipboard.writeText(url)
   }
 
   const onDuplicate = async () => {
     const copy = await duplicateProject(project.id, currentUserId)
-    router.push(`/dashboard/tasklytic/w/${workspaceId}/projects/${copy.id}`)
+    router.push(`/dashboard/project-management/w/${workspaceId}/projects/${copy.id}`)
   }
 
   const onArchive = async () => {
     await archiveProject(project.id, currentUserId)
     setConfirmArchive(false)
-    router.push(`/dashboard/tasklytic/w/${workspaceId}/projects`)
+    router.push(`/dashboard/project-management/w/${workspaceId}/projects`)
   }
 
   return (

@@ -29,7 +29,7 @@ export function TeamProjectsTab({ team, workspaceId }: Props) {
         <ProjectCard
           key={project.id}
           project={project}
-          href={`/dashboard/tasklytic/w/${workspaceId}/projects/${project.id}`}
+          href={`/dashboard/project-management/w/${workspaceId}/projects/${project.id}`}
         />
       ))}
     </div>

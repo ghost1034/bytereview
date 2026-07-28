@@ -9,6 +9,7 @@ import { useAuthStore } from '../../stores/auth'
 import { useProjectsStore, useSectionsStore, useTagsStore, useTasksStore, useUsersStore } from '../../stores/entities'
 import { buildProjectTaskHref } from '../tasks/useTaskDetailUrl'
 import { useTimelineState } from '../views/timeline/useTimelineState'
+import { TimelineRenderer } from '../views/timeline/TimelineRenderer'
 
 type Props = {
   portfolio: EnrichedPortfolio
@@ -34,7 +35,7 @@ function ProjectTimelineBlock({
   const users = useUsersStore((s) => s.list())
   const tags = useTagsStore((s) => s.list())
   const ui = useTimelineState(projectId)
-  const basePath = `/dashboard/tasklytic/w/${workspaceId}/projects/${projectId}`
+  const basePath = `/dashboard/project-management/w/${workspaceId}/projects/${projectId}`
 
   if (!project) return null
 
