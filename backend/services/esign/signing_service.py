@@ -112,6 +112,16 @@ def _should_materialize_anchor_match(rule: dict, field: Optional[EsignField]) ->
     )
 
 
+def _should_reposition_anchor_field(rule: dict) -> bool:
+    """Whether send-time resolution may replace an existing field's geometry.
+
+    Individual placements are accepted in the field editor and may be adjusted
+    afterward. Their anchor remains useful for send-time validation, but their
+    saved document, page, and coordinates are authoritative.
+    """
+    return str(rule.get("placement_mode", "automatic")) != "individual"
+
+
 def format_date_signed(dt: datetime, date_format: Optional[str] = None) -> str:
     """Canonical storage value; ceremony and sealing apply display format."""
     return dt.date().isoformat()
@@ -405,7 +415,9 @@ class EsignSigningService:
                             required=base.required, label=base.label, properties=properties,
                         )
                         db.add(field); envelope.fields.append(field)
-                    elif field is not None:
+                    elif field is not None and _should_reposition_anchor_field(
+                        (field.properties or {}).get("anchor") or rule
+                    ):
                         field.document_id = uuid.UUID(match.document_id)
                         field.page_number = match.page_number
                         if match.reference_x is not None and match.reference_y is not None:

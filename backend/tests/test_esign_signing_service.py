@@ -30,6 +30,7 @@ from services.esign.sealing_service import _initials_from_name
 from services.esign.signing_service import (
     _advisory_lock_keys,
     _should_materialize_anchor_match,
+    _should_reposition_anchor_field,
     esign_signing_service,
     signing_url,
 )
@@ -47,6 +48,13 @@ class AnchorMaterializationTests(unittest.TestCase):
 
     def test_existing_match_is_never_materialized_again(self) -> None:
         self.assertFalse(_should_materialize_anchor_match({"match_mode": "all"}, NS(id="field")))
+
+    def test_individual_placements_keep_their_editor_position(self) -> None:
+        self.assertFalse(_should_reposition_anchor_field({"placement_mode": "individual"}))
+
+    def test_automatic_placements_are_repositioned_at_send_time(self) -> None:
+        self.assertTrue(_should_reposition_anchor_field({"placement_mode": "automatic"}))
+        self.assertTrue(_should_reposition_anchor_field({}))
 
 
 def _envelope(status=EsignEnvelopeStatus.SENT, signing_type=EsignSigningType.SEQUENTIAL, current=1):
