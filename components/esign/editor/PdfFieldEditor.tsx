@@ -601,9 +601,12 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           missing_policy: anchorSession.ignoreMissing ? 'ignore' : 'fail' } } }
     commit([...fields, field]); setSelectedIds(new Set([id]))
     const placedCount = placedAnchorMatchIndexes.size + 1
-    setAnchorResult(placedCount === anchorSession.matches.length
-      ? `Placed fields at all ${placedCount} matches for “${anchorSession.anchor}”.`
-      : `Placed ${placedCount} of ${anchorSession.matches.length} matches for “${anchorSession.anchor}”.`)
+    if (placedCount === anchorSession.matches.length) {
+      setAnchorSession(null)
+      setAnchorResult('')
+    } else {
+      setAnchorResult(`Placed ${placedCount} of ${anchorSession.matches.length} matches for “${anchorSession.anchor}”.`)
+    }
   }
 
   if (!documents.length || !participants.length) return <p className="text-sm text-foreground-muted">Add documents and recipients before placing fields.</p>
