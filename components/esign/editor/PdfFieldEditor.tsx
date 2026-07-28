@@ -167,14 +167,13 @@ const REQUIRED_FIELD_TYPES = new Set<EditorFieldType>([
   'checkbox', 'radio', 'dropdown', 'attachment',
 ])
 
-function FieldFloatingToolbar({ field, participants, participantIndexById, pageSize, update, updateRequired, duplicate, remove }: {
+function FieldFloatingToolbar({ field, participants, participantIndexById, pageSize, update, updateRequired, remove }: {
   field: EditorField
   participants: EditorParticipant[]
   participantIndexById: Map<string, number>
   pageSize: { width: number; height: number }
   update: (patch: Partial<EditorField>) => void
   updateRequired: (required: boolean) => void
-  duplicate: () => void
   remove: () => void
 }) {
   const position = getFloatingToolbarPosition(field, pageSize.width, pageSize.height)
@@ -223,9 +222,6 @@ function FieldFloatingToolbar({ field, participants, participantIndexById, pageS
       <span className="hidden sm:inline">Required</span>
     </label>}
     <span className="mx-0.5 h-5 w-px shrink-0 bg-border" />
-    <button type="button" className="flex size-7 shrink-0 items-center justify-center rounded text-foreground-muted hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={duplicate} title="Duplicate field" aria-label="Duplicate field">
-      <Copy className="size-3.5" />
-    </button>
     <button type="button" className="flex size-7 shrink-0 items-center justify-center rounded text-foreground-muted hover:bg-destructive-soft hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={remove} title="Delete field" aria-label="Delete field">
       <Trash2 className="size-3.5" />
     </button>
@@ -683,7 +679,6 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
             pageSize={size}
             update={updateSelectedField}
             updateRequired={updateSelectedRequired}
-            duplicate={() => duplicate([selectedField])}
             remove={removeSelected}
           />}
         </div>} /></div>)}
