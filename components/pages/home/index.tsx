@@ -31,14 +31,18 @@ export default function Home() {
   const router = useRouter();
   const { user } = useAuth();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authRedirectTo, setAuthRedirectTo] = useState("/dashboard");
 
-  const handleGetStarted = () => {
+  const handleProtectedNavigation = (destination: string) => {
     if (user) {
-      router.push("/dashboard");
+      router.push(destination);
     } else {
+      setAuthRedirectTo(destination);
       setIsAuthModalOpen(true);
     }
   };
+
+  const handleGetStarted = () => handleProtectedNavigation("/dashboard");
 
   return (
     // `dark marketing-dark` scopes the immersive navy theme to the homepage only.
@@ -51,12 +55,12 @@ export default function Home() {
       <ProductSuite />
       <ExtractionFeatures onGetStarted={handleGetStarted} />
       <AutomationFlow onGetStarted={handleGetStarted} />
-      <FormFillShowcase />
-      <InkwiseShowcase />
-      <EsignShowcase />
+      <FormFillShowcase onTryProduct={handleProtectedNavigation} />
+      <InkwiseShowcase onTryProduct={handleProtectedNavigation} />
+      <EsignShowcase onTryProduct={handleProtectedNavigation} />
       <ChronaShowcase />
       <ClawShowcase />
-      <AnalyticsShowcase />
+      <AnalyticsShowcase onTryProduct={handleProtectedNavigation} />
       <RoadmapPreview />
       <Testimonials />
       <SecurityTrust />
@@ -66,7 +70,8 @@ export default function Home() {
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
-        defaultTab="signup"
+        redirectTo={authRedirectTo}
+        defaultTab="signin"
       />
     </div>
   );

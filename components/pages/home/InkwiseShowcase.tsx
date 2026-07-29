@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { AlignLeft, Bold, Italic, List, PenTool, Sparkles } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -106,7 +105,11 @@ function InkwiseMockup() {
   )
 }
 
-export default function InkwiseShowcase() {
+interface InkwiseShowcaseProps {
+  onTryProduct: (destination: string) => void
+}
+
+export default function InkwiseShowcase({ onTryProduct }: InkwiseShowcaseProps) {
   return (
     <SectionShell
       id="inkwise-showcase"
@@ -130,10 +133,10 @@ export default function InkwiseShowcase() {
       <FeatureList items={HIGHLIGHTS} tone={TONE} className="pt-1" />
       <div className="pt-1">
         <Button
-          asChild
+          onClick={() => onTryProduct('/dashboard/inkwise')}
           className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
         >
-          <Link href="/dashboard/inkwise">Try Inkwise</Link>
+          Try Inkwise
         </Button>
       </div>
     </SectionShell>

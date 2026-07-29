@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   BarChart3,
@@ -64,7 +63,11 @@ const FEATURES = [
   },
 ]
 
-export default function AnalyticsShowcase() {
+interface AnalyticsShowcaseProps {
+  onTryProduct: (destination: string) => void
+}
+
+export default function AnalyticsShowcase({ onTryProduct }: AnalyticsShowcaseProps) {
   return (
     <SectionShell
       id="analytics-showcase"
@@ -140,10 +143,10 @@ export default function AnalyticsShowcase() {
         viewport={viewportOnce}
       >
         <Button
-          asChild
+          onClick={() => onTryProduct('/dashboard/analytics')}
           className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
         >
-          <Link href="/dashboard/analytics">Open the Analytics Suite</Link>
+          Open the Analytics Suite
         </Button>
       </motion.div>
     </SectionShell>

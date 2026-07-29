@@ -170,7 +170,11 @@ function EsignMockup() {
   )
 }
 
-export default function EsignShowcase() {
+interface EsignShowcaseProps {
+  onTryProduct: (destination: string) => void
+}
+
+export default function EsignShowcase({ onTryProduct }: EsignShowcaseProps) {
   return (
     <SectionShell
       id="esign-showcase"
@@ -191,8 +195,11 @@ export default function EsignShowcase() {
     >
       <FeatureList items={HIGHLIGHTS} tone={TONE} className="pt-1" />
       <div className="flex flex-wrap gap-3 pt-1">
-        <Button asChild className="bg-rose-500 text-white hover:bg-rose-600">
-          <Link href="/dashboard/esign">Try E-Signature beta</Link>
+        <Button
+          onClick={() => onTryProduct('/dashboard/esign')}
+          className="bg-rose-500 text-white hover:bg-rose-600"
+        >
+          Try E-Signature beta
         </Button>
         <Button asChild variant="outline">
           <Link href="/docs/e-signature/overview">Read the docs</Link>

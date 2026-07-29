@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { Database, FileText, Files, Sparkles } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -117,7 +116,11 @@ function FormFillMockup() {
   )
 }
 
-export default function FormFillShowcase() {
+interface FormFillShowcaseProps {
+  onTryProduct: (destination: string) => void
+}
+
+export default function FormFillShowcase({ onTryProduct }: FormFillShowcaseProps) {
   return (
     <SectionShell
       id="form-fill-showcase"
@@ -139,10 +142,10 @@ export default function FormFillShowcase() {
       <FeatureList items={HIGHLIGHTS} tone={TONE} className="pt-1" />
       <div className="pt-1">
         <Button
-          asChild
+          onClick={() => onTryProduct('/dashboard/form-fill')}
           className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
         >
-          <Link href="/dashboard/form-fill">Try Form Fill</Link>
+          Try Form Fill
         </Button>
       </div>
     </SectionShell>
