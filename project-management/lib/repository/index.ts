@@ -14,4 +14,4 @@ export function getRepository(): RepositoryAdapter {
   return cached
 }
 
-export type { EntityKind, RepositoryAdapter } from './types'
+export type { EntityKind, ProvisioningResult, RepositoryAdapter, RepositorySnapshot } from './types'

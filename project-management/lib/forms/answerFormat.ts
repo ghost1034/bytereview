@@ -8,13 +8,24 @@ export type AttachmentAnswer = {
   name: string
   mime: string
   size: number
-  dataUrl: string
+  dataUrl?: string
+  /** Ephemeral browser value used only until a signed public upload completes. */
+  file?: File
+  uploadRef?: string
+  uploadToken?: string
 }
 
 export function isAttachmentAnswer(value: unknown): value is AttachmentAnswer {
   if (!value || typeof value !== 'object') return false
   const v = value as Record<string, unknown>
-  return typeof v.name === 'string' && typeof v.dataUrl === 'string'
+  return (
+    typeof v.name === 'string' &&
+    (
+      typeof v.dataUrl === 'string' ||
+      (typeof File !== 'undefined' && v.file instanceof File) ||
+      typeof v.uploadRef === 'string'
+    )
+  )
 }
 
 /** Human-readable answer text for a field value. */
@@ -57,7 +68,7 @@ function escapeHtml(text: string): string {
 }
 
 /** Validate required fields; returns first error message or null. */
-export function validateFormAnswers(form: Form, answers: Record<string, unknown>): string | null {
+export function validateFormAnswers(form: Pick<Form, 'fields'>, answers: Record<string, unknown>): string | null {
   for (const field of form.fields) {
     if (!field.required) continue
     const err = validateField(field, answers[field.id])

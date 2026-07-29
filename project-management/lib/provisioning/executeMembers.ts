@@ -49,20 +49,28 @@ export async function provisionMembers(
     memberIds.add(id)
     if (spec.role === 'owner' || spec.role === 'admin') adminIds.add(id)
 
-    for (const teamName of spec.teamNames ?? []) {
-      const teamId = teamNameToId.get(teamName)
-      if (!teamId) continue
-      const team = teamsStore.getById(teamId)
-      if (!team) continue
-      const nextMembers = Array.from(new Set([...team.memberIds, id]))
-      await teamsStore.update(teamId, { memberIds: nextMembers })
-    }
   }
 
   await workspacesStore.update(workspaceId, {
     memberIds: Array.from(memberIds),
     adminIds: Array.from(adminIds),
   })
+
+  // Membership is authoritative on the server, so attach users to teams only
+  // after the workspace membership transaction has completed.
+  for (const spec of specs) {
+    const id = emailToId.get(spec.email.toLowerCase())
+    if (!id) continue
+    for (const teamName of spec.teamNames ?? []) {
+      const teamId = teamNameToId.get(teamName)
+      if (!teamId) continue
+      const team = teamsStore.getById(teamId)
+      if (!team) continue
+      await teamsStore.update(teamId, {
+        memberIds: Array.from(new Set([...team.memberIds, id])),
+      })
+    }
+  }
 
   return { userIds, emailToId }
 }

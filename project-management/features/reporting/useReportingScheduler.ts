@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { runDueDashboardDigests } from '../../lib/reporting/scheduler'
 import type { ReportingDashboard } from '../../lib/reporting/types'
 import { useDashboardsStore } from '../../stores/entities'
+import { usesTasklyticBackend } from '../../lib/forms/publicFormApi'
 
 /** Run due digests on mount and every 30 minutes. */
 export function useReportingScheduler(workspaceId: string | null): void {
@@ -12,7 +13,7 @@ export function useReportingScheduler(workspaceId: string | null): void {
   const update = useDashboardsStore((s) => s.update)
 
   useEffect(() => {
-    if (!workspaceId) return
+    if (!workspaceId || usesTasklyticBackend()) return
     const run = () => {
       const rows = dashboards.filter((d) => d.workspaceId === workspaceId) as ReportingDashboard[]
       void runDueDashboardDigests(rows, (id, patch) => update(id, patch))

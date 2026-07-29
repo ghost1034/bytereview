@@ -11,6 +11,7 @@ import { submitForm } from '../../lib/forms/submitForm'
 import { validateFormAnswers } from '../../lib/forms/answerFormat'
 import {
   fetchPublicForm,
+  type PublicFormDefinition,
   submitPublicFormApi,
   usesTasklyticBackend,
 } from '../../lib/forms/publicFormApi'
@@ -22,7 +23,7 @@ type Props = { formId: string }
 /** Public-facing form page rendered without auth shell. */
 export function PublicFormPage({ formId }: Props) {
   const storeForm = useFormsStore((s) => s.getById(formId))
-  const [remoteForm, setRemoteForm] = useState<Form | null | undefined>(undefined)
+  const [remoteForm, setRemoteForm] = useState<PublicFormDefinition | null | undefined>(undefined)
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const [answers, setAnswers] = useState<FormAnswers>({})
   const [error, setError] = useState<string | null>(null)
@@ -146,7 +147,7 @@ function PublicFormBody({
   loading,
   onSubmit,
 }: {
-  form: Form
+  form: PublicFormDefinition | Form
   answers: FormAnswers
   setAnswers: React.Dispatch<React.SetStateAction<FormAnswers>>
   error: string | null
@@ -174,6 +175,7 @@ function PublicFormBody({
             field={field}
             value={answers[field.id]}
             onChange={(v) => setAnswers((prev) => ({ ...prev, [field.id]: v }))}
+            directUploads={usesTasklyticBackend()}
           />
         ))}
         {form.fields.some((f) => f.required) ? (

@@ -64,7 +64,7 @@ export function ScheduleDigestDialog({ open, onOpenChange, dashboard }: Props) {
           <DialogTitle className="font-serif">Schedule digest</DialogTitle>
         </DialogHeader>
         <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-          V1 queues a PendingEmail summary via the local EmailAdapter. Swap the adapter in production for real delivery and PNG snapshots.
+          Backend mode delivers scheduled summaries from the server; local fallback mode queues them in this browser.
         </p>
         <div className="space-y-4 py-2">
           <div className="space-y-2">

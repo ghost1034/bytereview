@@ -90,4 +90,8 @@ export const localRepositoryAdapter: RepositoryAdapter = {
   async provision(): Promise<void> {
     /* onboarding pipeline calls this in step 30 */
   },
+
+  async refreshSnapshot() {
+    return { workspaceId: null, collections: {}, generatedAt: new Date().toISOString() }
+  },
 }

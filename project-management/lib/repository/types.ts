@@ -42,6 +42,18 @@ export type EntityKind =
   | 'billingInquiries'
   | 'teamJoinRequests'
 
+export type RepositorySnapshot = {
+  workspaceId: ID | null
+  collections: Partial<Record<EntityKind, unknown[]>>
+  generatedAt: string
+}
+
+export type ProvisioningResult = {
+  workspace: Record<string, unknown> & { id: ID }
+  bootstrap: RepositorySnapshot
+  created: boolean
+}
+
 export interface RepositoryAdapter {
   loadAll<T>(entity: EntityKind): Promise<T[]>
   saveAll<T>(entity: EntityKind, items: T[]): Promise<void>
@@ -51,5 +63,6 @@ export interface RepositoryAdapter {
   subscribe(entity: EntityKind, cb: (items: unknown[]) => void): () => void
   readonly schemaVersion: number
   migrateIfNeeded(): Promise<void>
-  provision?(plan: unknown): Promise<void>
+  refreshSnapshot?(workspaceId?: ID | null): Promise<RepositorySnapshot>
+  provision?(bundle: unknown): Promise<ProvisioningResult | void>
 }

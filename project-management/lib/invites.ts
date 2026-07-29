@@ -78,7 +78,8 @@ export type InviteResult = {
 
 
 
-type ServerInviteRow = InviteResult & { invitation?: WorkspaceInvitation }
+type ServerInvitation = Omit<WorkspaceInvitation, 'token'>
+type ServerInviteRow = InviteResult & { invitation?: ServerInvitation }
 
 
 
@@ -110,26 +111,16 @@ async function sendWorkspaceInvitesViaBackend(input: InviteInput): Promise<Invit
 
 
 
-  const store = useWorkspaceInvitationsStore.getState()
-
-  for (const row of res.results) {
-
-    if (row.invitation) {
-
-      const existing = store.getById(row.invitation.id)
-
-      if (existing) {
-
-        await store.update(row.invitation.id, row.invitation)
-
-      } else {
-
-        await store.add(row.invitation)
-
-      }
-
-    }
-
+  const received: WorkspaceInvitation[] = res.results.flatMap((row) =>
+    row.invitation ? [{ ...row.invitation, token: '' }] : []
+  )
+  if (received.length) {
+    useWorkspaceInvitationsStore.setState((state) => ({
+      items: received.reduce(
+        (items, invitation) => ({ ...items, [invitation.id]: invitation }),
+        state.items,
+      ),
+    }))
   }
 
 
@@ -146,6 +137,21 @@ async function sendWorkspaceInvitesViaBackend(input: InviteInput): Promise<Invit
 
   }))
 
+}
+
+/** Revoke an invitation without exposing or rewriting its server-side token. */
+export async function revokeWorkspaceInvite(invitationId: string): Promise<void> {
+  if (usesTasklyticBackend()) {
+    const invitation = await tasklyticApiJson<ServerInvitation>(
+      `/invitations/${encodeURIComponent(invitationId)}/revoke`,
+      { method: 'POST' },
+    )
+    useWorkspaceInvitationsStore.setState((state) => ({
+      items: { ...state.items, [invitation.id]: { ...invitation, token: '' } },
+    }))
+    return
+  }
+  await useWorkspaceInvitationsStore.getState().update(invitationId, { status: 'revoked' })
 }
 
 

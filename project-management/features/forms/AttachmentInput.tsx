@@ -10,18 +10,29 @@ type Props = {
   onChange: (v: unknown) => void
   readOnly?: boolean
   required: boolean
+  directUpload?: boolean
 }
 
 /** Multi-file attachment control for public and preview forms. */
-export function AttachmentInput({ fieldId, value, onChange, readOnly, required }: Props) {
+export function AttachmentInput({ fieldId, value, onChange, readOnly, required, directUpload }: Props) {
   const files: AttachmentAnswer[] = Array.isArray(value)
     ? (value as AttachmentAnswer[])
-    : value && typeof value === 'object' && 'dataUrl' in (value as object)
+    : value && typeof value === 'object' && ('dataUrl' in (value as object) || 'file' in (value as object))
       ? [value as AttachmentAnswer]
       : []
 
   const onFiles = (list: FileList | null) => {
     if (!list?.length) return
+    if (directUpload) {
+      const selected: AttachmentAnswer[] = Array.from(list).map((file) => ({
+        file,
+        name: file.name,
+        mime: file.type || 'application/octet-stream',
+        size: file.size,
+      }))
+      onChange([...files, ...selected])
+      return
+    }
     void Promise.all(
       Array.from(list).map(
         (file) =>

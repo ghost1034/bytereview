@@ -24,10 +24,11 @@ type Props = {
   onChange: (value: unknown) => void
   readOnly?: boolean
   error?: string
+  directUploads?: boolean
 }
 
 /** Render a single form field input. */
-export function FormFieldRenderer({ field, value, onChange, readOnly, error }: Props) {
+export function FormFieldRenderer({ field, value, onChange, readOnly, error, directUploads }: Props) {
   const requiredMark = field.required ? ' *' : ''
 
   return (
@@ -36,7 +37,7 @@ export function FormFieldRenderer({ field, value, onChange, readOnly, error }: P
         {field.label}
         {requiredMark}
       </Label>
-      {renderControl(field, value, onChange, readOnly)}
+      {renderControl(field, value, onChange, readOnly, directUploads)}
       {error ? (
         <p className="text-xs" style={{ color: 'var(--danger)' }}>
           {error}
@@ -50,7 +51,8 @@ function renderControl(
   field: FormField,
   value: unknown,
   onChange: (v: unknown) => void,
-  readOnly?: boolean
+  readOnly?: boolean,
+  directUploads?: boolean,
 ) {
   switch (field.type) {
     case 'short_text':
@@ -153,6 +155,7 @@ function renderControl(
           onChange={onChange}
           readOnly={readOnly}
           required={field.required}
+          directUpload={directUploads}
         />
       )
   }

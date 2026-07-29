@@ -3,7 +3,6 @@
  */
 import { usesTasklyticBackend } from '../lib/forms/publicFormApi'
 import { getRepository } from '../lib/repository'
-import { resetTasklyticClientWorkspaceState } from '../lib/repository/clearLocalStorage'
 import { setActiveRepositoryWorkspaceId } from '../lib/repository/workspaceScope'
 import { registerActivityWriter } from '../lib/activity'
 import { useAuthStore, useUiStore } from './auth'
@@ -103,6 +102,7 @@ export async function rehydrateEntityStores(): Promise<void> {
 
 /** Reload user-global stores (workspaces list, notifications). */
 export async function rehydrateGlobalStores(): Promise<void> {
+  await getRepository().refreshSnapshot?.(null)
   const results = await Promise.allSettled(
     globalStores.map((store) => store.getState().hydrate())
   )
@@ -118,6 +118,7 @@ export async function rehydrateWorkspaceStores(workspaceId?: string | null): Pro
   const wsId = workspaceId ?? useUiStore.getState().activeWorkspaceId
   setActiveRepositoryWorkspaceId(wsId)
   if (!wsId) return
+  await getRepository().refreshSnapshot?.(wsId)
   const results = await Promise.allSettled(
     workspaceStores.map((store) => store.getState().hydrate())
   )
@@ -130,10 +131,6 @@ export async function rehydrateWorkspaceStores(workspaceId?: string | null): Pro
 
 /** Hydrate repository and all Zustand stores once on app boot. */
 export async function hydrateTasklytic(): Promise<void> {
-  if (usesTasklyticBackend()) {
-    resetTasklyticClientWorkspaceState()
-  }
-
   const repo = getRepository()
   await repo.migrateIfNeeded()
   registerActivityWriter({ add: (event) => useActivityStore.getState().add(event) })

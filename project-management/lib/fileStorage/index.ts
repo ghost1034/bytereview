@@ -14,7 +14,11 @@ import type { FileStorageAdapter } from './types'
  */
 export function getFileStorageAdapter(): FileStorageAdapter {
   const configured = process.env.NEXT_PUBLIC_FILE_STORAGE_ADAPTER
-  if (configured === 'gcs' || configured === 'object_store') {
+  if (
+    process.env.NEXT_PUBLIC_TASKLYTIC_BACKEND === '1' ||
+    configured === 'gcs' ||
+    configured === 'object_store'
+  ) {
     return gcsFileStorageAdapter
   }
   return localFileStorageAdapter

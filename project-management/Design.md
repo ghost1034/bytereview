@@ -9,7 +9,7 @@ Production-grade, multi-tenant work-management module built incrementally from b
 - Next.js App Router (client components), React + TypeScript (strict, no `any`)
 - shadcn/ui primitives (`@/components/ui/*`), Tailwind CSS
 - Zustand stores (one per entity domain), `@dnd-kit` for drag-and-drop, recharts via `@/components/ui/chart`
-- Persistence via `RepositoryAdapter` (V1 = localStorage; production = REST/GraphQL)
+- Feature code persists only through `RepositoryAdapter`; localStorage is an inactive, namespace-isolated fallback and production uses the FastAPI/PostgreSQL adapter.
 - Warm, editorial Anthropic-inspired theme scoped under `.tasklytic-root` (`styles/tasklytic.css`)
 
 ## Design tokens (01 / 01b)
@@ -23,13 +23,13 @@ Additive extensions added during rebuild: workspace invitations/plans, billing i
 
 ## Adapter seams (production swap-out points)
 
-- **RepositoryAdapter** (`lib/repository`) — V1 localStorage (partitioned for eval tenants); production REST/GraphQL.
+- **RepositoryAdapter** (`lib/repository`) — the original frontend seam remains. `NEXT_PUBLIC_TASKLYTIC_BACKEND=1` selects the implemented REST adapter, which hydrates from one `/api/tasklytic/bootstrap` snapshot and persists JSON payloads behind authoritative PostgreSQL tenancy and membership columns. The partitioned localStorage adapter remains only as a flag-disabled fallback; existing browser records are neither imported nor erased.
 - **Authentication & user profiles** — delegated entirely to the host ByteReview platform (Firebase `useAuth`). Tasklytic owns no sign-in/up, password, OAuth, or profile-editing screens; the dashboard gates access and `TasklyticProvider` bridges the Firebase session into a linked Tasklytic `User`. Sign-out routes through ByteReview's `useAuth().signOut()`.
-- **EmailAdapter** (`lib/email`) — V1 queues `PendingEmail`; production SES/SendGrid/Postmark/Resend.
-- **RepositoryAdapter** (`lib/repository`) — selected by `NEXT_PUBLIC_TASKLYTIC_BACKEND=1`. Default: localStorage; backend mode persists all 37 entity kinds to Postgres (`tasklytic_entity_records`) via `/api/tasklytic/{entity}` REST routes with Firebase auth.
+- **EmailAdapter** (`lib/email`) — backend mode delivers through the authenticated Gmail-backed API; fallback mode queues private `PendingEmail` records locally.
+- **FileStorageAdapter** (`lib/fileStorage`) — backend mode uses signed direct uploads through the configured local/GCS object store; fallback mode retains inline data URLs.
 - **FileStorageAdapter** (`lib/fileStorage`) — selected by `NEXT_PUBLIC_FILE_STORAGE_ADAPTER=gcs`. Signed-URL uploads (100 MB cap) to the shared private GCS bucket via `/api/tasklytic/files:*`; metadata tracked in `tasklytic_file_uploads` for workspace-scoped access.
 - **CloudDriveAdapter** (`lib/cloudDrive`) — V1 connect stub; production Drive/OneDrive/Dropbox OAuth.
-- **AIAdapter** (`lib/ai`) — V1 in-browser Gemini key + deterministic local fallback; production server proxy.
+- **AIAdapter** (`lib/ai`) — backend mode sends only prompt/history/model/scope IDs; FastAPI reconstructs authorized PostgreSQL context and calls Vertex AI. In-browser Gemini and the deterministic adapter remain fallback implementations.
 - **AnalyticsAdapter** (`lib/analytics`) — V1 console; production Segment/Mixpanel/Amplitude/PostHog.
 - **PaymentAdapter** (`lib/billing`, `lib/payment`) — V1 manual/inquiry; production Stripe/Adyen.
 - **AccountingAdapter** (`lib/accounting`) — V1 JSON export; production QuickBooks/Xero/NetSuite.

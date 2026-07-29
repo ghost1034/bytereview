@@ -62,6 +62,7 @@ ANALYTICS_SOURCES = {
     "analytics_chat_gaap",
     "analytics_chat_basic",
     "analytics_chat_title",
+    "tasklytic_assistant",
 }
 
 

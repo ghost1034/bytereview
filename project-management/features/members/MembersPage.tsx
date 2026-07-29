@@ -13,6 +13,7 @@ import {
   useWorkspaceInvitationsStore,
   useWorkspacesStore,
 } from '../../stores/entities'
+import { revokeWorkspaceInvite } from '../../lib/invites'
 
 export function MembersPage() {
   const { workspaceId, workspace, teams } = useWorkspaceContext()
@@ -48,7 +49,7 @@ export function MembersPage() {
   }
 
   const revokeInvite = async (invitationId: string) => {
-    await useWorkspaceInvitationsStore.getState().update(invitationId, { status: 'revoked' })
+    await revokeWorkspaceInvite(invitationId)
   }
 
   return (

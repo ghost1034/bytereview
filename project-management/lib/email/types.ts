@@ -19,6 +19,6 @@ export interface EmailAdapter {
   markSent(id: ID): Promise<void>
   readonly capabilities: {
     deliversExternally: boolean
-    provider: 'local' | 'ses' | 'sendgrid' | 'postmark' | 'resend'
+    provider: 'local' | 'gmail' | 'ses' | 'sendgrid' | 'postmark' | 'resend'
   }
 }

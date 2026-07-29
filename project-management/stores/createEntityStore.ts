@@ -21,6 +21,7 @@ export type EntityStore<T extends { id: ID }> = {
 
 /** Create a persisted entity store backed by the repository adapter. */
 export function createEntityStore<T extends { id: ID }>(entity: EntityKind) {
+  let unsubscribeRepository: (() => void) | null = null
   const useBase = create<EntityStore<T>>()((set, get) => ({
     items: {},
     hydrated: false,
@@ -34,7 +35,8 @@ export function createEntityStore<T extends { id: ID }>(entity: EntityKind) {
           items[row.id] = row
         })
         set({ items, hydrated: true })
-        repo.subscribe(entity, (next) => {
+        unsubscribeRepository?.()
+        unsubscribeRepository = repo.subscribe(entity, (next) => {
           const mapped: Record<ID, T> = {}
           ;(next as T[]).forEach((row) => {
             mapped[row.id] = row

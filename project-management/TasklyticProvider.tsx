@@ -11,7 +11,8 @@ import { identify } from './lib/analytics/track'
 import { now } from './lib/time'
 import { ensureRecommendedFields } from './lib/customFields/seedRecommendedFields'
 import { buildStarterContent } from './lib/provision'
-import { hydrateTasklytic, rehydrateWorkspaceStores } from './stores/hydrate'
+import { hydrateTasklytic, rehydrateGlobalStores, rehydrateWorkspaceStores } from './stores/hydrate'
+import { getRepository } from './lib/repository'
 import { setActiveRepositoryWorkspaceId } from './lib/repository/workspaceScope'
 import { OnboardingWizard } from './features/onboarding/OnboardingWizard'
 import { ProductTour } from './features/onboarding/ProductTour'
@@ -133,6 +134,13 @@ export function TasklyticProvider({ children }: Props) {
         userName: firebaseUser!.displayName || firebaseUser!.email?.split('@')[0] || 'User',
         userEmail: firebaseUser!.email || '',
       })
+      if (usesTasklyticBackend()) {
+        const result = await getRepository().provision?.(bundle)
+        const workspaceId = result?.workspace.id ?? bundle.workspace.id
+        useUiStore.getState().setActiveWorkspaceId(workspaceId)
+        setActiveRepositoryWorkspaceId(workspaceId)
+        return workspaceId
+      }
       await useWorkspacesStore.getState().add(bundle.workspace)
       useUiStore.getState().setActiveWorkspaceId(bundle.workspace.id)
       setActiveRepositoryWorkspaceId(bundle.workspace.id)
@@ -173,6 +181,10 @@ export function TasklyticProvider({ children }: Props) {
 
         if (!stillActive()) return
 
+        if (workspaceId && usesTasklyticBackend()) {
+          await rehydrateWorkspaceStores(workspaceId)
+        }
+
         await useAuthStore.getState().setCurrentUser(userId, { partition: 'default' })
 
         const users = useUsersStore.getState()
@@ -199,7 +211,6 @@ export function TasklyticProvider({ children }: Props) {
         }
 
         if (workspaceId && usesTasklyticBackend()) {
-          await rehydrateWorkspaceStores(workspaceId)
           void ensureRecommendedFields(workspaceId, userId).catch((err) => {
             console.warn('Tasklytic recommended fields seed skipped:', err)
           })
@@ -239,6 +250,33 @@ export function TasklyticProvider({ children }: Props) {
     setActiveRepositoryWorkspaceId(effectiveWorkspaceId)
     void rehydrateWorkspaceStores(effectiveWorkspaceId)
   }, [authLoading, bootReady, effectiveWorkspaceId])
+
+  useEffect(() => {
+    if (!bootReady || !usesTasklyticBackend()) return
+    let refreshing = false
+    const refresh = async () => {
+      if (refreshing || document.visibilityState === 'hidden') return
+      refreshing = true
+      try {
+        await rehydrateGlobalStores()
+        const workspaceId = useUiStore.getState().activeWorkspaceId
+        if (workspaceId) await rehydrateWorkspaceStores(workspaceId)
+      } catch (err) {
+        console.warn('Tasklytic refresh failed:', err)
+      } finally {
+        refreshing = false
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void refresh()
+    }
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [bootReady])
 
   const waitingOnAuth = authLoading && !authWaitExpired
 

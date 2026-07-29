@@ -13,6 +13,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from models.db_models import Base
 from models import inkwise_models  # noqa: F401
+from models import tasklytic  # noqa: F401
 from dotenv import load_dotenv
 
 # Load environment variables

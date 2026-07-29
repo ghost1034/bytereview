@@ -96,6 +96,13 @@ class CloudSchedulerService:
                 "schedule": "* * * * *",  # Scheduled sends normally dispatch within two minutes
                 "timezone": "UTC",
                 "task_type": "run_esign_maintenance"
+            },
+            {
+                "name": "tasklytic-maintenance",
+                "description": "Deliver Tasklytic digests and clean abandoned direct uploads",
+                "schedule": "*/30 * * * *",
+                "timezone": "UTC",
+                "task_type": "run_tasklytic_maintenance"
             }
         ]
         
