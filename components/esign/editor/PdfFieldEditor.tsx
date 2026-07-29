@@ -385,10 +385,12 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [anchorOffsetUnit, setAnchorOffsetUnit] = React.useState<'point' | 'mm' | 'inch'>('point')
   const [anchorSearching, setAnchorSearching] = React.useState(false)
   const [anchorSession, setAnchorSession] = React.useState<AnchorPlacementSession | null>(null)
+  const [highlightedAnchorMatch, setHighlightedAnchorMatch] = React.useState<{ ruleId: string; matchIndex: number } | null>(null)
   const past = React.useRef<EditorField[][]>([])
   const future = React.useRef<EditorField[][]>([])
   const clipboard = React.useRef<EditorField[]>([])
   const containerRef = React.useRef<HTMLDivElement>(null)
+  const anchorHighlightTimer = React.useRef<number | null>(null)
   const activeDocument = documents.find((doc) => doc.id === activeDocumentId) ?? documents[0]
   const activeDocumentUrl = activeDocument?.url
   const resolvedActiveDocumentId = activeDocument?.id
@@ -548,8 +550,18 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const endInteraction = () => { const state = drag.current; if (!state) return; past.current.push(state.before); future.current = []; drag.current = null; setGuides([]) }
 
   const focusAnchorMatch = (ruleId: string, matchIndex: number) => {
-    window.setTimeout(() => document.getElementById(`esign-anchor-match-${ruleId}-${matchIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
+    if (anchorHighlightTimer.current !== null) window.clearTimeout(anchorHighlightTimer.current)
+    setHighlightedAnchorMatch({ ruleId, matchIndex })
+    anchorHighlightTimer.current = window.setTimeout(() => {
+      setHighlightedAnchorMatch((current) => current?.ruleId === ruleId && current.matchIndex === matchIndex ? null : current)
+      anchorHighlightTimer.current = null
+    }, 1800)
+    window.setTimeout(() => document.getElementById(`esign-anchor-field-${ruleId}-${matchIndex}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0)
   }
+
+  React.useEffect(() => () => {
+    if (anchorHighlightTimer.current !== null) window.clearTimeout(anchorHighlightTimer.current)
+  }, [])
 
   const findAnchorMatches = async () => {
     if (!activeDocument || !activeParticipantId || !onAnchorSearch) { setAnchorResult('Server anchor search is unavailable.'); return }
@@ -646,6 +658,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           {anchorSession?.documentId === activeDocument.id && anchorSession.matches.map((match, matchIndex) => {
             if (match.page_number !== pageIndex) return null
             const placed = placedAnchorMatchIndexes.has(matchIndex)
+            const highlighted = highlightedAnchorMatch?.ruleId === anchorSession.ruleId && highlightedAnchorMatch.matchIndex === matchIndex
             const anchorX = match.anchor_x ?? match.x
             const anchorY = match.anchor_y ?? match.y
             return <React.Fragment key={`${anchorSession.ruleId}-${matchIndex}`}>
@@ -653,7 +666,10 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
                 style={{ left: anchorX * size.width, top: anchorY * size.height, width: Math.max(match.width * size.width, 4), height: Math.max(match.height * size.height, 4) }}>
                 <span className={cn('absolute -left-2 -top-3 flex size-5 items-center justify-center rounded-full text-[10px] font-bold text-white shadow-sm', placed ? 'bg-success' : 'bg-amber-600')}>{placed ? <Check className="size-3" /> : matchIndex + 1}</span>
               </span>
-              {!placed && <button type="button" className="absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/15 text-[10px] font-semibold text-primary shadow-sm transition-colors hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              {!placed && <button type="button" id={`esign-anchor-field-${anchorSession.ruleId}-${matchIndex}`} className={cn(
+                'absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/15 text-[10px] font-semibold text-primary shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-300 hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                highlighted && 'z-30 scale-105 animate-pulse border-amber-600 bg-amber-300/70 text-amber-950 ring-4 ring-amber-400 ring-offset-2 shadow-xl motion-reduce:animate-none',
+              )}
                 style={{ left: match.x * size.width, top: match.y * size.height, width: anchorSession.size.width * size.width, height: anchorSession.size.height * size.height }}
                 aria-label={`Place ${anchorSession.type.replace(/_/g, ' ')} field at anchor match ${matchIndex + 1}`}
                 title={`Match ${matchIndex + 1}: place ${anchorSession.type.replace(/_/g, ' ')} field`}
