@@ -155,7 +155,7 @@ class InkwiseSettings:
 
 
 def get_inkwise_settings() -> InkwiseSettings:
-    default_model = os.getenv("INKWISE_GEMINI_MODEL", "gemini-3-flash-preview")
+    default_model = os.getenv("INKWISE_GEMINI_MODEL", "gemini-3.6-flash")
     return InkwiseSettings(
         enabled=_env_bool("INKWISE_ENABLED", True),
         project_id=_normalize_env_text(os.getenv("GOOGLE_CLOUD_PROJECT_ID") or os.getenv("GCP_PROJECT")),
