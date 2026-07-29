@@ -16,9 +16,15 @@ import { openPdfFromUrl, participantColor, type PdfDocument } from '../pdf'
 import { PdfPageCanvas } from '../PdfPageCanvas'
 import { AlignmentGuides } from './AlignmentGuides'
 import {
+  anchorPreviewPosition,
   anchorInstancesShareValue,
+  DEFAULT_ANCHOR_CROSS_AXIS_ALIGNMENT,
+  DEFAULT_ANCHOR_RELATIVE_POSITION,
   resolveAnchorFieldType,
+  serializeAnchorPosition,
   supportsTextAppearance,
+  type AnchorCrossAxisAlignment,
+  type AnchorRelativePosition,
   type EditorFieldType,
 } from './anchorPlacement'
 import { getFloatingToolbarPosition } from './floatingToolbar'
@@ -45,7 +51,9 @@ export interface EditorFieldProperties {
   anchor?: {
     text?: string; anchor: string; rule_id: string; match_index?: number
     case_sensitive: boolean; whole_word: boolean; document_ids?: string[]; page_numbers?: number[]
-    horizontal_alignment: 'left' | 'center' | 'right' | 'after'; offset_x: number; offset_y: number
+    relative_position?: 'auto' | 'right' | 'left' | 'below' | 'above'
+    cross_axis_alignment?: 'auto' | 'start' | 'center' | 'end'
+    horizontal_alignment?: 'left' | 'center' | 'right' | 'after'; offset_x: number; offset_y: number
     offset_unit: 'point' | 'mm' | 'inch'; match_mode: 'first' | 'all'; placement_mode?: 'automatic' | 'individual'
   }
   allowed_types?: string[]
@@ -93,7 +101,8 @@ interface PdfFieldEditorProps {
   onImportFillableFields?: (documentId: string) => void
   onAnchorSearch?: (payload: {
     anchor: string; case_sensitive: boolean; whole_word: boolean; document_ids: string[]
-    match_mode: 'first' | 'all'; horizontal_alignment: 'left' | 'center' | 'right' | 'after'
+    match_mode: 'first' | 'all'; relative_position: 'auto' | 'right' | 'left' | 'below' | 'above'
+    cross_axis_alignment: 'auto' | 'start' | 'center' | 'end'
     offset_x: number; offset_y: number; offset_unit: 'point' | 'mm' | 'inch'; field_width: number; field_height: number
   }) => Promise<{ matches?: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number; anchor_x?: number | null; anchor_y?: number | null }> }>
 }
@@ -109,7 +118,8 @@ interface AnchorPlacementSession {
   caseSensitive: boolean
   wholeWord: boolean
   firstOnly: boolean
-  alignment: 'left' | 'center' | 'right' | 'after'
+  placement: AnchorRelativePosition
+  alignment: AnchorCrossAxisAlignment
   offsetX: number
   offsetY: number
   offsetUnit: 'point' | 'mm' | 'inch'
@@ -379,7 +389,8 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [anchorCaseSensitive, setAnchorCaseSensitive] = React.useState(false)
   const [anchorWholeWord, setAnchorWholeWord] = React.useState(false)
   const [anchorFirstOnly, setAnchorFirstOnly] = React.useState(false)
-  const [anchorAlignment, setAnchorAlignment] = React.useState<'left' | 'center' | 'right' | 'after'>('after')
+  const [anchorPlacement, setAnchorPlacement] = React.useState<AnchorRelativePosition>(DEFAULT_ANCHOR_RELATIVE_POSITION)
+  const [anchorAlignment, setAnchorAlignment] = React.useState<AnchorCrossAxisAlignment>(DEFAULT_ANCHOR_CROSS_AXIS_ALIGNMENT)
   const [anchorOffsetX, setAnchorOffsetX] = React.useState(0)
   const [anchorOffsetY, setAnchorOffsetY] = React.useState(0)
   const [anchorOffsetUnit, setAnchorOffsetUnit] = React.useState<'point' | 'mm' | 'inch'>('point')
@@ -571,13 +582,13 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     const ruleId = newId(); setAnchorSearching(true)
     try {
       const result = await onAnchorSearch({ anchor, case_sensitive: anchorCaseSensitive, whole_word: anchorWholeWord,
-        document_ids: [activeDocument.id], match_mode: anchorFirstOnly ? 'first' : 'all', horizontal_alignment: anchorAlignment, offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit,
+        document_ids: [activeDocument.id], match_mode: anchorFirstOnly ? 'first' : 'all', ...serializeAnchorPosition(anchorPlacement, anchorAlignment), offset_x: anchorOffsetX, offset_y: anchorOffsetY, offset_unit: anchorOffsetUnit,
         field_width: size.width, field_height: size.height })
       const matches = result.matches ?? []
       if (matches.length) {
         setAnchorSession({ ruleId, documentId: activeDocument.id, participantId: activeParticipantId, type, size,
           radioGroup: anchorRadioGroup, anchor, caseSensitive: anchorCaseSensitive, wholeWord: anchorWholeWord,
-          firstOnly: anchorFirstOnly, alignment: anchorAlignment, offsetX: anchorOffsetX, offsetY: anchorOffsetY,
+          firstOnly: anchorFirstOnly, placement: anchorPlacement, alignment: anchorAlignment, offsetX: anchorOffsetX, offsetY: anchorOffsetY,
           offsetUnit: anchorOffsetUnit, matches })
         setAnchorResult('')
         setAnchorOpen(false); setArmedType(null); setRadioGroup(null)
@@ -605,7 +616,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         shared_value: anchorInstancesShareValue(anchorSession.type), read_only: anchorSession.type === 'note',
         anchor: { anchor: anchorSession.anchor, rule_id: anchorSession.ruleId, match_index: matchIndex,
           case_sensitive: anchorSession.caseSensitive, whole_word: anchorSession.wholeWord,
-          document_ids: [anchorSession.documentId], horizontal_alignment: anchorSession.alignment,
+          document_ids: [anchorSession.documentId], ...serializeAnchorPosition(anchorSession.placement, anchorSession.alignment),
           offset_x: anchorSession.offsetX, offset_y: anchorSession.offsetY, offset_unit: anchorSession.offsetUnit,
           match_mode: anchorSession.firstOnly ? 'first' : 'all', placement_mode: 'individual' } } }
     commit([...fields, field]); setSelectedIds(new Set([id])); setAnchorResult('')
@@ -670,7 +681,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
                 'absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/15 text-[10px] font-semibold text-primary shadow-sm transition-[background-color,border-color,box-shadow,transform] duration-300 hover:bg-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 highlighted && 'z-30 scale-105 animate-pulse border-amber-600 bg-amber-300/70 text-amber-950 ring-4 ring-amber-400 ring-offset-2 shadow-xl motion-reduce:animate-none',
               )}
-                style={{ left: match.x * size.width, top: match.y * size.height, width: anchorSession.size.width * size.width, height: anchorSession.size.height * size.height }}
+                style={{ ...anchorPreviewPosition(match, size), width: anchorSession.size.width * size.width, height: anchorSession.size.height * size.height }}
                 aria-label={`Place ${anchorSession.type.replace(/_/g, ' ')} field at anchor match ${matchIndex + 1}`}
                 title={`Match ${matchIndex + 1}: place ${anchorSession.type.replace(/_/g, ' ')} field`}
                 onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); placeAnchorMatch(matchIndex) }}>
@@ -704,8 +715,12 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorCaseSensitive} onChange={(event) => setAnchorCaseSensitive(event.target.checked)} /> Case sensitive</label>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorWholeWord} onChange={(event) => setAnchorWholeWord(event.target.checked)} /> Whole word</label>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorFirstOnly} onChange={(event) => setAnchorFirstOnly(event.target.checked)} /> First match only</label>
-          <div className="grid grid-cols-2 gap-2"><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorAlignment} onChange={(event) => setAnchorAlignment(event.target.value as typeof anchorAlignment)}><option value="after">Place after anchor</option><option value="left">Align left edges</option><option value="center">Align centers</option><option value="right">Align right edges</option></select><select className="rounded border border-border bg-background px-2 py-1 text-sm" value={anchorOffsetUnit} onChange={(event) => setAnchorOffsetUnit(event.target.value as typeof anchorOffsetUnit)}><option value="point">Points</option><option value="mm">Millimeters</option><option value="inch">Inches</option></select></div>
-          <div className="grid grid-cols-2 gap-2"><Input type="number" value={anchorOffsetX} onChange={(event) => setAnchorOffsetX(Number(event.target.value))} placeholder="Horizontal offset" /><Input type="number" value={anchorOffsetY} onChange={(event) => setAnchorOffsetY(Number(event.target.value))} placeholder="Vertical offset" /></div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1 text-sm"><span className="font-medium">Placement</span><select aria-label="Anchor placement" className="w-full rounded border border-border bg-background px-2 py-1" value={anchorPlacement} onChange={(event) => setAnchorPlacement(event.target.value as typeof anchorPlacement)}><option value="auto">Auto</option><option value="right">Right</option><option value="left">Left</option><option value="below">Below</option><option value="above">Above</option></select></label>
+            <label className="space-y-1 text-sm"><span className="font-medium">Alignment</span><select aria-label="Anchor alignment" className="w-full rounded border border-border bg-background px-2 py-1" value={anchorAlignment} onChange={(event) => setAnchorAlignment(event.target.value as typeof anchorAlignment)}><option value="auto">Auto</option><option value="start">Start</option><option value="center">Center</option><option value="end">End</option></select></label>
+          </div>
+          <p className="text-xs text-foreground-subtle">For left or right placement, Start/End mean top/bottom. For above or below, they mean left/right.</p>
+          <div className="grid grid-cols-3 gap-2"><label className="space-y-1 text-sm"><span className="font-medium">Horizontal offset</span><Input aria-label="Horizontal offset" type="number" value={anchorOffsetX} onChange={(event) => setAnchorOffsetX(Number(event.target.value))} /></label><label className="space-y-1 text-sm"><span className="font-medium">Vertical offset</span><Input aria-label="Vertical offset" type="number" value={anchorOffsetY} onChange={(event) => setAnchorOffsetY(Number(event.target.value))} /></label><label className="space-y-1 text-sm"><span className="font-medium">Unit</span><select aria-label="Offset unit" className="w-full rounded border border-border bg-background px-2 py-2" value={anchorOffsetUnit} onChange={(event) => setAnchorOffsetUnit(event.target.value as typeof anchorOffsetUnit)}><option value="point">Points</option><option value="mm">Millimeters</option><option value="inch">Inches</option></select></label></div>
           {anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
         <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={findAnchorMatches} disabled={!anchorText.trim() || anchorSearching}>{anchorSearching && <Loader2 className="mr-1.5 size-4 animate-spin" />}Find matches</Button></DialogFooter>
       </DialogContent>

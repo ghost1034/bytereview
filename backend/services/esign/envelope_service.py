@@ -2267,6 +2267,86 @@ class EsignEnvelopeService:
             max(0.0, min(max(0.0, 1.0 - field_height), y)),
         )
 
+    @staticmethod
+    def _relative_anchor_field_position(
+        anchor_x: float,
+        anchor_y: float,
+        anchor_width: float,
+        anchor_height: float,
+        *,
+        relative_position: str,
+        cross_axis_alignment: str,
+        field_width: float,
+        field_height: float,
+        offset_x: float = 0,
+        offset_y: float = 0,
+    ) -> tuple[float, float]:
+        """Place a complete field box around an anchor rectangle.
+
+        All values are normalized to the displayed page. Automatic choices
+        are evaluated in their documented deterministic order. If no
+        candidate fits, visible area decides before the winning candidate is
+        clamped into the page.
+        """
+        placements = (
+            ("right", "left", "below", "above")
+            if relative_position == "auto" else (relative_position,)
+        )
+        alignments = (
+            ("center", "start", "end")
+            if cross_axis_alignment == "auto" else (cross_axis_alignment,)
+        )
+
+        def candidate(placement: str, alignment: str) -> tuple[float, float]:
+            if placement in ("right", "left"):
+                x = anchor_x + anchor_width if placement == "right" else anchor_x - field_width
+                if alignment == "start":
+                    y = anchor_y
+                elif alignment == "end":
+                    y = anchor_y + anchor_height - field_height
+                else:
+                    y = anchor_y + (anchor_height - field_height) / 2
+            else:
+                y = anchor_y + anchor_height if placement == "below" else anchor_y - field_height
+                if alignment == "start":
+                    x = anchor_x
+                elif alignment == "end":
+                    x = anchor_x + anchor_width - field_width
+                else:
+                    x = anchor_x + (anchor_width - field_width) / 2
+            return x + offset_x, y + offset_y
+
+        def visible_area(x: float, y: float) -> float:
+            visible_width = max(0.0, min(1.0, x + field_width) - max(0.0, x))
+            visible_height = max(0.0, min(1.0, y + field_height) - max(0.0, y))
+            return visible_width * visible_height
+
+        best: Optional[tuple[float, float]] = None
+        best_area = -1.0
+        epsilon = 1e-12
+        for placement in placements:
+            for alignment in alignments:
+                x, y = candidate(placement, alignment)
+                if (
+                    x >= -epsilon and y >= -epsilon
+                    and x + field_width <= 1.0 + epsilon
+                    and y + field_height <= 1.0 + epsilon
+                ):
+                    return (
+                        max(0.0, min(max(0.0, 1.0 - field_width), x)),
+                        max(0.0, min(max(0.0, 1.0 - field_height), y)),
+                    )
+                area = visible_area(x, y)
+                if area > best_area + epsilon:
+                    best = (x, y)
+                    best_area = area
+
+        x, y = best or (0.0, 0.0)
+        return (
+            max(0.0, min(max(0.0, 1.0 - field_width), x)),
+            max(0.0, min(max(0.0, 1.0 - field_height), y)),
+        )
+
     async def _search_anchors(
         self,
         documents: list[Any],
@@ -2278,6 +2358,8 @@ class EsignEnvelopeService:
         page_numbers: Optional[list[int]] = None,
         match_mode: str = "all",
         horizontal_alignment: str = "after",
+        relative_position: Optional[str] = None,
+        cross_axis_alignment: Optional[str] = None,
         offset_x: float = 0,
         offset_y: float = 0,
         offset_unit: str = "point",
@@ -2310,34 +2392,59 @@ class EsignEnvelopeService:
                         rect.normalize()
                         factor = 1.0 if offset_unit == "point" else (72.0 / 25.4 if offset_unit == "mm" else 72.0)
                         dx, dy = offset_x * factor, offset_y * factor
-                        if horizontal_alignment == "left":
-                            reference_x = (rect.x0 + dx) / page.rect.width
-                        elif horizontal_alignment == "center":
-                            reference_x = ((rect.x0 + rect.x1) / 2 + dx) / page.rect.width
-                        else:  # right-edge alignment and placement after the anchor
-                            reference_x = (rect.x1 + dx) / page.rect.width
-                        reference_y = ((rect.y0 + rect.y1) / 2 + dy) / page.rect.height
-                        field_x, field_y = self._anchor_field_position(
-                            reference_x,
-                            reference_y,
-                            horizontal_alignment=horizontal_alignment,
-                            field_width=field_width,
-                            field_height=field_height,
-                        )
-                        if field_height == 0:
-                            # Keep point-only responses compatible with older
-                            # clients that expect y to be the anchor's top.
-                            field_y = max(0.0, min(1.0, (rect.y0 + dy) / page.rect.height))
+                        anchor_x = rect.x0 / page.rect.width
+                        anchor_y = rect.y0 / page.rect.height
+                        anchor_width = rect.width / page.rect.width
+                        anchor_height = rect.height / page.rect.height
+                        if relative_position is None:
+                            # Saved rules without relative_position use the
+                            # original right/edge-alignment algorithm exactly.
+                            if horizontal_alignment == "left":
+                                reference_x = (rect.x0 + dx) / page.rect.width
+                            elif horizontal_alignment == "center":
+                                reference_x = ((rect.x0 + rect.x1) / 2 + dx) / page.rect.width
+                            else:  # right-edge alignment and placement after the anchor
+                                reference_x = (rect.x1 + dx) / page.rect.width
+                            reference_y = ((rect.y0 + rect.y1) / 2 + dy) / page.rect.height
+                            field_x, field_y = self._anchor_field_position(
+                                reference_x,
+                                reference_y,
+                                horizontal_alignment=horizontal_alignment,
+                                field_width=field_width,
+                                field_height=field_height,
+                            )
+                            if field_height == 0:
+                                # Keep legacy point-only responses compatible
+                                # with clients that expect the anchor's top.
+                                field_y = max(0.0, min(1.0, (rect.y0 + dy) / page.rect.height))
+                        else:
+                            # For new rules the references carry normalized
+                            # offsets so send-time resizing can rerun this same
+                            # rectangle calculation without reopening the PDF.
+                            reference_x = dx / page.rect.width
+                            reference_y = dy / page.rect.height
+                            field_x, field_y = self._relative_anchor_field_position(
+                                anchor_x,
+                                anchor_y,
+                                anchor_width,
+                                anchor_height,
+                                relative_position=relative_position,
+                                cross_axis_alignment=cross_axis_alignment or "auto",
+                                field_width=field_width,
+                                field_height=field_height,
+                                offset_x=reference_x,
+                                offset_y=reference_y,
+                            )
                         matches.append(
                             EsignAnchorMatch(
                                 document_id=str(document.id),
                                 page_number=page_number,
                                 x=field_x,
                                 y=field_y,
-                                width=max(0.0, min(1.0, rect.width / page.rect.width)),
-                                height=max(0.0, min(1.0, rect.height / page.rect.height)),
-                                anchor_x=max(0.0, min(1.0, rect.x0 / page.rect.width)),
-                                anchor_y=max(0.0, min(1.0, rect.y0 / page.rect.height)),
+                                width=max(0.0, min(1.0, anchor_width)),
+                                height=max(0.0, min(1.0, anchor_height)),
+                                anchor_x=max(0.0, min(1.0, anchor_x)),
+                                anchor_y=max(0.0, min(1.0, anchor_y)),
                                 reference_x=reference_x,
                                 reference_y=reference_y,
                             )
@@ -2360,6 +2467,8 @@ class EsignEnvelopeService:
         page_numbers: Optional[list[int]] = None,
         match_mode: str = "all",
         horizontal_alignment: str = "after",
+        relative_position: Optional[str] = None,
+        cross_axis_alignment: Optional[str] = None,
         offset_x: float = 0,
         offset_y: float = 0,
         offset_unit: str = "point",
@@ -2379,6 +2488,8 @@ class EsignEnvelopeService:
                 page_numbers=page_numbers,
                 match_mode=match_mode,
                 horizontal_alignment=horizontal_alignment,
+                relative_position=relative_position,
+                cross_axis_alignment=cross_axis_alignment,
                 offset_x=offset_x,
                 offset_y=offset_y,
                 offset_unit=offset_unit,
@@ -2400,6 +2511,8 @@ class EsignEnvelopeService:
         page_numbers: Optional[list[int]] = None,
         match_mode: str = "all",
         horizontal_alignment: str = "after",
+        relative_position: Optional[str] = None,
+        cross_axis_alignment: Optional[str] = None,
         offset_x: float = 0,
         offset_y: float = 0,
         offset_unit: str = "point",
@@ -2418,6 +2531,8 @@ class EsignEnvelopeService:
                 page_numbers=page_numbers,
                 match_mode=match_mode,
                 horizontal_alignment=horizontal_alignment,
+                relative_position=relative_position,
+                cross_axis_alignment=cross_axis_alignment,
                 offset_x=offset_x,
                 offset_y=offset_y,
                 offset_unit=offset_unit,

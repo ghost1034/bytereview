@@ -6241,8 +6241,13 @@ export interface components {
             document_ids?: string[] | null;
             /** Page Numbers */
             page_numbers?: number[] | null;
+            /** Relative Position */
+            relative_position?: ("auto" | "right" | "left" | "below" | "above") | null;
+            /** Cross Axis Alignment */
+            cross_axis_alignment?: ("auto" | "start" | "center" | "end") | null;
             /**
              * Horizontal Alignment
+             * @deprecated
              * @default after
              * @enum {string}
              */
@@ -7536,8 +7541,13 @@ export interface components {
              * @enum {string}
              */
             match_mode: "first" | "all";
+            /** Relative Position */
+            relative_position?: ("auto" | "right" | "left" | "below" | "above") | null;
+            /** Cross Axis Alignment */
+            cross_axis_alignment?: ("auto" | "start" | "center" | "end") | null;
             /**
              * Horizontal Alignment
+             * @deprecated
              * @default after
              * @enum {string}
              */

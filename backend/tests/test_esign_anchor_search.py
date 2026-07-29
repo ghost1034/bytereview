@@ -13,7 +13,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from services.esign.envelope_service import EsignEnvelopeService, EsignError, validate_field_placement
-from models.esign import AnchorProps
+from models.esign import AnchorProps, EsignAnchorSearchRequest
 
 
 class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
@@ -38,7 +38,9 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         document = types.SimpleNamespace(id=document_id, gcs_object_name="anchor.pdf")
 
         result = await service._search_anchors(
-            [document], anchor="CLIENT_SIGNATURE_ANCHOR", case_sensitive=True, document_ids=None
+            [document], anchor="CLIENT_SIGNATURE_ANCHOR", case_sensitive=True, document_ids=None,
+            relative_position="auto", cross_axis_alignment="auto",
+            field_width=0.2, field_height=0.06,
         )
 
         self.assertEqual(len(result.matches), 1)
@@ -102,6 +104,133 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         })
 
         self.assertEqual(props.placement_mode, "individual")
+
+    def test_omitted_search_fields_preserve_legacy_request_geometry(self) -> None:
+        request = EsignAnchorSearchRequest(anchor="Signature:")
+
+        self.assertIsNone(request.relative_position)
+        self.assertIsNone(request.cross_axis_alignment)
+
+    def test_new_anchor_properties_round_trip_without_changing_placement_mode(self) -> None:
+        value = {
+            "anchor": "Signature:",
+            "relative_position": "below",
+            "cross_axis_alignment": "end",
+            "placement_mode": "individual",
+        }
+
+        props = AnchorProps.model_validate(value)
+
+        self.assertEqual(props.model_dump(exclude_none=True)["relative_position"], "below")
+        self.assertEqual(props.model_dump(exclude_none=True)["cross_axis_alignment"], "end")
+        self.assertEqual(props.placement_mode, "individual")
+
+    def test_legacy_anchor_properties_do_not_gain_relative_position(self) -> None:
+        props = AnchorProps.model_validate({
+            "anchor": "Signature:",
+            "horizontal_alignment": "right",
+        })
+
+        saved = props.model_dump(exclude_none=True)
+        self.assertNotIn("relative_position", saved)
+        self.assertNotIn("cross_axis_alignment", saved)
+        self.assertEqual(saved["horizontal_alignment"], "right")
+
+    def test_every_explicit_placement_and_alignment(self) -> None:
+        expected = {
+            ("right", "start"): (0.5, 0.3),
+            ("right", "center"): (0.5, 0.275),
+            ("right", "end"): (0.5, 0.25),
+            ("left", "start"): (0.2, 0.3),
+            ("left", "center"): (0.2, 0.275),
+            ("left", "end"): (0.2, 0.25),
+            ("below", "start"): (0.4, 0.35),
+            ("below", "center"): (0.35, 0.35),
+            ("below", "end"): (0.3, 0.35),
+            ("above", "start"): (0.4, 0.2),
+            ("above", "center"): (0.35, 0.2),
+            ("above", "end"): (0.3, 0.2),
+        }
+
+        for (placement, alignment), wanted in expected.items():
+            with self.subTest(placement=placement, alignment=alignment):
+                actual = EsignEnvelopeService._relative_anchor_field_position(
+                    0.4, 0.3, 0.1, 0.05,
+                    relative_position=placement,
+                    cross_axis_alignment=alignment,
+                    field_width=0.2,
+                    field_height=0.1,
+                )
+                self.assertAlmostEqual(actual[0], wanted[0])
+                self.assertAlmostEqual(actual[1], wanted[1])
+
+    def test_auto_uses_side_priority_and_varies_with_field_dimensions(self) -> None:
+        small = EsignEnvelopeService._relative_anchor_field_position(
+            0.75, 0.4, 0.05, 0.05,
+            relative_position="auto", cross_axis_alignment="auto",
+            field_width=0.1, field_height=0.1,
+        )
+        large = EsignEnvelopeService._relative_anchor_field_position(
+            0.75, 0.4, 0.05, 0.05,
+            relative_position="auto", cross_axis_alignment="auto",
+            field_width=0.25, field_height=0.1,
+        )
+
+        self.assertAlmostEqual(small[0], 0.8)  # Right fits first.
+        self.assertAlmostEqual(large[0], 0.5)  # Right fails, then Left fits.
+
+    async def test_auto_resolves_each_pdf_match_independently(self) -> None:
+        pdf = fitz.open()
+        page = pdf.new_page(width=612, height=792)
+        page.insert_text((72, 150), "ANCHOR")
+        page.insert_text((520, 250), "ANCHOR")
+        content = pdf.tobytes()
+        pdf.close()
+        service = self._service_for_pdf(content)
+        document = types.SimpleNamespace(id=uuid.uuid4(), gcs_object_name="anchor.pdf")
+
+        result = await service._search_anchors(
+            [document], anchor="ANCHOR", case_sensitive=True,
+            relative_position="auto", cross_axis_alignment="auto",
+            field_width=0.2, field_height=0.08,
+        )
+
+        self.assertEqual(len(result.matches), 2)
+        left_match, right_match = result.matches
+        self.assertAlmostEqual(left_match.x, left_match.anchor_x + left_match.width)
+        self.assertAlmostEqual(right_match.x, right_match.anchor_x - 0.2)
+
+    def test_auto_alignment_falls_back_from_center_to_start_near_edge(self) -> None:
+        x, y = EsignEnvelopeService._relative_anchor_field_position(
+            0.2, 0.0, 0.1, 0.05,
+            relative_position="right", cross_axis_alignment="auto",
+            field_width=0.2, field_height=0.1,
+        )
+
+        self.assertAlmostEqual(x, 0.3)
+        self.assertAlmostEqual(y, 0.0)
+
+    def test_no_fit_uses_visible_area_then_clamps(self) -> None:
+        x, y = EsignEnvelopeService._relative_anchor_field_position(
+            0.8, 0.45, 0.1, 0.1,
+            relative_position="auto", cross_axis_alignment="auto",
+            field_width=0.95, field_height=0.95,
+        )
+
+        # Left/Center has the greatest visible area before clamping.
+        self.assertAlmostEqual(x, 0.0)
+        self.assertAlmostEqual(y, 0.025)
+
+    def test_relative_offsets_move_right_and_down(self) -> None:
+        x, y = EsignEnvelopeService._relative_anchor_field_position(
+            0.3, 0.3, 0.1, 0.1,
+            relative_position="below", cross_axis_alignment="start",
+            field_width=0.2, field_height=0.1,
+            offset_x=0.05, offset_y=0.02,
+        )
+
+        self.assertAlmostEqual(x, 0.35)
+        self.assertAlmostEqual(y, 0.42)
 
     async def test_point_only_anchor_search_preserves_top_edge_y(self) -> None:
         pdf = fitz.open()

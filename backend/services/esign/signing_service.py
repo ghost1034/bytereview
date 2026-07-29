@@ -386,6 +386,8 @@ class EsignSigningService:
                     case_sensitive=bool(rule.get("case_sensitive", False)), whole_word=bool(rule.get("whole_word", False)),
                     document_ids=rule.get("document_ids"), page_numbers=rule.get("page_numbers"),
                     match_mode=str(rule.get("match_mode", "all")), horizontal_alignment=str(rule.get("horizontal_alignment", "after")),
+                    relative_position=rule.get("relative_position"),
+                    cross_axis_alignment=rule.get("cross_axis_alignment"),
                     offset_x=float(rule.get("offset_x", 0)), offset_y=float(rule.get("offset_y", 0)), offset_unit=str(rule.get("offset_unit", "point")),
                     field_width=float(members[0].width), field_height=float(members[0].height),
                 )
@@ -415,7 +417,24 @@ class EsignSigningService:
                     ):
                         field.document_id = uuid.UUID(match.document_id)
                         field.page_number = match.page_number
-                        if match.reference_x is not None and match.reference_y is not None:
+                        if (
+                            rule.get("relative_position") is not None
+                            and match.anchor_x is not None and match.anchor_y is not None
+                            and match.reference_x is not None and match.reference_y is not None
+                        ):
+                            field.pos_x, field.pos_y = esign_envelope_service._relative_anchor_field_position(
+                                match.anchor_x,
+                                match.anchor_y,
+                                match.width,
+                                match.height,
+                                relative_position=str(rule.get("relative_position")),
+                                cross_axis_alignment=str(rule.get("cross_axis_alignment") or "auto"),
+                                field_width=float(field.width),
+                                field_height=float(field.height),
+                                offset_x=match.reference_x,
+                                offset_y=match.reference_y,
+                            )
+                        elif match.reference_x is not None and match.reference_y is not None:
                             field.pos_x, field.pos_y = esign_envelope_service._anchor_field_position(
                                 match.reference_x,
                                 match.reference_y,

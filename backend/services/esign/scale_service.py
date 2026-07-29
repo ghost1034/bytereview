@@ -297,6 +297,8 @@ class EsignScaleService:
                             case_sensitive=bool(anchor.get("case_sensitive", False)), whole_word=bool(anchor.get("whole_word", False)),
                             document_ids=anchor.get("document_ids"), page_numbers=anchor.get("page_numbers"),
                             match_mode=str(anchor.get("match_mode", "all")), horizontal_alignment=str(anchor.get("horizontal_alignment", "after")),
+                            relative_position=anchor.get("relative_position"),
+                            cross_axis_alignment=anchor.get("cross_axis_alignment"),
                             offset_x=float(anchor.get("offset_x", 0)), offset_y=float(anchor.get("offset_y", 0)),
                             offset_unit=str(anchor.get("offset_unit", "point")),
                             field_width=float(field.width), field_height=float(field.height))

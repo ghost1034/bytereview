@@ -66,7 +66,16 @@ class AnchorProps(BaseModel):
     whole_word: bool = False
     document_ids: Optional[list[str]] = None
     page_numbers: Optional[list[int]] = None
-    horizontal_alignment: Literal["left", "center", "right", "after"] = "after"
+    # New anchor rules use placement plus contextual cross-axis alignment.
+    # ``None`` is intentional: its absence identifies saved legacy rules that
+    # must continue to use ``horizontal_alignment`` geometry.
+    relative_position: Optional[Literal["auto", "right", "left", "below", "above"]] = None
+    cross_axis_alignment: Optional[Literal["auto", "start", "center", "end"]] = None
+    # Deprecated legacy input. Retained for saved rules created before
+    # relative_position was introduced.
+    horizontal_alignment: Literal["left", "center", "right", "after"] = Field(
+        default="after", deprecated=True
+    )
     offset_x: float = 0
     offset_y: float = 0
     offset_unit: Literal["point", "mm", "inch"] = "point"
@@ -908,7 +917,14 @@ class EsignAnchorSearchRequest(BaseModel):
     document_ids: Optional[list[str]] = None
     page_numbers: Optional[list[int]] = None
     match_mode: Literal["first", "all"] = "all"
-    horizontal_alignment: Literal["left", "center", "right", "after"] = "after"
+    relative_position: Optional[Literal["auto", "right", "left", "below", "above"]] = None
+    cross_axis_alignment: Optional[Literal["auto", "start", "center", "end"]] = None
+    # Deprecated legacy input. New searches use relative_position and
+    # cross_axis_alignment. The browser explicitly sends both Auto defaults;
+    # omission keeps older API clients on legacy geometry.
+    horizontal_alignment: Literal["left", "center", "right", "after"] = Field(
+        default="after", deprecated=True
+    )
     offset_x: float = 0
     offset_y: float = 0
     offset_unit: Literal["point", "mm", "inch"] = "point"
@@ -931,9 +947,10 @@ class EsignAnchorMatch(BaseModel):
     # source text when an offset or edge alignment is configured.
     anchor_x: Optional[float] = None
     anchor_y: Optional[float] = None
-    # Unclamped horizontal alignment point and vertical anchor center after
-    # offsets. Send-time resolution reuses them with each field's current
-    # dimensions, including fields resized after the original anchor search.
+    # Legacy rules store their horizontal alignment point and vertical anchor
+    # center here. Relative-position rules store normalized X/Y offsets. In
+    # both cases send-time resolution can reuse the values with current field
+    # dimensions, including fields resized after the original search.
     reference_x: Optional[float] = None
     reference_y: Optional[float] = None
 

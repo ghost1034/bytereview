@@ -2467,7 +2467,7 @@ export class ApiClient {
 
   async searchEsignAnchors(
     envelopeId: string,
-    payload: { anchor: string; case_sensitive?: boolean; whole_word?: boolean; document_ids?: string[]; page_numbers?: number[]; match_mode?: 'first' | 'all'; horizontal_alignment?: 'left' | 'center' | 'right' | 'after'; offset_x?: number; offset_y?: number; offset_unit?: 'point' | 'mm' | 'inch'; field_width?: number; field_height?: number },
+    payload: { anchor: string; case_sensitive?: boolean; whole_word?: boolean; document_ids?: string[]; page_numbers?: number[]; match_mode?: 'first' | 'all'; relative_position?: 'auto' | 'right' | 'left' | 'below' | 'above'; cross_axis_alignment?: 'auto' | 'start' | 'center' | 'end'; horizontal_alignment?: 'left' | 'center' | 'right' | 'after'; offset_x?: number; offset_y?: number; offset_unit?: 'point' | 'mm' | 'inch'; field_width?: number; field_height?: number },
   ): Promise<EsignAnchorSearchResponse> {
     return this.request(`/api/esign/envelopes/${envelopeId}/anchor-search`, {
       method: 'POST', body: JSON.stringify(payload),
@@ -2476,7 +2476,7 @@ export class ApiClient {
 
   async searchEsignTemplateAnchors(
     templateId: string,
-    payload: { anchor: string; case_sensitive?: boolean; whole_word?: boolean; document_ids?: string[]; page_numbers?: number[]; match_mode?: 'first' | 'all'; horizontal_alignment?: 'left' | 'center' | 'right' | 'after'; offset_x?: number; offset_y?: number; offset_unit?: 'point' | 'mm' | 'inch'; field_width?: number; field_height?: number },
+    payload: { anchor: string; case_sensitive?: boolean; whole_word?: boolean; document_ids?: string[]; page_numbers?: number[]; match_mode?: 'first' | 'all'; relative_position?: 'auto' | 'right' | 'left' | 'below' | 'above'; cross_axis_alignment?: 'auto' | 'start' | 'center' | 'end'; horizontal_alignment?: 'left' | 'center' | 'right' | 'after'; offset_x?: number; offset_y?: number; offset_unit?: 'point' | 'mm' | 'inch'; field_width?: number; field_height?: number },
   ): Promise<EsignAnchorSearchResponse> {
     return this.request(`/api/esign/templates/${templateId}/anchor-search`, {
       method: 'POST', body: JSON.stringify(payload),

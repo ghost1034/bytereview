@@ -49,7 +49,15 @@ Available fields include:
 | **Formula** | Calculates from referenced numeric fields. |
 | **Auto-fill** | Uses recipient name, email, company, or sent date. |
 
-Fields can be conditional, and text anchors can be used for repeatable placement. Field changes autosave after a short pause.
+Fields can be conditional, and text anchors can be used for repeatable placement. To use an anchor, select the field type, click **Place by anchor**, enter the text to match, and configure:
+
+- **Placement** — Auto, Right, Left, Below, or Above the complete matching-text rectangle.
+- **Alignment** — Auto, Start, Center, or End. For Left and Right placements, Start and End mean top and bottom. For Above and Below placements, they mean left and right.
+- **Horizontal and vertical offsets** — Positive horizontal values move the field right; positive vertical values move it down. Choose points, millimeters, or inches.
+
+Auto placement evaluates each text match independently. It tries Right, Left, Below, then Above. Auto alignment tries Center, Start, then End. The first combination whose complete field fits within the page is used. If none fits, CPAAutomation chooses the combination with the largest visible area and keeps the field inside the page. This calculation uses page boundaries only; it does not avoid nearby PDF content or other fields.
+
+Matching text and dashed field previews appear on the PDF. Select each dashed preview you want to accept, or skip it and continue to the next match. Placement and alignment do not change this individual match-review workflow. Field changes autosave after a short pause.
 
 Click **Review & send** to open the review drawer. It summarizes documents, recipients, routing, message, expiration, reminders, and validation issues. Select a field-specific issue to return to that field. Every signer must have a required field and a signature field.
 

@@ -20965,6 +20965,41 @@
             ],
             "title": "Page Numbers"
           },
+          "relative_position": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "right",
+                  "left",
+                  "below",
+                  "above"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Position"
+          },
+          "cross_axis_alignment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "start",
+                  "center",
+                  "end"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cross Axis Alignment"
+          },
           "horizontal_alignment": {
             "type": "string",
             "enum": [
@@ -20974,7 +21009,8 @@
               "after"
             ],
             "title": "Horizontal Alignment",
-            "default": "after"
+            "default": "after",
+            "deprecated": true
           },
           "offset_x": {
             "type": "number",
@@ -24533,6 +24569,41 @@
             "title": "Match Mode",
             "default": "all"
           },
+          "relative_position": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "right",
+                  "left",
+                  "below",
+                  "above"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relative Position"
+          },
+          "cross_axis_alignment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "auto",
+                  "start",
+                  "center",
+                  "end"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cross Axis Alignment"
+          },
           "horizontal_alignment": {
             "type": "string",
             "enum": [
@@ -24542,7 +24613,8 @@
               "after"
             ],
             "title": "Horizontal Alignment",
-            "default": "after"
+            "default": "after",
+            "deprecated": true
           },
           "offset_x": {
             "type": "number",
