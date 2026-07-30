@@ -9,7 +9,7 @@ import {
   type EditorFieldType,
 } from './anchorPlacement'
 import { getFloatingToolbarPosition } from './floatingToolbar'
-import { configuredTextFontSize, textFontFamily } from './textAppearance'
+import { configuredTextFontSize, signingTextFontSize, textFontFamily } from './textAppearance'
 
 const field: EditorField = {
   id: 'field-1',
@@ -91,5 +91,11 @@ describe('configured text font rendering', () => {
     expect(configuredTextFontSize(12, 1.5, 30)).toBe(18)
     expect(configuredTextFontSize(72, 1, 20)).toBe(18)
     expect(configuredTextFontSize(undefined, 1, 20)).toBeUndefined()
+  })
+
+  it('uses compact, scaled defaults in the signing interface', () => {
+    expect(signingTextFontSize(undefined, 1.5, 30)).toBe(15)
+    expect(signingTextFontSize(undefined, 2, 12)).toBe(6)
+    expect(signingTextFontSize(12, 1.5, 30)).toBe(18)
   })
 })

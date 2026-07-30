@@ -9,7 +9,7 @@ import {
   DEFAULT_FIELD_VERTICAL_ALIGNMENT,
   defaultFieldHorizontalAlignment,
 } from '@/components/esign/editor/anchorPlacement'
-import { configuredTextFontSize, textFontFamily } from '@/components/esign/editor/textAppearance'
+import { signingTextFontSize, textFontFamily } from '@/components/esign/editor/textAppearance'
 import { formatDateSigned } from '@/components/esign/sign/dateSigned'
 import {
   signatureFontFamily,
@@ -79,8 +79,11 @@ export function SigningDocumentViewer({
             ?? defaultFieldHorizontalAlignment(field.field_type)
           const verticalAlignment = field.properties?.appearance?.vertical_alignment
             ?? DEFAULT_FIELD_VERTICAL_ALIGNMENT
-          const renderedFontSize = configuredTextFontSize(pdfFontSize, size.scale, renderedFieldHeight)
-            ?? renderedFieldHeight * 0.7
+          const renderedFontSize = signingTextFontSize(
+            pdfFontSize,
+            size.scale,
+            renderedFieldHeight,
+          )
           const verticalSpace = Math.max(0, renderedFieldHeight - renderedFontSize * 1.2 - 4)
           const controlVerticalPadding = verticalAlignment === 'top'
             ? { paddingTop: 2, paddingBottom: verticalSpace + 2 }

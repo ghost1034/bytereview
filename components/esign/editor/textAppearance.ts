@@ -17,3 +17,14 @@ export function configuredTextFontSize(
   if (fontSize == null) return undefined
   return Math.min(fontSize * pageScale, renderedFieldHeight * 0.9)
 }
+
+/** Use a compact, PDF-scaled fallback for fields without an explicit point size. */
+export function signingTextFontSize(
+  fontSize: number | null | undefined,
+  pageScale: number,
+  renderedFieldHeight: number,
+  fallbackPointSize = 10,
+): number {
+  return configuredTextFontSize(fontSize, pageScale, renderedFieldHeight)
+    ?? Math.min(fallbackPointSize * pageScale, renderedFieldHeight * 0.5)
+}
