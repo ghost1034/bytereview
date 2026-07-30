@@ -58,7 +58,7 @@ export default function Home() {
       <AutomationFlow onGetStarted={handleGetStarted} />
       <FormFillShowcase onTryProduct={handleProtectedNavigation} />
       <InkwiseShowcase onTryProduct={handleProtectedNavigation} />
-      <ProjectManagementShowcase />
+      <ProjectManagementShowcase onTryProduct={handleProtectedNavigation} />
       <EsignShowcase onTryProduct={handleProtectedNavigation} />
       <ChronaShowcase />
       <ClawShowcase />

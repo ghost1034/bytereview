@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import {
   CalendarDays,
   CheckCircle2,
@@ -156,7 +155,11 @@ function ProjectManagementMockup() {
   )
 }
 
-export default function ProjectManagementShowcase() {
+interface ProjectManagementShowcaseProps {
+  onTryProduct: (destination: string) => void
+}
+
+export default function ProjectManagementShowcase({ onTryProduct }: ProjectManagementShowcaseProps) {
   return (
     <SectionShell
       id="productivity-suite-showcase"
@@ -178,10 +181,10 @@ export default function ProjectManagementShowcase() {
       <FeatureList items={HIGHLIGHTS} tone={TONE} className="pt-1" />
       <div className="pt-1">
         <Button
-          asChild
+          onClick={() => onTryProduct('/dashboard/project-management')}
           className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
         >
-          <Link href="/dashboard/project-management">Open the AI Productivity Suite</Link>
+          Open the AI Productivity Suite
         </Button>
       </div>
     </SectionShell>
