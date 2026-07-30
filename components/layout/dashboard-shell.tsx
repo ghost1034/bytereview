@@ -64,7 +64,7 @@ const QUICK_ACTIONS: Array<{
       { label: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
       { label: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
       {
-        label: 'Project Management',
+        label: 'AI Productivity Suite',
         href: '/dashboard/project-management',
         icon: FolderKanban,
       },

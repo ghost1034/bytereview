@@ -91,7 +91,7 @@ export async function completeOnboarding(input: CompleteOnboardingInput): Promis
     projects,
     removeStarterProject: input.templateIds.length > 0,
     inboxWelcome: {
-      title: 'Welcome to Project Management',
+      title: 'Welcome to the AI Productivity Suite',
       body: "Here's what to try next — open your starter project, invite teammates, or take the product tour.",
       ctas: [
         { label: 'Open starter project', route: 'projects' },

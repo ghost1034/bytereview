@@ -67,7 +67,7 @@ export function StepInviteTeammates({
           id="invite-note"
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
-          placeholder="Join us in CPAAutomation Project Management!"
+          placeholder="Join us in the CPAAutomation AI Productivity Suite!"
           className="tl-input"
         />
       </div>

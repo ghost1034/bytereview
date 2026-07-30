@@ -42,7 +42,7 @@ export function ProjectsIndex() {
   usePageMeta({
     breadcrumbs: workspaceId
       ? [
-          { label: 'Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+          { label: 'AI Productivity Suite', href: `/dashboard/project-management/w/${workspaceId}/home` },
           { label: 'Projects' },
         ]
       : [{ label: 'Projects' }],

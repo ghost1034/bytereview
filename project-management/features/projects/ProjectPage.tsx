@@ -62,7 +62,7 @@ export function ProjectPage({ projectId }: Props) {
     () =>
       project && workspaceId
         ? [
-            { label: 'Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+            { label: 'AI Productivity Suite', href: `/dashboard/project-management/w/${workspaceId}/home` },
             { label: 'Projects', href: `/dashboard/project-management/w/${workspaceId}/projects` },
             { label: project.name },
           ]

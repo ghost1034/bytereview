@@ -41,7 +41,7 @@ export function TasklyticHome() {
 
   usePageMeta({
     breadcrumbs: workspace
-      ? [{ label: 'Project Management', href: '#' }, { label: workspace.name }]
+      ? [{ label: 'AI Productivity Suite', href: '#' }, { label: workspace.name }]
       : [],
   })
 
@@ -58,7 +58,7 @@ export function TasklyticHome() {
   if (!workspaceId) {
     return (
       <TasklyticEmptyState
-        headline="Welcome to Project Management"
+        headline="Welcome to the AI Productivity Suite"
         subhead="Pick a workspace to begin organizing projects, tasks, and goals."
       />
     )

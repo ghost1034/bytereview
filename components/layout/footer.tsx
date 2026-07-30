@@ -17,17 +17,6 @@ function FooterLink({ href, children }: FooterLinkProps) {
   )
 }
 
-function ComingSoonItem({ label }: { label: string }) {
-  return (
-    <span className="text-marketing-hero-foreground-muted/70">
-      {label}{' '}
-      <span className="text-xs text-marketing-hero-foreground-muted/50">
-        (Soon)
-      </span>
-    </span>
-  )
-}
-
 export default function Footer() {
   return (
     <footer className="bg-gradient-to-b from-marketing-hero-from to-marketing-hero-to py-16 text-marketing-hero-foreground">
@@ -77,6 +66,11 @@ export default function Footer() {
                 <FooterLink href="/dashboard/inkwise">Inkwise</FooterLink>
               </li>
               <li>
+                <FooterLink href="/dashboard/project-management">
+                  AI Productivity Suite
+                </FooterLink>
+              </li>
+              <li>
                 <FooterLink href="/#esign-showcase">E-Signature (beta)</FooterLink>
               </li>
               <li>
@@ -89,9 +83,6 @@ export default function Footer() {
                 <FooterLink href="/dashboard/analytics">
                   AI Analytics Suite
                 </FooterLink>
-              </li>
-              <li>
-                <ComingSoonItem label="AI Productivity Suite" />
               </li>
             </ul>
           </div>

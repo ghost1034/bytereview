@@ -14,7 +14,7 @@ export async function queueDashboardDigest(dashboard: ReportingDashboard, recipi
     '',
     chartLines || 'No charts configured.',
     '',
-    '— Sent by CPAAutomation Project Management Reporting.',
+    '— Sent by CPAAutomation AI Productivity Suite Reporting.',
   ].join('\n')
 
   await adapter.send({
