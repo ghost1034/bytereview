@@ -9407,6 +9407,12 @@ export interface components {
              */
             alignment: "left" | "center" | "right";
             /**
+             * Vertical Alignment
+             * @default middle
+             * @enum {string}
+             */
+            vertical_alignment: "top" | "middle" | "bottom";
+            /**
              * Bold
              * @default false
              */

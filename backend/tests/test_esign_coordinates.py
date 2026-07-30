@@ -21,7 +21,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import fitz
 
-from services.esign.sealing_service import _display_box, _display_rect, _fit_textbox
+from services.esign.sealing_service import (
+    _aligned_content_box,
+    _display_box,
+    _display_rect,
+    _fit_textbox,
+    _insert_aligned_image,
+)
 
 
 def _page_with_rotation(rotation: int) -> fitz.Document:
@@ -75,6 +81,18 @@ def _longest_ink_runs(page: fitz.Page) -> tuple[int, int]:
 
 
 class EsignCoordinateTests(unittest.TestCase):
+    def test_content_box_supports_all_alignment_edges(self) -> None:
+        box = fitz.Rect(10, 20, 110, 120)
+        top = _aligned_content_box(box, 40, 20, "left", "top")
+        bottom = _aligned_content_box(box, 40, 20, "right", "bottom")
+        left = _aligned_content_box(box, 20, 40, "left", "top")
+        right = _aligned_content_box(box, 20, 40, "right", "bottom")
+
+        self.assertEqual(top, fitz.Rect(10, 20, 110, 70))
+        self.assertEqual(bottom, fitz.Rect(10, 70, 110, 120))
+        self.assertEqual(left, fitz.Rect(10, 20, 60, 120))
+        self.assertEqual(right, fitz.Rect(60, 20, 110, 120))
+
     def test_display_rect_matches_fraction_box_unrotated(self) -> None:
         doc = _page_with_rotation(0)
         page = doc[0]
@@ -118,6 +136,28 @@ class EsignCoordinateTests(unittest.TestCase):
                     f"rot {rotation}: text not vertically centered",
                 )
 
+    def test_text_vertical_alignment_moves_content_to_requested_edge(self) -> None:
+        centers = {}
+        for alignment in ("top", "middle", "bottom"):
+            doc = _page_with_rotation(0)
+            page = doc[0]
+            box = _display_box(page, 0.1, 0.1, 0.35, 0.15)
+            _fit_textbox(
+                page,
+                box,
+                "HELLO",
+                fontname="helv",
+                rotate=0,
+                max_fontsize=16,
+                vertical_align=alignment,
+            )
+            _, min_y, _, max_y = _ink_bbox(page)
+            centers[alignment] = (min_y + max_y) / 2
+            doc.close()
+
+        self.assertLess(centers["top"], centers["middle"])
+        self.assertLess(centers["middle"], centers["bottom"])
+
     def test_image_lands_in_display_rect_for_all_rotations(self) -> None:
         pm = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 20))
         for y in range(20):
@@ -142,6 +182,31 @@ class EsignCoordinateTests(unittest.TestCase):
                 self.assertGreaterEqual(min_y, ey0 - slack)
                 self.assertLessEqual(max_x, ex1 + slack)
                 self.assertLessEqual(max_y, ey1 + slack)
+
+    def test_image_vertical_alignment_moves_content_to_requested_edge(self) -> None:
+        pm = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 10))
+        pm.clear_with(0)
+        png = pm.tobytes("png")
+        centers = {}
+
+        for alignment in ("top", "middle", "bottom"):
+            doc = _page_with_rotation(0)
+            page = doc[0]
+            box = _display_box(page, 0.1, 0.1, 0.35, 0.15)
+            _insert_aligned_image(
+                page,
+                box,
+                png,
+                rotate=0,
+                horizontal_align="center",
+                vertical_align=alignment,
+            )
+            _, min_y, _, max_y = _ink_bbox(page)
+            centers[alignment] = (min_y + max_y) / 2
+            doc.close()
+
+        self.assertLess(centers["top"], centers["middle"])
+        self.assertLess(centers["middle"], centers["bottom"])
 
     def test_underlines_follow_text_for_all_page_rotations(self) -> None:
         for rotation in (0, 90, 180, 270):

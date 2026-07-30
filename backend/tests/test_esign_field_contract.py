@@ -43,6 +43,19 @@ def test_all_twenty_types_have_versioned_allowed_contract(field_type, properties
         assert result.required is False
 
 
+@pytest.mark.parametrize("field_type", list(VALID_PROPERTIES))
+def test_all_field_types_accept_horizontal_and_vertical_alignment(field_type):
+    result = field(
+        field_type,
+        {
+            **VALID_PROPERTIES[field_type],
+            "appearance": {"alignment": "right", "vertical_alignment": "bottom"},
+        },
+    )
+    assert result.properties.appearance.alignment == "right"
+    assert result.properties.appearance.vertical_alignment == "bottom"
+
+
 @pytest.mark.parametrize(
     "field_type",
     [
@@ -50,17 +63,16 @@ def test_all_twenty_types_have_versioned_allowed_contract(field_type, properties
         "first_name", "last_name", "full_name", "email", "company", "title", "note",
     ],
 )
-def test_all_text_rendering_fields_accept_font_size_and_alignment(field_type):
+def test_all_text_rendering_fields_accept_typography(field_type):
     result = field(
         field_type,
         {
             **VALID_PROPERTIES[field_type],
-            "appearance": {"font": "Times", "font_size": 12, "alignment": "right"},
+            "appearance": {"font": "Times", "font_size": 12},
         },
     )
     assert result.properties.appearance.font == "Times"
     assert result.properties.appearance.font_size == 12
-    assert result.properties.appearance.alignment == "right"
 
 
 @pytest.mark.parametrize(

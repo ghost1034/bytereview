@@ -5,7 +5,10 @@ import { Loader2, Paperclip, PenLine, Trash2 } from 'lucide-react'
 
 import { openPdfFromUrl, participantColor, type PdfDocument } from '@/components/esign/pdf'
 import { PdfPageCanvas } from '@/components/esign/PdfPageCanvas'
-import { supportsTextAppearance } from '@/components/esign/editor/anchorPlacement'
+import {
+  DEFAULT_FIELD_VERTICAL_ALIGNMENT,
+  defaultFieldHorizontalAlignment,
+} from '@/components/esign/editor/anchorPlacement'
 import { configuredTextFontSize, textFontFamily } from '@/components/esign/editor/textAppearance'
 import { formatDateSigned } from '@/components/esign/sign/dateSigned'
 import {
@@ -72,23 +75,32 @@ export function SigningDocumentViewer({
         {fields.filter((field) => field.page_number === pageIndex).map((field) => {
           const pdfFontSize = field.properties?.appearance?.font_size
           const renderedFieldHeight = field.height * size.height
-          const textAlignment = supportsTextAppearance(field.field_type)
-            ? field.properties?.appearance?.alignment
-            : undefined
+          const horizontalAlignment = field.properties?.appearance?.alignment
+            ?? defaultFieldHorizontalAlignment(field.field_type)
+          const verticalAlignment = field.properties?.appearance?.vertical_alignment
+            ?? DEFAULT_FIELD_VERTICAL_ALIGNMENT
+          const renderedFontSize = configuredTextFontSize(pdfFontSize, size.scale, renderedFieldHeight)
+            ?? renderedFieldHeight * 0.7
+          const verticalSpace = Math.max(0, renderedFieldHeight - renderedFontSize * 1.2 - 4)
+          const controlVerticalPadding = verticalAlignment === 'top'
+            ? { paddingTop: 2, paddingBottom: verticalSpace + 2 }
+            : verticalAlignment === 'bottom'
+              ? { paddingTop: verticalSpace + 2, paddingBottom: 2 }
+              : { paddingTop: verticalSpace / 2 + 2, paddingBottom: verticalSpace / 2 + 2 }
           const style: React.CSSProperties = {
             left: field.pos_x * size.width,
             top: field.pos_y * size.height,
             width: field.width * size.width,
             height: field.height * size.height,
             color: field.properties?.appearance?.color ?? undefined,
-            fontSize: configuredTextFontSize(pdfFontSize, size.scale, renderedFieldHeight)
-              ?? renderedFieldHeight * 0.7,
+            fontSize: renderedFontSize,
             fontFamily: textFontFamily(field.properties?.appearance?.font),
             fontWeight: field.properties?.appearance?.bold ? 700 : undefined,
             fontStyle: field.properties?.appearance?.italic ? 'italic' : undefined,
             textDecoration: field.properties?.appearance?.underline ? 'underline' : undefined,
-            textAlign: textAlignment ?? undefined,
-            justifyContent: textAlignment === 'left' ? 'flex-start' : textAlignment === 'right' ? 'flex-end' : textAlignment === 'center' ? 'center' : undefined,
+            textAlign: horizontalAlignment,
+            justifyContent: horizontalAlignment === 'left' ? 'flex-start' : horizontalAlignment === 'right' ? 'flex-end' : 'center',
+            alignItems: verticalAlignment === 'top' ? 'flex-start' : verticalAlignment === 'bottom' ? 'flex-end' : 'center',
           }
           const activeRing = field.id === activeFieldId ? 'ring-2 ring-warning ring-offset-1' : ''
           const tooltip = field.properties?.tooltip ?? field.label ?? undefined
@@ -134,13 +146,13 @@ export function SigningDocumentViewer({
             }} className={cn('absolute flex items-center justify-center rounded-full border-2', activeRing)} style={{ ...style, borderColor: color.border, backgroundColor: 'white' }}>{selected && <span className="size-2/3 rounded-full" style={{ backgroundColor: color.border }} />}</button>
           }
           if (field.field_type === 'dropdown') {
-            return <select key={field.id} id={`esign-field-${field.id}`} title={tooltip} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground', activeRing)} style={{ ...style, borderColor: color.border }}><option value="">Select…</option>{(field.properties?.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+            return <select key={field.id} id={`esign-field-${field.id}`} title={tooltip} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground', activeRing)} style={{ ...style, ...controlVerticalPadding, boxSizing: 'border-box', borderColor: color.border }}><option value="">Select…</option>{(field.properties?.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           }
           if (field.field_type === 'attachment') {
             const attachment = attachments.find((item) => item.field_id === field.id)
             return <div key={field.id} id={`esign-field-${field.id}`} className={cn('absolute flex items-center gap-1 overflow-hidden rounded-sm border-2 bg-surface px-1 text-[10px] text-foreground', activeRing)} style={{ ...style, borderColor: color.border }}>
-              {attachment ? <><Paperclip className="size-3 shrink-0" /><span className="truncate">{attachment.original_filename}</span><button type="button" className="ml-auto" onClick={() => onAttachmentDelete(attachment.id)} aria-label="Remove attachment"><Trash2 className="size-3" /></button></>
-                : <label title={tooltip} className="flex h-full w-full cursor-pointer items-center justify-center gap-1"><Paperclip className="size-3" /> Attach file<input type="file" className="hidden" accept={(field.properties?.allowed_types ?? ['application/pdf', 'image/png', 'image/jpeg']).join(',')} onChange={(event) => { const file = event.target.files?.[0]; if (file) onAttachmentUpload(field.id, file) }} /></label>}
+              {attachment ? <><Paperclip className="size-3 shrink-0" /><span className="truncate">{attachment.original_filename}</span><button type="button" onClick={() => onAttachmentDelete(attachment.id)} aria-label="Remove attachment"><Trash2 className="size-3" /></button></>
+                : <label title={tooltip} className="flex h-full w-full cursor-pointer gap-1" style={{ justifyContent: style.justifyContent, alignItems: style.alignItems }}><Paperclip className="size-3" /> Attach file<input type="file" className="hidden" accept={(field.properties?.allowed_types ?? ['application/pdf', 'image/png', 'image/jpeg']).join(',')} onChange={(event) => { const file = event.target.files?.[0]; if (file) onAttachmentUpload(field.id, file) }} /></label>}
             </div>
           }
           if (field.field_type === 'formula') return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? ''}</div>
@@ -158,7 +170,7 @@ export function SigningDocumentViewer({
             'aria-invalid': !!fieldErrors[field.id],
             'aria-describedby': fieldErrors[field.id] ? `esign-error-${field.id}` : undefined,
             className: cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground focus:outline-none', activeRing, fieldErrors[field.id] && 'border-destructive'),
-            style: { ...style, borderColor: fieldErrors[field.id] ? undefined : color.border },
+            style: { ...style, ...controlVerticalPadding, boxSizing: 'border-box' as const, borderColor: fieldErrors[field.id] ? undefined : color.border },
           }
           if (field.field_type === 'text' && field.properties?.multiline) return <textarea key={field.id} {...controlProps} />
           return <input key={field.id} {...controlProps} type={field.field_type === 'date' ? 'date' : field.field_type === 'number' ? 'number' : 'text'} min={field.field_type === 'date' ? field.properties?.date_validation?.minimum ?? undefined : field.field_type === 'number' && field.properties?.number_validation?.minimum != null ? String(field.properties.number_validation.minimum) : undefined} max={field.field_type === 'date' ? field.properties?.date_validation?.maximum ?? undefined : field.field_type === 'number' && field.properties?.number_validation?.maximum != null ? String(field.properties.number_validation.maximum) : undefined} step={field.field_type === 'number' && field.properties?.number_validation?.decimal_places != null ? String(10 ** -field.properties.number_validation.decimal_places) : undefined} />

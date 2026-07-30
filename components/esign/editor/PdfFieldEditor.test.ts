@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
 import type { EditorField } from './PdfFieldEditor'
-import { supportsTextAppearance, type EditorFieldType } from './anchorPlacement'
+import {
+  DEFAULT_FIELD_VERTICAL_ALIGNMENT,
+  defaultFieldHorizontalAlignment,
+  supportsFieldAlignment,
+  supportsTextAppearance,
+  type EditorFieldType,
+} from './anchorPlacement'
 import { getFloatingToolbarPosition } from './floatingToolbar'
 import { configuredTextFontSize, textFontFamily } from './textAppearance'
 
@@ -55,8 +61,22 @@ describe('text field appearance support', () => {
 
   it.each<EditorFieldType>([
     'signature', 'initials', 'stamp', 'checkbox', 'radio', 'attachment',
-  ])('does not offer text alignment for %s fields', (fieldType) => {
+  ])('does not offer text typography for %s fields', (fieldType) => {
     expect(supportsTextAppearance(fieldType)).toBe(false)
+  })
+
+  it.each<EditorFieldType>([
+    'signature', 'initials', 'stamp', 'date_signed', 'date', 'number', 'text',
+    'first_name', 'last_name', 'full_name', 'email', 'company', 'title', 'note',
+    'auto_fill', 'checkbox', 'radio', 'dropdown', 'attachment', 'formula',
+  ])('offers horizontal and vertical alignment for %s fields', (fieldType) => {
+    expect(supportsFieldAlignment(fieldType)).toBe(true)
+  })
+
+  it('preserves the legacy visual defaults', () => {
+    expect(defaultFieldHorizontalAlignment('text')).toBe('left')
+    expect(defaultFieldHorizontalAlignment('signature')).toBe('center')
+    expect(DEFAULT_FIELD_VERTICAL_ALIGNMENT).toBe('middle')
   })
 })
 

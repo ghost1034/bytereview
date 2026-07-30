@@ -6,6 +6,8 @@ export type EditorFieldType =
 
 export type AnchorRelativePosition = 'auto' | 'right' | 'left' | 'below' | 'above'
 export type AnchorCrossAxisAlignment = 'auto' | 'start' | 'center' | 'end'
+export type FieldHorizontalAlignment = 'left' | 'center' | 'right'
+export type FieldVerticalAlignment = 'top' | 'middle' | 'bottom'
 
 export const DEFAULT_ANCHOR_RELATIVE_POSITION: AnchorRelativePosition = 'auto'
 export const DEFAULT_ANCHOR_CROSS_AXIS_ALIGNMENT: AnchorCrossAxisAlignment = 'auto'
@@ -35,7 +37,18 @@ export function supportsTextAppearance(type: EditorFieldType): boolean {
   return TEXT_FIELD_TYPES.has(type)
 }
 
-export const supportsTextAlignment = supportsTextAppearance
+/** Every field has content that can be positioned inside its field box. */
+export function supportsFieldAlignment(_type: EditorFieldType): boolean {
+  return true
+}
+
+export function defaultFieldHorizontalAlignment(type: EditorFieldType): FieldHorizontalAlignment {
+  return supportsTextAppearance(type) ? 'left' : 'center'
+}
+
+export const DEFAULT_FIELD_VERTICAL_ALIGNMENT: FieldVerticalAlignment = 'middle'
+
+export const supportsTextAlignment = supportsFieldAlignment
 
 export function resolveAnchorFieldType(armedType: EditorFieldType | null): EditorFieldType {
   return armedType ?? 'text'

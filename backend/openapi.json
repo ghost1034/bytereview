@@ -30412,6 +30412,16 @@
             "title": "Alignment",
             "default": "left"
           },
+          "vertical_alignment": {
+            "type": "string",
+            "enum": [
+              "top",
+              "middle",
+              "bottom"
+            ],
+            "title": "Vertical Alignment",
+            "default": "middle"
+          },
           "bold": {
             "type": "boolean",
             "title": "Bold",

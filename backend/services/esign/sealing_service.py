@@ -117,6 +117,7 @@ def _fit_textbox(
     max_fontsize: float,
     fontfile: Optional[str] = None,
     align: int = fitz.TEXT_ALIGN_LEFT,
+    vertical_align: str = "middle",
     color: tuple[float, float, float] = (0, 0, 0),
     underline: bool = False,
 ) -> None:
@@ -150,9 +151,14 @@ def _fit_textbox(
         # Overflows even at minimum size; anchor to the full box and let it spill.
         page.insert_textbox(target, text, fontname=fontname, fontfile=fontfile, fontsize=4, rotate=rotate, align=align, color=color)
         return
-    centered = fitz.Rect(box.x0, box.y0 + leftover / 2.0, box.x1, box.y1)
+    vertical_offset = (
+        0.0 if vertical_align == "top" else
+        leftover if vertical_align == "bottom" else
+        leftover / 2.0
+    )
+    placed_box = fitz.Rect(box.x0, box.y0 + vertical_offset, box.x1, box.y1)
     page.insert_textbox(
-        _derotate(page, centered),
+        _derotate(page, placed_box),
         text,
         fontname=fontname,
         fontfile=fontfile,
@@ -179,7 +185,7 @@ def _fit_textbox(
             if rotate:
                 spage.set_rotation(rotate)
             spage.insert_textbox(
-                _derotate(spage, centered),
+                _derotate(spage, placed_box),
                 text,
                 fontname=fontname,
                 fontfile=fontfile,
@@ -219,6 +225,55 @@ def _fit_textbox(
                         )
 
 
+def _aligned_content_box(
+    box: fitz.Rect,
+    content_width: float,
+    content_height: float,
+    horizontal_align: str,
+    vertical_align: str,
+) -> fitz.Rect:
+    """Fit content proportionally in a display-space field box and align it."""
+    if content_width <= 0 or content_height <= 0:
+        return box
+    scale = min(box.width / content_width, box.height / content_height)
+    width, height = content_width * scale, content_height * scale
+    x0 = (
+        box.x0 if horizontal_align == "left" else
+        box.x1 - width if horizontal_align == "right" else
+        box.x0 + (box.width - width) / 2.0
+    )
+    y0 = (
+        box.y0 if vertical_align == "top" else
+        box.y1 - height if vertical_align == "bottom" else
+        box.y0 + (box.height - height) / 2.0
+    )
+    return fitz.Rect(x0, y0, x0 + width, y0 + height)
+
+
+def _insert_aligned_image(
+    page: fitz.Page,
+    box: fitz.Rect,
+    image_bytes: bytes,
+    *,
+    rotate: int,
+    horizontal_align: str,
+    vertical_align: str,
+) -> None:
+    try:
+        pixmap = fitz.Pixmap(image_bytes)
+        target_box = _aligned_content_box(
+            box, pixmap.width, pixmap.height, horizontal_align, vertical_align
+        )
+    except (RuntimeError, ValueError):
+        target_box = box
+    page.insert_image(
+        _derotate(page, target_box),
+        stream=image_bytes,
+        rotate=rotate,
+        keep_proportion=True,
+    )
+
+
 def _initials_from_name(name: str) -> str:
     parts = [p for p in (name or "").split() if p]
     return "".join(p[0].upper() for p in parts[:3]) or "??"
@@ -237,12 +292,25 @@ def _stamp_field(
     rotate = page.rotation
     # Field height as seen by the user (display space, rotation-aware page.rect).
     display_height = box.height
+    properties = getattr(field, "properties", None) or {}
+    appearance = dict(properties.get("appearance") or {})
+    text_like = field.field_type not in (
+        EsignFieldType.SIGNATURE, EsignFieldType.INITIALS, EsignFieldType.STAMP,
+        EsignFieldType.CHECKBOX, EsignFieldType.RADIO, EsignFieldType.ATTACHMENT,
+    )
+    horizontal_align = str(appearance.get("alignment") or ("left" if text_like else "center"))
+    vertical_align = str(appearance.get("vertical_alignment") or "middle")
+    pdf_alignment = {
+        "left": fitz.TEXT_ALIGN_LEFT,
+        "center": fitz.TEXT_ALIGN_CENTER,
+        "right": fitz.TEXT_ALIGN_RIGHT,
+    }.get(horizontal_align, fitz.TEXT_ALIGN_LEFT)
 
     if field.field_type in (EsignFieldType.SIGNATURE, EsignFieldType.INITIALS, EsignFieldType.STAMP):
         if field.field_type == EsignFieldType.INITIALS:
             if image_bytes:
                 # Signer adopted dedicated initials as an image.
-                page.insert_image(_derotate(page, box), stream=image_bytes, rotate=rotate, keep_proportion=True)
+                _insert_aligned_image(page, box, image_bytes, rotate=rotate, horizontal_align=horizontal_align, vertical_align=vertical_align)
                 return
             # getattr: records adopted before the initials columns existed.
             text = (
@@ -256,26 +324,27 @@ def _stamp_field(
                     or signature_record.typed_font
                 ) if signature_record is not None else None
             )
-            _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.8, align=fitz.TEXT_ALIGN_CENTER)
+            _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.8, align=pdf_alignment, vertical_align=vertical_align)
         elif field.field_type == EsignFieldType.STAMP:
             if image_bytes:
-                page.insert_image(_derotate(page, box), stream=image_bytes, rotate=rotate, keep_proportion=True)
+                _insert_aligned_image(page, box, image_bytes, rotate=rotate, horizontal_align=horizontal_align, vertical_align=vertical_align)
             # A schema-v2 stamp is always an image. No typed/signature fallback
             # is performed here; legacy records are mapped to signature bytes
             # by the loader below.
         elif signature_record is not None and signature_record.signature_type in _IMAGE_SIGNATURE_TYPES and image_bytes:
-            page.insert_image(_derotate(page, box), stream=image_bytes, rotate=rotate, keep_proportion=True)
+            _insert_aligned_image(page, box, image_bytes, rotate=rotate, horizontal_align=horizontal_align, vertical_align=vertical_align)
         elif signature_record is not None:
             text = signature_record.typed_text or (recipient.name if recipient else "")
             fontname, fontfile = _signature_font(signature_record.typed_font)
-            _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.7, align=fitz.TEXT_ALIGN_CENTER)
+            _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.7, align=pdf_alignment, vertical_align=vertical_align)
     elif field.field_type == EsignFieldType.CHECKBOX:
         if (field.value or "").lower() == "true":
-            _fit_textbox(page, box, "X", fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.9, align=fitz.TEXT_ALIGN_CENTER)
+            _fit_textbox(page, box, "X", fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.9, align=pdf_alignment, vertical_align=vertical_align)
     elif field.field_type == EsignFieldType.RADIO:
         if (field.value or "").lower() == "true":
-            target = _derotate(page, box)
-            radius = min(target.width, target.height) * 0.35
+            diameter = min(box.width, box.height) * 0.7
+            target = _derotate(page, _aligned_content_box(box, diameter, diameter, horizontal_align, vertical_align))
+            radius = min(target.width, target.height) / 2.0
             center = fitz.Point((target.x0 + target.x1) / 2, (target.y0 + target.y1) / 2)
             page.draw_circle(center, radius, color=(0, 0, 0), fill=(0, 0, 0), overlay=True)
     elif field.field_type == EsignFieldType.ATTACHMENT:
@@ -287,14 +356,14 @@ def _stamp_field(
                 fontname=_FONT_TEXT,
                 rotate=rotate,
                 max_fontsize=display_height * 0.55,
+                align=pdf_alignment,
+                vertical_align=vertical_align,
             )
     else:
         display_value = resolve_display_value(
             field, field.value, recipient=recipient, date_format=date_format
         )
         if display_value:
-            properties = getattr(field, "properties", None) or {}
-            appearance = dict(properties.get("appearance") or {})
             bold, italic = bool(appearance.get("bold")), bool(appearance.get("italic"))
             family = str(appearance.get("font") or "Helvetica").lower()
             aliases = (
@@ -303,16 +372,14 @@ def _stamp_field(
                 ("hebi", "hebo", "heit", _FONT_TEXT)
             )
             fontname = aliases[0] if bold and italic else aliases[1] if bold else aliases[2] if italic else aliases[3]
-            alignment = {"left": fitz.TEXT_ALIGN_LEFT, "center": fitz.TEXT_ALIGN_CENTER, "right": fitz.TEXT_ALIGN_RIGHT}.get(
-                appearance.get("alignment"), fitz.TEXT_ALIGN_LEFT
-            )
             raw_color = str(appearance.get("color") or "#000000").lstrip("#")
             color = tuple(int(raw_color[index:index + 2], 16) / 255 for index in (0, 2, 4)) if len(raw_color) == 6 else (0, 0, 0)
             requested_size = appearance.get("font_size")
             _fit_textbox(
                 page, box, display_value, fontname=fontname, rotate=rotate,
                 max_fontsize=min(float(requested_size), display_height * 0.9) if requested_size else display_height * 0.7,
-                align=alignment, color=color, underline=bool(appearance.get("underline")),
+                align=pdf_alignment, vertical_align=vertical_align,
+                color=color, underline=bool(appearance.get("underline")),
             )
 
 

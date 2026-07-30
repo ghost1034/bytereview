@@ -155,6 +155,7 @@ class FieldAppearance(BaseModel):
     font_size: Optional[float] = Field(default=None, ge=4, le=144)
     color: str = Field(default="#000000", pattern=r"^#[0-9a-fA-F]{6}$")
     alignment: Literal["left", "center", "right"] = "left"
+    vertical_alignment: Literal["top", "middle", "bottom"] = "middle"
     bold: bool = False
     italic: bool = False
     underline: bool = False
