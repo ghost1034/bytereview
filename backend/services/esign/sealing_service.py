@@ -59,6 +59,7 @@ SEAL_FIELD_NAME = "CPAAutomationSeal"
 # PyMuPDF base-14 font aliases
 _FONT_TEXT = "helv"
 _FONT_SIGNATURE_FALLBACK = "tiit"  # Times-Italic, if the script font file is missing
+_TEXTBOX_FIT_TOLERANCE = 0.01  # PDF points; avoids exact-fit rounding dropping text
 
 # Embedded script fonts for typed signatures, keyed by the typed_font slug the
 # signer adopted (see ALLOWED_TYPED_FONTS in signing_service).
@@ -121,10 +122,10 @@ def _fit_textbox(
     color: tuple[float, float, float] = (0, 0, 0),
     underline: bool = False,
 ) -> None:
-    """Insert text sized to fit `box` (display space) and centered vertically.
+    """Insert text sized to fit `box` (display space) and align it vertically.
 
-    The field editor and signer previews center content inside the field box,
-    so the flattened output must match.
+    The flattened output uses the same vertical placement selected in the field
+    editor and shown in the signer preview.
     """
     target = _derotate(page, box)
     with fitz.open() as scratch:
@@ -153,7 +154,7 @@ def _fit_textbox(
         return
     vertical_offset = (
         0.0 if vertical_align == "top" else
-        leftover if vertical_align == "bottom" else
+        max(0.0, leftover - _TEXTBOX_FIT_TOLERANCE) if vertical_align == "bottom" else
         leftover / 2.0
     )
     placed_box = fitz.Rect(box.x0, box.y0 + vertical_offset, box.x1, box.y1)
@@ -231,11 +232,15 @@ def _aligned_content_box(
     content_height: float,
     horizontal_align: str,
     vertical_align: str,
+    *,
+    allow_upscale: bool = True,
 ) -> fitz.Rect:
     """Fit content proportionally in a display-space field box and align it."""
     if content_width <= 0 or content_height <= 0:
         return box
     scale = min(box.width / content_width, box.height / content_height)
+    if not allow_upscale:
+        scale = min(scale, 1.0)
     width, height = content_width * scale, content_height * scale
     x0 = (
         box.x0 if horizontal_align == "left" else
@@ -343,7 +348,14 @@ def _stamp_field(
     elif field.field_type == EsignFieldType.RADIO:
         if (field.value or "").lower() == "true":
             diameter = min(box.width, box.height) * 0.7
-            target = _derotate(page, _aligned_content_box(box, diameter, diameter, horizontal_align, vertical_align))
+            target = _derotate(page, _aligned_content_box(
+                box,
+                diameter,
+                diameter,
+                horizontal_align,
+                vertical_align,
+                allow_upscale=False,
+            ))
             radius = min(target.width, target.height) / 2.0
             center = fitz.Point((target.x0 + target.x1) / 2, (target.y0 + target.y1) / 2)
             page.draw_circle(center, radius, color=(0, 0, 0), fill=(0, 0, 0), overlay=True)

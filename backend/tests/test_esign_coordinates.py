@@ -15,18 +15,21 @@ import os
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import fitz
 
+from models.db_models import EsignFieldType
 from services.esign.sealing_service import (
     _aligned_content_box,
     _display_box,
     _display_rect,
     _fit_textbox,
     _insert_aligned_image,
+    _stamp_field,
 )
 
 
@@ -157,6 +160,66 @@ class EsignCoordinateTests(unittest.TestCase):
 
         self.assertLess(centers["top"], centers["middle"])
         self.assertLess(centers["middle"], centers["bottom"])
+
+    def test_bottom_aligned_text_survives_fractional_exact_fit(self) -> None:
+        doc = _page_with_rotation(0)
+        page = doc[0]
+        box = _display_box(page, 0.1, 0.1, 0.5, 0.2)
+
+        _fit_textbox(
+            page,
+            box,
+            "HELLO",
+            fontname="helv",
+            rotate=0,
+            max_fontsize=16,
+            vertical_align="bottom",
+        )
+
+        _, _, max_x, _ = _ink_bbox(page)
+        self.assertGreater(max_x, 0, "bottom-aligned text was dropped")
+        doc.close()
+
+    def test_radio_alignment_moves_dot_on_both_axes(self) -> None:
+        centers = {}
+        square_height_fraction = (0.1 * 612) / 792
+        for horizontal, vertical in (
+            ("left", "top"),
+            ("center", "middle"),
+            ("right", "bottom"),
+        ):
+            doc = _page_with_rotation(0)
+            page = doc[0]
+            field = SimpleNamespace(
+                pos_x=0.1,
+                pos_y=0.1,
+                width=0.1,
+                height=square_height_fraction,
+                field_type=EsignFieldType.RADIO,
+                value="true",
+                properties={
+                    "appearance": {
+                        "alignment": horizontal,
+                        "vertical_alignment": vertical,
+                    },
+                },
+            )
+
+            _stamp_field(page, field, None, None, None)
+            min_x, min_y, max_x, max_y = _ink_bbox(page)
+            centers[(horizontal, vertical)] = (
+                (min_x + max_x) / 2,
+                (min_y + max_y) / 2,
+            )
+            doc.close()
+
+        top_left = centers[("left", "top")]
+        middle = centers[("center", "middle")]
+        bottom_right = centers[("right", "bottom")]
+        self.assertLess(top_left[0], middle[0])
+        self.assertLess(middle[0], bottom_right[0])
+        self.assertLess(top_left[1], middle[1])
+        self.assertLess(middle[1], bottom_right[1])
 
     def test_image_lands_in_display_rect_for_all_rotations(self) -> None:
         pm = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 20))
