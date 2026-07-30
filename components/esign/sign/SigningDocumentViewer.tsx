@@ -9,7 +9,12 @@ import {
   DEFAULT_FIELD_VERTICAL_ALIGNMENT,
   defaultFieldHorizontalAlignment,
 } from '@/components/esign/editor/anchorPlacement'
-import { signingTextFontSize, textFontFamily } from '@/components/esign/editor/textAppearance'
+import {
+  DEFAULT_TYPED_MARK_HEIGHT_RATIO,
+  DEFAULT_TYPED_MARK_POINT_SIZE,
+  signingTextFontSize,
+  textFontFamily,
+} from '@/components/esign/editor/textAppearance'
 import { formatDateSigned } from '@/components/esign/sign/dateSigned'
 import {
   signatureFontFamily,
@@ -112,6 +117,13 @@ export function SigningDocumentViewer({
             const complete = !!adopted && fieldValues[field.id] === 'true'
             const isInitials = field.field_type === 'initials'
             const isStamp = field.field_type === 'stamp'
+            const renderedMarkFontSize = signingTextFontSize(
+              pdfFontSize,
+              size.scale,
+              renderedFieldHeight,
+              DEFAULT_TYPED_MARK_POINT_SIZE,
+              DEFAULT_TYPED_MARK_HEIGHT_RATIO,
+            )
             const imageUrl = isStamp
               ? adopted?.stampImageDataUrl
               : isInitials
@@ -119,11 +131,11 @@ export function SigningDocumentViewer({
               : adopted?.signatureType !== 'typed' ? adopted?.imageDataUrl : undefined
             return <button key={field.id} id={`esign-field-${field.id}`} type="button" onClick={() => onFieldClick(field)}
               className={cn('absolute flex items-center justify-center overflow-hidden rounded-sm border text-xs font-medium transition-colors', complete ? 'border-success bg-white' : 'animate-none border-2', activeRing)}
-              title={tooltip} style={{ ...style, fontSize: complete ? style.fontSize : undefined, ...(complete ? {} : { borderColor: color.border, backgroundColor: color.bg, color: color.text }) }}>
+              title={tooltip} style={{ ...style, fontSize: complete ? renderedMarkFontSize : undefined, ...(complete ? {} : { borderColor: color.border, backgroundColor: color.bg, color: color.text }) }}>
               {complete ? imageUrl
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={imageUrl} alt={isStamp ? 'Your stamp' : isInitials ? 'Your initials' : 'Your signature'} className="max-h-full max-w-full object-contain" />
-                : <span className="truncate px-1 text-lg leading-none text-foreground" style={{ fontFamily: signatureFontFamily(adopted?.typedFont) }}>{isInitials ? adopted?.initialsText : adopted?.typedText}</span>
+                : <span className="truncate px-1 leading-none text-foreground" style={{ fontFamily: signatureFontFamily(adopted?.typedFont) }}>{isInitials ? adopted?.initialsText : adopted?.typedText}</span>
                 : <span className="inline-flex items-center gap-1 truncate px-1"><PenLine className="size-3.5" />{isInitials ? 'Initial' : field.field_type === 'stamp' ? 'Apply stamp' : 'Sign here'}</span>}
             </button>
           }

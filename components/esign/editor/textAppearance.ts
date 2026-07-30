@@ -1,4 +1,8 @@
 export const TEXT_FONT_OPTIONS = ['Helvetica', 'Times', 'Courier'] as const
+export const DEFAULT_TEXT_POINT_SIZE = 10
+export const DEFAULT_TEXT_HEIGHT_RATIO = 0.5
+export const DEFAULT_TYPED_MARK_POINT_SIZE = 18
+export const DEFAULT_TYPED_MARK_HEIGHT_RATIO = 0.7
 
 /** Map the PDF-safe font names stored on a field to browser font stacks. */
 export function textFontFamily(font = 'Helvetica'): string {
@@ -23,8 +27,9 @@ export function signingTextFontSize(
   fontSize: number | null | undefined,
   pageScale: number,
   renderedFieldHeight: number,
-  fallbackPointSize = 10,
+  fallbackPointSize = DEFAULT_TEXT_POINT_SIZE,
+  fallbackHeightRatio = DEFAULT_TEXT_HEIGHT_RATIO,
 ): number {
   return configuredTextFontSize(fontSize, pageScale, renderedFieldHeight)
-    ?? Math.min(fallbackPointSize * pageScale, renderedFieldHeight * 0.5)
+    ?? Math.min(fallbackPointSize * pageScale, renderedFieldHeight * fallbackHeightRatio)
 }

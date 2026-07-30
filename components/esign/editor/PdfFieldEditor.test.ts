@@ -9,7 +9,13 @@ import {
   type EditorFieldType,
 } from './anchorPlacement'
 import { getFloatingToolbarPosition } from './floatingToolbar'
-import { configuredTextFontSize, signingTextFontSize, textFontFamily } from './textAppearance'
+import {
+  DEFAULT_TYPED_MARK_HEIGHT_RATIO,
+  DEFAULT_TYPED_MARK_POINT_SIZE,
+  configuredTextFontSize,
+  signingTextFontSize,
+  textFontFamily,
+} from './textAppearance'
 
 const field: EditorField = {
   id: 'field-1',
@@ -97,5 +103,15 @@ describe('configured text font rendering', () => {
     expect(signingTextFontSize(undefined, 1.5, 30)).toBe(15)
     expect(signingTextFontSize(undefined, 2, 12)).toBe(6)
     expect(signingTextFontSize(12, 1.5, 30)).toBe(18)
+  })
+
+  it('uses the shared typed-mark default without overflowing its field', () => {
+    expect(signingTextFontSize(
+      undefined,
+      1.5,
+      30,
+      DEFAULT_TYPED_MARK_POINT_SIZE,
+      DEFAULT_TYPED_MARK_HEIGHT_RATIO,
+    )).toBe(21)
   })
 })

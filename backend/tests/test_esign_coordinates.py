@@ -22,13 +22,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import fitz
 
-from models.db_models import EsignFieldType
+from models.db_models import EsignFieldType, EsignSignatureType
 from services.esign.sealing_service import (
     _aligned_content_box,
     _display_box,
     _display_rect,
     _fit_textbox,
     _insert_aligned_image,
+    _resolved_text_font_size,
     _stamp_field,
 )
 
@@ -59,6 +60,19 @@ def _ink_bbox(page: fitz.Page) -> tuple[float, float, float, float]:
                 max_x = max(max_x, x)
                 max_y = max(max_y, y)
     return min_x, min_y, max_x, max_y
+
+
+def _ink_bottom(page: fitz.Page, clip: fitz.Rect, dpi: int = 144) -> float:
+    """Bottom of painted pixels in display-space PDF points."""
+    pix = page.get_pixmap(dpi=dpi, clip=clip)
+    last_row = -1
+    for y in range(pix.height):
+        if any(min(pix.pixel(x, y)[:3]) < 200 for x in range(pix.width)):
+            last_row = y
+    if last_row < 0:
+        raise AssertionError("no ink rendered in clip")
+    scale = dpi / 72
+    return (pix.y + last_row + 1) / scale
 
 
 def _longest_ink_runs(page: fitz.Page) -> tuple[int, int]:
@@ -180,6 +194,62 @@ class EsignCoordinateTests(unittest.TestCase):
         self.assertGreater(max_x, 0, "bottom-aligned text was dropped")
         doc.close()
 
+    def test_production_signature_and_date_share_visual_bottom_inset(self) -> None:
+        """Regression for envelope 4934ad1f-5174-4cb1-a53f-cdead613d50a."""
+        doc = _page_with_rotation(0)
+        page = doc[0]
+        appearance = {
+            "appearance": {
+                "alignment": "left",
+                "vertical_alignment": "bottom",
+            },
+        }
+        signature = SimpleNamespace(
+            pos_x=0.3692776625,
+            pos_y=0.6016289640,
+            width=0.2401115334,
+            height=0.0343289743,
+            field_type=EsignFieldType.SIGNATURE,
+            value="signature-record",
+            properties=appearance,
+        )
+        signature_record = SimpleNamespace(
+            signature_type=EsignSignatureType.TYPED,
+            typed_text="Ian Stewart",
+            typed_font="dancing-script",
+        )
+        signed_date = SimpleNamespace(
+            pos_x=0.8019613263,
+            pos_y=0.6067934511,
+            width=0.0767650985,
+            height=0.0300000000,
+            field_type=EsignFieldType.DATE_SIGNED,
+            value="2026-07-30",
+            properties=appearance,
+        )
+
+        _stamp_field(page, signature, None, signature_record, None)
+        _stamp_field(page, signed_date, None, None, None)
+
+        signature_box = _display_box(
+            page, signature.pos_x, signature.pos_y, signature.width, signature.height
+        )
+        date_box = _display_box(
+            page, signed_date.pos_x, signed_date.pos_y, signed_date.width, signed_date.height
+        )
+        signature_bottom = _ink_bottom(page, signature_box)
+        date_bottom = _ink_bottom(page, date_box)
+
+        self.assertAlmostEqual(signature_box.y1 - signature_bottom, 2.0, delta=0.75)
+        self.assertAlmostEqual(date_box.y1 - date_bottom, 2.0, delta=0.75)
+        self.assertLessEqual(abs(signature_bottom - date_bottom), 1.0)
+        doc.close()
+
+    def test_default_text_size_matches_signer_preview_contract(self) -> None:
+        self.assertEqual(_resolved_text_font_size(None, 30), 10)
+        self.assertEqual(_resolved_text_font_size(None, 12), 6)
+        self.assertEqual(_resolved_text_font_size(12, 30), 12)
+
     def test_radio_alignment_moves_dot_on_both_axes(self) -> None:
         centers = {}
         square_height_fraction = (0.1 * 612) / 792
@@ -270,6 +340,28 @@ class EsignCoordinateTests(unittest.TestCase):
 
         self.assertLess(centers["top"], centers["middle"])
         self.assertLess(centers["middle"], centers["bottom"])
+
+    def test_transparent_image_padding_does_not_shift_bottom_alignment(self) -> None:
+        pm = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 40, 20), True)
+        pm.clear_with(255)
+        pm.set_alpha(bytes(pm.width * pm.height))
+        pm.set_rect(fitz.IRect(5, 3, 35, 10), (0, 0, 0, 255))
+        png = pm.tobytes("png")
+        doc = _page_with_rotation(0)
+        page = doc[0]
+        box = _display_box(page, 0.1, 0.1, 0.35, 0.15)
+
+        _insert_aligned_image(
+            page,
+            box,
+            png,
+            rotate=0,
+            horizontal_align="center",
+            vertical_align="bottom",
+        )
+
+        self.assertAlmostEqual(box.y1 - _ink_bottom(page, box), 0.0, delta=0.75)
+        doc.close()
 
     def test_underlines_follow_text_for_all_page_rotations(self) -> None:
         for rotation in (0, 90, 180, 270):

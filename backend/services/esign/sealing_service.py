@@ -60,6 +60,10 @@ SEAL_FIELD_NAME = "CPAAutomationSeal"
 _FONT_TEXT = "helv"
 _FONT_SIGNATURE_FALLBACK = "tiit"  # Times-Italic, if the script font file is missing
 _TEXTBOX_FIT_TOLERANCE = 0.01  # PDF points; avoids exact-fit rounding dropping text
+_FIELD_CONTENT_INSET = 2.0  # PDF points; matches the signer preview's edge padding
+_ALIGNMENT_MEASURE_SCALE = 2.0  # 144 dpi; resolves visual edges to half a point
+_DEFAULT_TEXT_FONT_SIZE = 10.0
+_DEFAULT_TYPED_MARK_FONT_SIZE = 18.0
 
 # Embedded script fonts for typed signatures, keyed by the typed_font slug the
 # signer adopted (see ALLOWED_TYPED_FONTS in signing_service).
@@ -108,6 +112,85 @@ def _display_rect(page: fitz.Page, pos_x: float, pos_y: float, width: float, hei
     return _derotate(page, _display_box(page, pos_x, pos_y, width, height))
 
 
+def _visible_ink_vertical_bounds(
+    page: fitz.Page,
+    box: fitz.Rect,
+    *,
+    margin: float,
+) -> Optional[tuple[float, float]]:
+    """Return painted-content top/bottom in rotation-aware display space.
+
+    Text extraction bounding boxes include font-specific ascender and descender
+    reserves. Rasterizing only the small field area lets vertical alignment use
+    the pixels the signer actually sees, including custom signature fonts.
+    """
+    clip = fitz.Rect(
+        max(page.rect.x0, box.x0 - margin),
+        max(page.rect.y0, box.y0 - margin),
+        min(page.rect.x1, box.x1 + margin),
+        min(page.rect.y1, box.y1 + margin),
+    )
+    if clip.is_empty:
+        return None
+    pixmap = page.get_pixmap(
+        matrix=fitz.Matrix(_ALIGNMENT_MEASURE_SCALE, _ALIGNMENT_MEASURE_SCALE),
+        clip=clip,
+        alpha=True,
+    )
+    if not pixmap.alpha or pixmap.width <= 0 or pixmap.height <= 0:
+        return None
+    samples = memoryview(pixmap.samples)
+    alpha_index = pixmap.n - 1
+    first_row: Optional[int] = None
+    last_row: Optional[int] = None
+    for row_index in range(pixmap.height):
+        start = row_index * pixmap.stride
+        row = samples[start + alpha_index:start + pixmap.width * pixmap.n:pixmap.n]
+        if any(row):
+            if first_row is None:
+                first_row = row_index
+            last_row = row_index
+    if first_row is None or last_row is None:
+        return None
+    return (
+        pixmap.y / _ALIGNMENT_MEASURE_SCALE + first_row / _ALIGNMENT_MEASURE_SCALE,
+        pixmap.y / _ALIGNMENT_MEASURE_SCALE + (last_row + 1) / _ALIGNMENT_MEASURE_SCALE,
+    )
+
+
+def _visual_vertical_offset(
+    page: fitz.Page,
+    box: fitz.Rect,
+    *,
+    vertical_align: str,
+    fontsize: float,
+) -> Optional[float]:
+    bounds = _visible_ink_vertical_bounds(page, box, margin=max(fontsize * 2.0, 4.0))
+    if bounds is None:
+        return None
+    ink_top, ink_bottom = bounds
+    ink_height = ink_bottom - ink_top
+    inset = min(_FIELD_CONTENT_INSET, max(0.0, (box.height - ink_height) / 2.0))
+    if vertical_align == "top":
+        return box.y0 + inset - ink_top
+    if vertical_align == "bottom":
+        return box.y1 - inset - ink_bottom
+    return (box.y0 + box.y1) / 2.0 - (ink_top + ink_bottom) / 2.0
+
+
+def _resolved_text_font_size(
+    requested_size: Any,
+    display_height: float,
+    *,
+    fallback_size: float = _DEFAULT_TEXT_FONT_SIZE,
+    fallback_height_ratio: float = 0.5,
+) -> float:
+    """Resolve the same point-size contract used by the signing preview."""
+    if requested_size is not None:
+        return min(float(requested_size), display_height * 0.9)
+    return min(fallback_size, display_height * fallback_height_ratio)
+
+
 def _fit_textbox(
     page: fitz.Page,
     box: fitz.Rect,
@@ -127,13 +210,18 @@ def _fit_textbox(
     The flattened output uses the same vertical placement selected in the field
     editor and shown in the signer preview.
     """
-    target = _derotate(page, box)
+    leftover = -1.0
+    fontsize = max(max_fontsize, 4.0)
+    vertical_offset: Optional[float] = None
     with fitz.open() as scratch:
         spage = scratch.new_page(width=page.mediabox.width, height=page.mediabox.height)
+        try:
+            spage.set_cropbox(page.cropbox)
+        except ValueError:
+            pass
         if rotate:
             spage.set_rotation(rotate)
-        fontsize = max(max_fontsize, 4.0)
-        leftover = -1.0
+        target = _derotate(spage, box)
         while fontsize >= 4:
             leftover = spage.insert_textbox(
                 target,
@@ -148,16 +236,28 @@ def _fit_textbox(
             if leftover >= 0:
                 break
             fontsize -= 1
+        if leftover >= 0:
+            vertical_offset = _visual_vertical_offset(
+                spage,
+                box,
+                vertical_align=vertical_align,
+                fontsize=fontsize,
+            )
     if leftover < 0:
         # Overflows even at minimum size; anchor to the full box and let it spill.
-        page.insert_textbox(target, text, fontname=fontname, fontfile=fontfile, fontsize=4, rotate=rotate, align=align, color=color)
+        page.insert_textbox(_derotate(page, box), text, fontname=fontname, fontfile=fontfile, fontsize=4, rotate=rotate, align=align, color=color)
         return
-    vertical_offset = (
-        0.0 if vertical_align == "top" else
-        max(0.0, leftover - _TEXTBOX_FIT_TOLERANCE) if vertical_align == "bottom" else
-        leftover / 2.0
-    )
-    placed_box = fitz.Rect(box.x0, box.y0 + vertical_offset, box.x1, box.y1)
+    if vertical_offset is None:
+        vertical_offset = (
+            0.0 if vertical_align == "top" else
+            max(0.0, leftover - _TEXTBOX_FIT_TOLERANCE) if vertical_align == "bottom" else
+            leftover / 2.0
+        )
+        placed_box = fitz.Rect(box.x0, box.y0 + vertical_offset, box.x1, box.y1)
+    else:
+        # Translate the full layout rectangle. Its invisible descender reserve
+        # may extend outside the field, while the painted pixels remain inside.
+        placed_box = fitz.Rect(box.x0, box.y0 + vertical_offset, box.x1, box.y1 + vertical_offset)
     page.insert_textbox(
         _derotate(page, placed_box),
         text,
@@ -255,6 +355,60 @@ def _aligned_content_box(
     return fitz.Rect(x0, y0, x0 + width, y0 + height)
 
 
+def _pixmap_visible_bounds(pixmap: fitz.Pixmap) -> tuple[int, int, int, int]:
+    """Return the non-transparent pixel bounds, or the full image if opaque."""
+    if not pixmap.alpha:
+        return 0, 0, pixmap.width, pixmap.height
+    samples = memoryview(pixmap.samples)
+    alpha_index = pixmap.n - 1
+    min_x, min_y = pixmap.width, pixmap.height
+    max_x = max_y = -1
+    for y in range(pixmap.height):
+        start = y * pixmap.stride
+        row = samples[start + alpha_index:start + pixmap.width * pixmap.n:pixmap.n]
+        for x, alpha in enumerate(row):
+            if alpha:
+                min_x, min_y = min(min_x, x), min(min_y, y)
+                max_x, max_y = max(max_x, x), max(max_y, y)
+    if max_x < 0 or max_y < 0:
+        return 0, 0, pixmap.width, pixmap.height
+    return min_x, min_y, max_x + 1, max_y + 1
+
+
+def _aligned_image_box(
+    box: fitz.Rect,
+    pixmap: fitz.Pixmap,
+    horizontal_align: str,
+    vertical_align: str,
+) -> fitz.Rect:
+    """Fit and align visible image pixels rather than transparent padding."""
+    visible_x0, visible_y0, visible_x1, visible_y1 = _pixmap_visible_bounds(pixmap)
+    visible_width = visible_x1 - visible_x0
+    visible_height = visible_y1 - visible_y0
+    if visible_width <= 0 or visible_height <= 0:
+        return box
+    scale = min(box.width / visible_width, box.height / visible_height)
+    content_width, content_height = visible_width * scale, visible_height * scale
+    content_x0 = (
+        box.x0 if horizontal_align == "left" else
+        box.x1 - content_width if horizontal_align == "right" else
+        box.x0 + (box.width - content_width) / 2.0
+    )
+    content_y0 = (
+        box.y0 if vertical_align == "top" else
+        box.y1 - content_height if vertical_align == "bottom" else
+        box.y0 + (box.height - content_height) / 2.0
+    )
+    image_x0 = content_x0 - visible_x0 * scale
+    image_y0 = content_y0 - visible_y0 * scale
+    return fitz.Rect(
+        image_x0,
+        image_y0,
+        image_x0 + pixmap.width * scale,
+        image_y0 + pixmap.height * scale,
+    )
+
+
 def _insert_aligned_image(
     page: fitz.Page,
     box: fitz.Rect,
@@ -266,9 +420,7 @@ def _insert_aligned_image(
 ) -> None:
     try:
         pixmap = fitz.Pixmap(image_bytes)
-        target_box = _aligned_content_box(
-            box, pixmap.width, pixmap.height, horizontal_align, vertical_align
-        )
+        target_box = _aligned_image_box(box, pixmap, horizontal_align, vertical_align)
     except (RuntimeError, ValueError):
         target_box = box
     page.insert_image(
@@ -329,7 +481,16 @@ def _stamp_field(
                     or signature_record.typed_font
                 ) if signature_record is not None else None
             )
-            _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.8, align=pdf_alignment, vertical_align=vertical_align)
+            _fit_textbox(
+                page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate,
+                max_fontsize=_resolved_text_font_size(
+                    None,
+                    display_height,
+                    fallback_size=_DEFAULT_TYPED_MARK_FONT_SIZE,
+                    fallback_height_ratio=0.7,
+                ),
+                align=pdf_alignment, vertical_align=vertical_align,
+            )
         elif field.field_type == EsignFieldType.STAMP:
             if image_bytes:
                 _insert_aligned_image(page, box, image_bytes, rotate=rotate, horizontal_align=horizontal_align, vertical_align=vertical_align)
@@ -341,7 +502,16 @@ def _stamp_field(
         elif signature_record is not None:
             text = signature_record.typed_text or (recipient.name if recipient else "")
             fontname, fontfile = _signature_font(signature_record.typed_font)
-            _fit_textbox(page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate, max_fontsize=display_height * 0.7, align=pdf_alignment, vertical_align=vertical_align)
+            _fit_textbox(
+                page, box, text, fontname=fontname, fontfile=fontfile, rotate=rotate,
+                max_fontsize=_resolved_text_font_size(
+                    appearance.get("font_size"),
+                    display_height,
+                    fallback_size=_DEFAULT_TYPED_MARK_FONT_SIZE,
+                    fallback_height_ratio=0.7,
+                ),
+                align=pdf_alignment, vertical_align=vertical_align,
+            )
     elif field.field_type == EsignFieldType.CHECKBOX:
         if (field.value or "").lower() == "true":
             _fit_textbox(page, box, "X", fontname=_FONT_TEXT, rotate=rotate, max_fontsize=display_height * 0.9, align=pdf_alignment, vertical_align=vertical_align)
@@ -386,10 +556,9 @@ def _stamp_field(
             fontname = aliases[0] if bold and italic else aliases[1] if bold else aliases[2] if italic else aliases[3]
             raw_color = str(appearance.get("color") or "#000000").lstrip("#")
             color = tuple(int(raw_color[index:index + 2], 16) / 255 for index in (0, 2, 4)) if len(raw_color) == 6 else (0, 0, 0)
-            requested_size = appearance.get("font_size")
             _fit_textbox(
                 page, box, display_value, fontname=fontname, rotate=rotate,
-                max_fontsize=min(float(requested_size), display_height * 0.9) if requested_size else display_height * 0.7,
+                max_fontsize=_resolved_text_font_size(appearance.get("font_size"), display_height),
                 align=pdf_alignment, vertical_align=vertical_align,
                 color=color, underline=bool(appearance.get("underline")),
             )
