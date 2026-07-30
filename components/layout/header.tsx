@@ -83,7 +83,6 @@ const PRODUCT_LINKS: ProductLink[] = [
     href: '/#esign-showcase',
     description: 'Send, sign, and verify documents',
     icon: FileSignature,
-    status: 'beta',
   },
   {
     label: 'Chrona',

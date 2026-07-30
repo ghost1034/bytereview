@@ -6,8 +6,6 @@ order: 1
 
 E-Signature lets you send PDF documents for electronic signature inside CPAAutomation. Each request is packaged as an **envelope** containing the documents, recipients, fields to complete, signing rules, and an audit trail.
 
-> **Development notice:** E-Signature is an early work in progress and is not intended for public use. Do not rely on it for legally binding agreements or use it to store sensitive documents. The in-product disclaimer appears once per browser session.
-
 ## What you can do
 
 - **Send one or more PDFs for signature** - add signers, optional CC recipients, and fields directly on each page.

@@ -93,7 +93,7 @@ const PRODUCTS_GROUP: NavGroup = {
       href: '/dashboard/project-management',
       icon: FolderKanban,
     },
-    { name: 'E-Signature (beta)', href: '/dashboard/esign', icon: FileSignature },
+    { name: 'E-Signature', href: '/dashboard/esign', icon: FileSignature },
   ],
 }
 

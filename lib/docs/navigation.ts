@@ -73,7 +73,7 @@ export const DOCS_SECTIONS: DocSectionConfig[] = [
   },
   {
     slug: 'e-signature',
-    title: 'E-Signature (beta)',
+    title: 'E-Signature',
     icon: FileSignature,
     description: 'Send, sign, and verify documents',
   },

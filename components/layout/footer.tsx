@@ -71,7 +71,7 @@ export default function Footer() {
                 </FooterLink>
               </li>
               <li>
-                <FooterLink href="/#esign-showcase">E-Signature (beta)</FooterLink>
+                <FooterLink href="/#esign-showcase">E-Signature</FooterLink>
               </li>
               <li>
                 <FooterLink href="/#chrona-showcase">Chrona</FooterLink>

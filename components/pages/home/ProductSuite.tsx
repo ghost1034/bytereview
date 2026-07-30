@@ -83,7 +83,7 @@ const PRODUCTS: Product[] = [
       'Prepare, send, sign, and track documents with reusable templates and completion evidence.',
     icon: FileSignature,
     tone: 'rose',
-    status: 'Beta',
+    status: 'Available now',
     href: '#esign-showcase',
   },
   {

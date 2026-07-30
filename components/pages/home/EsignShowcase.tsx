@@ -55,14 +55,7 @@ const ENVELOPES = [
 
 function EsignMockup() {
   return (
-    <BrowserFrame
-      label="E-Signature"
-      rightSlot={
-        <span className="rounded-full border border-rose-400/30 bg-rose-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-rose-300">
-          Beta
-        </span>
-      }
-    >
+    <BrowserFrame label="E-Signature">
       <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Envelopes</p>
@@ -179,7 +172,7 @@ export default function EsignShowcase({ onTryProduct }: EsignShowcaseProps) {
     <SectionShell
       id="esign-showcase"
       surface="tint-strong"
-      eyebrow="E-Signature · Beta"
+      eyebrow="E-Signature"
       eyebrowIcon={FileSignature}
       eyebrowTone={TONE}
       title={
@@ -199,7 +192,7 @@ export default function EsignShowcase({ onTryProduct }: EsignShowcaseProps) {
           onClick={() => onTryProduct('/dashboard/esign')}
           className="bg-rose-500 text-white hover:bg-rose-600"
         >
-          Try E-Signature beta
+          Try E-Signature
         </Button>
         <Button asChild variant="outline">
           <Link href="/docs/e-signature/overview">Read the docs</Link>
