@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Check, FolderKanban } from 'lucide-react'
+import { Check, Sparkles } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { SectionShell } from '@/components/pages/home/shared/SectionShell'
@@ -9,15 +9,15 @@ import { staggerChild, staggerContainer, viewportOnce } from '@/lib/animations'
 
 const MILESTONES = [
   {
-    icon: FolderKanban,
-    title: 'AI Productivity Suite',
+    icon: Sparkles,
+    title: 'More productivity tools',
     description:
-      'AI-powered project management, month-end checklists, slide decks, and expense reimbursement.',
+      'AI-powered month-end checklists, slide decks, and expense reimbursement workflows.',
     capabilities: [
       'Month-end close checklists with progress tracking',
       'AI-generated slide presentations from data',
       'Expense reimbursement processing',
-      'Project timeline and task management',
+      'Review and approval workflows',
     ],
   },
 ]

@@ -1986,5 +1986,13 @@ async def run_esign_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
     return await esign_maintenance_service.run()
 
 
+async def run_tasklytic_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """Deliver due dashboard digests and expire incomplete direct uploads."""
+    from services.tasklytic_maintenance import run_tasklytic_maintenance as run
+
+    logger.info("Running Tasklytic maintenance")
+    return await run()
+
+
 if __name__ == "__main__":
     asyncio.run(main())

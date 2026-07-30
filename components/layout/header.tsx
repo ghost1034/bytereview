@@ -105,10 +105,9 @@ const PRODUCT_LINKS: ProductLink[] = [
   },
   {
     label: 'AI Productivity Suite',
-    href: '/#roadmap',
-    description: 'Project management & more',
+    href: '/#productivity-suite-showcase',
+    description: 'Projects, tasks, forms, time, reporting & AI',
     icon: FolderKanban,
-    status: 'soon',
   },
 ]
 

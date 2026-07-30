@@ -17,6 +17,7 @@ const ExtractionFeatures = dynamic(() => import("./ExtractionFeatures"));
 const AutomationFlow = dynamic(() => import("./AutomationFlow"));
 const FormFillShowcase = dynamic(() => import("./FormFillShowcase"));
 const InkwiseShowcase = dynamic(() => import("./InkwiseShowcase"));
+const ProjectManagementShowcase = dynamic(() => import("./ProjectManagementShowcase"));
 const EsignShowcase = dynamic(() => import("./EsignShowcase"));
 const ChronaShowcase = dynamic(() => import("./ChronaShowcase"));
 const AnalyticsShowcase = dynamic(() => import("./AnalyticsShowcase"));
@@ -57,6 +58,7 @@ export default function Home() {
       <AutomationFlow onGetStarted={handleGetStarted} />
       <FormFillShowcase onTryProduct={handleProtectedNavigation} />
       <InkwiseShowcase onTryProduct={handleProtectedNavigation} />
+      <ProjectManagementShowcase />
       <EsignShowcase onTryProduct={handleProtectedNavigation} />
       <ChronaShowcase />
       <ClawShowcase />

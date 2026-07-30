@@ -16,6 +16,7 @@ export type Accent =
   | 'blue'
   | 'cyan'
   | 'violet'
+  | 'indigo'
   | 'rose'
   | 'emerald'
   | 'amber'
@@ -60,6 +61,14 @@ export const ACCENTS: Record<Accent, AccentStyle> = {
     hoverBorder: 'hover:border-violet-400/40',
     gradient: 'from-violet-300 to-violet-500',
     dot: 'bg-violet-400',
+  },
+  indigo: {
+    chip: 'bg-indigo-400/10 text-indigo-300 ring-1 ring-indigo-400/20',
+    text: 'text-indigo-300',
+    pill: 'border-indigo-400/30 bg-indigo-400/10 text-indigo-300',
+    hoverBorder: 'hover:border-indigo-400/40',
+    gradient: 'from-indigo-300 to-indigo-500',
+    dot: 'bg-indigo-400',
   },
   rose: {
     chip: 'bg-rose-400/10 text-rose-300 ring-1 ring-rose-400/20',

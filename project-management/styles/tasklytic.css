@@ -1,0 +1,408 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;500;600&display=swap');
+
+/**
+ * Tasklytic warm editorial theme — scoped CSS variables for the module.
+ * Token names match the build plan; values follow Anthropic-inspired palette.
+ */
+.tasklytic-root {
+  --bg-base: #faf9f5;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #f0ebe0;
+  --bg-muted: #f5f2eb;
+  --bg-overlay: rgba(245, 242, 235, 0.85);
+  --ink-primary: #1a1a19;
+  --ink-secondary: #3c3a35;
+  --ink-muted: #6b675e;
+  --ink-faint: #a39e92;
+  --ink-inverse: #faf9f5;
+  --border-subtle: #e8e2d4;
+  --border-default: #d9d2bf;
+  --border-strong: #b8b0a0;
+  --primary: #cc785c;
+  --primary-hover: #b05d40;
+  --primary-soft: #f5e5de;
+  --primary-glow: rgba(204, 120, 92, 0.35);
+  --accent: #6b8e5a;
+  --accent-soft: #e5ebdd;
+  --warning: #c99846;
+  --warning-soft: #f5ebd5;
+  --danger: #bc4a3f;
+  --danger-soft: #f2dad7;
+  --info: #5c7a8c;
+  --info-soft: #dce3e9;
+  color: var(--ink-primary);
+  background: var(--bg-base);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.tasklytic-root.dark,
+.dark .tasklytic-root {
+  --bg-base: #1a1a19;
+  --bg-elevated: #242421;
+  --bg-sunken: #131211;
+  --bg-muted: #1f1e1c;
+  --bg-overlay: rgba(20, 19, 17, 0.85);
+  --ink-primary: #f5f2eb;
+  --ink-secondary: #c9c3b5;
+  --ink-muted: #837f75;
+  --ink-faint: #58544a;
+  --ink-inverse: #1a1a19;
+  --border-subtle: #2e2c28;
+  --border-default: #3c3a35;
+  --border-strong: #58544a;
+  --primary: #e08a6f;
+  --primary-hover: #efa188;
+  --primary-soft: #3a2520;
+  --primary-glow: rgba(224, 138, 111, 0.45);
+  --accent: #8fb07a;
+  --accent-soft: #283021;
+  --warning: #e0b167;
+  --warning-soft: #3d311f;
+  --danger: #d26b5f;
+  --danger-soft: #3a211e;
+  --info: #8fa9bc;
+  --info-soft: #1f2a33;
+}
+
+/**
+ * Tasklytic portaled UI (dialogs, popovers, dropdowns, tooltips, toasts, selects)
+ * renders at document.body — OUTSIDE `.tasklytic-root`. Inline `var(--bg-elevated)` /
+ * `var(--ink-*)` styles resolve to nothing (transparent). Apply one of these classes
+ * on portaled content instead of inline background styles.
+ */
+.tl-dialog-surface,
+.tl-popover-surface,
+.tl-toast,
+.tl-task-detail-pane {
+  --bg-base: #faf9f5;
+  --bg-elevated: #ffffff;
+  --bg-sunken: #f0ebe0;
+  --bg-muted: #f5f2eb;
+  --bg-overlay: rgba(245, 242, 235, 0.85);
+  --ink-primary: #1a1a19;
+  --ink-secondary: #3c3a35;
+  --ink-muted: #6b675e;
+  --ink-faint: #a39e92;
+  --border-subtle: #e8e2d4;
+  --border-default: #d9d2bf;
+  --border-strong: #b8b0a0;
+}
+
+.dark .tl-dialog-surface,
+.dark .tl-popover-surface,
+.dark .tl-toast {
+  --bg-base: #1a1a19;
+  --bg-elevated: #242421;
+  --bg-sunken: #131211;
+  --bg-muted: #1f1e1c;
+  --bg-overlay: rgba(20, 19, 17, 0.85);
+  --ink-primary: #f5f2eb;
+  --ink-secondary: #c9c3b5;
+  --ink-muted: #837f75;
+  --ink-faint: #58544a;
+  --border-subtle: #2e2c28;
+  --border-default: #3c3a35;
+  --border-strong: #58544a;
+}
+
+.tl-dialog-surface,
+.tl-popover-surface,
+.tl-toast,
+.tl-task-detail-pane {
+  background-color: #ffffff !important;
+  color: var(--ink-primary);
+  border-color: var(--border-default) !important;
+}
+
+.dark .tl-dialog-surface,
+.dark .tl-popover-surface,
+.dark .tl-toast {
+  background-color: #242421 !important;
+}
+
+.tl-popover-surface,
+.tl-toast {
+  box-shadow:
+    0 0 0 1px var(--border-subtle),
+    0 12px 32px rgba(26, 26, 25, 0.14);
+}
+
+.tl-dialog-surface {
+  box-shadow:
+    0 0 0 1px var(--border-subtle),
+    0 24px 48px rgba(26, 26, 25, 0.16);
+}
+
+.tl-popover-surface .tl-menu-item {
+  color: var(--ink-primary);
+}
+
+.tl-popover-surface .tl-menu-item:hover,
+.tl-popover-surface .tl-menu-item:focus-visible {
+  background-color: var(--bg-muted);
+}
+
+/** Date picker inside Tasklytic popovers — match cell sizing and accent tokens. */
+.tl-popover-surface .rdp-root {
+  --rdp-accent-color: var(--primary);
+  --rdp-accent-background-color: var(--primary-soft);
+  --rdp-day-height: 2.25rem;
+  --rdp-day-width: 2.25rem;
+  --rdp-day_button-height: 2.25rem;
+  --rdp-day_button-width: 2.25rem;
+}
+
+.dark .tl-popover-surface,
+.dark .tl-toast {
+  box-shadow:
+    0 0 0 1px var(--border-subtle),
+    0 12px 32px rgba(0, 0, 0, 0.45);
+}
+
+.tl-toast {
+  border-radius: 10px;
+}
+
+.tl-toast [data-radix-toast-title],
+.tl-toast .text-sm.font-semibold {
+  color: var(--ink-primary);
+}
+
+.tl-toast [data-radix-toast-description],
+.tl-toast .text-sm.opacity-90 {
+  color: var(--ink-secondary);
+  opacity: 1;
+}
+
+.tasklytic-root .bg-aurora {
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 30%, rgba(204, 120, 92, 0.18), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(201, 152, 70, 0.12), transparent 60%),
+    radial-gradient(ellipse 70% 60% at 50% 100%, rgba(107, 142, 90, 0.1), transparent 70%),
+    var(--bg-base);
+}
+
+.tasklytic-root .bg-aurora-animated {
+  background:
+    radial-gradient(ellipse 60% 50% at 20% 30%, rgba(204, 120, 92, 0.18), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(201, 152, 70, 0.12), transparent 60%),
+    radial-gradient(ellipse 70% 60% at 50% 100%, rgba(107, 142, 90, 0.1), transparent 70%),
+    var(--bg-base);
+  animation: tl-aurora-shift 18s ease-in-out infinite alternate;
+}
+
+@keyframes tl-aurora-shift {
+  0% {
+    filter: hue-rotate(0deg);
+  }
+  100% {
+    filter: hue-rotate(12deg);
+  }
+}
+
+.tasklytic-root .shadow-paper-sm {
+  box-shadow:
+    0 1px 2px rgba(26, 26, 25, 0.04),
+    0 0 0 1px rgba(26, 26, 25, 0.04);
+}
+
+.tasklytic-root .shadow-paper-md {
+  box-shadow:
+    0 6px 20px -4px rgba(26, 26, 25, 0.12),
+    0 0 0 1px rgba(26, 26, 25, 0.06);
+}
+
+.tasklytic-root .shadow-glow-sm {
+  box-shadow:
+    0 0 0 1px var(--primary-glow),
+    0 2px 8px var(--primary-glow);
+}
+
+.tasklytic-root .shadow-focus {
+  box-shadow:
+    0 0 0 2px var(--bg-base),
+    0 0 0 4px var(--primary),
+    0 0 12px var(--primary-glow);
+}
+
+.tasklytic-root .font-serif {
+  font-family: Fraunces, Georgia, serif;
+}
+
+.tasklytic-root .tl-btn-primary {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+  color: white;
+  box-shadow: 0 0 0 1px var(--primary-hover), 0 8px 24px var(--primary-glow);
+}
+
+.tasklytic-root .tl-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+}
+
+.tasklytic-root .tl-input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  color: var(--ink-primary);
+}
+
+.tasklytic-root .tl-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--primary), 0 0 12px var(--primary-glow);
+}
+
+/** List/task checkboxes — shadcn `bg-primary` uses hsl(var(--primary)) which breaks under Tasklytic hex tokens. */
+.tasklytic-root .tl-checkbox {
+  border-color: var(--border-strong);
+  background-color: var(--bg-elevated);
+  color: var(--ink-inverse);
+}
+
+.tasklytic-root .tl-checkbox[data-state='checked'],
+.tasklytic-root .tl-checkbox[data-state='indeterminate'] {
+  background-color: var(--primary);
+  border-color: var(--primary);
+  color: var(--ink-inverse);
+}
+
+.tasklytic-root .tl-checkbox:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--primary);
+}
+
+/** Timeline toolbar switches — shadcn tokens don't contrast on Tasklytic surfaces. */
+.tasklytic-root .tl-switch[data-state='unchecked'] {
+  background-color: var(--border-strong);
+  border: 1px solid var(--border-default);
+}
+
+.tasklytic-root .tl-switch[data-state='checked'] {
+  background-color: var(--primary);
+  border: 1px solid var(--primary-hover);
+}
+
+.tasklytic-root .tl-switch span[data-state] {
+  background-color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+.tasklytic-root .tl-switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--primary);
+}
+
+.tasklytic-root .tl-rich-editor ul {
+  list-style: disc;
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+.tasklytic-root .tl-rich-editor ol {
+  list-style: decimal;
+  margin: 0.25rem 0;
+  padding-left: 1.25rem;
+}
+
+.tasklytic-root .tl-rich-editor li {
+  margin: 0.125rem 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tasklytic-root *,
+  .tasklytic-root.reduce-motion * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .tasklytic-root .bg-aurora-animated,
+  .tasklytic-root.reduce-motion .bg-aurora-animated {
+    animation: none !important;
+  }
+
+  .tasklytic-root .glow-pulse,
+  .tasklytic-root .tl-card-hover,
+  .tasklytic-root.reduce-motion .glow-pulse,
+  .tasklytic-root.reduce-motion .tl-card-hover {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+.tasklytic-root.reduce-motion .bg-aurora-animated {
+  animation: none;
+}
+
+@keyframes tl-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.tasklytic-root .tl-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-muted) 0%,
+    color-mix(in srgb, var(--bg-elevated) 80%, var(--primary-soft)) 50%,
+    var(--bg-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: tl-shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes tl-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--primary-glow);
+  }
+  50% {
+    box-shadow: 0 0 0 4px var(--primary-glow);
+  }
+}
+
+.tasklytic-root .glow-pulse {
+  animation: tl-glow-pulse 2s ease-in-out infinite;
+}
+
+.tasklytic-root .glow-unread {
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
+.tasklytic-root .tl-card-hover {
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.tasklytic-root .tl-card-hover:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 20px -4px rgba(26, 26, 25, 0.12),
+    0 0 0 1px rgba(26, 26, 25, 0.06);
+}
+
+.tasklytic-root .tl-dialog-mobile {
+  width: min(100vw - 1rem, 32rem);
+}
+
+@media (max-width: 1023px) {
+  .tasklytic-root .tl-dialog-mobile {
+    max-width: calc(100vw - 1rem);
+    margin: 0.5rem;
+  }
+}
+
+.tasklytic-root .status-dot-glow-on_track {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.tasklytic-root .status-dot-glow-at_risk {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--warning) 50%, transparent);
+}
+
+.tasklytic-root .status-dot-glow-off_track {
+  box-shadow: 0 0 6px color-mix(in srgb, var(--danger) 50%, transparent);
+}

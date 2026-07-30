@@ -10,6 +10,7 @@ import {
   FileSignature,
   FileText,
   Files,
+  FolderKanban,
   LayoutGrid,
   PenTool,
 } from 'lucide-react'
@@ -66,6 +67,15 @@ const PRODUCTS: Product[] = [
     tone: 'violet',
     status: 'Available now',
     href: '#inkwise-showcase',
+  },
+  {
+    name: 'AI Productivity Suite',
+    description:
+      'Plan projects, coordinate teams, track time, and automate the work that keeps engagements moving.',
+    icon: FolderKanban,
+    tone: 'indigo',
+    status: 'Available now',
+    href: '#productivity-suite-showcase',
   },
   {
     name: 'E-Signature',
@@ -152,7 +162,7 @@ export default function ProductSuite() {
         whileInView="visible"
         viewport={viewportOnce}
       >
-        {PRODUCTS.map((product, index) => {
+        {PRODUCTS.map((product) => {
           const Icon = product.icon
           const a = accent(product.tone)
 
@@ -163,11 +173,6 @@ export default function ProductSuite() {
               {...hoverLift}
               className={cn(
                 'h-full md:col-span-2 lg:col-span-2',
-                // Center the single final card at tablet widths.
-                index === PRODUCTS.length - 1 &&
-                  'md:col-start-2 lg:col-start-auto',
-                // Four cards above, then three equal-width cards centered below.
-                index === 4 && 'lg:col-start-2',
               )}
             >
               <a

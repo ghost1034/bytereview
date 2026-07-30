@@ -15,6 +15,7 @@ import {
   Files,
   FileSignature,
   FileText,
+  FolderKanban,
   GitMerge,
   GraduationCap,
   Home,
@@ -87,6 +88,11 @@ const PRODUCTS_GROUP: NavGroup = {
     },
     { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
+    {
+      name: 'AI Productivity Suite',
+      href: '/dashboard/project-management',
+      icon: FolderKanban,
+    },
     { name: 'E-Signature (beta)', href: '/dashboard/esign', icon: FileSignature },
   ],
 }

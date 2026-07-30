@@ -22,7 +22,8 @@ from workers.worker import (
     run_stripe_usage_reconciliation,
     run_usage_counter_cleanup,
     run_gmail_watch_renewal,
-    run_esign_maintenance
+    run_esign_maintenance,
+    run_tasklytic_maintenance,
 )
 
 logger = logging.getLogger(__name__)
@@ -86,6 +87,10 @@ async def execute_task(request: Request):
         elif task_type == "run_esign_maintenance":
             logger.info("Executing e-sign maintenance (expiration + reminders)")
             result = await run_esign_maintenance(ctx)
+
+        elif task_type == "run_tasklytic_maintenance":
+            logger.info("Executing Tasklytic digest and upload maintenance")
+            result = await run_tasklytic_maintenance(ctx)
 
         else:
             raise HTTPException(status_code=400, detail=f"Unknown task type: {task_type}")
