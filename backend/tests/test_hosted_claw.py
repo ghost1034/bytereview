@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import sys
 import unittest
 from datetime import datetime, timedelta, timezone
 from importlib.util import module_from_spec, spec_from_file_location
@@ -26,10 +27,18 @@ from services.hosted_claw_security import (
 from services.hosted_claw_service import (
     action_is_read_only,
     managed_hermes_config,
+    publish_job,
     validate_attachment,
 )
 from routes.connector import _consume_hosted_approval
-from routes.hosted_claw import _link_oauth_installer, _valid_slack_file_url
+from routes.hosted_claw import _link_oauth_installer, _valid_slack_file_url, runtime_stopped
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_REPO_ROOT))
+try:
+    from hosted_claw.supervisor import DockerRuntimeManager
+finally:
+    sys.path.pop(0)
 
 _PLUGIN_SPEC = spec_from_file_location(
     "_hosted_policy_plugin",
@@ -93,6 +102,58 @@ class HostedArtifactScannerTests(unittest.TestCase):
                         with unittest.mock.patch.object(Path, "is_file", return_value=True):
                             with self.assertRaises(_ARTIFACTS.UnsafeArtifact):
                                 _ARTIFACTS.scan_with_clamav(Path("/srv/hosted-claw/error.txt"))
+
+
+class HostedRuntimeReadinessTests(unittest.TestCase):
+    def test_docker_failure_does_not_expose_command_arguments(self) -> None:
+        manager = DockerRuntimeManager()
+        with patch(
+            "hosted_claw.supervisor.subprocess.run",
+            return_value=SimpleNamespace(returncode=125, stdout="", stderr="failure"),
+        ):
+            with self.assertRaises(RuntimeError) as raised:
+                manager._docker("run", "--env", "CONNECTOR_TOKEN=do-not-log", "image")
+
+        self.assertEqual(str(raised.exception), "Docker run operation failed with exit code 125")
+        self.assertNotIn("do-not-log", str(raised.exception))
+
+    def test_waits_for_hermes_api_after_container_starts(self) -> None:
+        manager = DockerRuntimeManager()
+        manager._docker = MagicMock(return_value=SimpleNamespace(returncode=0, stdout="true\n"))
+        connection = MagicMock()
+        with patch("hosted_claw.supervisor.socket.create_connection", side_effect=[OSError(), connection]), patch(
+            "hosted_claw.supervisor.time.sleep"
+        ) as sleep:
+            manager._wait_for_api("tenant", "172.18.0.3")
+
+        self.assertEqual(sleep.call_count, 1)
+        self.assertEqual(connection.__enter__.call_count, 1)
+
+    def test_fails_when_runtime_exits_before_listening(self) -> None:
+        manager = DockerRuntimeManager()
+        manager._docker = MagicMock(return_value=SimpleNamespace(returncode=0, stdout="false\n"))
+        with patch("hosted_claw.supervisor.socket.create_connection") as connect:
+            with self.assertRaisesRegex(RuntimeError, "exited before its API became ready"):
+                manager._wait_for_api("tenant", "172.18.0.3")
+        connect.assert_not_called()
+
+
+class HostedRuntimeStopTests(unittest.IsolatedAsyncioTestCase):
+    async def test_stop_acknowledgement_clears_runtime_instance(self) -> None:
+        db = MagicMock()
+        session = SimpleNamespace(status="stopped", worker_id="worker-a", runtime_id="runtime-a")
+        session_query = MagicMock()
+        session_query.filter.return_value.first.return_value = session
+        token_query = MagicMock()
+        db.query.side_effect = [session_query, token_query]
+
+        await runtime_stopped("runtime-a", "worker-a", db)
+
+        self.assertEqual(session.status, "stopped")
+        self.assertIsNone(session.worker_id)
+        self.assertIsNone(session.runtime_id)
+        token_query.filter.return_value.update.assert_called_once()
+        db.commit.assert_called_once_with()
 
 
 class HostedOneTimeTokenTests(unittest.TestCase):
@@ -188,14 +249,44 @@ class HostedKmsTests(unittest.TestCase):
 
     def test_encrypt_and_decrypt_bind_aad(self) -> None:
         client = MagicMock()
-        client.encrypt.return_value = SimpleNamespace(ciphertext=b"encrypted", name="key-version")
+        version = "projects/p/locations/l/keyRings/r/cryptoKeys/k/cryptoKeyVersions/1"
+        client.encrypt.return_value = SimpleNamespace(ciphertext=b"encrypted", name=version)
         client.decrypt.return_value = SimpleNamespace(plaintext=b"secret")
         kms = KmsEnvelope("projects/p/locations/l/keyRings/r/cryptoKeys/k", client=client)
         encrypted = kms.encrypt(b"secret", aad=b"job:a")
         self.assertEqual(encrypted.ciphertext, b"encrypted")
+        self.assertEqual(encrypted.key_version, version)
         self.assertEqual(kms.decrypt(encrypted.ciphertext, aad=b"job:a", key_version=encrypted.key_version), b"secret")
         self.assertEqual(client.encrypt.call_args.kwargs["request"]["additional_authenticated_data"], b"job:a")
         self.assertEqual(client.decrypt.call_args.kwargs["request"]["additional_authenticated_data"], b"job:a")
+        self.assertEqual(
+            client.decrypt.call_args.kwargs["request"]["name"],
+            "projects/p/locations/l/keyRings/r/cryptoKeys/k",
+        )
+
+
+class HostedPubSubTests(unittest.TestCase):
+    def test_publish_uses_deployed_project_id_environment(self) -> None:
+        from google.cloud import pubsub_v1
+
+        publisher = MagicMock()
+        publisher.topic_path.return_value = "projects/p/topics/hosted-claw-jobs"
+        with patch.dict(
+            os.environ,
+            {
+                "ENVIRONMENT": "production",
+                "GOOGLE_CLOUD_PROJECT_ID": "p",
+                "HOSTED_CLAW_PUBSUB_TOPIC": "hosted-claw-jobs",
+            },
+            clear=True,
+        ), patch.object(pubsub_v1, "PublisherClient", return_value=publisher):
+            publish_job("job-id")
+
+        publisher.topic_path.assert_called_once_with("p", "hosted-claw-jobs")
+        publisher.publish.assert_called_once_with(
+            "projects/p/topics/hosted-claw-jobs",
+            b'{"job_id": "job-id"}',
+        )
 
 
 class HostedApprovalTests(unittest.TestCase):

@@ -169,7 +169,29 @@ class DockerRuntimeManager:
         self.runtimes: dict[str, Runtime] = {}
 
     def _docker(self, *args: str, check: bool = True) -> subprocess.CompletedProcess:
-        return subprocess.run(["docker", *args], check=check, text=True, capture_output=True)
+        result = subprocess.run(["docker", *args], check=False, text=True, capture_output=True)
+        if check and result.returncode != 0:
+            # Docker arguments may contain short-lived connector/model keys.
+            # Never let CalledProcessError serialize the full command into logs.
+            operation = args[0] if args else "unknown"
+            raise RuntimeError(f"Docker {operation} operation failed with exit code {result.returncode}")
+        return result
+
+    def _wait_for_api(self, container_name: str, address: str, timeout_seconds: float = 30) -> None:
+        """Wait until Hermes is listening, not merely until Docker reports running."""
+        deadline = time.monotonic() + timeout_seconds
+        while time.monotonic() < deadline:
+            running = self._docker(
+                "inspect", "--format", "{{.State.Running}}", container_name, check=False
+            )
+            if running.returncode != 0 or running.stdout.strip().lower() != "true":
+                raise RuntimeError("Tenant runtime exited before its API became ready")
+            try:
+                with socket.create_connection((address, 8642), timeout=1):
+                    return
+            except OSError:
+                time.sleep(0.25)
+        raise RuntimeError("Tenant runtime API did not become ready within 30 seconds")
 
     def ensure_network(self, network_name: str, *, internal: bool) -> None:
         inspected = self._docker("network", "inspect", network_name, check=False)
@@ -306,9 +328,10 @@ class DockerRuntimeManager:
             "run", "--detach", "--name", proxy_name,
             "--network", network_name, "--network-alias", "tenant-proxy",
             "--read-only", "--cap-drop", "ALL", "--security-opt", "no-new-privileges:true",
+            "--user", "65532:65532",
             "--pids-limit", "64", "--cpus", "0.25", "--memory", "128m",
-            "--tmpfs", "/data:rw,noexec,nosuid,nodev,size=8m",
-            "--tmpfs", "/config:rw,noexec,nosuid,nodev,size=8m",
+            "--tmpfs", "/data:rw,noexec,nosuid,nodev,size=8m,uid=65532,gid=65532,mode=0700",
+            "--tmpfs", "/config:rw,noexec,nosuid,nodev,size=8m,uid=65532,gid=65532,mode=0700",
             "--mount", f"type=bind,src={proxy_config},dst=/etc/caddy/Caddyfile,readonly",
             "--env", f"CPAA_API_ORIGIN={os.environ['HOSTED_CLAW_API_URL'].rstrip('/')}",
             "--env", f"CONNECTOR_TOKEN={connector_token}",
@@ -361,6 +384,7 @@ class DockerRuntimeManager:
         ).stdout.strip()
         if not address:
             raise RuntimeError("Tenant container has no internal network address")
+        self._wait_for_api(container_name, address)
         runtime = Runtime(
             runtime_id, user_id, product, container_name, proxy_name, network_name,
             data_dir, api_key, f"http://{address}:8642",
@@ -683,6 +707,11 @@ class Supervisor:
                         completion_tokens += int(usage.get("completion_tokens") or usage.get("output_tokens") or 0)
                         cost_usd += float(usage.get("cost_usd") or usage.get("cost") or 0)
                     elif event_type == "run.status":
+                        terminal_status = str(event.get("status") or "").lower()
+                        if terminal_status == "failed":
+                            raise RuntimeError("Hermes run failed")
+                        if terminal_status == "cancelled":
+                            cancelled.set()
                         final_text = str(event.get("output") or final_text)
                         hermes_session_id = event.get("session_id") or hermes_session_id
                         usage = event.get("usage") or {}
@@ -749,6 +778,8 @@ class Supervisor:
                         )
                     runtime.last_activity = time.monotonic()
                 cancellation_task.cancel()
+                if not final_text and not cancelled.is_set():
+                    raise RuntimeError("Hermes completed without response text")
                 if final_text:
                     await self.control.request("POST", f"/api/internal/hosted-claw/jobs/{job['job_id']}/progress?worker_id={self.worker_id}", json={"text": final_text[:12000]})
                 completion = {

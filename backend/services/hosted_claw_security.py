@@ -111,10 +111,16 @@ class KmsEnvelope:
             raise HostedClawUnavailable("Cloud KMS encryption failed") from exc
 
     def decrypt(self, ciphertext: bytes, *, aad: bytes, key_version: Optional[str] = None) -> bytes:
+        # Encrypt responses identify the exact CryptoKeyVersion used, which we
+        # retain for auditability. Symmetric decrypt, however, accepts the
+        # parent CryptoKey resource and selects the embedded ciphertext version.
+        decrypt_key = key_version or self.key_name
+        if "/cryptoKeyVersions/" in decrypt_key:
+            decrypt_key = decrypt_key.split("/cryptoKeyVersions/", 1)[0]
         try:
             response = self.client.decrypt(
                 request={
-                    "name": key_version or self.key_name,
+                    "name": decrypt_key,
                     "ciphertext": ciphertext,
                     "additional_authenticated_data": aad,
                 }

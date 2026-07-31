@@ -990,6 +990,8 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
         session = HostedClawProductSession(user_id=job.user_id, product=job.product, runtime_id=f"hcr_{uuid.uuid4().hex}")
         db.add(session)
         db.flush()
+    elif not session.runtime_id:
+        session.runtime_id = f"hcr_{uuid.uuid4().hex}"
     session.worker_id = body.worker_id
     session.status = "starting"
     db.query(HostedClawProductSession).filter(
@@ -1060,6 +1062,9 @@ async def runtime_stopped(runtime_id: str, worker_id: str, db: Session = Depends
         raise HTTPException(status_code=404, detail="Runtime not found")
     row.status = "stopped"
     row.worker_id = None
+    # Clearing the instance identifier acknowledges this stop. Leaving it set
+    # makes the stopped-session claimer return the same cleanup forever.
+    row.runtime_id = None
     db.query(ConnectorToken).filter(
         ConnectorToken.runtime_id == runtime_id,
         ConnectorToken.token_kind == "hosted_runtime",

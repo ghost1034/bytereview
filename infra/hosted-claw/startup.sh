@@ -63,6 +63,22 @@ systemctl daemon-reload
 systemctl enable hosted-claw-litellm hosted-claw-supervisor
 if [ -f /etc/hosted-claw/worker.env ]; then
   chmod 0600 /etc/hosted-claw/worker.env
+  # Let Docker pull immutable private images with the VM's least-privilege
+  # service identity. No registry token is persisted in worker.env.
+  supervisor_image="$(sed -n 's/^HOSTED_CLAW_SUPERVISOR_IMAGE=//p' /etc/hosted-claw/worker.env)"
+  registry_host="${supervisor_image%%/*}"
+  if [ -n "$registry_host" ] && command -v gcloud >/dev/null 2>&1; then
+    gcloud auth configure-docker "$registry_host" --quiet >/dev/null
+  fi
+  # The supervisor controls Docker through the socket but intentionally does
+  # not receive host registry credentials. Pre-pull every approved immutable
+  # image while bootstrap still has the VM service identity available.
+  for image_key in HOSTED_CLAW_SUPERVISOR_IMAGE HOSTED_CLAW_PROXY_IMAGE HOSTED_ACCOUNTINGCLAW_IMAGE HOSTED_LEGALCLAW_IMAGE; do
+    image_ref="$(sed -n "s/^${image_key}=//p" /etc/hosted-claw/worker.env)"
+    if [ -n "$image_ref" ]; then
+      docker pull "$image_ref" >/dev/null
+    fi
+  done
   systemctl start hosted-claw-litellm hosted-claw-supervisor
 else
   echo "Hosted Claw services installed but inactive: provision /etc/hosted-claw/worker.env and start both units."

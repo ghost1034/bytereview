@@ -183,7 +183,10 @@ def artifact_expiry():
 
 def publish_job(job_id: str) -> None:
     topic = os.getenv("HOSTED_CLAW_PUBSUB_TOPIC", "").strip()
-    project = os.getenv("GOOGLE_CLOUD_PROJECT", "").strip()
+    project = (
+        os.getenv("GOOGLE_CLOUD_PROJECT", "")
+        or os.getenv("GOOGLE_CLOUD_PROJECT_ID", "")
+    ).strip()
     if not topic or not project:
         if os.getenv("ENVIRONMENT", "local").lower() in {"local", "development", "dev", "test"}:
             logger.info("Hosted job queued locally job_id=%s", job_id)

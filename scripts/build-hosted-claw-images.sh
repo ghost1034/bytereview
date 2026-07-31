@@ -9,6 +9,7 @@ REPOSITORY="${REPOSITORY:-hosted-claw}"
 IMAGE_TAG="${IMAGE_TAG:-$(git rev-parse --short=12 HEAD)}"
 HERMES_BASE_IMAGE="${HERMES_BASE_IMAGE:?set HERMES_BASE_IMAGE to an approved image@sha256:digest}"
 PYTHON_BASE_IMAGE="${PYTHON_BASE_IMAGE:?set PYTHON_BASE_IMAGE to an approved Python image@sha256:digest}"
+CADDY_BASE_IMAGE="${CADDY_BASE_IMAGE:?set CADDY_BASE_IMAGE to an approved Caddy image@sha256:digest}"
 
 case "$HERMES_BASE_IMAGE" in
   *@sha256:*) ;;
@@ -17,6 +18,10 @@ esac
 case "$PYTHON_BASE_IMAGE" in
   *@sha256:*) ;;
   *) echo "PYTHON_BASE_IMAGE must be pinned by digest" >&2; exit 2 ;;
+esac
+case "$CADDY_BASE_IMAGE" in
+  *@sha256:*) ;;
+  *) echo "CADDY_BASE_IMAGE must be pinned by digest" >&2; exit 2 ;;
 esac
 
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}"
@@ -38,6 +43,13 @@ docker buildx build \
   --build-arg "PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE}" \
   --file hosted_claw/images/supervisor.Dockerfile \
   --tag "${REGISTRY}/hosted-supervisor:${IMAGE_TAG}" \
+  --push .
+
+docker buildx build \
+  --platform linux/amd64 \
+  --build-arg "CADDY_BASE_IMAGE=${CADDY_BASE_IMAGE}" \
+  --file hosted_claw/images/proxy.Dockerfile \
+  --tag "${REGISTRY}/hosted-proxy:${IMAGE_TAG}" \
   --push .
 
 echo "Published hosted images with tag ${IMAGE_TAG}. Resolve and deploy their immutable digests before starting the worker."
