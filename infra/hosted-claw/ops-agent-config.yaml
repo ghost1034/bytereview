@@ -1,0 +1,14 @@
+logging:
+  receivers:
+    hosted_claw_journal:
+      type: systemd_journald
+  service:
+    pipelines:
+      hosted_claw_journal:
+        receivers: [hosted_claw_journal]
+
+metrics:
+  receivers:
+    hostmetrics:
+      type: hostmetrics
+      collection_interval: 60s

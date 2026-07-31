@@ -6,6 +6,11 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 apt-get update
 apt-get install -y --no-install-recommends clamav-daemon python3-venv xfsprogs
+# Match the product's 50 MiB attachment ceiling. MaxScanSize stays larger so
+# archive/container overhead does not reject an otherwise permitted document.
+sed -i 's/^MaxFileSize .*/MaxFileSize 50M/' /etc/clamav/clamd.conf
+sed -i 's/^MaxScanSize .*/MaxScanSize 100M/' /etc/clamav/clamd.conf
+sed -i 's/^StreamMaxLength .*/StreamMaxLength 50M/' /etc/clamav/clamd.conf
 if [ -z "$(find /var/lib/clamav -maxdepth 1 -type f \( -name '*.cvd' -o -name '*.cld' \) -print -quit)" ]; then
   systemctl stop clamav-freshclam.service 2>/dev/null || true
   freshclam
@@ -34,8 +39,19 @@ metadata_file hosted-claw-compose /opt/hosted-claw/docker-compose.yml
 metadata_file hosted-claw-litellm-config /opt/hosted-claw/litellm-config.yaml
 metadata_file hosted-claw-litellm-service /etc/systemd/system/hosted-claw-litellm.service
 metadata_file hosted-claw-supervisor-service /etc/systemd/system/hosted-claw-supervisor.service
+if ! dpkg-query -W google-cloud-ops-agent >/dev/null 2>&1; then
+  curl -fsS https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh \
+    -o /tmp/add-google-cloud-ops-agent-repo.sh
+  bash /tmp/add-google-cloud-ops-agent-repo.sh --also-install --version='2.*.*'
+  rm -f /tmp/add-google-cloud-ops-agent-repo.sh
+fi
+mkdir -p /etc/google-cloud-ops-agent
+metadata_file hosted-claw-ops-agent-config /etc/google-cloud-ops-agent/config.yaml
 chmod 0644 /opt/hosted-claw/docker-compose.yml /opt/hosted-claw/litellm-config.yaml \
-  /etc/systemd/system/hosted-claw-litellm.service /etc/systemd/system/hosted-claw-supervisor.service
+  /etc/systemd/system/hosted-claw-litellm.service /etc/systemd/system/hosted-claw-supervisor.service \
+  /etc/google-cloud-ops-agent/config.yaml
+systemctl enable --now google-cloud-ops-agent
+systemctl restart google-cloud-ops-agent
 
 # The release pipeline places the supervisor package and root-owned environment
 # file in /opt/hosted-claw. Startup refuses to invent or fetch tenant secrets.

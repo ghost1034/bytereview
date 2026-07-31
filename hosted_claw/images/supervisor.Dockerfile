@@ -4,7 +4,7 @@ ARG PYTHON_BASE_IMAGE
 FROM ${PYTHON_BASE_IMAGE}
 
 RUN apt-get update \
- && apt-get install -y --no-install-recommends clamav-daemon docker.io xfsprogs \
+ && apt-get install -y --no-install-recommends clamav-daemon clamdscan docker.io xfsprogs \
  && rm -rf /var/lib/apt/lists/*
 WORKDIR /opt/hosted-claw
 COPY hosted_claw/requirements.txt ./requirements.txt

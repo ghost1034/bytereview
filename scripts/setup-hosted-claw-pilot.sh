@@ -58,7 +58,10 @@ gcloud iam service-accounts add-iam-policy-binding "$API_SA" \
 
 gcloud pubsub topics describe "$PUBSUB_TOPIC" >/dev/null 2>&1 || gcloud pubsub topics create "$PUBSUB_TOPIC"
 gcloud pubsub subscriptions describe "$PUBSUB_SUBSCRIPTION" >/dev/null 2>&1 || \
-  gcloud pubsub subscriptions create "$PUBSUB_SUBSCRIPTION" --topic="$PUBSUB_TOPIC" --ack-deadline=60 --message-retention-duration=1d
+  gcloud pubsub subscriptions create "$PUBSUB_SUBSCRIPTION" --topic="$PUBSUB_TOPIC" --ack-deadline=60 \
+    --message-retention-duration=1d --expiration-period=never
+gcloud pubsub subscriptions update "$PUBSUB_SUBSCRIPTION" --ack-deadline=60 \
+  --message-retention-duration=1d --expiration-period=never >/dev/null
 gcloud pubsub subscriptions add-iam-policy-binding "$PUBSUB_SUBSCRIPTION" \
   --member="serviceAccount:${WORKER_SA}" --role=roles/pubsub.subscriber >/dev/null
 
@@ -91,11 +94,7 @@ if ! gcloud compute instance-templates describe "$TEMPLATE_NAME" >/dev/null 2>&1
     --image-family=debian-12 --image-project=debian-cloud \
     --boot-disk-size=30GB --boot-disk-type=pd-balanced \
     --disk="name=${DISK_NAME},device-name=${DISK_DEVICE_NAME},mode=rw,boot=no,auto-delete=no" \
-    --metadata-from-file=startup-script="$(dirname "$0")/../infra/hosted-claw/startup.sh" \
-    --metadata-from-file=hosted-claw-compose="$(dirname "$0")/../hosted_claw/docker-compose.yml" \
-    --metadata-from-file=hosted-claw-litellm-config="$(dirname "$0")/../hosted_claw/litellm-config.yaml" \
-    --metadata-from-file=hosted-claw-litellm-service="$(dirname "$0")/../infra/hosted-claw/hosted-claw-litellm.service" \
-    --metadata-from-file=hosted-claw-supervisor-service="$(dirname "$0")/../infra/hosted-claw/hosted-claw-supervisor.service" \
+    --metadata-from-file="startup-script=$(dirname "$0")/../infra/hosted-claw/startup.sh,hosted-claw-compose=$(dirname "$0")/../hosted_claw/docker-compose.yml,hosted-claw-litellm-config=$(dirname "$0")/../hosted_claw/litellm-config.yaml,hosted-claw-litellm-service=$(dirname "$0")/../infra/hosted-claw/hosted-claw-litellm.service,hosted-claw-supervisor-service=$(dirname "$0")/../infra/hosted-claw/hosted-claw-supervisor.service,hosted-claw-ops-agent-config=$(dirname "$0")/../infra/hosted-claw/ops-agent-config.yaml" \
     --labels=service=hosted-claw,pilot=true
 fi
 
@@ -103,6 +102,12 @@ if ! gcloud compute instance-groups managed describe "$MIG_NAME" --zone="$ZONE" 
   gcloud compute instance-groups managed create "$MIG_NAME" --zone="$ZONE" --size=1 --template="$TEMPLATE_NAME"
   gcloud compute instance-groups managed update "$MIG_NAME" --zone="$ZONE" \
     --stateful-disk="device-name=${DISK_DEVICE_NAME},auto-delete=never"
+else
+  # Instance templates are immutable. Point an existing pilot MIG at the
+  # requested template so rerunning this script actually applies bootstrap
+  # and service-unit changes instead of silently retaining an older template.
+  gcloud compute instance-groups managed set-instance-template "$MIG_NAME" \
+    --zone="$ZONE" --template="$TEMPLATE_NAME"
 fi
 
 echo "Hosted-Claw pilot infrastructure is ready."

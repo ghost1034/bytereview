@@ -39,6 +39,14 @@ assert _PLUGIN_SPEC is not None and _PLUGIN_SPEC.loader is not None
 _PLUGIN = module_from_spec(_PLUGIN_SPEC)
 _PLUGIN_SPEC.loader.exec_module(_PLUGIN)
 
+_ARTIFACTS_SPEC = spec_from_file_location(
+    "_hosted_artifacts",
+    Path(__file__).resolve().parents[2] / "hosted_claw" / "artifacts.py",
+)
+assert _ARTIFACTS_SPEC is not None and _ARTIFACTS_SPEC.loader is not None
+_ARTIFACTS = module_from_spec(_ARTIFACTS_SPEC)
+_ARTIFACTS_SPEC.loader.exec_module(_ARTIFACTS)
+
 
 class HostedSlackSignatureTests(unittest.TestCase):
     def test_valid_signature_and_five_minute_window(self) -> None:
@@ -50,6 +58,41 @@ class HostedSlackSignatureTests(unittest.TestCase):
         self.assertTrue(verify_slack_signature(body, timestamp, signature, "secret", now=1700000300))
         self.assertFalse(verify_slack_signature(body, timestamp, signature, "secret", now=1700000301))
         self.assertFalse(verify_slack_signature(body + b"x", timestamp, signature, "secret", now=1700000000))
+
+
+class HostedArtifactScannerTests(unittest.TestCase):
+    def test_scans_through_bounded_clamav_stream(self) -> None:
+        with self.subTest("clean"):
+            with patch.object(
+                _ARTIFACTS.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=0),
+            ) as run:
+                with unittest.mock.patch.object(Path, "lstat", return_value=SimpleNamespace(st_size=4)):
+                    with unittest.mock.patch.object(Path, "is_symlink", return_value=False):
+                        with unittest.mock.patch.object(Path, "is_file", return_value=True):
+                            _ARTIFACTS.scan_with_clamav(Path("/srv/hosted-claw/clean.txt"))
+            self.assertEqual(
+                run.call_args.args[0],
+                [
+                    "clamdscan",
+                    "--stream",
+                    "--no-summary",
+                    "/srv/hosted-claw/clean.txt",
+                ],
+            )
+
+        with self.subTest("scanner failure is fail-closed"):
+            with patch.object(
+                _ARTIFACTS.subprocess,
+                "run",
+                return_value=SimpleNamespace(returncode=2),
+            ):
+                with unittest.mock.patch.object(Path, "lstat", return_value=SimpleNamespace(st_size=4)):
+                    with unittest.mock.patch.object(Path, "is_symlink", return_value=False):
+                        with unittest.mock.patch.object(Path, "is_file", return_value=True):
+                            with self.assertRaises(_ARTIFACTS.UnsafeArtifact):
+                                _ARTIFACTS.scan_with_clamav(Path("/srv/hosted-claw/error.txt"))
 
 
 class HostedOneTimeTokenTests(unittest.TestCase):

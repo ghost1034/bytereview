@@ -32,7 +32,10 @@ def scan_with_clamav(path: Path) -> None:
     if stat.st_size < 1 or stat.st_size > MAX_BYTES:
         raise UnsafeArtifact("File exceeds hosted attachment limits")
     result = subprocess.run(
-        ["clamdscan", "--fdpass", "--no-summary", str(path)],
+        # Stream through the mounted daemon socket. The host daemon cannot
+        # traverse tenant-private directories, and file-descriptor passing is
+        # rejected across the container confinement boundary.
+        ["clamdscan", "--stream", "--no-summary", str(path)],
         capture_output=True,
         text=True,
         timeout=120,

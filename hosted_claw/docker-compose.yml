@@ -22,6 +22,7 @@ services:
         condition: service_healthy
   litellm-db:
     image: ${LITELLM_POSTGRES_IMAGE:?digest-pinned PostgreSQL image required}
+    user: "70:70"
     restart: unless-stopped
     networks: [hosted-claw-egress]
     environment:
@@ -38,7 +39,9 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
-    tmpfs: [/tmp, /run/postgresql]
+    tmpfs:
+      - /tmp
+      - /run/postgresql:uid=70,gid=70,mode=3775
 networks:
   hosted-claw-egress:
     name: hosted-claw-egress
