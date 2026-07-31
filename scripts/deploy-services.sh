@@ -192,12 +192,32 @@ random_token() {
   openssl rand -hex 32
 }
 
-# Join env-var "k=v" items into a gcloud value list using '@' as the delimiter
-# (so individual values may safely contain commas). The leading '^@^' tells
-# gcloud which delimiter to use for --set-env-vars / --update-env-vars.
+# Join env-var "k=v" items using a delimiter that does not occur in any item.
+# The leading "^DELIMITER^" tells gcloud not to split values on commas. Do not
+# use a fixed delimiter here: env values commonly contain commas, URLs, and
+# service-account email addresses (and therefore '@').
 join_env_vars() {
-  local IFS='@'
-  printf '%s' "^@^$*"
+  local delimiter=""
+  local candidate
+  local item
+
+  for candidate in '|' '%' ';' '~' '#'; do
+    delimiter="$candidate"
+    for item in "$@"; do
+      if [[ "$item" == *"$candidate"* ]]; then
+        delimiter=""
+        break
+      fi
+    done
+    if [ -n "$delimiter" ]; then
+      break
+    fi
+  done
+
+  [ -n "$delimiter" ] || die "Could not encode Cloud Run environment variables: no safe gcloud delimiter found"
+
+  local IFS="$delimiter"
+  printf '^%s^%s' "$delimiter" "$*"
 }
 
 ensure_secret_value() {
