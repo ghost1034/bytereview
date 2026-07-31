@@ -155,6 +155,48 @@ def _installation_query(db: Session, enterprise: str | None, team: str):
     )
 
 
+def _link_oauth_installer(
+    db: Session,
+    *,
+    installation: HostedClawSlackInstallation,
+    user_id: str,
+    enterprise_id: Any,
+    team_id: Any,
+    slack_user_id: Any,
+) -> HostedClawSlackLink:
+    """Link the Firebase user who started OAuth to Slack's authenticated installer."""
+    enterprise, team, slack_user = _identity(enterprise_id, team_id, slack_user_id)
+    identity_link = _active_link_query(db, enterprise, team, slack_user).with_for_update().first()
+    user_link = db.query(HostedClawSlackLink).filter(
+        HostedClawSlackLink.user_id == user_id,
+        HostedClawSlackLink.unlinked_at.is_(None),
+    ).with_for_update().first()
+
+    if identity_link is not None and str(identity_link.user_id) != user_id:
+        raise HTTPException(status_code=409, detail="This Slack identity is already linked to another CPAAutomation user")
+    if user_link is not None and (
+        user_link.enterprise_id != enterprise
+        or str(user_link.team_id) != team
+        or str(user_link.slack_user_id) != slack_user
+    ):
+        raise HTTPException(status_code=409, detail="This CPAAutomation user is already linked to another Slack identity")
+
+    link = identity_link or user_link
+    if link is None:
+        link = HostedClawSlackLink(
+            installation_id=installation.id,
+            enterprise_id=enterprise,
+            team_id=team,
+            slack_user_id=slack_user,
+            user_id=user_id,
+        )
+        db.add(link)
+    else:
+        # A workspace reinstall updates the installation credentials in place.
+        link.installation_id = installation.id
+    return link
+
+
 def _config_response(row: HostedClawConfig) -> HostedConfigResponse:
     return HostedConfigResponse(
         active_product=str(row.active_product),
@@ -588,7 +630,8 @@ async def slack_oauth_callback(code: str, state: str, db: Session = Depends(get_
     enterprise = result.get("enterprise") or {}
     enterprise_id = enterprise.get("id") or None
     team_id = team.get("id")
-    if not team_id or not result.get("bot_user_id"):
+    installer_slack_user_id = (result.get("authed_user") or {}).get("id")
+    if not team_id or not result.get("bot_user_id") or not installer_slack_user_id:
         raise HTTPException(status_code=400, detail="Slack OAuth response did not identify a workspace")
     encrypted = KmsEnvelope().encrypt(
         result["access_token"].encode("utf-8"),
@@ -605,10 +648,27 @@ async def slack_oauth_callback(code: str, state: str, db: Session = Depends(get_
     installation.scopes = [scope for scope in str(result.get("scope") or "").split(",") if scope]
     installation.status = "active"
     installation.revoked_at = None
-    installation.installed_by_slack_user_id = (result.get("authed_user") or {}).get("id")
+    installation.installed_by_slack_user_id = installer_slack_user_id
+    db.flush()
+    try:
+        _link_oauth_installer(
+            db,
+            installation=installation,
+            user_id=str(state_row.user_id),
+            enterprise_id=enterprise_id,
+            team_id=team_id,
+            slack_user_id=installer_slack_user_id,
+        )
+    except HTTPException:
+        db.rollback()
+        raise
     state_row.consumed_at = now
-    db.commit()
-    return RedirectResponse(f"{frontend_base_url()}/dashboard/activation?slack_installed=1", status_code=303)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Slack identity or CPAAutomation user is already linked") from exc
+    return RedirectResponse(f"{frontend_base_url()}/dashboard/activation?slack_linked=1", status_code=303)
 
 
 def _create_link_message(db: Session, installation: HostedClawSlackInstallation, enterprise: str | None, team: str, slack_user: str, channel: str) -> dict[str, str]:

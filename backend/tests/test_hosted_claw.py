@@ -29,7 +29,7 @@ from services.hosted_claw_service import (
     validate_attachment,
 )
 from routes.connector import _consume_hosted_approval
-from routes.hosted_claw import _valid_slack_file_url
+from routes.hosted_claw import _link_oauth_installer, _valid_slack_file_url
 
 _PLUGIN_SPEC = spec_from_file_location(
     "_hosted_policy_plugin",
@@ -105,6 +105,79 @@ class HostedOneTimeTokenTests(unittest.TestCase):
         self.assertFalse(one_time_record_is_valid(consumed, now=now))
         self.assertFalse(one_time_record_is_valid(expired, now=now))
         self.assertFalse(one_time_record_is_valid(None, now=now))
+
+
+class HostedOAuthInstallerLinkTests(unittest.TestCase):
+    def test_oauth_install_links_the_authenticated_installer(self) -> None:
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = None
+        installation = SimpleNamespace(id="installation-id")
+
+        with patch("routes.hosted_claw._active_link_query") as active_link_query:
+            active_link_query.return_value.with_for_update.return_value.first.return_value = None
+            link = _link_oauth_installer(
+                db,
+                installation=installation,
+                user_id="firebase-user",
+                enterprise_id=None,
+                team_id="T123",
+                slack_user_id="U123",
+            )
+
+        self.assertEqual(link.user_id, "firebase-user")
+        self.assertEqual(link.installation_id, "installation-id")
+        self.assertEqual(link.team_id, "T123")
+        self.assertEqual(link.slack_user_id, "U123")
+        db.add.assert_called_once_with(link)
+
+    def test_oauth_reinstall_is_idempotent_for_the_same_link(self) -> None:
+        db = MagicMock()
+        existing = SimpleNamespace(
+            installation_id="old-installation",
+            enterprise_id=None,
+            team_id="T123",
+            slack_user_id="U123",
+            user_id="firebase-user",
+        )
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = existing
+        with patch("routes.hosted_claw._active_link_query") as active_link_query:
+            active_link_query.return_value.with_for_update.return_value.first.return_value = existing
+            link = _link_oauth_installer(
+                db,
+                installation=SimpleNamespace(id="current-installation"),
+                user_id="firebase-user",
+                enterprise_id=None,
+                team_id="T123",
+                slack_user_id="U123",
+            )
+
+        self.assertIs(link, existing)
+        self.assertEqual(link.installation_id, "current-installation")
+        db.add.assert_not_called()
+
+    def test_oauth_install_does_not_replace_a_conflicting_user_link(self) -> None:
+        db = MagicMock()
+        existing_user = SimpleNamespace(
+            enterprise_id=None,
+            team_id="T-other",
+            slack_user_id="U-other",
+            user_id="firebase-user",
+        )
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = existing_user
+        with patch("routes.hosted_claw._active_link_query") as active_link_query:
+            active_link_query.return_value.with_for_update.return_value.first.return_value = None
+            with self.assertRaises(HTTPException) as raised:
+                _link_oauth_installer(
+                    db,
+                    installation=SimpleNamespace(id="installation-id"),
+                    user_id="firebase-user",
+                    enterprise_id=None,
+                    team_id="T123",
+                    slack_user_id="U123",
+                )
+
+        self.assertEqual(raised.exception.status_code, 409)
+        db.add.assert_not_called()
 
 
 class HostedKmsTests(unittest.TestCase):

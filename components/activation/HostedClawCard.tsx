@@ -27,13 +27,20 @@ export function HostedClawCard() {
 
   useEffect(() => {
     let cancelled = false
-    const linkToken = new URLSearchParams(window.location.search).get('hosted_link')
+    const searchParams = new URLSearchParams(window.location.search)
+    const linkToken = searchParams.get('hosted_link')
+    const oauthLinked = searchParams.get('slack_linked') === '1'
     const load = async () => {
       try {
         if (linkToken) {
           await apiClient.consumeHostedSlackLink(linkToken)
           const url = new URL(window.location.href)
           url.searchParams.delete('hosted_link')
+          window.history.replaceState({}, '', url)
+          toast({ title: 'Slack linked', description: 'You can now DM the CPAAutomation Slack app.' })
+        } else if (oauthLinked) {
+          const url = new URL(window.location.href)
+          url.searchParams.delete('slack_linked')
           window.history.replaceState({}, '', url)
           toast({ title: 'Slack linked', description: 'You can now DM the CPAAutomation Slack app.' })
         }
