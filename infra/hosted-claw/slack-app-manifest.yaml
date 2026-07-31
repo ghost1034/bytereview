@@ -12,13 +12,13 @@ features:
     always_online: false
   slash_commands:
     - command: /claw
-      url: https://cpa-api-oyrpyor7wq-uc.a.run.app/api/slack/commands
+      url: https://api.cpaautomation.ai/api/slack/commands
       description: Control your hosted Claw
       usage_hint: help | status | new | stop | unlink
       should_escape: false
 oauth_config:
   redirect_urls:
-    - https://cpa-api-oyrpyor7wq-uc.a.run.app/api/slack/oauth/callback
+    - https://api.cpaautomation.ai/api/slack/oauth/callback
   scopes:
     bot:
       - chat:write
@@ -29,7 +29,7 @@ oauth_config:
       - commands
 settings:
   event_subscriptions:
-    request_url: https://cpa-api-oyrpyor7wq-uc.a.run.app/api/slack/events
+    request_url: https://api.cpaautomation.ai/api/slack/events
     bot_events:
       - app_home_opened
       - app_uninstalled
@@ -37,7 +37,7 @@ settings:
       - tokens_revoked
   interactivity:
     is_enabled: true
-    request_url: https://cpa-api-oyrpyor7wq-uc.a.run.app/api/slack/interactions
+    request_url: https://api.cpaautomation.ai/api/slack/interactions
   org_deploy_enabled: false
   socket_mode_enabled: false
   token_rotation_enabled: false
