@@ -18,7 +18,7 @@ class HostedClawUnavailable(RuntimeError):
 
 
 def hosted_enabled() -> bool:
-    return os.getenv("HOSTED_CLAW_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    return os.getenv("HOSTED_CLAW_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def sha256_token(value: str) -> str:
