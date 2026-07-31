@@ -40,6 +40,31 @@ export interface ActivationStatus {
   revoked: boolean
 }
 
+export interface HostedClawConfig {
+  active_product: 'accountingclaw' | 'legalclaw'
+  model_alias: string
+  personal_instructions: string
+  timezone: string
+  memory_enabled: boolean
+  revision: number
+}
+
+export interface HostedClawStatus {
+  feature_enabled: boolean
+  entitled: boolean
+  allowed_products: Array<'accountingclaw' | 'legalclaw'>
+  allowed_model_aliases: string[]
+  monthly_budget_usd: string
+  linked: boolean
+  workspace_name: string | null
+  slack_user_id: string | null
+  config: HostedClawConfig | null
+  runtime_status: string
+  runtime_last_activity_at: string | null
+  usage_cost_usd: string
+  usage_turns: number
+}
+
 export interface EsignContext {
   firm: { id: string; name: string }
   profile: { id: string | null; name: string; capabilities: Record<string, boolean>; admin_override: boolean }
@@ -200,6 +225,48 @@ export class ApiClient {
 
   async getActivation(): Promise<ActivationStatus> {
     return this.request('/api/activation/me')
+  }
+
+  async getHostedClawStatus(): Promise<HostedClawStatus> {
+    return this.request('/api/hosted-claw/status')
+  }
+
+  async updateHostedClawConfig(data: Partial<HostedClawConfig>): Promise<HostedClawConfig> {
+    return this.request('/api/hosted-claw/config', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async startHostedSlackInstall(): Promise<{ authorize_url: string; expires_in_seconds: number }> {
+    return this.request('/api/hosted-claw/slack/install', { method: 'POST' })
+  }
+
+  async consumeHostedSlackLink(token: string): Promise<{ linked: boolean; workspace_name: string | null }> {
+    return this.request('/api/hosted-claw/slack/link', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    })
+  }
+
+  async stopHostedClaw(): Promise<{ ok: boolean; message: string }> {
+    return this.request('/api/hosted-claw/stop', { method: 'POST' })
+  }
+
+  async newHostedClawSession(): Promise<{ ok: boolean; message: string }> {
+    return this.request('/api/hosted-claw/session/new', { method: 'POST' })
+  }
+
+  async resetHostedClawProduct(): Promise<{ ok: boolean; message: string }> {
+    return this.request('/api/hosted-claw/session/reset', { method: 'POST' })
+  }
+
+  async unlinkHostedSlack(): Promise<{ ok: boolean; message: string }> {
+    return this.request('/api/hosted-claw/slack/link', { method: 'DELETE' })
+  }
+
+  async deleteHostedClaw(): Promise<{ ok: boolean; message: string }> {
+    return this.request('/api/hosted-claw', { method: 'DELETE' })
   }
 
   // Template endpoints

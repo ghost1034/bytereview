@@ -1,0 +1,44 @@
+services:
+  litellm:
+    # Deployment must set this to ghcr.io/berriai/litellm@sha256:<approved>.
+    image: ${LITELLM_IMAGE:?digest-pinned LiteLLM image required}
+    command: ["--config", "/etc/litellm/config.yaml", "--port", "4000"]
+    restart: unless-stopped
+    networks: [hosted-claw-egress]
+    ports: ["127.0.0.1:4000:4000"]
+    volumes:
+      - ./litellm-config.yaml:/etc/litellm/config.yaml:ro
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:?required}
+      HOSTED_CLAW_DEFAULT_MODEL: ${HOSTED_CLAW_DEFAULT_MODEL:?required}
+      HOSTED_CLAW_PROVIDER_API_KEY: ${HOSTED_CLAW_PROVIDER_API_KEY:?required}
+      DATABASE_URL: postgresql://litellm:${LITELLM_DB_PASSWORD:?required}@litellm-db:5432/litellm
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp]
+    depends_on:
+      litellm-db:
+        condition: service_healthy
+  litellm-db:
+    image: ${LITELLM_POSTGRES_IMAGE:?digest-pinned PostgreSQL image required}
+    restart: unless-stopped
+    networks: [hosted-claw-egress]
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: litellm
+      POSTGRES_PASSWORD: ${LITELLM_DB_PASSWORD:?required}
+    volumes:
+      - /srv/hosted-claw/litellm-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U litellm"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs: [/tmp, /run/postgresql]
+networks:
+  hosted-claw-egress:
+    name: hosted-claw-egress

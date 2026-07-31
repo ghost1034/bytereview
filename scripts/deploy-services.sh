@@ -77,6 +77,11 @@ INKWISE_SEGMENT_TEXT_CHUNK_CHARS="${INKWISE_SEGMENT_TEXT_CHUNK_CHARS:-3000}"
 API_TIMEOUT="${API_TIMEOUT:-900}"
 # Universal Document Analysis tools on the Claw MCP gateway.
 CLAW_UDA_MCP_ENABLED="${CLAW_UDA_MCP_ENABLED:-true}"
+HOSTED_CLAW_ENABLED="${HOSTED_CLAW_ENABLED:-false}"
+HOSTED_CLAW_KMS_KEY="${HOSTED_CLAW_KMS_KEY:-projects/${PROJECT_ID}/locations/${REGION}/keyRings/hosted-claw/cryptoKeys/control-plane}"
+HOSTED_CLAW_ARTIFACT_BUCKET="${HOSTED_CLAW_ARTIFACT_BUCKET:-${PROJECT_ID}-hosted-claw-artifacts}"
+HOSTED_CLAW_PUBSUB_TOPIC="${HOSTED_CLAW_PUBSUB_TOPIC:-hosted-claw-jobs}"
+HOSTED_CLAW_WORKER_SERVICE_ACCOUNT="${HOSTED_CLAW_WORKER_SERVICE_ACCOUNT:-hosted-claw-worker@${PROJECT_ID}.iam.gserviceaccount.com}"
 
 # AccountingClaw bundle decryption secret (Secret Manager). The same value must
 # be used to build the AccountingClaw image; the activation /resolve endpoint
@@ -361,6 +366,8 @@ deploy_api() {
   env_items=(
     "${BACKEND_BASE_ENV[@]}"
     "INKWISE_ENABLED=true"
+    "HOSTED_CLAW_ENABLED=${HOSTED_CLAW_ENABLED}"
+    "HOSTED_CLAW_INTERNAL_AUDIENCE=${api_url}"
     "INKWISE_DERIVED_BUCKET=${INKWISE_DERIVED_BUCKET}"
     "INKWISE_MAX_UPLOAD_MB=${INKWISE_MAX_UPLOAD_MB}"
     "INKWISE_MAX_VIDEO_UPLOAD_MB=${INKWISE_MAX_VIDEO_UPLOAD_MB}"
@@ -582,6 +589,10 @@ BACKEND_BASE_ENV=(
   "CPAA_BUNDLE_GCS_OBJECT=${CPAA_BUNDLE_GCS_OBJECT}"
   "CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT=${CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT}"
   "CLAW_UDA_MCP_ENABLED=${CLAW_UDA_MCP_ENABLED}"
+  "HOSTED_CLAW_KMS_KEY=${HOSTED_CLAW_KMS_KEY}"
+  "HOSTED_CLAW_ARTIFACT_BUCKET=${HOSTED_CLAW_ARTIFACT_BUCKET}"
+  "HOSTED_CLAW_PUBSUB_TOPIC=${HOSTED_CLAW_PUBSUB_TOPIC}"
+  "HOSTED_CLAW_WORKER_SERVICE_ACCOUNT=${HOSTED_CLAW_WORKER_SERVICE_ACCOUNT}"
 )
 
 section "Checking prerequisites"
@@ -611,6 +622,12 @@ ensure_legalclaw_bundle_secret
 # working before LegalClaw is rolled out.
 if secret_exists "$LEGALCLAW_BUNDLE_SECRET_NAME"; then
   BACKEND_BASE_SECRETS+=",${LEGALCLAW_BUNDLE_SECRET_NAME}=${LEGALCLAW_BUNDLE_SECRET_NAME}:latest"
+fi
+if [ "$HOSTED_CLAW_ENABLED" = true ]; then
+  for hosted_secret in SLACK_CLIENT_ID SLACK_CLIENT_SECRET SLACK_SIGNING_SECRET; do
+    secret_exists "$hosted_secret" || die "Hosted Claw is enabled but Secret Manager secret ${hosted_secret} is missing"
+    BACKEND_BASE_SECRETS+=",${hosted_secret}=${hosted_secret}:latest"
+  done
 fi
 ensure_secret_value "$TASK_TOKEN_SECRET" "$ROTATE_TASK_TOKEN"
 ensure_queue "$QUEUE_NAME"

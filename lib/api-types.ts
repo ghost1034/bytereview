@@ -6098,6 +6098,560 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/hosted-claw/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status */
+        get: operations["status_api_hosted_claw_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosted-claw/runtime/approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Runtime Approval
+         * @description Poll/create a Slack decision using only a tenant's scoped connector token.
+         */
+        post: operations["runtime_approval_api_hosted_claw_runtime_approval_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosted-claw/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update Config */
+        patch: operations["update_config_api_hosted_claw_config_patch"];
+        trace?: never;
+    };
+    "/api/hosted-claw/slack/install": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Install */
+        post: operations["start_install_api_hosted_claw_slack_install_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosted-claw/slack/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Consume Link */
+        post: operations["consume_link_api_hosted_claw_slack_link_post"];
+        /** Unlink */
+        delete: operations["unlink_api_hosted_claw_slack_link_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosted-claw/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Stop Runtime */
+        post: operations["stop_runtime_api_hosted_claw_stop_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosted-claw/session/new": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** New Session */
+        post: operations["new_session_api_hosted_claw_session_new_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosted-claw/session/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reset Product */
+        post: operations["reset_product_api_hosted_claw_session_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/hosted-claw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Hosted */
+        delete: operations["delete_hosted_api_hosted_claw_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack/oauth/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Slack Oauth Callback */
+        get: operations["slack_oauth_callback_api_slack_oauth_callback_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Slack Events */
+        post: operations["slack_events_api_slack_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Slack Commands */
+        post: operations["slack_commands_api_slack_commands_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slack/interactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Slack Interactions */
+        post: operations["slack_interactions_api_slack_interactions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/jobs/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Job */
+        post: operations["claim_job_api_internal_hosted_claw_jobs_claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/deletions/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Deletion */
+        post: operations["claim_deletion_api_internal_hosted_claw_deletions_claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/stops/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Stop */
+        post: operations["claim_stop_api_internal_hosted_claw_stops_claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/runtimes/{runtime_id}/stopped": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Runtime Stopped */
+        post: operations["runtime_stopped_api_internal_hosted_claw_runtimes__runtime_id__stopped_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/deletions/{runtime_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Complete Deletion */
+        delete: operations["complete_deletion_api_internal_hosted_claw_deletions__runtime_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/jobs/{job_id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete Job */
+        post: operations["complete_job_api_internal_hosted_claw_jobs__job_id__complete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/jobs/{job_id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Job State */
+        get: operations["job_state_api_internal_hosted_claw_jobs__job_id__state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/jobs/{job_id}/progress": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Job Progress
+         * @description Relay ephemeral run progress without storing tenant response content.
+         */
+        post: operations["post_job_progress_api_internal_hosted_claw_jobs__job_id__progress_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/runtime-credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate Runtime Credentials */
+        post: operations["rotate_runtime_credentials_api_internal_hosted_claw_runtime_credentials_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Approval */
+        post: operations["request_approval_api_internal_hosted_claw_approvals_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/approvals/{approval_id}/claim-grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Claim Approval Grant */
+        post: operations["claim_approval_grant_api_internal_hosted_claw_approvals__approval_id__claim_grant_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register Artifact */
+        post: operations["register_artifact_api_internal_hosted_claw_artifacts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/artifacts/{artifact_id}/prepare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Prepare Inbound Artifact
+         * @description Stage one Slack file in GCS; safe to repeat after worker redelivery.
+         */
+        post: operations["prepare_inbound_artifact_api_internal_hosted_claw_artifacts__artifact_id__prepare_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/artifacts/{artifact_id}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record Artifact Scan */
+        post: operations["record_artifact_scan_api_internal_hosted_claw_artifacts__artifact_id__scan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/artifacts/{artifact_id}/deliver": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Deliver Artifact */
+        post: operations["deliver_artifact_api_internal_hosted_claw_artifacts__artifact_id__deliver_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/internal/hosted-claw/retention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Purge Retention */
+        post: operations["purge_retention_api_internal_hosted_claw_retention_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/hosted-claw/entitlements/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Entitlement */
+        put: operations["set_entitlement_api_admin_hosted_claw_entitlements__user_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/hosted-claw/read-only-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set Read Only Actions */
+        put: operations["set_read_only_actions_api_admin_hosted_claw_read_only_actions_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/hosted-claw/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hosted Health */
+        get: operations["hosted_health_api_admin_hosted_claw_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6605,6 +7159,65 @@ export interface components {
              * @enum {string}
              */
             placement_mode: "automatic" | "individual";
+        };
+        /** ApprovalRequest */
+        ApprovalRequest: {
+            /** User Id */
+            user_id: string;
+            /** Connector Token Id */
+            connector_token_id: string;
+            /** Run Id */
+            run_id: string;
+            /** Action Id */
+            action_id: string;
+            /** Arguments */
+            arguments: {
+                [key: string]: unknown;
+            };
+            /** Slack Channel Id */
+            slack_channel_id: string;
+        };
+        /** ApprovalResponse */
+        ApprovalResponse: {
+            /** Approval Id */
+            approval_id: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+        };
+        /** ArtifactRegisterRequest */
+        ArtifactRegisterRequest: {
+            /** User Id */
+            user_id: string;
+            /** Job Id */
+            job_id?: string | null;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "inbound" | "outbound";
+            /** Filename */
+            filename: string;
+            /** Content Type */
+            content_type: string;
+            /** Size Bytes */
+            size_bytes: number;
+        };
+        /** ArtifactRegisterResponse */
+        ArtifactRegisterResponse: {
+            /** Artifact Id */
+            artifact_id: string;
+            /** Object Name */
+            object_name: string;
+            /** Upload Url */
+            upload_url: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
         };
         /** AssistantStreamRequest */
         AssistantStreamRequest: {
@@ -7818,6 +8431,20 @@ export interface components {
             value: string;
             /** Label */
             label: string;
+        };
+        /** EntitlementUpdate */
+        EntitlementUpdate: {
+            /** Enabled */
+            enabled: boolean;
+            /** Allowed Products */
+            allowed_products?: ("accountingclaw" | "legalclaw")[];
+            /** Allowed Model Aliases */
+            allowed_model_aliases?: string[];
+            /**
+             * Monthly Budget Usd
+             * @default 0
+             */
+            monthly_budget_usd: number | string;
         };
         /** EsignAnchorMatch */
         EsignAnchorMatch: {
@@ -10198,6 +10825,96 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HostedCommandResponse */
+        HostedCommandResponse: {
+            /**
+             * Ok
+             * @default true
+             */
+            ok: boolean;
+            /** Message */
+            message: string;
+        };
+        /** HostedConfigResponse */
+        HostedConfigResponse: {
+            /**
+             * Active Product
+             * @enum {string}
+             */
+            active_product: "accountingclaw" | "legalclaw";
+            /** Model Alias */
+            model_alias: string;
+            /** Personal Instructions */
+            personal_instructions: string;
+            /** Timezone */
+            timezone: string;
+            /** Memory Enabled */
+            memory_enabled: boolean;
+            /** Revision */
+            revision: number;
+        };
+        /** HostedConfigUpdate */
+        HostedConfigUpdate: {
+            /** Active Product */
+            active_product?: ("accountingclaw" | "legalclaw") | null;
+            /** Model Alias */
+            model_alias?: string | null;
+            /** Personal Instructions */
+            personal_instructions?: string | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Memory Enabled */
+            memory_enabled?: boolean | null;
+        };
+        /** HostedStatusResponse */
+        HostedStatusResponse: {
+            /** Feature Enabled */
+            feature_enabled: boolean;
+            /** Entitled */
+            entitled: boolean;
+            /**
+             * Allowed Products
+             * @default []
+             */
+            allowed_products: ("accountingclaw" | "legalclaw")[];
+            /**
+             * Allowed Model Aliases
+             * @default []
+             */
+            allowed_model_aliases: string[];
+            /**
+             * Monthly Budget Usd
+             * @default 0
+             */
+            monthly_budget_usd: string;
+            /**
+             * Linked
+             * @default false
+             */
+            linked: boolean;
+            /** Workspace Name */
+            workspace_name?: string | null;
+            /** Slack User Id */
+            slack_user_id?: string | null;
+            config?: components["schemas"]["HostedConfigResponse"] | null;
+            /**
+             * Runtime Status
+             * @default stopped
+             */
+            runtime_status: string;
+            /** Runtime Last Activity At */
+            runtime_last_activity_at?: string | null;
+            /**
+             * Usage Cost Usd
+             * @default 0
+             */
+            usage_cost_usd: string;
+            /**
+             * Usage Turns
+             * @default 0
+             */
+            usage_turns: number;
+        };
         /** InkwiseAssetPreviewRequest */
         InkwiseAssetPreviewRequest: {
             /** Bucket */
@@ -11115,6 +11832,37 @@ export interface components {
             /** Instruction */
             instruction: string;
         };
+        /** JobCompletionRequest */
+        JobCompletionRequest: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "completed" | "failed" | "cancelled";
+            /** Run Id */
+            run_id?: string | null;
+            /** Hermes Session Id */
+            hermes_session_id?: string | null;
+            /** Error Code */
+            error_code?: string | null;
+            /**
+             * Prompt Tokens
+             * @default 0
+             */
+            prompt_tokens: number;
+            /**
+             * Completion Tokens
+             * @default 0
+             */
+            completion_tokens: number;
+            /**
+             * Cost Usd
+             * @default 0
+             */
+            cost_usd: number | string;
+            /** Applied Config Revision */
+            applied_config_revision?: number | null;
+        };
         /**
          * JobDetailsResponse
          * @description Detailed job information
@@ -11726,6 +12474,21 @@ export interface components {
              */
             created_at: string;
         };
+        /** LinkConsumeRequest */
+        LinkConsumeRequest: {
+            /** Token */
+            token: string;
+        };
+        /** LinkConsumeResponse */
+        LinkConsumeResponse: {
+            /**
+             * Linked
+             * @default true
+             */
+            linked: boolean;
+            /** Workspace Name */
+            workspace_name?: string | null;
+        };
         /** MemberUpdateRequest */
         MemberUpdateRequest: {
             /** Role */
@@ -11924,6 +12687,11 @@ export interface components {
             id: string;
             /** Label */
             label?: string | null;
+        };
+        /** ReadOnlyPolicyUpdate */
+        ReadOnlyPolicyUpdate: {
+            /** Action Ids */
+            action_ids?: string[];
         };
         /** ReconciliationAdditionalPassRequest */
         ReconciliationAdditionalPassRequest: {
@@ -12207,6 +12975,40 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** RuntimeApprovalRequest */
+        RuntimeApprovalRequest: {
+            /** Run Id */
+            run_id: string;
+            /** Action Id */
+            action_id: string;
+            /** Arguments */
+            arguments: {
+                [key: string]: unknown;
+            };
+        };
+        /** RuntimeCredentialRequest */
+        RuntimeCredentialRequest: {
+            /** User Id */
+            user_id: string;
+            /**
+             * Product
+             * @enum {string}
+             */
+            product: "accountingclaw" | "legalclaw";
+            /** Runtime Id */
+            runtime_id: string;
+            /** Worker Id */
+            worker_id: string;
+        };
+        /** RuntimeCredentialResponse */
+        RuntimeCredentialResponse: {
+            /** Connector Mcp Url */
+            connector_mcp_url: string;
+            /** Connector Token */
+            connector_token: string;
+            /** Connector Token Id */
+            connector_token_id: string;
+        };
         /** SelectionGroup */
         SelectionGroup: {
             /** Id */
@@ -12232,6 +13034,16 @@ export interface components {
             minimum_selected: number;
             /** Maximum Selected */
             maximum_selected?: number | null;
+        };
+        /** SlackInstallResponse */
+        SlackInstallResponse: {
+            /** Authorize Url */
+            authorize_url: string;
+            /**
+             * Expires In Seconds
+             * @default 600
+             */
+            expires_in_seconds: number;
         };
         /**
          * StartCpeSheetResponse
@@ -12656,6 +13468,64 @@ export interface components {
                 [key: string]: unknown;
             };
             usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** WorkerClaimRequest */
+        WorkerClaimRequest: {
+            /** Worker Id */
+            worker_id: string;
+            /** Hostname */
+            hostname: string;
+            /**
+             * Capacity
+             * @default 10
+             */
+            capacity: number;
+            /**
+             * Active Turns
+             * @default 0
+             */
+            active_turns: number;
+            /** Disk Percent */
+            disk_percent?: number | null;
+        };
+        /** WorkerClaimResponse */
+        WorkerClaimResponse: {
+            job?: components["schemas"]["WorkerJobResponse"] | null;
+        };
+        /** WorkerJobResponse */
+        WorkerJobResponse: {
+            /** Job Id */
+            job_id: string;
+            /**
+             * Queued At
+             * Format: date-time
+             */
+            queued_at: string;
+            /** Payload */
+            payload: {
+                [key: string]: unknown;
+            };
+            /** User Id */
+            user_id: string;
+            /**
+             * Product
+             * @enum {string}
+             */
+            product: "accountingclaw" | "legalclaw";
+            config: components["schemas"]["HostedConfigResponse"];
+            /** Session Id */
+            session_id?: string | null;
+            /** Runtime Id */
+            runtime_id: string;
+            /** Monthly Budget Usd */
+            monthly_budget_usd: string;
+            /** Remaining Budget Usd */
+            remaining_budget_usd: string;
+            /**
+             * Budget Period
+             * Format: date
+             */
+            budget_period: string;
         };
         /** _SaveAsTemplateRequest */
         _SaveAsTemplateRequest: {
@@ -25444,6 +26314,940 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    status_api_hosted_claw_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedStatusResponse"];
+                };
+            };
+        };
+    };
+    runtime_approval_api_hosted_claw_runtime_approval_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeApprovalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_config_api_hosted_claw_config_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HostedConfigUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedConfigResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_install_api_hosted_claw_slack_install_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlackInstallResponse"];
+                };
+            };
+        };
+    };
+    consume_link_api_hosted_claw_slack_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkConsumeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkConsumeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unlink_api_hosted_claw_slack_link_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+        };
+    };
+    stop_runtime_api_hosted_claw_stop_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+        };
+    };
+    new_session_api_hosted_claw_session_new_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+        };
+    };
+    reset_product_api_hosted_claw_session_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+        };
+    };
+    delete_hosted_api_hosted_claw_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+        };
+    };
+    slack_oauth_callback_api_slack_oauth_callback_get: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    slack_events_api_slack_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    slack_commands_api_slack_commands_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    slack_interactions_api_slack_interactions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    claim_job_api_internal_hosted_claw_jobs_claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkerClaimRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerClaimResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_deletion_api_internal_hosted_claw_deletions_claim_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_stop_api_internal_hosted_claw_stops_claim_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    runtime_stopped_api_internal_hosted_claw_runtimes__runtime_id__stopped_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path: {
+                runtime_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_deletion_api_internal_hosted_claw_deletions__runtime_id__delete: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path: {
+                runtime_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    complete_job_api_internal_hosted_claw_jobs__job_id__complete_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobCompletionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    job_state_api_internal_hosted_claw_jobs__job_id__state_get: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_job_progress_api_internal_hosted_claw_jobs__job_id__progress_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_runtime_credentials_api_internal_hosted_claw_runtime_credentials_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuntimeCredentialRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuntimeCredentialResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_approval_api_internal_hosted_claw_approvals_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claim_approval_grant_api_internal_hosted_claw_approvals__approval_id__claim_grant_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                approval_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    register_artifact_api_internal_hosted_claw_artifacts_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArtifactRegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArtifactRegisterResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    prepare_inbound_artifact_api_internal_hosted_claw_artifacts__artifact_id__prepare_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    record_artifact_scan_api_internal_hosted_claw_artifacts__artifact_id__scan_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deliver_artifact_api_internal_hosted_claw_artifacts__artifact_id__deliver_post: {
+        parameters: {
+            query: {
+                worker_id: string;
+            };
+            header?: never;
+            path: {
+                artifact_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HostedCommandResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    purge_retention_api_internal_hosted_claw_retention_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    set_entitlement_api_admin_hosted_claw_entitlements__user_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EntitlementUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_read_only_actions_api_admin_hosted_claw_read_only_actions_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReadOnlyPolicyUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hosted_health_api_admin_hosted_claw_health_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };

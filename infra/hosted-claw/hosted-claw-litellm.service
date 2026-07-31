@@ -1,0 +1,16 @@
+[Unit]
+Description=Hosted Claw LiteLLM gateway
+Requires=docker.service
+After=docker.service network-online.target
+ConditionPathExists=/etc/hosted-claw/worker.env
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/hosted-claw
+ExecStart=/usr/bin/docker compose --env-file /etc/hosted-claw/worker.env up -d litellm-db litellm
+ExecStop=/usr/bin/docker compose --env-file /etc/hosted-claw/worker.env down
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target

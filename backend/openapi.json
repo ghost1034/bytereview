@@ -20576,6 +20576,1277 @@
           }
         }
       }
+    },
+    "/api/hosted-claw/status": {
+      "get": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Status",
+        "operationId": "status_api_hosted_claw_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedStatusResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/hosted-claw/runtime/approval": {
+      "post": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Runtime Approval",
+        "description": "Poll/create a Slack decision using only a tenant's scoped connector token.",
+        "operationId": "runtime_approval_api_hosted_claw_runtime_approval_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/hosted-claw/config": {
+      "patch": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Update Config",
+        "operationId": "update_config_api_hosted_claw_config_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HostedConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/hosted-claw/slack/install": {
+      "post": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Start Install",
+        "operationId": "start_install_api_hosted_claw_slack_install_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SlackInstallResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/hosted-claw/slack/link": {
+      "post": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Consume Link",
+        "operationId": "consume_link_api_hosted_claw_slack_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkConsumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkConsumeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Unlink",
+        "operationId": "unlink_api_hosted_claw_slack_link_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/hosted-claw/stop": {
+      "post": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Stop Runtime",
+        "operationId": "stop_runtime_api_hosted_claw_stop_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/hosted-claw/session/new": {
+      "post": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "New Session",
+        "operationId": "new_session_api_hosted_claw_session_new_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/hosted-claw/session/reset": {
+      "post": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Reset Product",
+        "operationId": "reset_product_api_hosted_claw_session_reset_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/hosted-claw": {
+      "delete": {
+        "tags": [
+          "hosted-claw"
+        ],
+        "summary": "Delete Hosted",
+        "operationId": "delete_hosted_api_hosted_claw_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/slack/oauth/callback": {
+      "get": {
+        "tags": [
+          "hosted-claw-slack"
+        ],
+        "summary": "Slack Oauth Callback",
+        "operationId": "slack_oauth_callback_api_slack_oauth_callback_get",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Code"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "State"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/slack/events": {
+      "post": {
+        "tags": [
+          "hosted-claw-slack"
+        ],
+        "summary": "Slack Events",
+        "operationId": "slack_events_api_slack_events_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/slack/commands": {
+      "post": {
+        "tags": [
+          "hosted-claw-slack"
+        ],
+        "summary": "Slack Commands",
+        "operationId": "slack_commands_api_slack_commands_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/slack/interactions": {
+      "post": {
+        "tags": [
+          "hosted-claw-slack"
+        ],
+        "summary": "Slack Interactions",
+        "operationId": "slack_interactions_api_slack_interactions_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/jobs/claim": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Claim Job",
+        "operationId": "claim_job_api_internal_hosted_claw_jobs_claim_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkerClaimRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkerClaimResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/deletions/claim": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Claim Deletion",
+        "operationId": "claim_deletion_api_internal_hosted_claw_deletions_claim_post",
+        "parameters": [
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/stops/claim": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Claim Stop",
+        "operationId": "claim_stop_api_internal_hosted_claw_stops_claim_post",
+        "parameters": [
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/runtimes/{runtime_id}/stopped": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Runtime Stopped",
+        "operationId": "runtime_stopped_api_internal_hosted_claw_runtimes__runtime_id__stopped_post",
+        "parameters": [
+          {
+            "name": "runtime_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Runtime Id"
+            }
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/deletions/{runtime_id}": {
+      "delete": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Complete Deletion",
+        "operationId": "complete_deletion_api_internal_hosted_claw_deletions__runtime_id__delete",
+        "parameters": [
+          {
+            "name": "runtime_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Runtime Id"
+            }
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/jobs/{job_id}/complete": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Complete Job",
+        "operationId": "complete_job_api_internal_hosted_claw_jobs__job_id__complete_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCompletionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/jobs/{job_id}/state": {
+      "get": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Job State",
+        "operationId": "job_state_api_internal_hosted_claw_jobs__job_id__state_get",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/jobs/{job_id}/progress": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Post Job Progress",
+        "description": "Relay ephemeral run progress without storing tenant response content.",
+        "operationId": "post_job_progress_api_internal_hosted_claw_jobs__job_id__progress_post",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/runtime-credentials": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Rotate Runtime Credentials",
+        "operationId": "rotate_runtime_credentials_api_internal_hosted_claw_runtime_credentials_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuntimeCredentialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuntimeCredentialResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/approvals": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Request Approval",
+        "operationId": "request_approval_api_internal_hosted_claw_approvals_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/approvals/{approval_id}/claim-grant": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Claim Approval Grant",
+        "operationId": "claim_approval_grant_api_internal_hosted_claw_approvals__approval_id__claim_grant_post",
+        "parameters": [
+          {
+            "name": "approval_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Approval Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/artifacts": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Register Artifact",
+        "operationId": "register_artifact_api_internal_hosted_claw_artifacts_post",
+        "parameters": [
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArtifactRegisterRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArtifactRegisterResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/artifacts/{artifact_id}/prepare": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Prepare Inbound Artifact",
+        "description": "Stage one Slack file in GCS; safe to repeat after worker redelivery.",
+        "operationId": "prepare_inbound_artifact_api_internal_hosted_claw_artifacts__artifact_id__prepare_post",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/artifacts/{artifact_id}/scan": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Record Artifact Scan",
+        "operationId": "record_artifact_scan_api_internal_hosted_claw_artifacts__artifact_id__scan_post",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/artifacts/{artifact_id}/deliver": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Deliver Artifact",
+        "operationId": "deliver_artifact_api_internal_hosted_claw_artifacts__artifact_id__deliver_post",
+        "parameters": [
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Artifact Id"
+            }
+          },
+          {
+            "name": "worker_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Worker Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HostedCommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/internal/hosted-claw/retention": {
+      "post": {
+        "tags": [
+          "hosted-claw-internal"
+        ],
+        "summary": "Purge Retention",
+        "operationId": "purge_retention_api_internal_hosted_claw_retention_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/hosted-claw/entitlements/{user_id}": {
+      "put": {
+        "tags": [
+          "admin-hosted-claw"
+        ],
+        "summary": "Set Entitlement",
+        "operationId": "set_entitlement_api_admin_hosted_claw_entitlements__user_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntitlementUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/hosted-claw/read-only-actions": {
+      "put": {
+        "tags": [
+          "admin-hosted-claw"
+        ],
+        "summary": "Set Read Only Actions",
+        "operationId": "set_read_only_actions_api_admin_hosted_claw_read_only_actions_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadOnlyPolicyUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/admin/hosted-claw/health": {
+      "get": {
+        "tags": [
+          "admin-hosted-claw"
+        ],
+        "summary": "Hosted Health",
+        "operationId": "hosted_health_api_admin_hosted_claw_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -22137,6 +23408,152 @@
         },
         "type": "object",
         "title": "AnchorProps"
+      },
+      "ApprovalRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "User Id"
+          },
+          "connector_token_id": {
+            "type": "string",
+            "title": "Connector Token Id"
+          },
+          "run_id": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Run Id"
+          },
+          "action_id": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Action Id"
+          },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments"
+          },
+          "slack_channel_id": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Slack Channel Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "connector_token_id",
+          "run_id",
+          "action_id",
+          "arguments",
+          "slack_channel_id"
+        ],
+        "title": "ApprovalRequest"
+      },
+      "ApprovalResponse": {
+        "properties": {
+          "approval_id": {
+            "type": "string",
+            "title": "Approval Id"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "approval_id",
+          "expires_at"
+        ],
+        "title": "ApprovalResponse"
+      },
+      "ArtifactRegisterRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "User Id"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "inbound",
+              "outbound"
+            ],
+            "title": "Direction"
+          },
+          "filename": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Content Type"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "maximum": 52428800.0,
+            "minimum": 1.0,
+            "title": "Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "direction",
+          "filename",
+          "content_type",
+          "size_bytes"
+        ],
+        "title": "ArtifactRegisterRequest"
+      },
+      "ArtifactRegisterResponse": {
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "title": "Artifact Id"
+          },
+          "object_name": {
+            "type": "string",
+            "title": "Object Name"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "artifact_id",
+          "object_name",
+          "upload_url",
+          "expires_at"
+        ],
+        "title": "ArtifactRegisterResponse"
       },
       "AssistantStreamRequest": {
         "properties": {
@@ -25515,6 +26932,51 @@
           "label"
         ],
         "title": "DropdownOption"
+      },
+      "EntitlementUpdate": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "allowed_products": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "accountingclaw",
+                "legalclaw"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Products"
+          },
+          "allowed_model_aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Model Aliases"
+          },
+          "monthly_budget_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Monthly Budget Usd",
+            "default": "0"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "EntitlementUpdate"
       },
       "EsignAnchorMatch": {
         "properties": {
@@ -32600,6 +34062,245 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HostedCommandResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "HostedCommandResponse"
+      },
+      "HostedConfigResponse": {
+        "properties": {
+          "active_product": {
+            "type": "string",
+            "enum": [
+              "accountingclaw",
+              "legalclaw"
+            ],
+            "title": "Active Product"
+          },
+          "model_alias": {
+            "type": "string",
+            "title": "Model Alias"
+          },
+          "personal_instructions": {
+            "type": "string",
+            "title": "Personal Instructions"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "memory_enabled": {
+            "type": "boolean",
+            "title": "Memory Enabled"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "active_product",
+          "model_alias",
+          "personal_instructions",
+          "timezone",
+          "memory_enabled",
+          "revision"
+        ],
+        "title": "HostedConfigResponse"
+      },
+      "HostedConfigUpdate": {
+        "properties": {
+          "active_product": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "accountingclaw",
+                  "legalclaw"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Product"
+          },
+          "model_alias": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Alias"
+          },
+          "personal_instructions": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Personal Instructions"
+          },
+          "timezone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Timezone"
+          },
+          "memory_enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Memory Enabled"
+          }
+        },
+        "type": "object",
+        "title": "HostedConfigUpdate"
+      },
+      "HostedStatusResponse": {
+        "properties": {
+          "feature_enabled": {
+            "type": "boolean",
+            "title": "Feature Enabled"
+          },
+          "entitled": {
+            "type": "boolean",
+            "title": "Entitled"
+          },
+          "allowed_products": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "accountingclaw",
+                "legalclaw"
+              ]
+            },
+            "type": "array",
+            "title": "Allowed Products",
+            "default": []
+          },
+          "allowed_model_aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Model Aliases",
+            "default": []
+          },
+          "monthly_budget_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monthly Budget Usd",
+            "default": "0"
+          },
+          "linked": {
+            "type": "boolean",
+            "title": "Linked",
+            "default": false
+          },
+          "workspace_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Name"
+          },
+          "slack_user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slack User Id"
+          },
+          "config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HostedConfigResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runtime_status": {
+            "type": "string",
+            "title": "Runtime Status",
+            "default": "stopped"
+          },
+          "runtime_last_activity_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runtime Last Activity At"
+          },
+          "usage_cost_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Usage Cost Usd",
+            "default": "0"
+          },
+          "usage_turns": {
+            "type": "integer",
+            "title": "Usage Turns",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "feature_enabled",
+          "entitled"
+        ],
+        "title": "HostedStatusResponse"
+      },
       "InkwiseAssetPreviewRequest": {
         "properties": {
           "bucket": {
@@ -35377,6 +37078,98 @@
         ],
         "title": "InkwiseWritingToolRequest"
       },
+      "JobCompletionRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "failed",
+              "cancelled"
+            ],
+            "title": "Status"
+          },
+          "run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Id"
+          },
+          "hermes_session_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hermes Session Id"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "prompt_tokens": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Prompt Tokens",
+            "default": 0
+          },
+          "completion_tokens": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Completion Tokens",
+            "default": 0
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "string",
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
+              }
+            ],
+            "title": "Cost Usd",
+            "default": "0"
+          },
+          "applied_config_revision": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied Config Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "JobCompletionRequest"
+      },
       "JobDetailsResponse": {
         "properties": {
           "id": {
@@ -36416,6 +38209,43 @@
         ],
         "title": "JournalEntryResponse"
       },
+      "LinkConsumeRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 32,
+            "title": "Token"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "LinkConsumeRequest"
+      },
+      "LinkConsumeResponse": {
+        "properties": {
+          "linked": {
+            "type": "boolean",
+            "title": "Linked",
+            "default": true
+          },
+          "workspace_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace Name"
+          }
+        },
+        "type": "object",
+        "title": "LinkConsumeResponse"
+      },
       "MemberUpdateRequest": {
         "properties": {
           "role": {
@@ -36974,6 +38804,20 @@
           "id"
         ],
         "title": "RadioGroupProps"
+      },
+      "ReadOnlyPolicyUpdate": {
+        "properties": {
+          "action_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 5000,
+            "title": "Action Ids"
+          }
+        },
+        "type": "object",
+        "title": "ReadOnlyPolicyUpdate"
       },
       "ReconciliationAdditionalPassRequest": {
         "properties": {
@@ -37786,6 +39630,95 @@
         ],
         "title": "ResultRowUpdateRequest"
       },
+      "RuntimeApprovalRequest": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Run Id"
+          },
+          "action_id": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Action Id"
+          },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments"
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "action_id",
+          "arguments"
+        ],
+        "title": "RuntimeApprovalRequest"
+      },
+      "RuntimeCredentialRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "User Id"
+          },
+          "product": {
+            "type": "string",
+            "enum": [
+              "accountingclaw",
+              "legalclaw"
+            ],
+            "title": "Product"
+          },
+          "runtime_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Runtime Id"
+          },
+          "worker_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Worker Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "product",
+          "runtime_id",
+          "worker_id"
+        ],
+        "title": "RuntimeCredentialRequest"
+      },
+      "RuntimeCredentialResponse": {
+        "properties": {
+          "connector_mcp_url": {
+            "type": "string",
+            "title": "Connector Mcp Url"
+          },
+          "connector_token": {
+            "type": "string",
+            "title": "Connector Token"
+          },
+          "connector_token_id": {
+            "type": "string",
+            "title": "Connector Token Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "connector_mcp_url",
+          "connector_token",
+          "connector_token_id"
+        ],
+        "title": "RuntimeCredentialResponse"
+      },
       "SelectionGroup": {
         "properties": {
           "id": {
@@ -37861,6 +39794,24 @@
         },
         "type": "object",
         "title": "SelectionValidation"
+      },
+      "SlackInstallResponse": {
+        "properties": {
+          "authorize_url": {
+            "type": "string",
+            "title": "Authorize Url"
+          },
+          "expires_in_seconds": {
+            "type": "integer",
+            "title": "Expires In Seconds",
+            "default": 600
+          }
+        },
+        "type": "object",
+        "required": [
+          "authorize_url"
+        ],
+        "title": "SlackInstallResponse"
       },
       "StartCpeSheetResponse": {
         "properties": {
@@ -38882,6 +40833,148 @@
           "name"
         ],
         "title": "WaterfallExtractResponse"
+      },
+      "WorkerClaimRequest": {
+        "properties": {
+          "worker_id": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Worker Id"
+          },
+          "hostname": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Hostname"
+          },
+          "capacity": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Capacity",
+            "default": 10
+          },
+          "active_turns": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 0.0,
+            "title": "Active Turns",
+            "default": 0
+          },
+          "disk_percent": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Disk Percent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "worker_id",
+          "hostname"
+        ],
+        "title": "WorkerClaimRequest"
+      },
+      "WorkerClaimResponse": {
+        "properties": {
+          "job": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkerJobResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "WorkerClaimResponse"
+      },
+      "WorkerJobResponse": {
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "queued_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Queued At"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Payload"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "product": {
+            "type": "string",
+            "enum": [
+              "accountingclaw",
+              "legalclaw"
+            ],
+            "title": "Product"
+          },
+          "config": {
+            "$ref": "#/components/schemas/HostedConfigResponse"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          },
+          "runtime_id": {
+            "type": "string",
+            "title": "Runtime Id"
+          },
+          "monthly_budget_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Monthly Budget Usd"
+          },
+          "remaining_budget_usd": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Remaining Budget Usd"
+          },
+          "budget_period": {
+            "type": "string",
+            "format": "date",
+            "title": "Budget Period"
+          }
+        },
+        "type": "object",
+        "required": [
+          "job_id",
+          "queued_at",
+          "payload",
+          "user_id",
+          "product",
+          "config",
+          "runtime_id",
+          "monthly_budget_usd",
+          "remaining_budget_usd",
+          "budget_period"
+        ],
+        "title": "WorkerJobResponse"
       },
       "_SaveAsTemplateRequest": {
         "properties": {

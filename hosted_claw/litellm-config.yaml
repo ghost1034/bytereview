@@ -1,0 +1,12 @@
+model_list:
+  - model_name: claw-default
+    litellm_params:
+      model: os.environ/HOSTED_CLAW_DEFAULT_MODEL
+      api_key: os.environ/HOSTED_CLAW_PROVIDER_API_KEY
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
+  database_url: os.environ/DATABASE_URL
+  disable_spend_logs: false
+litellm_settings:
+  set_verbose: false
+  json_logs: true

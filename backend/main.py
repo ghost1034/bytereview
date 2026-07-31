@@ -147,6 +147,7 @@ from routes import (
     analytics_reconciliation, analytics_variance, analytics_comments, activation,
     chrona_devices, chrona_sync, chrona_dashboard, connector, local_storage,
     tasklytic,
+    hosted_claw,
 )
 from inkwise.router import router as inkwise_router
 
@@ -182,6 +183,10 @@ app.include_router(chrona_sync.router)
 app.include_router(chrona_dashboard.router)
 app.include_router(local_storage.router, prefix="/api/local-storage", tags=["local-development"])
 app.include_router(tasklytic.router)
+app.include_router(hosted_claw.user_router)
+app.include_router(hosted_claw.slack_router)
+app.include_router(hosted_claw.internal_router)
+app.include_router(hosted_claw.admin_router)
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
 if __name__ == "__main__":

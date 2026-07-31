@@ -1,0 +1,43 @@
+display_information:
+  name: CPAAutomation Hosted Claw
+  description: Managed AccountingClaw and LegalClaw in Slack DMs
+  background_color: "#111827"
+features:
+  app_home:
+    home_tab_enabled: true
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: CPAAutomation Claw
+    always_online: false
+  slash_commands:
+    - command: /claw
+      url: https://API_HOST/api/slack/commands
+      description: Control your hosted Claw
+      usage_hint: help | status | new | stop | unlink
+      should_escape: false
+oauth_config:
+  redirect_urls:
+    - https://API_HOST/api/slack/oauth/callback
+  scopes:
+    bot:
+      - chat:write
+      - im:history
+      - im:write
+      - files:read
+      - files:write
+      - commands
+settings:
+  event_subscriptions:
+    request_url: https://API_HOST/api/slack/events
+    bot_events:
+      - app_home_opened
+      - app_uninstalled
+      - message.im
+      - tokens_revoked
+  interactivity:
+    is_enabled: true
+    request_url: https://API_HOST/api/slack/interactions
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

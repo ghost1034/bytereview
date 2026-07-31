@@ -119,6 +119,13 @@ ADMIN_TABLE_GROUPS: dict[str, dict[str, Any]] = {
             "subscription_plans", "billing_accounts", "usage_events",
             "usage_counters", "integration_accounts", "connector_connections",
             "connector_oauth_configs", "connector_tokens", "connector_action_logs",
+            "hosted_claw_slack_installations", "hosted_claw_slack_links",
+            "hosted_claw_oauth_states", "hosted_claw_link_tokens",
+            "hosted_claw_entitlements", "hosted_claw_configs",
+            "hosted_claw_product_sessions", "hosted_claw_jobs",
+            "hosted_claw_artifacts", "hosted_claw_approvals",
+            "hosted_claw_read_only_actions", "hosted_claw_worker_leases",
+            "hosted_claw_usage_summaries",
         ],
     },
 }
@@ -153,6 +160,8 @@ _SENSITIVE_EXACT = {
     "access_token", "refresh_token", "token", "token_hash", "key_hash",
     "secret", "secret_hash", "encrypted_credentials", "encrypted_token",
     "password", "token_sha256", "public_token_sha256", "verification_token_sha256",
+    "bot_token_ciphertext", "payload_ciphertext", "interaction_token_hash",
+    "grant_token_hash", "state_hash",
 }
 _SENSITIVE_PARTS = ("access_token", "refresh_token", "secret", "password", "key_hash")
 _SENSITIVE_TABLE_COLUMNS = {

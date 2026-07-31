@@ -2045,11 +2045,23 @@ class ConnectorToken(Base):
     token_hash = Column(String(64), nullable=False)  # sha256 hex of the full token
     token_prefix = Column(String(24), nullable=False)  # masked value for display, e.g. "cpaa_conn_AbCd…"
     name = Column(String(128), nullable=True)  # e.g. 'claw:<fingerprint>' or a user-chosen label
+    # Hosted runtimes use a distinct token class so the connector can enforce
+    # server-side approval grants. Existing rows remain ``self_hosted``.
+    token_kind = Column(String(20), nullable=False, server_default="self_hosted")
+    runtime_id = Column(String(128), nullable=True)
     last_used_at = Column(TIMESTAMP(timezone=True), nullable=True)
     revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)  # non-null => revoked
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
 
     user = relationship("User", back_populates="connector_tokens")
+
+    __table_args__ = (
+        CheckConstraint(
+            "token_kind IN ('self_hosted', 'hosted_runtime')",
+            name="ck_connector_tokens_kind",
+        ),
+        Index("ix_connector_tokens_runtime_id", "runtime_id"),
+    )
 
 
 class ConnectorActionLog(Base):
@@ -2070,6 +2082,276 @@ class ConnectorActionLog(Base):
     __table_args__ = (
         CheckConstraint("source IN ('web', 'platform', 'mcp')", name="ck_connector_action_logs_source"),
         Index("ix_connector_action_logs_user_created", "user_id", "created_at"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Hosted Claw control plane
+# ---------------------------------------------------------------------------
+
+
+class HostedClawSlackInstallation(Base):
+    __tablename__ = "hosted_claw_slack_installations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    enterprise_id = Column(String(64), nullable=True)
+    team_id = Column(String(64), nullable=False)
+    team_name = Column(String(255), nullable=True)
+    bot_user_id = Column(String(64), nullable=False)
+    bot_token_ciphertext = Column(LargeBinary, nullable=False)
+    kms_key_version = Column(Text, nullable=False)
+    scopes = Column(JSONB, nullable=False, server_default="[]")
+    status = Column(String(20), nullable=False, server_default="active")
+    installed_by_slack_user_id = Column(String(64), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index(
+            "uq_hosted_claw_slack_workspace",
+            text("coalesce(enterprise_id, '')"),
+            "team_id",
+            unique=True,
+        ),
+        CheckConstraint("status IN ('active', 'revoked', 'error')", name="ck_hosted_claw_installation_status"),
+    )
+
+
+class HostedClawSlackLink(Base):
+    __tablename__ = "hosted_claw_slack_links"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    installation_id = Column(UUID(as_uuid=True), ForeignKey("hosted_claw_slack_installations.id", ondelete="CASCADE"), nullable=False)
+    enterprise_id = Column(String(64), nullable=True)
+    team_id = Column(String(64), nullable=False)
+    slack_user_id = Column(String(64), nullable=False)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    unlinked_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index(
+            "uq_hosted_claw_active_slack_identity",
+            text("coalesce(enterprise_id, '')"),
+            "team_id",
+            "slack_user_id",
+            unique=True,
+            postgresql_where=text("unlinked_at IS NULL"),
+        ),
+        Index(
+            "uq_hosted_claw_active_user_link",
+            "user_id",
+            unique=True,
+            postgresql_where=text("unlinked_at IS NULL"),
+        ),
+    )
+
+
+class HostedClawOAuthState(Base):
+    __tablename__ = "hosted_claw_oauth_states"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    state_hash = Column(String(64), nullable=False, unique=True)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    consumed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+
+class HostedClawLinkToken(Base):
+    __tablename__ = "hosted_claw_link_tokens"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    installation_id = Column(UUID(as_uuid=True), ForeignKey("hosted_claw_slack_installations.id", ondelete="CASCADE"), nullable=False)
+    enterprise_id = Column(String(64), nullable=True)
+    team_id = Column(String(64), nullable=False)
+    slack_user_id = Column(String(64), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    consumed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    consumed_by_user_id = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+
+class HostedClawEntitlement(Base):
+    __tablename__ = "hosted_claw_entitlements"
+
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    enabled = Column(Boolean, nullable=False, server_default=expression.false())
+    allowed_products = Column(JSONB, nullable=False, server_default='["accountingclaw"]')
+    allowed_model_aliases = Column(JSONB, nullable=False, server_default='["claw-default"]')
+    monthly_budget_usd = Column(Numeric(12, 4), nullable=False, server_default="0")
+    granted_by = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    revoked_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class HostedClawConfig(Base):
+    __tablename__ = "hosted_claw_configs"
+
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    active_product = Column(String(32), nullable=False, server_default="accountingclaw")
+    model_alias = Column(String(100), nullable=False, server_default="claw-default")
+    personal_instructions = Column(Text, nullable=False, server_default="")
+    timezone = Column(String(64), nullable=False, server_default="UTC")
+    memory_enabled = Column(Boolean, nullable=False, server_default=expression.true())
+    revision = Column(Integer, nullable=False, server_default="1")
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        CheckConstraint("active_product IN ('accountingclaw', 'legalclaw')", name="ck_hosted_claw_config_product"),
+    )
+
+
+class HostedClawProductSession(Base):
+    __tablename__ = "hosted_claw_product_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    product = Column(String(32), nullable=False)
+    hermes_session_id = Column(String(128), nullable=True)
+    runtime_id = Column(String(128), nullable=True, unique=True)
+    worker_id = Column(String(128), nullable=True)
+    status = Column(String(20), nullable=False, server_default="stopped")
+    applied_config_revision = Column(Integer, nullable=False, server_default="0")
+    last_activity_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "product", name="uq_hosted_claw_user_product_session"),
+        CheckConstraint("product IN ('accountingclaw', 'legalclaw')", name="ck_hosted_claw_session_product"),
+        CheckConstraint("status IN ('stopped', 'starting', 'ready', 'running', 'error', 'deleting')", name="ck_hosted_claw_session_status"),
+    )
+
+
+class HostedClawJob(Base):
+    __tablename__ = "hosted_claw_jobs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    event_id = Column(String(128), nullable=False, unique=True)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    slack_link_id = Column(UUID(as_uuid=True), ForeignKey("hosted_claw_slack_links.id", ondelete="CASCADE"), nullable=False)
+    product = Column(String(32), nullable=False)
+    payload_ciphertext = Column(LargeBinary, nullable=False)
+    kms_key_version = Column(Text, nullable=False)
+    status = Column(String(20), nullable=False, server_default="queued")
+    worker_id = Column(String(128), nullable=True)
+    lease_expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    run_id = Column(String(128), nullable=True)
+    error_code = Column(String(64), nullable=True)
+    available_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("status IN ('queued', 'claimed', 'running', 'completed', 'failed', 'cancelled')", name="ck_hosted_claw_job_status"),
+        Index("ix_hosted_claw_jobs_claim", "status", "available_at", "created_at"),
+        Index(
+            "uq_hosted_claw_active_job_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status IN ('claimed', 'running')"),
+            sqlite_where=text("status IN ('claimed', 'running')"),
+        ),
+    )
+
+
+class HostedClawArtifact(Base):
+    __tablename__ = "hosted_claw_artifacts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    job_id = Column(UUID(as_uuid=True), ForeignKey("hosted_claw_jobs.id", ondelete="CASCADE"), nullable=True)
+    source_id = Column(String(64), nullable=True)
+    direction = Column(String(12), nullable=False)
+    filename = Column(Text, nullable=False)
+    content_type = Column(String(255), nullable=False)
+    size_bytes = Column(BigInteger, nullable=False)
+    gcs_object_name = Column(Text, nullable=False, unique=True)
+    scan_status = Column(String(20), nullable=False, server_default="pending")
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    deleted_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("direction IN ('inbound', 'outbound')", name="ck_hosted_claw_artifact_direction"),
+        CheckConstraint("scan_status IN ('pending', 'clean', 'infected', 'rejected', 'deleted')", name="ck_hosted_claw_artifact_scan"),
+        CheckConstraint("size_bytes >= 0 AND size_bytes <= 52428800", name="ck_hosted_claw_artifact_size"),
+        Index("ix_hosted_claw_artifact_retention", "expires_at", "deleted_at"),
+        Index(
+            "uq_hosted_claw_artifact_source",
+            "job_id",
+            "source_id",
+            unique=True,
+            postgresql_where=text("source_id IS NOT NULL"),
+        ),
+    )
+
+
+class HostedClawApproval(Base):
+    __tablename__ = "hosted_claw_approvals"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    connector_token_id = Column(UUID(as_uuid=True), ForeignKey("connector_tokens.id", ondelete="CASCADE"), nullable=False)
+    run_id = Column(String(128), nullable=False)
+    action_id = Column(String(200), nullable=False)
+    argument_hash = Column(String(64), nullable=False)
+    interaction_token_hash = Column(String(64), nullable=False, unique=True)
+    grant_token_hash = Column(String(64), nullable=True, unique=True)
+    status = Column(String(20), nullable=False, server_default="pending")
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    decided_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    consumed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint("status IN ('pending', 'approved', 'denied', 'expired', 'consumed')", name="ck_hosted_claw_approval_status"),
+        Index("ix_hosted_claw_approval_match", "connector_token_id", "run_id", "action_id", "argument_hash"),
+    )
+
+
+class HostedClawReadOnlyAction(Base):
+    __tablename__ = "hosted_claw_read_only_actions"
+
+    action_id = Column(String(200), primary_key=True)
+    enabled = Column(Boolean, nullable=False, server_default=expression.true())
+    updated_by = Column(String(128), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class HostedClawWorkerLease(Base):
+    __tablename__ = "hosted_claw_worker_leases"
+
+    worker_id = Column(String(128), primary_key=True)
+    hostname = Column(String(255), nullable=False)
+    capacity = Column(Integer, nullable=False, server_default="10")
+    active_turns = Column(Integer, nullable=False, server_default="0")
+    disk_percent = Column(Numeric(5, 2), nullable=True)
+    status = Column(String(20), nullable=False, server_default="healthy")
+    lease_expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    last_heartbeat_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+
+class HostedClawUsageSummary(Base):
+    __tablename__ = "hosted_claw_usage_summaries"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    period_start = Column(Date, nullable=False)
+    prompt_tokens = Column(BigInteger, nullable=False, server_default="0")
+    completion_tokens = Column(BigInteger, nullable=False, server_default="0")
+    cost_usd = Column(Numeric(12, 6), nullable=False, server_default="0")
+    turns = Column(Integer, nullable=False, server_default="0")
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "period_start", name="uq_hosted_claw_usage_period"),
     )
 
 
