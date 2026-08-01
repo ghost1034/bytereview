@@ -15,7 +15,9 @@ html:has(body.inkwise-focus-mode-active) {
 /* Prevent main content from shifting when dropdowns open */
 body {
   width: 100%;
-  overflow-x: hidden;
+  /* Clip horizontal overflow without creating a scroll container, so sticky
+     descendants (including the E-Signature action bar) track the viewport. */
+  overflow-x: clip;
 }
 
 /* Anchor scroll offset for fixed header */
