@@ -140,7 +140,7 @@ export function SigningDocumentViewer({
             </button>
           }
           if (field.field_type === 'date_signed') {
-            return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border border-border bg-surface-muted px-1 text-xs text-foreground-muted" style={style} title={tooltip ?? 'The server records the actual completion date'}>Completed when submitted</div>
+            return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border border-border bg-surface-muted px-1 text-xs text-foreground-muted" style={style} title={tooltip ?? 'The server records the actual completion date'}>{formatDateSigned(new Date(), dateFormat)}</div>
           }
           if (field.properties?.read_only && ['checkbox', 'radio', 'dropdown'].includes(field.field_type)) {
             const raw = fieldValues[field.id] ?? field.properties.sender_prefill ?? ''
