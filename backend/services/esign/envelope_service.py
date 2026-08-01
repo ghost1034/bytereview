@@ -2298,7 +2298,10 @@ class EsignEnvelopeService:
         )
 
         def candidate(placement: str, alignment: str) -> tuple[float, float]:
-            if placement in ("right", "left"):
+            if placement == "center":
+                x = anchor_x + (anchor_width - field_width) / 2
+                y = anchor_y + (anchor_height - field_height) / 2
+            elif placement in ("right", "left"):
                 x = anchor_x + anchor_width if placement == "right" else anchor_x - field_width
                 if alignment == "start":
                     y = anchor_y

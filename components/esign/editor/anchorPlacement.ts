@@ -4,7 +4,7 @@ export type EditorFieldType =
   | 'date' | 'number' | 'first_name' | 'last_name' | 'full_name' | 'email'
   | 'company' | 'title' | 'note'
 
-export type AnchorRelativePosition = 'auto' | 'right' | 'left' | 'below' | 'above'
+export type AnchorRelativePosition = 'auto' | 'center' | 'right' | 'left' | 'below' | 'above'
 export type AnchorCrossAxisAlignment = 'auto' | 'start' | 'center' | 'end'
 export type FieldHorizontalAlignment = 'left' | 'center' | 'right'
 export type FieldVerticalAlignment = 'top' | 'middle' | 'bottom'

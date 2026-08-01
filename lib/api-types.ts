@@ -7121,7 +7121,7 @@ export interface components {
             /** Page Numbers */
             page_numbers?: number[] | null;
             /** Relative Position */
-            relative_position?: ("auto" | "right" | "left" | "below" | "above") | null;
+            relative_position?: ("auto" | "center" | "right" | "left" | "below" | "above") | null;
             /** Cross Axis Alignment */
             cross_axis_alignment?: ("auto" | "start" | "center" | "end") | null;
             /**
@@ -8494,7 +8494,7 @@ export interface components {
              */
             match_mode: "first" | "all";
             /** Relative Position */
-            relative_position?: ("auto" | "right" | "left" | "below" | "above") | null;
+            relative_position?: ("auto" | "center" | "right" | "left" | "below" | "above") | null;
             /** Cross Axis Alignment */
             cross_axis_alignment?: ("auto" | "start" | "center" | "end") | null;
             /**

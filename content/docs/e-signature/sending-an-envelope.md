@@ -51,7 +51,7 @@ Available fields include:
 
 Fields can be conditional, and text anchors can be used for repeatable placement. To use an anchor, select the field type, click **Place by anchor**, enter the text to match, and configure:
 
-- **Placement** — Auto, Right, Left, Below, or Above the complete matching-text rectangle.
+- **Placement** — Auto, Center, Right, Left, Below, or Above the complete matching-text rectangle. Center overlays the field on the center of the matching text.
 - **Alignment** — Auto, Start, Center, or End. For Left and Right placements, Start and End mean top and bottom. For Above and Below placements, they mean left and right.
 - **Horizontal and vertical offsets** — Positive horizontal values move the field right; positive vertical values move it down. Choose points, millimeters, or inches.
 

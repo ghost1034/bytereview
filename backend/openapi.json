@@ -23326,6 +23326,7 @@
                 "type": "string",
                 "enum": [
                   "auto",
+                  "center",
                   "right",
                   "left",
                   "below",
@@ -27121,6 +27122,7 @@
                 "type": "string",
                 "enum": [
                   "auto",
+                  "center",
                   "right",
                   "left",
                   "below",

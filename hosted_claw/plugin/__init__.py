@@ -12,6 +12,9 @@ READ_ONLY_TOOLS = {
     "get_document_analysis_options", "list_document_analysis_templates",
     "list_document_analyses", "get_document_analysis_status",
     "get_document_analysis_results", "read_file", "list_files", "search_files",
+    # Hermes' skill reader only returns the contents of an already-installed
+    # skill. It cannot install, edit, enable, or remove skills.
+    "skill_view",
 }
 APPROVAL_TOOLS = {
     "execute_action", "create_document_analysis", "prepare_document_uploads",

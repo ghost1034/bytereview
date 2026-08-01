@@ -333,6 +333,7 @@ class HostedApprovalTests(unittest.TestCase):
     def test_plugin_keeps_explicit_read_tools_non_interactive(self) -> None:
         with patch.object(_PLUGIN, "_approval") as approval:
             self.assertIsNone(_PLUGIN.pre_tool_call("list_files", {}, "run-a"))
+            self.assertIsNone(_PLUGIN.pre_tool_call("skill_view", {"name": "lease-842-assistant"}, "run-a"))
             approval.assert_not_called()
 
 

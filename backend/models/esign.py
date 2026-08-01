@@ -69,7 +69,7 @@ class AnchorProps(BaseModel):
     # New anchor rules use placement plus contextual cross-axis alignment.
     # ``None`` is intentional: its absence identifies saved legacy rules that
     # must continue to use ``horizontal_alignment`` geometry.
-    relative_position: Optional[Literal["auto", "right", "left", "below", "above"]] = None
+    relative_position: Optional[Literal["auto", "center", "right", "left", "below", "above"]] = None
     cross_axis_alignment: Optional[Literal["auto", "start", "center", "end"]] = None
     # Deprecated legacy input. Retained for saved rules created before
     # relative_position was introduced.
@@ -918,7 +918,7 @@ class EsignAnchorSearchRequest(BaseModel):
     document_ids: Optional[list[str]] = None
     page_numbers: Optional[list[int]] = None
     match_mode: Literal["first", "all"] = "all"
-    relative_position: Optional[Literal["auto", "right", "left", "below", "above"]] = None
+    relative_position: Optional[Literal["auto", "center", "right", "left", "below", "above"]] = None
     cross_axis_alignment: Optional[Literal["auto", "start", "center", "end"]] = None
     # Deprecated legacy input. New searches use relative_position and
     # cross_axis_alignment. The browser explicitly sends both Auto defaults;

@@ -26,6 +26,13 @@ describe('anchor placement field behavior', () => {
     })
   })
 
+  it('serializes center placement', () => {
+    expect(serializeAnchorPosition('center', 'auto')).toEqual({
+      relative_position: 'center',
+      cross_axis_alignment: 'auto',
+    })
+  })
+
   it('uses server-computed coordinates for dashed previews', () => {
     expect(anchorPreviewPosition({ x: 0.25, y: 0.4 }, { width: 800, height: 1000 })).toEqual({
       left: 200,

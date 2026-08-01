@@ -55,7 +55,7 @@ export interface EditorFieldProperties {
   anchor?: {
     text?: string; anchor: string; rule_id: string; match_index?: number
     case_sensitive: boolean; whole_word: boolean; document_ids?: string[]; page_numbers?: number[]
-    relative_position?: 'auto' | 'right' | 'left' | 'below' | 'above'
+    relative_position?: AnchorRelativePosition
     cross_axis_alignment?: 'auto' | 'start' | 'center' | 'end'
     horizontal_alignment?: 'left' | 'center' | 'right' | 'after'; offset_x: number; offset_y: number
     offset_unit: 'point' | 'mm' | 'inch'; match_mode: 'first' | 'all'; placement_mode?: 'automatic' | 'individual'
@@ -105,7 +105,7 @@ interface PdfFieldEditorProps {
   onImportFillableFields?: (documentId: string) => void
   onAnchorSearch?: (payload: {
     anchor: string; case_sensitive: boolean; whole_word: boolean; document_ids: string[]
-    match_mode: 'first' | 'all'; relative_position: 'auto' | 'right' | 'left' | 'below' | 'above'
+    match_mode: 'first' | 'all'; relative_position: AnchorRelativePosition
     cross_axis_alignment: 'auto' | 'start' | 'center' | 'end'
     offset_x: number; offset_y: number; offset_unit: 'point' | 'mm' | 'inch'; field_width: number; field_height: number
   }) => Promise<{ matches?: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number; anchor_x?: number | null; anchor_y?: number | null }> }>
@@ -731,10 +731,10 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorWholeWord} onChange={(event) => setAnchorWholeWord(event.target.checked)} /> Whole word</label>
           <label className="flex gap-2 text-sm"><input type="checkbox" checked={anchorFirstOnly} onChange={(event) => setAnchorFirstOnly(event.target.checked)} /> First match only</label>
           <div className="grid grid-cols-2 gap-2">
-            <label className="space-y-1 text-sm"><span className="font-medium">Placement</span><select aria-label="Anchor placement" className="w-full rounded border border-border bg-background px-2 py-1" value={anchorPlacement} onChange={(event) => setAnchorPlacement(event.target.value as typeof anchorPlacement)}><option value="auto">Auto</option><option value="right">Right</option><option value="left">Left</option><option value="below">Below</option><option value="above">Above</option></select></label>
-            <label className="space-y-1 text-sm"><span className="font-medium">Alignment</span><select aria-label="Anchor alignment" className="w-full rounded border border-border bg-background px-2 py-1" value={anchorAlignment} onChange={(event) => setAnchorAlignment(event.target.value as typeof anchorAlignment)}><option value="auto">Auto</option><option value="start">Start</option><option value="center">Center</option><option value="end">End</option></select></label>
+            <label className="space-y-1 text-sm"><span className="font-medium">Placement</span><select aria-label="Anchor placement" className="w-full rounded border border-border bg-background px-2 py-1" value={anchorPlacement} onChange={(event) => { const placement = event.target.value as typeof anchorPlacement; setAnchorPlacement(placement); if (placement === 'center') setAnchorAlignment('auto') }}><option value="auto">Auto</option><option value="center">Center</option><option value="right">Right</option><option value="left">Left</option><option value="below">Below</option><option value="above">Above</option></select></label>
+            <label className="space-y-1 text-sm"><span className="font-medium">Alignment</span><select aria-label="Anchor alignment" className="w-full rounded border border-border bg-background px-2 py-1 disabled:cursor-not-allowed disabled:opacity-50" value={anchorAlignment} disabled={anchorPlacement === 'center'} onChange={(event) => setAnchorAlignment(event.target.value as typeof anchorAlignment)}><option value="auto">Auto</option><option value="start">Start</option><option value="center">Center</option><option value="end">End</option></select></label>
           </div>
-          <p className="text-xs text-foreground-subtle">For left or right placement, Start/End mean top/bottom. For above or below, they mean left/right.</p>
+          <p className="text-xs text-foreground-subtle">Center overlays the field on the anchor. For left or right placement, Start/End mean top/bottom. For above or below, they mean left/right.</p>
           <div className="grid grid-cols-3 gap-2"><label className="space-y-1 text-sm"><span className="font-medium">Horizontal offset</span><Input aria-label="Horizontal offset" type="number" value={anchorOffsetX} onChange={(event) => setAnchorOffsetX(Number(event.target.value))} /></label><label className="space-y-1 text-sm"><span className="font-medium">Vertical offset</span><Input aria-label="Vertical offset" type="number" value={anchorOffsetY} onChange={(event) => setAnchorOffsetY(Number(event.target.value))} /></label><label className="space-y-1 text-sm"><span className="font-medium">Unit</span><select aria-label="Offset unit" className="w-full rounded border border-border bg-background px-2 py-2" value={anchorOffsetUnit} onChange={(event) => setAnchorOffsetUnit(event.target.value as typeof anchorOffsetUnit)}><option value="point">Points</option><option value="mm">Millimeters</option><option value="inch">Inches</option></select></label></div>
           {anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
         <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={findAnchorMatches} disabled={!anchorText.trim() || anchorSearching}>{anchorSearching && <Loader2 className="mr-1.5 size-4 animate-spin" />}Find matches</Button></DialogFooter>

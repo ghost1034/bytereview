@@ -125,6 +125,16 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(props.model_dump(exclude_none=True)["cross_axis_alignment"], "end")
         self.assertEqual(props.placement_mode, "individual")
 
+    def test_center_anchor_property_round_trips(self) -> None:
+        props = AnchorProps.model_validate({
+            "anchor": "Signature:",
+            "relative_position": "center",
+        })
+        request = EsignAnchorSearchRequest(anchor="Signature:", relative_position="center")
+
+        self.assertEqual(props.model_dump(exclude_none=True)["relative_position"], "center")
+        self.assertEqual(request.relative_position, "center")
+
     def test_legacy_anchor_properties_do_not_gain_relative_position(self) -> None:
         props = AnchorProps.model_validate({
             "anchor": "Signature:",
@@ -138,6 +148,9 @@ class AnchorSearchTests(unittest.IsolatedAsyncioTestCase):
 
     def test_every_explicit_placement_and_alignment(self) -> None:
         expected = {
+            ("center", "start"): (0.35, 0.275),
+            ("center", "center"): (0.35, 0.275),
+            ("center", "end"): (0.35, 0.275),
             ("right", "start"): (0.5, 0.3),
             ("right", "center"): (0.5, 0.275),
             ("right", "end"): (0.5, 0.25),
