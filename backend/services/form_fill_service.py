@@ -55,6 +55,7 @@ from services.gemini_file_service import part_from_storage_object
 from services.gcs_service import get_storage_service
 from services.natural_sort import natural_text_key, sort_paths_naturally
 from services.page_counting_service import page_counting_service
+from services.pdf_anchor import relative_anchor_box_position
 
 
 logger = logging.getLogger(__name__)
@@ -3061,8 +3062,17 @@ Rules:
                             "anchor_text": types.Schema(type="STRING", nullable=True),
                             "anchor_before": types.Schema(type="STRING", nullable=True),
                             "anchor_after": types.Schema(type="STRING", nullable=True),
+                            "case_sensitive": types.Schema(type="BOOLEAN", nullable=True),
+                            "whole_word": types.Schema(type="BOOLEAN", nullable=True),
                             "overlay_text": types.Schema(type="STRING"),
                             "placement_hint": types.Schema(type="STRING", nullable=True),
+                            "relative_position": types.Schema(type="STRING", nullable=True),
+                            "cross_axis_alignment": types.Schema(type="STRING", nullable=True),
+                            "offset_x": types.Schema(type="NUMBER", nullable=True),
+                            "offset_y": types.Schema(type="NUMBER", nullable=True),
+                            "offset_unit": types.Schema(type="STRING", nullable=True),
+                            "field_width": types.Schema(type="NUMBER", nullable=True),
+                            "field_height": types.Schema(type="NUMBER", nullable=True),
                             "cover_anchor": types.Schema(type="BOOLEAN", nullable=True),
                             "font_size": types.Schema(type="NUMBER", nullable=True),
                         },
@@ -3124,8 +3134,12 @@ Instructions:
 - Prefer anchor_text that appears visibly in the PDF near where the overlay should go.
 - When the same anchor_text appears more than once on the page (for example identical underscore blanks next to several labels), also set anchor_before to the unique label text immediately before the intended spot so the correct occurrence is chosen.
 - anchor_before must be text that comes before the intended spot in reading order (usually the field's own label, to the left of its blank); anchor_after must be text that comes after it. Never use another field's label as anchor_before or anchor_after unless it truly borders the intended spot.
+- Set whole_word to true when anchor_text must not match inside a longer word. Set case_sensitive only when capitalization distinguishes the intended anchor.
 - When marking a Yes/No or checkbox choice, re-check the source before choosing: anchor the mark to the option that matches the source value.
-- Use placement_hint values such as replace_anchor, right_of, below, or near_blank.
+- For content placed around a label or other non-replaced anchor, use relative_position: auto, center, right, left, below, or above. Auto tries right, left, below, then above and keeps the complete overlay box on the page.
+- Use cross_axis_alignment: auto, start, center, or end. Auto prefers center, then start, then end. Optional offset_x and offset_y move the result in offset_unit (point, mm, or inch).
+- field_width and field_height may specify the overlay box size in offset_unit. Omit them to size the box to overlay_text.
+- Continue to use placement_hint: replace_anchor when replacing placeholder text, blanks, or underscores; this preserves the source line's text baseline. Other legacy placement_hint values remain supported.
 - Set cover_anchor to true when replacing placeholder text, blanks, or underscores already present in the PDF.
 - overlay_text must be concise and ready to render.{chronological_rule}
 - Do not summarize, collapse, or omit entries because there are many; continuation will request more entries when needed.
@@ -3342,10 +3356,10 @@ Instructions:
     @staticmethod
     def _pick_pdf_anchor_match(
         matches: list[fitz.Rect],
-        before_rect: fitz.Rect | None,
-        after_rect: fitz.Rect | None,
+        before_matches: list[fitz.Rect],
+        after_matches: list[fitz.Rect],
     ) -> fitz.Rect:
-        if len(matches) == 1 or (before_rect is None and after_rect is None):
+        if len(matches) == 1 or (not before_matches and not after_matches):
             return matches[0]
 
         def distance(rect: fitz.Rect, other: fitz.Rect) -> float:
@@ -3368,17 +3382,42 @@ Instructions:
 
         def score(rect: fitz.Rect) -> float:
             total = 0.0
-            if before_rect is not None:
-                total += distance(rect, before_rect)
-                if comes_before(rect, before_rect):
-                    total += order_penalty
-            if after_rect is not None:
-                total += distance(rect, after_rect)
-                if not comes_before(rect, after_rect):
-                    total += order_penalty
+            if before_matches:
+                total += min(
+                    distance(rect, before_rect)
+                    + (order_penalty if comes_before(rect, before_rect) else 0.0)
+                    for before_rect in before_matches
+                )
+            if after_matches:
+                total += min(
+                    distance(rect, after_rect)
+                    + (order_penalty if not comes_before(rect, after_rect) else 0.0)
+                    for after_rect in after_matches
+                )
             return total
 
         return min(matches, key=score)
+
+    @staticmethod
+    def _search_pdf_anchor_text(
+        page: fitz.Page,
+        value: str,
+        *,
+        case_sensitive: bool = False,
+        whole_word: bool = False,
+    ) -> list[fitz.Rect]:
+        """Search text with the same filtering semantics as E-Signature."""
+        matches: list[fitz.Rect] = []
+        for raw_rect in page.search_for(value):
+            found_text = page.get_textbox(raw_rect).strip()
+            if case_sensitive and found_text != value:
+                continue
+            if whole_word:
+                flags = 0 if case_sensitive else re.IGNORECASE
+                if re.fullmatch(rf"\b{re.escape(value)}\b", found_text, flags=flags) is None:
+                    continue
+            matches.append(raw_rect)
+        return matches
 
     def _resolve_pdf_anchor_rect(
         self,
@@ -3390,34 +3429,44 @@ Instructions:
         anchor_before = str(item.get("anchor_before") or "").strip()
         anchor_after = str(item.get("anchor_after") or "").strip()
 
-        before_rect = None
-        after_rect = None
-        if anchor_before:
-            before_matches = page.search_for(anchor_before)
-            if before_matches:
-                before_rect = before_matches[0]
-        if anchor_after:
-            after_matches = page.search_for(anchor_after)
-            if after_matches:
-                after_rect = after_matches[0]
+        before_matches = self._search_pdf_anchor_text(page, anchor_before) if anchor_before else []
+        after_matches = self._search_pdf_anchor_text(page, anchor_after) if anchor_after else []
 
         if anchor_text:
-            matches = page.search_for(anchor_text)
+            matches = self._search_pdf_anchor_text(
+                page,
+                anchor_text,
+                case_sensitive=bool(item.get("case_sensitive")),
+                whole_word=bool(item.get("whole_word")),
+            )
             if matches:
                 unused = [rect for rect in matches if not self._pdf_rect_is_used(rect, used_rects)]
-                chosen = self._pick_pdf_anchor_match(unused or matches, before_rect, after_rect)
+                chosen = self._pick_pdf_anchor_match(unused or matches, before_matches, after_matches)
                 if used_rects is not None:
                     used_rects.append(fitz.Rect(chosen))
                 return chosen
 
-        if before_rect and after_rect:
+        if before_matches and after_matches:
+            def pair_score(pair: tuple[fitz.Rect, fitz.Rect]) -> float:
+                before_rect, after_rect = pair
+                wrong_order = before_rect.y0 > after_rect.y1 or (
+                    before_rect.y1 >= after_rect.y0 and before_rect.x0 > after_rect.x1
+                )
+                dx = max(0.0, after_rect.x0 - before_rect.x1)
+                dy = abs((after_rect.y0 + after_rect.y1) / 2 - (before_rect.y0 + before_rect.y1) / 2)
+                return dx + 4.0 * dy + (100000.0 if wrong_order else 0.0)
+
+            before_rect, after_rect = min(
+                ((before_rect, after_rect) for before_rect in before_matches for after_rect in after_matches),
+                key=pair_score,
+            )
             x0 = min(before_rect.x1, after_rect.x0)
             x1 = max(before_rect.x1, after_rect.x0)
             y0 = min(before_rect.y0, after_rect.y0)
             y1 = max(before_rect.y1, after_rect.y1)
             return fitz.Rect(x0, y0, x1, y1)
 
-        return before_rect or after_rect
+        return (before_matches or after_matches or [None])[0]
 
     @staticmethod
     def _pdf_anchor_baseline(page: fitz.Page, anchor_rect: fitz.Rect) -> float:
@@ -3430,6 +3479,115 @@ Instructions:
                         return float(span["origin"][1])
         # Anchor rects synthesized from before/after anchors may not match a span.
         return anchor_rect.y1 - 0.25 * anchor_rect.height
+
+    @staticmethod
+    def _relative_anchor_field_position(
+        anchor_x: float,
+        anchor_y: float,
+        anchor_width: float,
+        anchor_height: float,
+        *,
+        relative_position: str,
+        cross_axis_alignment: str,
+        field_width: float,
+        field_height: float,
+        offset_x: float = 0,
+        offset_y: float = 0,
+    ) -> tuple[float, float]:
+        """Form Fill entry point for the shared E-Signature geometry."""
+        return relative_anchor_box_position(
+            anchor_x,
+            anchor_y,
+            anchor_width,
+            anchor_height,
+            relative_position=relative_position,
+            cross_axis_alignment=cross_axis_alignment,
+            field_width=field_width,
+            field_height=field_height,
+            offset_x=offset_x,
+            offset_y=offset_y,
+        )
+
+    @staticmethod
+    def _pdf_overlay_unit_factor(offset_unit: str) -> float:
+        if offset_unit == "mm":
+            return 72.0 / 25.4
+        if offset_unit == "inch":
+            return 72.0
+        return 1.0
+
+    @staticmethod
+    def _pdf_overlay_box_size(
+        page: fitz.Page,
+        item: dict[str, Any],
+        *,
+        font_size: float,
+    ) -> tuple[float, float]:
+        """Return a complete overlay-box size in displayed-page points."""
+        factor = FormFillService._pdf_overlay_unit_factor(str(item.get("offset_unit") or "point").lower())
+        explicit_width = float(item.get("field_width") or 0.0) * factor
+        explicit_height = float(item.get("field_height") or 0.0) * factor
+        lines = str(item.get("overlay_text") or "").splitlines() or [""]
+        measured_width = max(
+            (fitz.get_text_length(line, fontname=PDF_OVERLAY_FONTNAME, fontsize=font_size) for line in lines),
+            default=0.0,
+        )
+        line_height = max(font_size * 1.8, 18.0)
+        width = explicit_width if explicit_width > 0 else measured_width + 8.0
+        height = explicit_height if explicit_height > 0 else line_height * len(lines) + 8.0
+        return (
+            max(1.0, min(page.rect.width, width)),
+            max(1.0, min(page.rect.height, height)),
+        )
+
+    def _relative_target_rect_from_anchor(
+        self,
+        page: fitz.Page,
+        anchor_rect: fitz.Rect,
+        item: dict[str, Any],
+    ) -> fitz.Rect:
+        """Resolve a parity anchor rule in displayed coordinates, then map it
+        back into PDF page coordinates for drawing.
+        """
+        relative_position = str(item.get("relative_position") or "auto").strip().lower()
+        if relative_position not in {"auto", "center", "right", "left", "below", "above"}:
+            relative_position = "auto"
+        cross_axis_alignment = str(item.get("cross_axis_alignment") or "auto").strip().lower()
+        if cross_axis_alignment not in {"auto", "start", "center", "end"}:
+            cross_axis_alignment = "auto"
+
+        display_anchor = fitz.Rect(anchor_rect) * page.rotation_matrix
+        display_anchor.normalize()
+        page_width = max(page.rect.width, 1.0)
+        page_height = max(page.rect.height, 1.0)
+        font_size = max(1.0, float(item.get("font_size") or 10.0))
+        field_width_points, field_height_points = self._pdf_overlay_box_size(page, item, font_size=font_size)
+        field_width = field_width_points / page_width
+        field_height = field_height_points / page_height
+        factor = self._pdf_overlay_unit_factor(str(item.get("offset_unit") or "point").lower())
+        offset_x = float(item.get("offset_x") or 0.0) * factor / page_width
+        offset_y = float(item.get("offset_y") or 0.0) * factor / page_height
+        field_x, field_y = self._relative_anchor_field_position(
+            display_anchor.x0 / page_width,
+            display_anchor.y0 / page_height,
+            display_anchor.width / page_width,
+            display_anchor.height / page_height,
+            relative_position=relative_position,
+            cross_axis_alignment=cross_axis_alignment,
+            field_width=field_width,
+            field_height=field_height,
+            offset_x=offset_x,
+            offset_y=offset_y,
+        )
+        display_target = fitz.Rect(
+            field_x * page_width,
+            field_y * page_height,
+            (field_x + field_width) * page_width,
+            (field_y + field_height) * page_height,
+        )
+        target = display_target * page.derotation_matrix
+        target.normalize()
+        return target
 
     def _target_rect_from_anchor(
         self,
@@ -3447,6 +3605,9 @@ Instructions:
         if anchor_rect is None:
             y0 = margin + (fallback_index * (line_height + 6.0))
             return fitz.Rect(margin, y0, page_rect.width - margin, y0 + line_height)
+
+        if item.get("relative_position") is not None:
+            return self._relative_target_rect_from_anchor(page, anchor_rect, item)
 
         expanded = fitz.Rect(anchor_rect.x0 - 1.5, anchor_rect.y0 - 1.5, anchor_rect.x1 + 1.5, anchor_rect.y1 + 1.5)
         if placement_hint == "replace_anchor":
@@ -3530,6 +3691,7 @@ Instructions:
                     fontname=PDF_OVERLAY_FONTNAME,
                     color=(0, 0, 0),
                     align=fitz.TEXT_ALIGN_LEFT,
+                    rotate=page.rotation if item.get("relative_position") is not None else 0,
                     overlay=True,
                 )
 
@@ -3983,7 +4145,12 @@ Instructions:
                 output_contract = (
                     "Return {'items': [overlay_item, ...], 'warnings': [...]}. Each overlay_item must include "
                     "page_number and overlay_text, and may include anchor_text, anchor_before, anchor_after, "
-                    "placement_hint, cover_anchor, and font_size."
+                    "case_sensitive, whole_word, placement_hint, relative_position, cross_axis_alignment, "
+                    "offset_x, offset_y, offset_unit, field_width, field_height, cover_anchor, and font_size. "
+                    "Use relative_position auto/center/right/left/below/above with cross_axis_alignment "
+                    "auto/start/center/end; offsets and field dimensions use offset_unit point/mm/inch. "
+                    "Use placement_hint='replace_anchor' instead of relative_position when replacing a blank "
+                    "or placeholder so the original text baseline is preserved."
                 )
                 code_context = {
                     "target_kind": "PDF overlay",

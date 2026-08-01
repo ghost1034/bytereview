@@ -1363,6 +1363,8 @@ class FormFillServiceContinuationTests(unittest.TestCase):
         self.assertIn("Do not summarize, collapse, or omit entries", pdf_prompt)
         self.assertIn("Do not write \"see attached\"", pdf_prompt)
         self.assertIn("Do not ask the user to request continuation", pdf_prompt)
+        self.assertIn("relative_position: auto, center, right, left, below, or above", pdf_prompt)
+        self.assertIn("Auto prefers center, then start, then end", pdf_prompt)
         self.assertIn("emit one insert_table_row_after operation per source row", docx_prompt)
         self.assertIn("Do not use operation as the key name", docx_prompt)
         self.assertIn("Calculate totals", docx_prompt)
@@ -2410,6 +2412,166 @@ class FormFillPdfOverlayAnchorTests(unittest.TestCase):
         self.assertEqual(warnings, [])
         for index, label in enumerate(OVERLAY_LABELS):
             self._assert_on_label_line(centers, f"Value {index}", label)
+
+    def test_case_sensitive_anchor_filter_matches_esign_semantics(self) -> None:
+        doc = fitz.open(self.path)
+        try:
+            page = doc[0]
+            insensitive = self.service._resolve_pdf_anchor_rect(
+                page,
+                {"anchor_text": "vendor legal name:"},
+            )
+            sensitive = self.service._resolve_pdf_anchor_rect(
+                page,
+                {"anchor_text": "vendor legal name:", "case_sensitive": True},
+            )
+        finally:
+            doc.close()
+
+        self.assertIsNotNone(insensitive)
+        self.assertIsNone(sensitive)
+
+    def test_repeated_context_anchors_use_the_nearest_valid_pair(self) -> None:
+        doc = fitz.open()
+        page = doc.new_page()
+        for y in (100, 180):
+            page.insert_text((72, y), "Account", fontsize=11)
+            page.insert_text((170, y), BLANK_RUN, fontsize=11)
+        try:
+            matches = page.search_for(BLANK_RUN)
+            chosen = self.service._pick_pdf_anchor_match(
+                matches,
+                page.search_for("Account"),
+                [fitz.Rect(400, 170, 450, 190)],
+            )
+        finally:
+            doc.close()
+
+        self.assertAlmostEqual(chosen.y0, matches[1].y0)
+
+
+@unittest.skipUnless(_HAS_FITZ, "PyMuPDF not installed")
+class FormFillPdfOverlayRelativeAnchorTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.service = FormFillService()
+
+    def test_geometry_has_esign_auto_placement_and_edge_fallback(self) -> None:
+        small = self.service._relative_anchor_field_position(
+            0.75,
+            0.4,
+            0.05,
+            0.05,
+            relative_position="auto",
+            cross_axis_alignment="auto",
+            field_width=0.1,
+            field_height=0.1,
+        )
+        large = self.service._relative_anchor_field_position(
+            0.75,
+            0.4,
+            0.05,
+            0.05,
+            relative_position="auto",
+            cross_axis_alignment="auto",
+            field_width=0.25,
+            field_height=0.1,
+        )
+
+        self.assertAlmostEqual(small[0], 0.8)
+        self.assertAlmostEqual(large[0], 0.5)
+
+    def test_relative_offsets_and_units_are_applied(self) -> None:
+        doc = fitz.open()
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((72, 200), "Anchor", fontsize=11)
+        anchor = page.search_for("Anchor")[0]
+        base = self.service._relative_target_rect_from_anchor(
+            page,
+            anchor,
+            {
+                "overlay_text": "Value",
+                "relative_position": "below",
+                "cross_axis_alignment": "start",
+            },
+        )
+        offset = self.service._relative_target_rect_from_anchor(
+            page,
+            anchor,
+            {
+                "overlay_text": "Value",
+                "relative_position": "below",
+                "cross_axis_alignment": "start",
+                "offset_x": 1,
+                "offset_y": 0.5,
+                "offset_unit": "inch",
+            },
+        )
+        doc.close()
+
+        self.assertAlmostEqual(offset.x0 - base.x0, 72.0)
+        self.assertAlmostEqual(offset.y0 - base.y0, 36.0)
+
+    def test_rotated_page_uses_display_coordinates_and_stays_bounded(self) -> None:
+        doc = fitz.open()
+        page = doc.new_page(width=612, height=792)
+        page.insert_text((500, 700), "EDGE_ANCHOR", fontsize=11)
+        anchor = page.search_for("EDGE_ANCHOR")[0]
+        page.set_rotation(90)
+        target = self.service._relative_target_rect_from_anchor(
+            page,
+            anchor,
+            {
+                "overlay_text": "Value",
+                "relative_position": "auto",
+                "cross_axis_alignment": "auto",
+                "field_width": 100,
+                "field_height": 30,
+            },
+        )
+        display_target = fitz.Rect(target) * page.rotation_matrix
+        display_target.normalize()
+        page_rect = fitz.Rect(page.rect)
+        doc.close()
+
+        self.assertGreaterEqual(display_target.x0, page_rect.x0)
+        self.assertGreaterEqual(display_target.y0, page_rect.y0)
+        self.assertLessEqual(display_target.x1, page_rect.x1)
+        self.assertLessEqual(display_target.y1, page_rect.y1)
+
+    def test_relative_overlay_renders_at_every_page_rotation(self) -> None:
+        for rotation in (0, 90, 180, 270):
+            with self.subTest(rotation=rotation):
+                source = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+                source.close()
+                output = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+                output.close()
+                self.addCleanup(os.unlink, source.name)
+                self.addCleanup(os.unlink, output.name)
+                doc = fitz.open()
+                page = doc.new_page(width=612, height=792)
+                page.insert_text((72, 200), "ANCHOR", fontsize=11)
+                page.set_rotation(rotation)
+                doc.save(source.name)
+                doc.close()
+
+                warnings = self.service._apply_pdf_overlay_plan(
+                    source.name,
+                    [{
+                        "page_number": 1,
+                        "anchor_text": "ANCHOR",
+                        "overlay_text": "VALUE",
+                        "relative_position": "auto",
+                        "cross_axis_alignment": "auto",
+                    }],
+                    output.name,
+                )
+
+                self.assertEqual(warnings, [])
+                rendered = fitz.open(output.name)
+                try:
+                    self.assertEqual(len(rendered[0].search_for("VALUE")), 1)
+                finally:
+                    rendered.close()
 
 
 @unittest.skipUnless(_HAS_FITZ, "PyMuPDF not installed")

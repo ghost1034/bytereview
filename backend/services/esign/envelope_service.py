@@ -76,6 +76,7 @@ from services.gcs_service import get_storage_service
 from services.analytics.firm_scope import require_firm_id
 from services.document_conversion_service import get_document_conversion_service
 from services.esign.authorization_service import esign_authorization_service
+from services.pdf_anchor import relative_anchor_box_position
 
 logger = logging.getLogger(__name__)
 
@@ -2288,66 +2289,17 @@ class EsignEnvelopeService:
         candidate fits, visible area decides before the winning candidate is
         clamped into the page.
         """
-        placements = (
-            ("right", "left", "below", "above")
-            if relative_position == "auto" else (relative_position,)
-        )
-        alignments = (
-            ("center", "start", "end")
-            if cross_axis_alignment == "auto" else (cross_axis_alignment,)
-        )
-
-        def candidate(placement: str, alignment: str) -> tuple[float, float]:
-            if placement == "center":
-                x = anchor_x + (anchor_width - field_width) / 2
-                y = anchor_y + (anchor_height - field_height) / 2
-            elif placement in ("right", "left"):
-                x = anchor_x + anchor_width if placement == "right" else anchor_x - field_width
-                if alignment == "start":
-                    y = anchor_y
-                elif alignment == "end":
-                    y = anchor_y + anchor_height - field_height
-                else:
-                    y = anchor_y + (anchor_height - field_height) / 2
-            else:
-                y = anchor_y + anchor_height if placement == "below" else anchor_y - field_height
-                if alignment == "start":
-                    x = anchor_x
-                elif alignment == "end":
-                    x = anchor_x + anchor_width - field_width
-                else:
-                    x = anchor_x + (anchor_width - field_width) / 2
-            return x + offset_x, y + offset_y
-
-        def visible_area(x: float, y: float) -> float:
-            visible_width = max(0.0, min(1.0, x + field_width) - max(0.0, x))
-            visible_height = max(0.0, min(1.0, y + field_height) - max(0.0, y))
-            return visible_width * visible_height
-
-        best: Optional[tuple[float, float]] = None
-        best_area = -1.0
-        epsilon = 1e-12
-        for placement in placements:
-            for alignment in alignments:
-                x, y = candidate(placement, alignment)
-                if (
-                    x >= -epsilon and y >= -epsilon
-                    and x + field_width <= 1.0 + epsilon
-                    and y + field_height <= 1.0 + epsilon
-                ):
-                    return (
-                        max(0.0, min(max(0.0, 1.0 - field_width), x)),
-                        max(0.0, min(max(0.0, 1.0 - field_height), y)),
-                    )
-                area = visible_area(x, y)
-                if area > best_area + epsilon:
-                    best = (x, y)
-                    best_area = area
-
-        x, y = best or (0.0, 0.0)
-        return (
-            max(0.0, min(max(0.0, 1.0 - field_width), x)),
-            max(0.0, min(max(0.0, 1.0 - field_height), y)),
+        return relative_anchor_box_position(
+            anchor_x,
+            anchor_y,
+            anchor_width,
+            anchor_height,
+            relative_position=relative_position,
+            cross_axis_alignment=cross_axis_alignment,
+            field_width=field_width,
+            field_height=field_height,
+            offset_x=offset_x,
+            offset_y=offset_y,
         )
 
     async def _search_anchors(
