@@ -65,6 +65,9 @@ else
     echo -e "${GREEN}✓ Artifact Registry repository already exists${NC}"
 fi
 
+# Keep a rollback window while pruning old build images automatically.
+"$(dirname "$0")/configure-artifact-registry-cleanup.sh" "$ARTIFACT_REGISTRY_REPO"
+
 # Configure Docker authentication
 gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 

@@ -27,6 +27,7 @@ esac
 REGISTRY="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}"
 gcloud artifacts repositories describe "$REPOSITORY" --location="$REGION" >/dev/null 2>&1 || \
   gcloud artifacts repositories create "$REPOSITORY" --location="$REGION" --repository-format=docker
+"$(dirname "$0")/configure-artifact-registry-cleanup.sh" "$REPOSITORY"
 gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
 
 for product in accountingclaw legalclaw; do

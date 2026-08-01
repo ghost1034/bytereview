@@ -527,6 +527,7 @@ Overview
   - scripts/deploy-services.sh (API/frontend Cloud Run services, incl. Inkwise config + Alembic migrations; invoked by deploy.sh)
   - scripts/deploy-cloud-run-tasks.sh (task services: extract/io/automation/maintenance; invoked by deploy.sh)
   - scripts/setup-infrastructure.sh (one-time bootstrap: Cloud SQL, VPC connector, runner service account + IAM, GCS bucket, Artifact Registry — not part of routine deploys)
+  - scripts/configure-artifact-registry-cleanup.sh (applies active cleanup to `cpa-docker` and `hosted-claw`: delete versions older than 30 days while retaining at least the 10 newest versions per package; set `CLEANUP_DRY_RUN=true` to test without deletion)
   - scripts/setup-secrets.sh (one-time Secret Manager provisioning for TASK_* URLs)
 
 Environments and services
