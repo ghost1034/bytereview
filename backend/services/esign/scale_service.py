@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session, joinedload
 from core.database import db_config
 from models.db_models import (
     AnalyticsUserRole,
+    EsignAiFieldPlacementRun,
     EsignBulkJob,
     EsignBulkRow,
     EsignDocument,
@@ -276,6 +277,11 @@ class EsignScaleService:
         try:
             template = esign_envelope_service._load_template(db, user_id, template_id)
             _lock_draft_revision(db, template, expected_revision)
+            if db.query(EsignAiFieldPlacementRun.id).filter(
+                EsignAiFieldPlacementRun.template_id == template.id,
+                EsignAiFieldPlacementRun.status == "completed",
+            ).first():
+                raise EsignConflict("Apply or discard staged AI field suggestions before publishing")
             firm_id = require_firm_id(db, user_id)
             checked_rules: set[str] = set()
             documents_by_id = {str(document.id): document for document in template.documents or []}
@@ -662,6 +668,11 @@ class EsignScaleService:
             self._require_feature(db, user_id, "scheduled_sending", "scheduling")
             env = esign_envelope_service._load_envelope(db, user_id, envelope_id)
             if env.status != EsignEnvelopeStatus.DRAFT: raise EsignConflict("Only a draft envelope can be scheduled")
+            if db.query(EsignAiFieldPlacementRun.id).filter(
+                EsignAiFieldPlacementRun.envelope_id == env.id,
+                EsignAiFieldPlacementRun.status == "completed",
+            ).first():
+                raise EsignConflict("Apply or discard staged AI field suggestions before scheduling")
             env.status = EsignEnvelopeStatus.SCHEDULED; env.scheduled_at = schedule_at; env.schedule_timezone = timezone_name
             audit_service.record_event(db, envelope_id=env.id, event_type=EsignEventType.SCHEDULED,
                 actor_user_id=user_id, details={"scheduled_at": schedule_at.isoformat(), "timezone": timezone_name})

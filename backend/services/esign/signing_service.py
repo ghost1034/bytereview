@@ -26,6 +26,7 @@ from sqlalchemy.orm import Session, joinedload
 from core.database import db_config
 from models.db_models import (
     EsignConsentRecord,
+    EsignAiFieldPlacementRun,
     EsignEmailDelivery,
     EsignEnvelope,
     EsignEnvelopeStatus,
@@ -322,6 +323,11 @@ class EsignSigningService:
                 return esign_envelope_service._serialize_envelope(envelope)
             if envelope.status != EsignEnvelopeStatus.DRAFT:
                 raise EsignConflict(f"Envelope cannot be sent from status '{envelope.status.value}'")
+            if db.query(EsignAiFieldPlacementRun.id).filter(
+                EsignAiFieldPlacementRun.envelope_id == envelope.id,
+                EsignAiFieldPlacementRun.status == "completed",
+            ).first():
+                raise EsignConflict("Apply or discard staged AI field suggestions before sending")
 
             principal = esign_authorization_service.principal(db, user_id)
             if principal and not principal.can("send"):

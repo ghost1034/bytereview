@@ -7,7 +7,6 @@ import asyncio
 import json
 import logging
 import os
-import re
 import tempfile
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -76,7 +75,7 @@ from services.gcs_service import get_storage_service
 from services.analytics.firm_scope import require_firm_id
 from services.document_conversion_service import get_document_conversion_service
 from services.esign.authorization_service import esign_authorization_service
-from services.pdf_anchor import relative_anchor_box_position
+from services.pdf_anchor import relative_anchor_box_position, search_pdf_anchor_text
 
 logger = logging.getLogger(__name__)
 
@@ -2334,15 +2333,9 @@ class EsignEnvelopeService:
                 for page_number, page in enumerate(pdf):
                     if selected_pages and page_number not in selected_pages:
                         continue
-                    for raw_rect in page.search_for(anchor):
-                        found_text = page.get_textbox(raw_rect).strip()
-                        if case_sensitive and found_text != anchor:
-                            continue
-                        if whole_word:
-                            escaped = re.escape(anchor)
-                            flags = 0 if case_sensitive else re.IGNORECASE
-                            if re.fullmatch(rf"\b{escaped}\b", found_text, flags=flags) is None:
-                                continue
+                    for raw_rect in search_pdf_anchor_text(
+                        page, anchor, case_sensitive=case_sensitive, whole_word=whole_word,
+                    ):
                         rect = raw_rect * page.rotation_matrix
                         rect.normalize()
                         factor = 1.0 if offset_unit == "point" else (72.0 / 25.4 if offset_unit == "mm" else 72.0)

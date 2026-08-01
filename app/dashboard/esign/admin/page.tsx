@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils'
 const sections = ['Overview', 'Users & permissions', 'Branding', 'Settings', 'Webhooks', 'Audit'] as const
 type Section = typeof sections[number]
 const CAPABILITIES = ['send', 'templates', 'scheduling', 'bulk_sends', 'powerforms', 'advanced_recipients', 'corrections', 'voiding', 'reminders', 'sharing', 'reports', 'exports', 'envelope_webhooks', 'firm_view', 'firm_manage', 'custody_transfer']
-const FEATURES = ['scheduled_sending', 'bulk_sends', 'powerforms', 'advanced_recipients', 'recipient_reassignment', 'signer_attachments', 'envelope_webhooks', 'exports']
+const FEATURES = ['ai_field_placement', 'scheduled_sending', 'bulk_sends', 'powerforms', 'advanced_recipients', 'recipient_reassignment', 'signer_attachments', 'envelope_webhooks', 'exports']
 const OVERRIDES = ['brand', 'date_format', 'signing_type', 'expiration', 'reminders', 'reassignment']
 function saveBlob(blob: Blob, filename: string) { const href = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = href; link.download = filename; link.click(); URL.revokeObjectURL(href) }
 

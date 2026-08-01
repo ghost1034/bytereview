@@ -960,6 +960,84 @@ class EsignAnchorSearchResponse(BaseModel):
     matches: list[EsignAnchorMatch] = Field(default_factory=list)
 
 
+class EsignAiFieldPlacementCreateRequest(BaseModel):
+    scope: Literal["all_documents", "active_document"] = "all_documents"
+    document_id: Optional[str] = None
+    instructions: Optional[str] = Field(default=None, max_length=4_000)
+    expected_revision: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def active_document_requires_id(self):
+        if self.scope == "active_document" and not self.document_id:
+            raise ValueError("document_id is required for active-document analysis")
+        if self.scope == "all_documents":
+            self.document_id = None
+        if self.instructions is not None:
+            self.instructions = self.instructions.strip() or None
+        return self
+
+
+class EsignAiFieldPlacementProposal(BaseModel):
+    id: str
+    document_id: str
+    participant_id: str
+    field_type: Literal[
+        "signature", "initials", "date_signed", "first_name", "last_name", "full_name",
+        "email", "company", "title", "text", "checkbox", "date", "number",
+    ]
+    page_number: int = Field(ge=0)
+    pos_x: float = Field(ge=0, le=1)
+    pos_y: float = Field(ge=0, le=1)
+    width: float = Field(gt=0, le=1)
+    height: float = Field(gt=0, le=1)
+    required: bool = True
+    label: Optional[str] = Field(default=None, max_length=255)
+    properties: EsignFieldProperties = Field(default_factory=EsignFieldProperties)
+
+    @model_validator(mode="after")
+    def valid_box_and_properties(self):
+        _validate_normalized_field_box(self.pos_x, self.pos_y, self.width, self.height)
+        self.properties = _validated_properties(self.field_type, self.properties)
+        return self
+
+
+class EsignAiFieldPlacementRunResponse(BaseModel):
+    id: str
+    target_type: Literal["envelope", "template"]
+    target_id: str
+    status: Literal["queued", "processing", "completed", "failed", "applied", "discarded"]
+    scope: Literal["all_documents", "active_document"]
+    selected_document_ids: list[str] = Field(default_factory=list)
+    base_revision: int
+    instructions: Optional[str] = None
+    proposals: list[EsignAiFieldPlacementProposal] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+    error: Optional[str] = None
+    page_usage: int = 0
+    progress: int = Field(default=0, ge=0, le=100)
+    created_at: datetime
+    updated_at: datetime
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    applied_at: Optional[datetime] = None
+    discarded_at: Optional[datetime] = None
+
+
+class EsignAiFieldPlacementRunListResponse(BaseModel):
+    runs: list[EsignAiFieldPlacementRunResponse] = Field(default_factory=list)
+
+
+class EsignAiFieldPlacementApplyRequest(BaseModel):
+    accepted_proposal_ids: list[str]
+    current_revision: int = Field(ge=1)
+
+
+class EsignAiFieldPlacementActionResponse(BaseModel):
+    run: EsignAiFieldPlacementRunResponse
+    draft_revision: int
+    fields_added: int = 0
+
+
 class EsignPdfWidget(BaseModel):
     widget_id: str
     name: str

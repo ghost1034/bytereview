@@ -19,7 +19,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
-import { useEsignBrands, useEsignTemplate, useUpdateEsignTemplate } from '@/hooks/useEnvelopes'
+import { useEsignBrands, useEsignContext, useEsignTemplate, useUpdateEsignTemplate } from '@/hooks/useEnvelopes'
 import { usePublishTemplate, useTemplateVersions } from '@/hooks/useEsignScale'
 import { apiClient, type EsignTemplateFieldInput, type EsignTemplateRoleInput } from '@/lib/api'
 import { cn } from '@/lib/utils'
@@ -37,6 +37,7 @@ export default function EsignTemplateEditPage() {
   const queryClient = useQueryClient()
 
   const templateQuery = useEsignTemplate(templateId)
+  const esignContext = useEsignContext()
   const updateTemplate = useUpdateEsignTemplate(templateId!)
   const publishTemplate = usePublishTemplate()
   const versions = useTemplateVersions(templateId)
@@ -55,6 +56,7 @@ export default function EsignTemplateEditPage() {
   const [signingType, setSigningType] = React.useState('sequential'); const [dateFormat, setDateFormat] = React.useState('MM/DD/YYYY')
   const [brandId, setBrandId] = React.useState('none'); const [roleDrafts, setRoleDrafts] = React.useState<EsignTemplateRoleInput[]>([])
   const [configOpen, setConfigOpen] = React.useState(true); const [documentsBusy, setDocumentsBusy] = React.useState(false)
+  const [aiPlacementPending, setAiPlacementPending] = React.useState(false)
 
   React.useEffect(() => {
     if (!template || hydratedFor === template.id) return
@@ -187,7 +189,7 @@ export default function EsignTemplateEditPage() {
   }
 
   return (
-    <ComposerShell title={template.name} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign/templates')} primary={<div className="flex gap-2"><Button variant="outline" onClick={() => setConfigOpen(value => !value)}><Settings2 className="mr-1.5 size-4" /> Settings</Button><Button variant="outline" disabled={publishTemplate.isPending || !!template.archived_at} onClick={async () => { try { if (!await handleSave()) return; const version = await publishTemplate.mutateAsync({ templateId: template.id, expectedRevision: draftRevision.current }); toast({ title: `Version ${version.version} published`, description: 'Bulk jobs and PowerForms can now pin this immutable version.' }) } catch (error) { toast({ title: 'Publish failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><UploadCloud className="mr-1.5 size-4" /> Publish</Button><Button disabled={!!template.archived_at} onClick={async () => { if (await handleSave()) router.push(`/dashboard/esign/new?template=${template.id}`) }}><Send className="mr-1.5 size-4" /> Use template</Button></div>}>
+    <ComposerShell title={template.name} stage="fields" saveState={saveState} onClose={() => router.push('/dashboard/esign/templates')} primary={<div className="flex gap-2"><Button variant="outline" onClick={() => setConfigOpen(value => !value)}><Settings2 className="mr-1.5 size-4" /> Settings</Button><Button variant="outline" disabled={publishTemplate.isPending || !!template.archived_at || aiPlacementPending} onClick={async () => { try { if (aiPlacementPending) { toast({ title: 'Review AI field suggestions first', description: 'Apply or discard the staged suggestions before publishing.' }); return } if (!await handleSave()) return; const version = await publishTemplate.mutateAsync({ templateId: template.id, expectedRevision: draftRevision.current }); toast({ title: `Version ${version.version} published`, description: 'Bulk jobs and PowerForms can now pin this immutable version.' }) } catch (error) { toast({ title: 'Publish failed', description: error instanceof Error ? error.message : undefined, variant: 'destructive' }) } }}><UploadCloud className="mr-1.5 size-4" /> Publish</Button><Button disabled={!!template.archived_at || aiPlacementPending} onClick={async () => { if (await handleSave()) router.push(`/dashboard/esign/new?template=${template.id}`) }}><Send className="mr-1.5 size-4" /> Use template</Button></div>}>
       <div className="space-y-4 p-3 sm:p-4">
       {template.archived_at && <p className="rounded-md border border-warning/30 bg-warning-soft p-3 text-sm">This template is archived because retained envelopes or published versions reference it. Its version history remains immutable.</p>}
       {configOpen && <section className="space-y-5 rounded-lg border border-border bg-surface p-4"><div className="flex items-center gap-2"><Settings2 className="size-4 text-primary" /><h2 className="font-semibold">Template draft settings</h2></div><div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"><div><Label>Name</Label><Input value={name} onChange={event => setName(event.target.value)} /></div><div><Label>Default envelope title</Label><Input value={title} onChange={event => setTitle(event.target.value)} /></div><div><Label>Description</Label><Input value={description} onChange={event => setDescription(event.target.value)} /></div><div><Label>Signing order</Label><Select value={signingType} onValueChange={setSigningType}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="sequential">Sequential</SelectItem><SelectItem value="parallel">Any order</SelectItem></SelectContent></Select></div><div><Label>Date format</Label><Select value={dateFormat} onValueChange={setDateFormat}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'MMM D, YYYY'].map(value => <SelectItem key={value} value={value}>{value}</SelectItem>)}</SelectContent></Select></div><div><Label>Brand</Label><Select value={brandId} onValueChange={setBrandId}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">Firm default</SelectItem>{brands.data?.brands.filter(brand => brand.active).map(brand => <SelectItem key={String(brand.id)} value={String(brand.id)}>{String(brand.name)}</SelectItem>)}</SelectContent></Select></div><div className="md:col-span-2 lg:col-span-3"><Label>Default message</Label><Textarea value={message} onChange={event => setMessage(event.target.value)} /></div></div>
@@ -211,6 +213,22 @@ export default function EsignTemplateEditPage() {
           fields={editorFields}
           onChange={setEditorFields}
           onAnchorSearch={(request) => apiClient.searchEsignTemplateAnchors(template.id, request)}
+          aiFieldPlacement={!template.archived_at && esignContext.data?.features.ai_field_placement !== false ? {
+            targetType: 'template', targetId: template.id,
+            getRevision: () => draftRevision.current,
+            saveBeforeStart: handleSave,
+            onPendingChange: setAiPlacementPending,
+            onApplied: async (result) => {
+              const latest = await apiClient.getEsignTemplate(template.id)
+              const next = latest.fields.map((field) => ({ id: field.id, documentId: field.template_document_id,
+                participantId: field.recipient_role_id ?? String(field.recipient_index), fieldType: field.field_type as EditorFieldType,
+                pageNumber: field.page_number, posX: field.pos_x, posY: field.pos_y, width: field.width, height: field.height,
+                required: field.required, label: field.label ?? undefined, properties: coerceEditorProperties(field.properties) }))
+              const snapshot = JSON.stringify(next); draftRevision.current = result.draft_revision; lastSaved.current = snapshot; queuedSnapshot.current = snapshot
+              setEditorFields(next); queryClient.setQueryData(['esign', 'template', template.id], latest); setSaveState('saved')
+              toast({ title: 'AI fields applied', description: `${result.fields_added} field${result.fields_added === 1 ? '' : 's'} added.` })
+            },
+          } : undefined}
         />
       )}
       </div>

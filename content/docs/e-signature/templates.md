@@ -45,6 +45,8 @@ The envelope receives its own copy of the template documents and fields. Later e
 
 Click a template row to open the immersive editor. You can edit roles and their relationships, documents, message defaults, date and signing settings, branding, and field placement. Field changes save automatically; use **Save settings** for the remaining draft settings.
 
+The template draft also supports **Place fields with AI**. It uses role labels rather than real recipient identities, runs in the background, and stages dashed suggestions outside the saved field layout. Review warnings and remove unwanted suggestions before applying the rest. Completed AI suggestions must be applied or discarded before publishing; selected pages consume the same page allowance as envelope analysis. Published versions stay immutable and cannot be analyzed in place—create a new draft from a version when you need a different layout. Manual placement remains available when AI omits an ambiguous or unsupported field.
+
 Click **Publish** to create an immutable numbered version for Bulk Send and PowerForms. Published snapshots never change when the working draft is edited. The version history can create a new editable template draft from any prior version.
 
 ## Archive or delete a template

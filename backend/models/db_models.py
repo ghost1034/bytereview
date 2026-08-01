@@ -758,6 +758,11 @@ class UsageEvent(Base):
     task_id = Column(UUID(as_uuid=True), ForeignKey("extraction_tasks.id", ondelete="SET NULL"), nullable=True)  # NULL for manual adjustments
     inkwise_ingestion_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_ingestions.id", ondelete="SET NULL"), nullable=True)
     form_fill_run_id = Column(UUID(as_uuid=True), ForeignKey("form_fill_runs.id", ondelete="SET NULL"), nullable=True)
+    esign_ai_field_placement_run_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("esign_ai_field_placement_runs.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     pages = Column(Integer, nullable=False)
     # Raw token usage for analytics LLM calls (NULL for page-based sources like
     # extraction / Form Fill / Inkwise). Billing still uses `pages`; these are
@@ -771,12 +776,19 @@ class UsageEvent(Base):
     
     __table_args__ = (
         CheckConstraint("pages >= 0", name="check_pages_non_negative"),
+        Index(
+            "uq_usage_events_esign_ai_field_placement_run",
+            "esign_ai_field_placement_run_id",
+            unique=True,
+            postgresql_where=text("esign_ai_field_placement_run_id IS NOT NULL"),
+        ),
     )
     
     # Relationships
     user = relationship("User")
     task = relationship("ExtractionTask")
     form_fill_run = relationship("FormFillRun")
+    esign_ai_field_placement_run = relationship("EsignAiFieldPlacementRun")
 
 class UsageCounter(Base):
     """Cached totals per active period (fast UI reads)"""
@@ -1743,6 +1755,63 @@ class EsignTemplateField(Base):
         CheckConstraint("page_number >= 0", name="ck_esign_template_fields_page_number"),
         CheckConstraint("recipient_index >= 0", name="ck_esign_template_fields_recipient_index"),
         Index("ix_esign_template_fields_role", "template_id", "recipient_role_id"),
+    )
+
+
+class EsignAiFieldPlacementRun(Base):
+    """Durable, advisory AI field suggestions for one mutable draft target."""
+    __tablename__ = "esign_ai_field_placement_runs"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    target_type = Column(String(16), nullable=False)  # envelope | template
+    envelope_id = Column(
+        UUID(as_uuid=True), ForeignKey("esign_envelopes.id", ondelete="CASCADE"), nullable=True
+    )
+    template_id = Column(
+        UUID(as_uuid=True), ForeignKey("esign_templates.id", ondelete="CASCADE"), nullable=True
+    )
+    requester_user_id = Column(
+        String(128), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False
+    )
+    status = Column(String(16), nullable=False, default="queued", server_default="queued")
+    scope = Column(String(24), nullable=False)  # all_documents | active_document
+    selected_document_ids = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
+    target_snapshot = Column(JSONB, nullable=False, default=dict, server_default=expression.text("'{}'::jsonb"))
+    base_revision = Column(Integer, nullable=False)
+    instructions = Column(Text, nullable=True)
+    proposals = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
+    warnings = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
+    error = Column(Text, nullable=True)
+    page_usage = Column(Integer, nullable=False, default=0, server_default="0")
+    started_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    applied_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    discarded_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    requester = relationship("User")
+    envelope = relationship("EsignEnvelope")
+    template = relationship("EsignTemplate")
+
+    __table_args__ = (
+        CheckConstraint(
+            "(target_type = 'envelope' AND envelope_id IS NOT NULL AND template_id IS NULL) "
+            "OR (target_type = 'template' AND template_id IS NOT NULL AND envelope_id IS NULL)",
+            name="ck_esign_ai_placement_target",
+        ),
+        CheckConstraint("page_usage >= 0", name="ck_esign_ai_placement_page_usage"),
+        Index("ix_esign_ai_placement_envelope_created", "envelope_id", "created_at"),
+        Index("ix_esign_ai_placement_template_created", "template_id", "created_at"),
+        Index("ix_esign_ai_placement_status", "status", "created_at"),
+        Index(
+            "uq_esign_ai_placement_active_envelope_scope", "envelope_id", "scope", unique=True,
+            postgresql_where=text("envelope_id IS NOT NULL AND status IN ('queued', 'processing')"),
+        ),
+        Index(
+            "uq_esign_ai_placement_active_template_scope", "template_id", "scope", unique=True,
+            postgresql_where=text("template_id IS NOT NULL AND status IN ('queued', 'processing')"),
+        ),
     )
 
 

@@ -26,7 +26,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { useToast } from '@/hooks/use-toast'
-import { useReplaceFields, useSaveAsTemplate, useScheduleEnvelope, useSendEnvelope } from '@/hooks/useEnvelopes'
+import { useEsignContext, useReplaceFields, useSaveAsTemplate, useScheduleEnvelope, useSendEnvelope } from '@/hooks/useEnvelopes'
 import { ApiError, apiClient, type EsignFieldInput, type EsignFieldResponse, type EsignPdfWidget } from '@/lib/api'
 import { collectFieldIssues } from '@/lib/esign/composerValidation'
 
@@ -62,6 +62,7 @@ export default function EnvelopeFieldsPage() {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const envelopeQuery = useDraftEnvelope(envelopeId)
+  const esignContext = useEsignContext()
   const envelope = envelopeQuery.data
   const replaceFields = useReplaceFields(envelopeId)
   const sendEnvelope = useSendEnvelope(envelopeId)
@@ -79,6 +80,7 @@ export default function EnvelopeFieldsPage() {
   const [unsupportedConfirmed, setUnsupportedConfirmed] = React.useState(false)
   const [inspectingWidgets, setInspectingWidgets] = React.useState(false)
   const [convertingWidgets, setConvertingWidgets] = React.useState(false)
+  const [aiPlacementPending, setAiPlacementPending] = React.useState(false)
   const lastSaved = React.useRef('')
   const queuedSnapshot = React.useRef('')
   const draftRevision = React.useRef(1)
@@ -172,6 +174,7 @@ export default function EnvelopeFieldsPage() {
 
   const signers = envelope?.recipients.filter((recipient) => ['signer', 'witness', 'in_person_signer'].includes(recipient.role)) ?? []
   const issues = collectFieldIssues(editorFields, signers.map((recipient) => ({ id: recipient.id, label: recipient.name || recipient.role_label || recipient.role.replace(/_/g, ' ') })))
+  if (aiPlacementPending) issues.push({ id: 'ai-field-placement-review', message: 'Apply or discard the staged AI field suggestions.' })
   const inspectWidgets = async (documentId: string) => {
     setInspectingWidgets(true)
     try {
@@ -256,6 +259,19 @@ export default function EnvelopeFieldsPage() {
             importingFillableFields={inspectingWidgets}
             onImportFillableFields={(documentId) => void inspectWidgets(documentId)}
             onAnchorSearch={(request) => apiClient.searchEsignAnchors(envelopeId, request)}
+            aiFieldPlacement={esignContext.data?.features.ai_field_placement !== false ? {
+              targetType: 'envelope', targetId: envelopeId,
+              getRevision: () => draftRevision.current,
+              saveBeforeStart: saveNow,
+              onPendingChange: setAiPlacementPending,
+              onApplied: async (result) => {
+                const latest = await apiClient.getEsignEnvelope(envelopeId)
+                const next = toEditorFields(latest.fields); const snapshot = JSON.stringify(next)
+                draftRevision.current = result.draft_revision; lastSaved.current = snapshot; queuedSnapshot.current = snapshot
+                setEditorFields(next); queryClient.setQueryData(['esign', 'envelope', envelopeId], latest); setSaveState('saved')
+                toast({ title: 'AI fields applied', description: `${result.fields_added} field${result.fields_added === 1 ? '' : 's'} added. Existing fields were preserved.` })
+              },
+            } : undefined}
           />
         </div>
       )}

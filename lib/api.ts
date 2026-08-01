@@ -72,6 +72,45 @@ export interface EsignContext {
   administrative_capabilities: Record<string, boolean>
 }
 
+export interface EsignAiFieldPlacementProposal {
+  id: string
+  document_id: string
+  participant_id: string
+  field_type: 'signature' | 'initials' | 'date_signed' | 'first_name' | 'last_name' | 'full_name' | 'email' | 'company' | 'title' | 'text' | 'checkbox' | 'date' | 'number'
+  page_number: number
+  pos_x: number
+  pos_y: number
+  width: number
+  height: number
+  required: boolean
+  label?: string | null
+  properties?: Record<string, unknown>
+}
+
+export interface EsignAiFieldPlacementRun {
+  id: string
+  target_type: 'envelope' | 'template'
+  target_id: string
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'applied' | 'discarded'
+  scope: 'all_documents' | 'active_document'
+  selected_document_ids: string[]
+  base_revision: number
+  instructions?: string | null
+  proposals: EsignAiFieldPlacementProposal[]
+  warnings: string[]
+  error?: string | null
+  page_usage: number
+  progress: number
+  created_at: string
+  updated_at: string
+}
+
+export interface EsignAiFieldPlacementAction {
+  run: EsignAiFieldPlacementRun
+  draft_revision: number
+  fields_added: number
+}
+
 export interface EsignAdminOverview {
   envelopes: number
   users: number
@@ -2516,6 +2555,33 @@ export class ApiClient {
       method: 'PUT',
       body: JSON.stringify({ fields, expected_revision: expectedRevision }),
     })
+  }
+
+  async createEsignAiFieldPlacementRun(
+    targetType: 'envelope' | 'template', targetId: string,
+    payload: { scope: 'all_documents' | 'active_document'; document_id?: string; instructions?: string; expected_revision: number },
+  ): Promise<EsignAiFieldPlacementRun> {
+    const collection = targetType === 'envelope' ? 'envelopes' : 'templates'
+    return this.request(`/api/esign/${collection}/${targetId}/ai-field-placement-runs`, { method: 'POST', body: JSON.stringify(payload) })
+  }
+
+  async listEsignAiFieldPlacementRuns(targetType: 'envelope' | 'template', targetId: string): Promise<{ runs: EsignAiFieldPlacementRun[] }> {
+    const collection = targetType === 'envelope' ? 'envelopes' : 'templates'
+    return this.request(`/api/esign/${collection}/${targetId}/ai-field-placement-runs`)
+  }
+
+  async getEsignAiFieldPlacementRun(runId: string): Promise<EsignAiFieldPlacementRun> {
+    return this.request(`/api/esign/ai-field-placement-runs/${runId}`)
+  }
+
+  async applyEsignAiFieldPlacementRun(runId: string, acceptedProposalIds: string[], currentRevision: number): Promise<EsignAiFieldPlacementAction> {
+    return this.request(`/api/esign/ai-field-placement-runs/${runId}/apply`, {
+      method: 'POST', body: JSON.stringify({ accepted_proposal_ids: acceptedProposalIds, current_revision: currentRevision }),
+    })
+  }
+
+  async discardEsignAiFieldPlacementRun(runId: string): Promise<EsignAiFieldPlacementAction> {
+    return this.request(`/api/esign/ai-field-placement-runs/${runId}/discard`, { method: 'POST', body: '{}' })
   }
 
   async correctEsignFields(envelopeId: string, payload: { fields: EsignFieldInput[]; reason: string; expected_routing_version: number }): Promise<EsignEnvelopeResponse> {

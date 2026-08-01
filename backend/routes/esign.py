@@ -83,6 +83,11 @@ from models.esign import (
     EsignCustodyRemediationRequest,
     EsignBrandProfileRequest,
     EsignWebhookConfigurationRequest,
+    EsignAiFieldPlacementCreateRequest,
+    EsignAiFieldPlacementApplyRequest,
+    EsignAiFieldPlacementRunResponse,
+    EsignAiFieldPlacementRunListResponse,
+    EsignAiFieldPlacementActionResponse,
 )
 from services.esign.audit_service import extract_request_meta
 from services.esign.envelope_service import (
@@ -100,6 +105,8 @@ from services.esign.email_templates import EmailContent, _shell
 from services.esign.admin_service import esign_admin_service
 from services.esign.url_service import app_base_url
 from services.esign.outbox_service import esign_outbox_service
+from services.esign.ai_field_placement_service import esign_ai_field_placement_service
+from services.billing_service import PlanLimitExceeded
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +132,8 @@ def _raise_http(exc: Exception) -> None:
         raise HTTPException(status_code=409, detail=str(exc))
     if isinstance(exc, PermissionError):
         raise HTTPException(status_code=403, detail=str(exc))
+    if isinstance(exc, PlanLimitExceeded):
+        raise HTTPException(status_code=402, detail=str(exc))
     if isinstance(exc, (EsignError, ValueError)):
         raise HTTPException(status_code=400, detail=str(exc))
     logger.exception("Unhandled esign error")
@@ -329,6 +338,21 @@ async def offboard_esign_user(user_id: str, payload: EsignCustodyTransferRequest
 # ---------------------------------------------------------------------------
 # Templates (sender)
 # ---------------------------------------------------------------------------
+
+
+@router.post("/templates/{template_id}/ai-field-placement-runs", response_model=EsignAiFieldPlacementRunResponse, status_code=202)
+async def create_template_ai_field_placement_run(
+    template_id: str, payload: EsignAiFieldPlacementCreateRequest,
+    token: dict = Depends(verify_firebase_token),
+):
+    try: return await esign_ai_field_placement_service.create_run(_uid(token), "template", template_id, payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/templates/{template_id}/ai-field-placement-runs", response_model=EsignAiFieldPlacementRunListResponse)
+async def list_template_ai_field_placement_runs(template_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return {"runs": esign_ai_field_placement_service.list_runs(_uid(token), "template", template_id)}
+    except Exception as exc: _raise_http(exc)
 
 
 @router.post("/templates", response_model=EsignTemplateResponse)
@@ -1062,6 +1086,42 @@ async def replace_fields(
         )
     except Exception as exc:
         _raise_http(exc)
+
+
+@router.post("/envelopes/{envelope_id}/ai-field-placement-runs", response_model=EsignAiFieldPlacementRunResponse, status_code=202)
+async def create_envelope_ai_field_placement_run(
+    envelope_id: str, payload: EsignAiFieldPlacementCreateRequest,
+    token: dict = Depends(verify_firebase_token),
+):
+    try: return await esign_ai_field_placement_service.create_run(_uid(token), "envelope", envelope_id, payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/envelopes/{envelope_id}/ai-field-placement-runs", response_model=EsignAiFieldPlacementRunListResponse)
+async def list_envelope_ai_field_placement_runs(envelope_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return {"runs": esign_ai_field_placement_service.list_runs(_uid(token), "envelope", envelope_id)}
+    except Exception as exc: _raise_http(exc)
+
+
+@router.get("/ai-field-placement-runs/{run_id}", response_model=EsignAiFieldPlacementRunResponse)
+async def get_ai_field_placement_run(run_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_ai_field_placement_service.get_run(_uid(token), run_id)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/ai-field-placement-runs/{run_id}/apply", response_model=EsignAiFieldPlacementActionResponse)
+async def apply_ai_field_placement_run(
+    run_id: str, payload: EsignAiFieldPlacementApplyRequest,
+    token: dict = Depends(verify_firebase_token),
+):
+    try: return esign_ai_field_placement_service.apply_run(_uid(token), run_id, payload)
+    except Exception as exc: _raise_http(exc)
+
+
+@router.post("/ai-field-placement-runs/{run_id}/discard", response_model=EsignAiFieldPlacementActionResponse)
+async def discard_ai_field_placement_run(run_id: str, token: dict = Depends(verify_firebase_token)):
+    try: return esign_ai_field_placement_service.discard_run(_uid(token), run_id)
+    except Exception as exc: _raise_http(exc)
 
 
 @router.post("/envelopes/{envelope_id}/anchor-search", response_model=EsignAnchorSearchResponse)

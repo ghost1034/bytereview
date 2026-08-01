@@ -20,6 +20,7 @@ from models.db_models import (
 
 
 DEFAULT_FEATURES = {
+    "ai_field_placement": True,
     "scheduled_sending": True,
     "bulk_sends": True,
     "powerforms": True,

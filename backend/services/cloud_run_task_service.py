@@ -187,6 +187,16 @@ class CloudRunTaskService:
             dispatch_deadline_seconds=self.extract_dispatch_deadline_seconds,
         )
 
+    async def enqueue_esign_ai_field_placement_task(self, run_id: str, delay_seconds: int = 0) -> str:
+        """Enqueue one idempotent E-Signature AI field-placement run."""
+        return await self._create_cloud_task(
+            queue_name=self.queue_names["extract"],
+            service_url=f"{self.task_services['extract']}/execute",
+            task_data={"task_type": "process_esign_ai_field_placement", "run_id": str(run_id)},
+            delay_seconds=delay_seconds,
+            dispatch_deadline_seconds=self.extract_dispatch_deadline_seconds,
+        )
+
     async def enqueue_form_fill_output_task(self, run_id: str, output_id: str, delay_seconds: int = 0) -> str:
         """Enqueue a single Form Fill output for background processing."""
         task_data = {

@@ -2108,6 +2108,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/esign/templates/{template_id}/ai-field-placement-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Template Ai Field Placement Runs */
+        get: operations["list_template_ai_field_placement_runs_api_esign_templates__template_id__ai_field_placement_runs_get"];
+        put?: never;
+        /** Create Template Ai Field Placement Run */
+        post: operations["create_template_ai_field_placement_run_api_esign_templates__template_id__ai_field_placement_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/esign/templates": {
         parameters: {
             query?: never;
@@ -3013,6 +3031,75 @@ export interface paths {
         /** Replace Fields */
         put: operations["replace_fields_api_esign_envelopes__envelope_id__fields_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/envelopes/{envelope_id}/ai-field-placement-runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Envelope Ai Field Placement Runs */
+        get: operations["list_envelope_ai_field_placement_runs_api_esign_envelopes__envelope_id__ai_field_placement_runs_get"];
+        put?: never;
+        /** Create Envelope Ai Field Placement Run */
+        post: operations["create_envelope_ai_field_placement_run_api_esign_envelopes__envelope_id__ai_field_placement_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/ai-field-placement-runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Ai Field Placement Run */
+        get: operations["get_ai_field_placement_run_api_esign_ai_field_placement_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/ai-field-placement-runs/{run_id}/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Apply Ai Field Placement Run */
+        post: operations["apply_ai_field_placement_run_api_esign_ai_field_placement_runs__run_id__apply_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/esign/ai-field-placement-runs/{run_id}/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Discard Ai Field Placement Run */
+        post: operations["discard_ai_field_placement_run_api_esign_ai_field_placement_runs__run_id__discard_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -8445,6 +8532,138 @@ export interface components {
              * @default 0
              */
             monthly_budget_usd: number | string;
+        };
+        /** EsignAiFieldPlacementActionResponse */
+        EsignAiFieldPlacementActionResponse: {
+            run: components["schemas"]["EsignAiFieldPlacementRunResponse"];
+            /** Draft Revision */
+            draft_revision: number;
+            /**
+             * Fields Added
+             * @default 0
+             */
+            fields_added: number;
+        };
+        /** EsignAiFieldPlacementApplyRequest */
+        EsignAiFieldPlacementApplyRequest: {
+            /** Accepted Proposal Ids */
+            accepted_proposal_ids: string[];
+            /** Current Revision */
+            current_revision: number;
+        };
+        /** EsignAiFieldPlacementCreateRequest */
+        EsignAiFieldPlacementCreateRequest: {
+            /**
+             * Scope
+             * @default all_documents
+             * @enum {string}
+             */
+            scope: "all_documents" | "active_document";
+            /** Document Id */
+            document_id?: string | null;
+            /** Instructions */
+            instructions?: string | null;
+            /** Expected Revision */
+            expected_revision: number;
+        };
+        /** EsignAiFieldPlacementProposal */
+        EsignAiFieldPlacementProposal: {
+            /** Id */
+            id: string;
+            /** Document Id */
+            document_id: string;
+            /** Participant Id */
+            participant_id: string;
+            /**
+             * Field Type
+             * @enum {string}
+             */
+            field_type: "signature" | "initials" | "date_signed" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "text" | "checkbox" | "date" | "number";
+            /** Page Number */
+            page_number: number;
+            /** Pos X */
+            pos_x: number;
+            /** Pos Y */
+            pos_y: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Required
+             * @default true
+             */
+            required: boolean;
+            /** Label */
+            label?: string | null;
+            properties?: components["schemas"]["EsignFieldProperties"];
+        };
+        /** EsignAiFieldPlacementRunListResponse */
+        EsignAiFieldPlacementRunListResponse: {
+            /** Runs */
+            runs?: components["schemas"]["EsignAiFieldPlacementRunResponse"][];
+        };
+        /** EsignAiFieldPlacementRunResponse */
+        EsignAiFieldPlacementRunResponse: {
+            /** Id */
+            id: string;
+            /**
+             * Target Type
+             * @enum {string}
+             */
+            target_type: "envelope" | "template";
+            /** Target Id */
+            target_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "processing" | "completed" | "failed" | "applied" | "discarded";
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "all_documents" | "active_document";
+            /** Selected Document Ids */
+            selected_document_ids?: string[];
+            /** Base Revision */
+            base_revision: number;
+            /** Instructions */
+            instructions?: string | null;
+            /** Proposals */
+            proposals?: components["schemas"]["EsignAiFieldPlacementProposal"][];
+            /** Warnings */
+            warnings?: string[];
+            /** Error */
+            error?: string | null;
+            /**
+             * Page Usage
+             * @default 0
+             */
+            page_usage: number;
+            /**
+             * Progress
+             * @default 0
+             */
+            progress: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Started At */
+            started_at?: string | null;
+            /** Completed At */
+            completed_at?: string | null;
+            /** Applied At */
+            applied_at?: string | null;
+            /** Discarded At */
+            discarded_at?: string | null;
         };
         /** EsignAnchorMatch */
         EsignAnchorMatch: {
@@ -17303,6 +17522,72 @@ export interface operations {
             };
         };
     };
+    list_template_ai_field_placement_runs_api_esign_templates__template_id__ai_field_placement_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAiFieldPlacementRunListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_template_ai_field_placement_run_api_esign_templates__template_id__ai_field_placement_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignAiFieldPlacementCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAiFieldPlacementRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_templates_api_esign_templates_get: {
         parameters: {
             query?: {
@@ -19347,6 +19632,169 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EsignEnvelopeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_envelope_ai_field_placement_runs_api_esign_envelopes__envelope_id__ai_field_placement_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAiFieldPlacementRunListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_envelope_ai_field_placement_run_api_esign_envelopes__envelope_id__ai_field_placement_runs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                envelope_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignAiFieldPlacementCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAiFieldPlacementRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ai_field_placement_run_api_esign_ai_field_placement_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAiFieldPlacementRunResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    apply_ai_field_placement_run_api_esign_ai_field_placement_runs__run_id__apply_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EsignAiFieldPlacementApplyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAiFieldPlacementActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    discard_ai_field_placement_run_api_esign_ai_field_placement_runs__run_id__discard_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EsignAiFieldPlacementActionResponse"];
                 };
             };
             /** @description Validation Error */

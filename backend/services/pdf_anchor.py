@@ -6,6 +6,77 @@ an anchor rule has identical edge handling in both modules.
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
+import fitz
+
+
+def search_pdf_anchor_text(
+    page: fitz.Page, value: str, *, case_sensitive: bool = False, whole_word: bool = False,
+) -> list[fitz.Rect]:
+    """Search one page with common E-Signature/Form Fill semantics."""
+    matches: list[fitz.Rect] = []
+    for raw_rect in page.search_for(value):
+        found_text = page.get_textbox(raw_rect).strip()
+        if case_sensitive and found_text != value:
+            continue
+        if whole_word:
+            flags = 0 if case_sensitive else re.IGNORECASE
+            if re.fullmatch(rf"\b{re.escape(value)}\b", found_text, flags=flags) is None:
+                continue
+        matches.append(raw_rect)
+    return matches
+
+
+def resolve_contextual_anchor_rect(page: fitz.Page, item: dict[str, Any]) -> tuple[fitz.Rect | None, str | None]:
+    """Resolve an AI anchor only when its context identifies one unique hit."""
+    anchor = str(item.get("anchor_text") or item.get("anchor") or "").strip()
+    before = str(item.get("anchor_before") or "").strip()
+    after = str(item.get("anchor_after") or "").strip()
+    if not anchor:
+        return None, "The model did not return anchor text."
+    matches = search_pdf_anchor_text(
+        page, anchor,
+        case_sensitive=bool(item.get("case_sensitive")),
+        whole_word=bool(item.get("whole_word")),
+    )
+    if not matches:
+        return None, f'Anchor "{anchor[:80]}" was not found.'
+    if len(matches) == 1:
+        return matches[0], None
+
+    before_matches = search_pdf_anchor_text(page, before) if before else []
+    after_matches = search_pdf_anchor_text(page, after) if after else []
+
+    def center(rect: fitz.Rect) -> tuple[float, float]:
+        return ((rect.x0 + rect.x1) / 2, (rect.y0 + rect.y1) / 2)
+
+    def reading_delta(left: fitz.Rect, right: fitz.Rect) -> float:
+        lx, ly = center(left); rx, ry = center(right)
+        return abs(ry - ly) * max(page.rect.width, 1) + abs(rx - lx)
+
+    scored: list[tuple[float, fitz.Rect]] = []
+    for match in matches:
+        score = 0.0
+        if before_matches:
+            eligible = [rect for rect in before_matches if rect.y0 < match.y1 or (rect.y0 <= match.y1 and rect.x0 < match.x0)]
+            if not eligible:
+                continue
+            score += min(reading_delta(rect, match) for rect in eligible)
+        if after_matches:
+            eligible = [rect for rect in after_matches if rect.y1 > match.y0 or (rect.y1 >= match.y0 and rect.x1 > match.x1)]
+            if not eligible:
+                continue
+            score += min(reading_delta(match, rect) for rect in eligible)
+        scored.append((score, match))
+    if not scored or (not before_matches and not after_matches):
+        return None, f'Anchor "{anchor[:80]}" appears more than once and its context is ambiguous.'
+    scored.sort(key=lambda row: row[0])
+    if len(scored) > 1 and abs(scored[0][0] - scored[1][0]) < 1e-6:
+        return None, f'Anchor "{anchor[:80]}" could not be resolved uniquely.'
+    return scored[0][1], None
+
 
 def relative_anchor_box_position(
     anchor_x: float,

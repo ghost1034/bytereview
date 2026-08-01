@@ -20,6 +20,7 @@ from workers.worker import process_extraction_task
 from core.database import db_config
 from inkwise.services.ingestion_service import InkwiseIngestionService
 from services.form_fill_service import form_fill_service
+from services.esign.ai_field_placement_service import esign_ai_field_placement_service
 
 logger = logging.getLogger(__name__)
 inkwise_ingestion_service = InkwiseIngestionService()
@@ -118,6 +119,19 @@ async def execute_task(request: Request):
                 task_name=request.headers.get("X-CloudTasks-TaskName"),
             )
             logger.info(f"Form Fill output {output_id} completed: {result}")
+            return {"success": True, "result": result}
+
+        elif task_type == "process_esign_ai_field_placement":
+            run_id = task_data.get("run_id")
+            if not run_id:
+                raise HTTPException(status_code=400, detail="run_id is required")
+            result = await esign_ai_field_placement_service.process_run(
+                run_id,
+                task_retry_count=_header_int(request, "X-CloudTasks-TaskRetryCount"),
+                task_execution_count=_header_int(request, "X-CloudTasks-TaskExecutionCount"),
+                task_queue_name=request.headers.get("X-CloudTasks-QueueName"),
+                task_name=request.headers.get("X-CloudTasks-TaskName"),
+            )
             return {"success": True, "result": result}
 
         elif task_type == "process_inkwise_source_ingestion":

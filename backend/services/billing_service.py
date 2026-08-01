@@ -364,10 +364,12 @@ class BillingService:
         task_id: Optional[str] = None,
         inkwise_ingestion_id: Optional[str] = None,
         form_fill_run_id: Optional[str] = None,
+        esign_ai_field_placement_run_id: Optional[str] = None,
         notes: Optional[str] = None,
         prompt_tokens: Optional[int] = None,
         output_tokens: Optional[int] = None,
         total_tokens: Optional[int] = None,
+        commit: bool = True,
     ) -> Optional[str]:
         """Append a usage event and bump the cached counter. Report to Stripe for paid plans.
 
@@ -383,6 +385,7 @@ class BillingService:
         task_uuid = _coerce_uuid(task_id)
         inkwise_ingestion_uuid = _coerce_uuid(inkwise_ingestion_id)
         form_fill_run_uuid = _coerce_uuid(form_fill_run_id)
+        esign_ai_run_uuid = _coerce_uuid(esign_ai_field_placement_run_id)
 
         duplicate_query = self.db.query(UsageEvent).filter(
             UsageEvent.user_id == user_id,
@@ -405,6 +408,13 @@ class BillingService:
             if existing_event is not None:
                 logger.info(f"Usage already recorded for Form Fill run {form_fill_run_uuid}; skipping duplicate metering")
                 return str(existing_event.id)
+        if esign_ai_run_uuid is not None:
+            existing_event = duplicate_query.filter(
+                UsageEvent.esign_ai_field_placement_run_id == esign_ai_run_uuid
+            ).first()
+            if existing_event is not None:
+                logger.info("Usage already recorded for E-Signature AI placement run %s; skipping duplicate metering", esign_ai_run_uuid)
+                return str(existing_event.id)
 
         acct = self.get_or_create_billing_account(user_id)
 
@@ -421,6 +431,7 @@ class BillingService:
                 task_id=task_uuid,
                 inkwise_ingestion_id=inkwise_ingestion_uuid,
                 form_fill_run_id=form_fill_run_uuid,
+                esign_ai_field_placement_run_id=esign_ai_run_uuid,
                 pages=pages,
                 prompt_tokens=prompt_tokens,
                 output_tokens=output_tokens,
@@ -448,6 +459,10 @@ class BillingService:
                 "tok": int(total_tokens or 0),
             },
         )
+
+        if not commit:
+            self.db.flush()
+            return event_id
 
         self.db.commit()
 

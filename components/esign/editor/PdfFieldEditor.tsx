@@ -2,13 +2,14 @@
 
 import * as React from 'react'
 import {
-  Calculator, CalendarDays, Check, CheckSquare, CircleDot, Copy,
-  FileInput, ListChecks, Loader2, Paperclip, PenLine, Redo2, Search, Trash2, Type, Undo2, UserRound,
+  AlertTriangle, Calculator, CalendarDays, Check, CheckSquare, CircleDot, Copy,
+  FileInput, ListChecks, Loader2, Paperclip, PenLine, Redo2, Search, Sparkles, Trash2, Type, Undo2, UserRound, X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { validateFormula } from '@/lib/esign/fieldLogic'
@@ -34,6 +35,7 @@ import {
 import { getFloatingToolbarPosition } from './floatingToolbar'
 import { snapRect, type SnapGuide } from './snapping'
 import { configuredTextFontSize, textFontFamily, TEXT_FONT_OPTIONS } from './textAppearance'
+import { apiClient, type EsignAiFieldPlacementAction, type EsignAiFieldPlacementRun } from '@/lib/api'
 
 export type { EditorFieldType } from './anchorPlacement'
 
@@ -109,6 +111,14 @@ interface PdfFieldEditorProps {
     cross_axis_alignment: 'auto' | 'start' | 'center' | 'end'
     offset_x: number; offset_y: number; offset_unit: 'point' | 'mm' | 'inch'; field_width: number; field_height: number
   }) => Promise<{ matches?: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number; anchor_x?: number | null; anchor_y?: number | null }> }>
+  aiFieldPlacement?: {
+    targetType: 'envelope' | 'template'
+    targetId: string
+    getRevision: () => number
+    saveBeforeStart: () => Promise<boolean>
+    onApplied: (result: EsignAiFieldPlacementAction) => Promise<void> | void
+    onPendingChange?: (pending: boolean) => void
+  }
 }
 
 interface AnchorPlacementSession {
@@ -388,7 +398,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove }: {
   </div>
 }
 
-export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId, importingFillableFields = false, onImportFillableFields, onAnchorSearch }: PdfFieldEditorProps) {
+export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId, importingFillableFields = false, onImportFillableFields, onAnchorSearch, aiFieldPlacement }: PdfFieldEditorProps) {
   const [activeDocumentId, setActiveDocumentId] = React.useState(documents[0]?.id)
   const [activeParticipantId, setActiveParticipantId] = React.useState(participants[0]?.id)
   const [armedType, setArmedType] = React.useState<EditorFieldType | null>(null)
@@ -411,6 +421,13 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [anchorOffsetUnit, setAnchorOffsetUnit] = React.useState<'point' | 'mm' | 'inch'>('point')
   const [anchorSearching, setAnchorSearching] = React.useState(false)
   const [anchorSession, setAnchorSession] = React.useState<AnchorPlacementSession | null>(null)
+  const [aiDialogOpen, setAiDialogOpen] = React.useState(false)
+  const [aiScope, setAiScope] = React.useState<'all_documents' | 'active_document'>('all_documents')
+  const [aiInstructions, setAiInstructions] = React.useState('')
+  const [aiRun, setAiRun] = React.useState<EsignAiFieldPlacementRun | null>(null)
+  const [acceptedAiIds, setAcceptedAiIds] = React.useState<Set<string>>(new Set())
+  const [aiBusy, setAiBusy] = React.useState(false)
+  const [aiError, setAiError] = React.useState('')
   const [highlightedAnchorMatch, setHighlightedAnchorMatch] = React.useState<{ ruleId: string; matchIndex: number } | null>(null)
   const past = React.useRef<EditorField[][]>([])
   const future = React.useRef<EditorField[][]>([])
@@ -425,6 +442,75 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     const anchor = field.properties?.anchor
     return anchorSession && anchor?.rule_id === anchorSession.ruleId && anchor.match_index !== undefined ? [anchor.match_index] : []
   })), [anchorSession, fields])
+  const stagedAiProposals = React.useMemo(() => (aiRun?.proposals ?? []).filter((proposal) => acceptedAiIds.has(proposal.id)), [acceptedAiIds, aiRun])
+
+  React.useEffect(() => {
+    if (!aiFieldPlacement) return
+    let cancelled = false
+    apiClient.listEsignAiFieldPlacementRuns(aiFieldPlacement.targetType, aiFieldPlacement.targetId).then(({ runs }) => {
+      if (cancelled) return
+      const latest = runs.find((run) => ['queued', 'processing', 'completed'].includes(run.status)) ?? null
+      setAiRun(latest)
+      setAcceptedAiIds(new Set(latest?.proposals.map((proposal) => proposal.id) ?? []))
+      aiFieldPlacement.onPendingChange?.(latest?.status === 'completed')
+    }).catch(() => undefined)
+    return () => { cancelled = true }
+    // The target identity is stable even when the parent recreates callback props.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiFieldPlacement?.targetId, aiFieldPlacement?.targetType])
+
+  React.useEffect(() => {
+    if (!aiFieldPlacement || !aiRun || !['queued', 'processing'].includes(aiRun.status)) return
+    const timer = window.setTimeout(async () => {
+      try {
+        const latest = await apiClient.getEsignAiFieldPlacementRun(aiRun.id)
+        setAiRun(latest)
+        if (latest.status === 'completed') {
+          setAcceptedAiIds(new Set(latest.proposals.map((proposal) => proposal.id)))
+          aiFieldPlacement.onPendingChange?.(true)
+        } else if (latest.status === 'failed') aiFieldPlacement.onPendingChange?.(false)
+      } catch { /* the next editor visit restores the durable run */ }
+    }, 2000)
+    return () => window.clearTimeout(timer)
+    // Poll by durable run identity/status; callback object identity is irrelevant.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiRun?.id, aiRun?.status, aiFieldPlacement?.targetId])
+
+  const startAiPlacement = async () => {
+    if (!aiFieldPlacement || !activeDocument) return
+    setAiBusy(true); setAiError('')
+    try {
+      if (!await aiFieldPlacement.saveBeforeStart()) return
+      const run = await apiClient.createEsignAiFieldPlacementRun(aiFieldPlacement.targetType, aiFieldPlacement.targetId, {
+        scope: aiScope, document_id: aiScope === 'active_document' ? activeDocument.id : undefined,
+        instructions: aiInstructions.trim() || undefined, expected_revision: aiFieldPlacement.getRevision(),
+      })
+      setAiRun(run); setAcceptedAiIds(new Set()); setAiDialogOpen(false); aiFieldPlacement.onPendingChange?.(false)
+    } catch (error) { setAiError(error instanceof Error ? error.message : 'Could not start AI analysis.') }
+    finally { setAiBusy(false) }
+  }
+
+  const applyAiPlacement = async () => {
+    if (!aiFieldPlacement || !aiRun) return
+    setAiBusy(true); setAiError('')
+    try {
+      if (!await aiFieldPlacement.saveBeforeStart()) return
+      const result = await apiClient.applyEsignAiFieldPlacementRun(aiRun.id, [...acceptedAiIds], aiFieldPlacement.getRevision())
+      setAiRun(result.run); setAcceptedAiIds(new Set()); aiFieldPlacement.onPendingChange?.(false)
+      await aiFieldPlacement.onApplied(result)
+    } catch (error) { setAiError(error instanceof Error ? error.message : 'Could not apply AI suggestions.') }
+    finally { setAiBusy(false) }
+  }
+
+  const discardAiPlacement = async () => {
+    if (!aiFieldPlacement || !aiRun) return
+    setAiBusy(true); setAiError('')
+    try {
+      const result = await apiClient.discardEsignAiFieldPlacementRun(aiRun.id)
+      setAiRun(result.run); setAcceptedAiIds(new Set()); aiFieldPlacement.onPendingChange?.(false)
+    } catch (error) { setAiError(error instanceof Error ? error.message : 'Could not discard AI suggestions.') }
+    finally { setAiBusy(false) }
+  }
 
   // Parent pages derive `documents` inline. Watch stable values so field edits
   // do not turn new object references into unnecessary PDF reloads.
@@ -654,6 +740,16 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', armedType === type ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
         {onImportFillableFields && activeDocument && <Button type="button" variant="outline" size="sm" className="w-full" disabled={importingFillableFields} onClick={() => onImportFillableFields(activeDocument.id)}>{importingFillableFields ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <FileInput className="mr-1.5 size-3.5" />} Import fillable fields</Button>}
         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setAnchorResult(''); setAnchorOpen(true) }}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
+        {aiFieldPlacement && <Button type="button" variant="outline" size="sm" className="w-full" disabled={!!aiRun && ['queued', 'processing', 'completed'].includes(aiRun.status)} onClick={() => { setAiError(''); setAiDialogOpen(true) }}>{aiRun && ['queued', 'processing'].includes(aiRun.status) ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Sparkles className="mr-1.5 size-3.5" />} {aiRun && ['queued', 'processing'].includes(aiRun.status) ? 'AI analysis running' : aiRun?.status === 'completed' ? 'Review AI suggestions below' : 'Place fields with AI'}</Button>}
+        {aiRun && ['queued', 'processing'].includes(aiRun.status) && <div className="rounded-md border border-primary/30 bg-primary-soft p-2.5 text-xs" role="status" aria-live="polite"><p className="font-medium text-foreground">{aiRun.status === 'queued' ? 'AI analysis queued' : 'AI analysis processing'}</p><p className="mt-1 text-foreground-muted">You can leave this editor. The latest result will be restored when you return.</p></div>}
+        {aiRun?.status === 'completed' && <div className="space-y-2 rounded-md border border-primary/30 bg-primary-soft p-2.5 text-xs" data-testid="ai-field-placement-review">
+          <p className="font-medium text-foreground">Review AI suggestions</p>
+          <p className="text-foreground-muted">{acceptedAiIds.size} of {aiRun.proposals.length} suggestion{aiRun.proposals.length === 1 ? '' : 's'} selected · {aiRun.page_usage} page{aiRun.page_usage === 1 ? '' : 's'} used.</p>
+          {!!aiRun.warnings.length && <div className="space-y-1 rounded bg-warning-soft p-2 text-warning"><p className="flex items-center gap-1 font-medium"><AlertTriangle className="size-3" /> Warnings</p>{aiRun.warnings.map((warning, index) => <p key={index}>{warning}</p>)}</div>}
+          {aiError && <p className="text-destructive">{aiError}</p>}
+          <div className="flex gap-1.5"><Button type="button" size="sm" className="h-7 flex-1 text-xs" disabled={aiBusy} onClick={() => void applyAiPlacement()}>{aiBusy && <Loader2 className="mr-1 size-3 animate-spin" />}Apply remaining</Button><Button type="button" variant="outline" size="sm" className="h-7 text-xs" disabled={aiBusy} onClick={() => void discardAiPlacement()}>Discard all</Button></div>
+        </div>}
+        {aiRun?.status === 'failed' && <div className="rounded-md border border-destructive/30 bg-destructive-soft p-2.5 text-xs text-destructive">{aiRun.error || 'AI analysis failed. You can place fields manually or try again.'}</div>}
         {anchorSession && <div className="space-y-2 rounded-md border border-primary/30 bg-primary-soft p-2.5 text-xs">
           <div className="flex items-center justify-between gap-2"><span className="font-medium text-foreground">Anchor matches</span><span className="rounded-full bg-surface px-2 py-0.5 font-medium text-primary">{placedAnchorMatchIndexes.size}/{anchorSession.matches.length} placed</span></div>
           <p className="text-foreground-muted">Select a dashed box to place {SHORT[anchorSession.type].toLowerCase()}.</p>
@@ -712,6 +808,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
               {selected && HANDLES.map((handle) => <span key={handle} onPointerDown={(event) => startInteraction(event, field, 'resize', size, handle)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
                 className="absolute size-2 rounded-[1px] border border-white bg-primary" style={{ cursor: `${handle}-resize`, left: handle.includes('w') ? -4 : handle.includes('e') ? 'calc(100% - 4px)' : 'calc(50% - 4px)', top: handle.includes('n') ? -4 : handle.includes('s') ? 'calc(100% - 4px)' : 'calc(50% - 4px)' }} />)}
             </div>})}
+          {stagedAiProposals.filter((proposal) => proposal.document_id === activeDocument.id && proposal.page_number === pageIndex).map((proposal) => { const participant = participants.find((item) => item.id === proposal.participant_id); return <div key={proposal.id} data-testid={`ai-proposal-${proposal.id}`} className="pointer-events-none absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-violet-600 bg-violet-300/25 text-[10px] font-semibold text-violet-950 shadow-sm" style={{ left: proposal.pos_x * size.width, top: proposal.pos_y * size.height, width: proposal.width * size.width, height: proposal.height * size.height }} title={`${proposal.field_type.replace(/_/g, ' ')} · ${participant?.label ?? 'Signing role'} · page ${proposal.page_number + 1}`}><span className="truncate px-1">AI · {proposal.field_type.replace(/_/g, ' ')}</span><button type="button" className="pointer-events-auto absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full bg-violet-700 text-white shadow" aria-label={`Remove AI ${proposal.field_type.replace(/_/g, ' ')} suggestion`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setAcceptedAiIds((current) => { const next = new Set(current); next.delete(proposal.id); return next }) }}><X className="size-3" /></button></div> })}
           {selectedIds.size === 1 && selectedField?.documentId === activeDocument.id && selectedField.pageNumber === pageIndex && <FieldFloatingToolbar
             field={selectedField}
             participants={participants}
@@ -738,6 +835,18 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           <div className="grid grid-cols-3 gap-2"><label className="space-y-1 text-sm"><span className="font-medium">Horizontal offset</span><Input aria-label="Horizontal offset" type="number" value={anchorOffsetX} onChange={(event) => setAnchorOffsetX(Number(event.target.value))} /></label><label className="space-y-1 text-sm"><span className="font-medium">Vertical offset</span><Input aria-label="Vertical offset" type="number" value={anchorOffsetY} onChange={(event) => setAnchorOffsetY(Number(event.target.value))} /></label><label className="space-y-1 text-sm"><span className="font-medium">Unit</span><select aria-label="Offset unit" className="w-full rounded border border-border bg-background px-2 py-2" value={anchorOffsetUnit} onChange={(event) => setAnchorOffsetUnit(event.target.value as typeof anchorOffsetUnit)}><option value="point">Points</option><option value="mm">Millimeters</option><option value="inch">Inches</option></select></label></div>
           {anchorResult && <p className="text-sm text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}</div>
         <DialogFooter><Button variant="outline" onClick={() => setAnchorOpen(false)}>Close</Button><Button onClick={findAnchorMatches} disabled={!anchorText.trim() || anchorSearching}>{anchorSearching && <Loader2 className="mr-1.5 size-4 animate-spin" />}Find matches</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader><DialogTitle>Place fields with AI</DialogTitle><DialogDescription>Analysis runs in the background. Suggestions are staged for review and do not change existing fields until you apply them. Selected pages count toward your page allowance.</DialogDescription></DialogHeader>
+        <div className="space-y-4">
+          <div><p className="mb-2 text-sm font-medium">Analyze</p><label className="flex items-center gap-2 text-sm"><input type="radio" name="ai-field-scope" checked={aiScope === 'all_documents'} onChange={() => setAiScope('all_documents')} /> All documents ({documents.reduce((sum, document) => sum + document.pageCount, 0)} pages)</label><label className="mt-2 flex items-center gap-2 text-sm"><input type="radio" name="ai-field-scope" checked={aiScope === 'active_document'} onChange={() => setAiScope('active_document')} /> Active document ({activeDocument?.pageCount ?? 0} pages)</label></div>
+          <div><label htmlFor="ai-field-instructions" className="text-sm font-medium">Optional instructions</label><Textarea id="ai-field-instructions" value={aiInstructions} onChange={(event) => setAiInstructions(event.target.value)} maxLength={4000} placeholder="For example: Put signature and date fields on the final acknowledgment page." /></div>
+          {aiError && <p className="text-sm text-destructive">{aiError}</p>}
+          <p className="text-xs text-foreground-muted">AI can make mistakes. Ambiguous placements and signing-role assignments are omitted with warnings; unsupported field types still need to be placed manually.</p>
+        </div>
+        <DialogFooter><Button variant="outline" onClick={() => setAiDialogOpen(false)}>Cancel</Button><Button disabled={aiBusy} onClick={() => void startAiPlacement()}>{aiBusy && <Loader2 className="mr-1.5 size-4 animate-spin" />}Start analysis</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   </div>

@@ -55,7 +55,7 @@ from services.gemini_file_service import part_from_storage_object
 from services.gcs_service import get_storage_service
 from services.natural_sort import natural_text_key, sort_paths_naturally
 from services.page_counting_service import page_counting_service
-from services.pdf_anchor import relative_anchor_box_position
+from services.pdf_anchor import relative_anchor_box_position, search_pdf_anchor_text
 
 
 logger = logging.getLogger(__name__)
@@ -3407,17 +3407,9 @@ Instructions:
         whole_word: bool = False,
     ) -> list[fitz.Rect]:
         """Search text with the same filtering semantics as E-Signature."""
-        matches: list[fitz.Rect] = []
-        for raw_rect in page.search_for(value):
-            found_text = page.get_textbox(raw_rect).strip()
-            if case_sensitive and found_text != value:
-                continue
-            if whole_word:
-                flags = 0 if case_sensitive else re.IGNORECASE
-                if re.fullmatch(rf"\b{re.escape(value)}\b", found_text, flags=flags) is None:
-                    continue
-            matches.append(raw_rect)
-        return matches
+        return search_pdf_anchor_text(
+            page, value, case_sensitive=case_sensitive, whole_word=whole_word,
+        )
 
     def _resolve_pdf_anchor_rect(
         self,
