@@ -1,6 +1,8 @@
 # Hosted Claw pilot supervisor
 
-This directory contains the single-VM pilot data plane. The Cloud Run API is
+This directory contains the shared single-VM pilot data plane. The same private
+Hosted Claw MIG also runs OpenConnector behind a regional passthrough load
+balancer. The Cloud Run API is
 the control plane; the supervisor has no database, KMS, Slack-token, or
 provider-key access. It authenticates to `/api/internal/hosted-claw` with its
 GCE service identity and receives only one claimed tenant job at a time.
@@ -29,7 +31,7 @@ docker build --build-arg HERMES_BASE_IMAGE='nousresearch/hermes-agent@sha256:…
   -f hosted_claw/images/accountingclaw.Dockerfile -t REGION-docker.pkg.dev/PROJECT/REPO/hosted-accountingclaw:TAG .
 ```
 
-`setup-hosted-claw-pilot.sh` documents the one-VM infrastructure defaults,
+`setup-hosted-claw-pilot.sh` provisions the one-VM infrastructure defaults,
 least-privilege service account roles, daily snapshots, Pub/Sub subscription,
-and alert policies. It is intentionally opt-in and does not run from the normal
-Cloud Run deployment.
+OpenConnector stateful disk and load balancer, and alert policies. It is
+intentionally opt-in and does not run from the normal Cloud Run deployment.

@@ -1,0 +1,11 @@
+[Unit]
+Description=Back up the OpenConnector SQLite database to GCS
+After=docker.service openconnector.service
+RequiresMountsFor=/mnt/openconnector-data
+ConditionPathExists=/mnt/openconnector-data/connect.sqlite
+
+[Service]
+Type=oneshot
+Environment=BACKUP_BUCKET=gs://cpaautomation-openconnector-backups
+Environment=DATA_DIR=/mnt/openconnector-data
+ExecStart=/opt/openconnector/backup-openconnector.sh

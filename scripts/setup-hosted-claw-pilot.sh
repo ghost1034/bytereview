@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Provision the opt-in, single-instance hosted-Claw pilot data plane.
-# This script creates no public ingress and grants no database, KMS decrypt,
-# Slack-token, Secret Manager, or upstream-provider permissions to the worker.
+# Provision the single-instance Hosted Claw + OpenConnector data plane.
+# Hosted Claw remains private. OpenConnector receives public TCP 80/443 through
+# a regional passthrough load balancer; the VM itself has no external NIC.
+# The worker receives no database, KMS decrypt, Slack-token, Secret Manager, or
+# upstream-provider permissions.
 
 set -euo pipefail
 
@@ -10,13 +12,20 @@ REGION="${REGION:-us-central1}"
 ZONE="${ZONE:-us-central1-a}"
 NETWORK="${NETWORK:-default}"
 MIG_NAME="${MIG_NAME:-hosted-claw-pilot}"
-TEMPLATE_NAME="${TEMPLATE_NAME:-hosted-claw-pilot-v1}"
+TEMPLATE_NAME="${TEMPLATE_NAME:-hosted-claw-pilot-v7}"
 WORKER_SA_NAME="${WORKER_SA_NAME:-hosted-claw-worker}"
 WORKER_SA="${WORKER_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 API_SA="${API_SA:-cpaautomation-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
 DISK_NAME="${DISK_NAME:-hosted-claw-data}"
 DISK_DEVICE_NAME="${DISK_DEVICE_NAME:-hosted-claw-data}"
+OPENCONNECTOR_DISK_NAME="${OPENCONNECTOR_DISK_NAME:-openconnector-data}"
+OPENCONNECTOR_DISK_DEVICE_NAME="${OPENCONNECTOR_DISK_DEVICE_NAME:-openconnector-data}"
 ARTIFACT_BUCKET="${ARTIFACT_BUCKET:-${PROJECT_ID}-hosted-claw-artifacts}"
+OPENCONNECTOR_BACKUP_BUCKET="${OPENCONNECTOR_BACKUP_BUCKET:-cpaautomation-openconnector-backups}"
+OPENCONNECTOR_ADDRESS_NAME="${OPENCONNECTOR_ADDRESS_NAME:-openconnector-ip}"
+OPENCONNECTOR_HEALTH_CHECK="${OPENCONNECTOR_HEALTH_CHECK:-openconnector-tcp-health}"
+OPENCONNECTOR_BACKEND_SERVICE="${OPENCONNECTOR_BACKEND_SERVICE:-openconnector-web-backend}"
+OPENCONNECTOR_FORWARDING_RULE="${OPENCONNECTOR_FORWARDING_RULE:-openconnector-web}"
 PUBSUB_TOPIC="${PUBSUB_TOPIC:-hosted-claw-jobs}"
 PUBSUB_SUBSCRIPTION="${PUBSUB_SUBSCRIPTION:-hosted-claw-pilot}"
 SNAPSHOT_POLICY="${SNAPSHOT_POLICY:-hosted-claw-daily-14d}"
@@ -25,7 +34,8 @@ ROUTER_NAME="${ROUTER_NAME:-hosted-claw-router}"
 NAT_NAME="${NAT_NAME:-hosted-claw-nat}"
 
 gcloud config set project "$PROJECT_ID" >/dev/null
-gcloud services enable compute.googleapis.com pubsub.googleapis.com artifactregistry.googleapis.com logging.googleapis.com monitoring.googleapis.com storage.googleapis.com >/dev/null
+gcloud services enable compute.googleapis.com pubsub.googleapis.com artifactregistry.googleapis.com \
+  iap.googleapis.com logging.googleapis.com monitoring.googleapis.com storage.googleapis.com >/dev/null
 gcloud services enable cloudkms.googleapis.com >/dev/null
 
 if ! gcloud compute routers describe "$ROUTER_NAME" --region="$REGION" >/dev/null 2>&1; then
@@ -73,6 +83,13 @@ gcloud storage buckets add-iam-policy-binding "gs://${ARTIFACT_BUCKET}" \
 gcloud pubsub topics add-iam-policy-binding "$PUBSUB_TOPIC" \
   --member="serviceAccount:${API_SA}" --role=roles/pubsub.publisher >/dev/null
 
+gcloud storage buckets describe "gs://${OPENCONNECTOR_BACKUP_BUCKET}" >/dev/null 2>&1 || \
+  gcloud storage buckets create "gs://${OPENCONNECTOR_BACKUP_BUCKET}" --location="$REGION" --uniform-bucket-level-access
+gcloud storage buckets update "gs://${OPENCONNECTOR_BACKUP_BUCKET}" \
+  --lifecycle-file="$(dirname "$0")/../infra/openconnector/gcs-lifecycle.json" >/dev/null
+gcloud storage buckets add-iam-policy-binding "gs://${OPENCONNECTOR_BACKUP_BUCKET}" \
+  --member="serviceAccount:${WORKER_SA}" --role=roles/storage.objectAdmin >/dev/null
+
 if ! gcloud compute resource-policies describe "$SNAPSHOT_POLICY" --region="$REGION" >/dev/null 2>&1; then
   gcloud compute resource-policies create snapshot-schedule "$SNAPSHOT_POLICY" \
     --region="$REGION" --daily-schedule --start-time=04:00 --max-retention-days=14 \
@@ -82,6 +99,23 @@ if ! gcloud compute disks describe "$DISK_NAME" --zone="$ZONE" >/dev/null 2>&1; 
   gcloud compute disks create "$DISK_NAME" --zone="$ZONE" --size=250GB --type=pd-balanced \
     --resource-policies="$SNAPSHOT_POLICY"
 fi
+if ! gcloud compute disks describe "$OPENCONNECTOR_DISK_NAME" --zone="$ZONE" >/dev/null 2>&1; then
+  gcloud compute disks create "$OPENCONNECTOR_DISK_NAME" --zone="$ZONE" --size=20GB --type=pd-balanced
+fi
+if ! gcloud compute disks describe "$OPENCONNECTOR_DISK_NAME" --zone="$ZONE" \
+  --format='value(resourcePolicies)' | grep -q "/${SNAPSHOT_POLICY}$"; then
+  gcloud compute disks add-resource-policies "$OPENCONNECTOR_DISK_NAME" \
+    --zone="$ZONE" --resource-policies="$SNAPSHOT_POLICY"
+fi
+
+if ! gcloud compute addresses describe "$OPENCONNECTOR_ADDRESS_NAME" --region="$REGION" >/dev/null 2>&1; then
+  gcloud compute addresses create "$OPENCONNECTOR_ADDRESS_NAME" --region="$REGION"
+fi
+if ! gcloud compute firewall-rules describe allow-openconnector-web >/dev/null 2>&1; then
+  gcloud compute firewall-rules create allow-openconnector-web \
+    --network="$NETWORK" --allow=tcp:80,tcp:443 --target-tags=openconnector \
+    --source-ranges=0.0.0.0/0 --direction=INGRESS
+fi
 
 # The startup script installs Docker/ClamAV and starts a packaged supervisor.
 # Provider credentials and the LiteLLM master key are injected by the operator
@@ -90,26 +124,59 @@ if ! gcloud compute instance-templates describe "$TEMPLATE_NAME" >/dev/null 2>&1
   gcloud compute instance-templates create "$TEMPLATE_NAME" \
     --machine-type=n2-standard-16 \
     --network="$NETWORK" --no-address \
+    --tags=openconnector \
     --service-account="$WORKER_SA" --scopes=cloud-platform \
     --image-family=debian-12 --image-project=debian-cloud \
     --boot-disk-size=30GB --boot-disk-type=pd-balanced \
     --disk="name=${DISK_NAME},device-name=${DISK_DEVICE_NAME},mode=rw,boot=no,auto-delete=no" \
-    --metadata-from-file="startup-script=$(dirname "$0")/../infra/hosted-claw/startup.sh,hosted-claw-compose=$(dirname "$0")/../hosted_claw/docker-compose.yml,hosted-claw-litellm-config=$(dirname "$0")/../hosted_claw/litellm-config.yaml,hosted-claw-litellm-service=$(dirname "$0")/../infra/hosted-claw/hosted-claw-litellm.service,hosted-claw-supervisor-service=$(dirname "$0")/../infra/hosted-claw/hosted-claw-supervisor.service,hosted-claw-ops-agent-config=$(dirname "$0")/../infra/hosted-claw/ops-agent-config.yaml" \
+    --disk="name=${OPENCONNECTOR_DISK_NAME},device-name=${OPENCONNECTOR_DISK_DEVICE_NAME},mode=rw,boot=no,auto-delete=no" \
+    --metadata-from-file="startup-script=$(dirname "$0")/../infra/hosted-claw/startup.sh,hosted-claw-compose=$(dirname "$0")/../hosted_claw/docker-compose.yml,hosted-claw-litellm-config=$(dirname "$0")/../hosted_claw/litellm-config.yaml,hosted-claw-litellm-service=$(dirname "$0")/../infra/hosted-claw/hosted-claw-litellm.service,hosted-claw-supervisor-service=$(dirname "$0")/../infra/hosted-claw/hosted-claw-supervisor.service,hosted-claw-activate=$(dirname "$0")/../infra/hosted-claw/activate-hosted-claw.sh,container-metadata-block=$(dirname "$0")/../infra/hosted-claw/block-container-metadata.sh,container-metadata-service=$(dirname "$0")/../infra/hosted-claw/container-metadata-firewall.service,hosted-claw-ops-agent-config=$(dirname "$0")/../infra/hosted-claw/ops-agent-config.yaml,openconnector-compose=$(dirname "$0")/../infra/openconnector/docker-compose.yml,openconnector-caddy=$(dirname "$0")/../infra/openconnector/Caddyfile,openconnector-service=$(dirname "$0")/../infra/openconnector/openconnector.service,openconnector-backup-script=$(dirname "$0")/backup-openconnector.sh,openconnector-backup-service=$(dirname "$0")/../infra/openconnector/openconnector-backup.service,openconnector-backup-timer=$(dirname "$0")/../infra/openconnector/openconnector-backup.timer" \
     --labels=service=hosted-claw,pilot=true
 fi
 
 if ! gcloud compute instance-groups managed describe "$MIG_NAME" --zone="$ZONE" >/dev/null 2>&1; then
   gcloud compute instance-groups managed create "$MIG_NAME" --zone="$ZONE" --size=1 --template="$TEMPLATE_NAME"
   gcloud compute instance-groups managed update "$MIG_NAME" --zone="$ZONE" \
-    --stateful-disk="device-name=${DISK_DEVICE_NAME},auto-delete=never"
+    --stateful-disk="device-name=${DISK_DEVICE_NAME},auto-delete=never" \
+    --stateful-disk="device-name=${OPENCONNECTOR_DISK_DEVICE_NAME},auto-delete=never"
 else
   # Instance templates are immutable. Point an existing pilot MIG at the
   # requested template so rerunning this script actually applies bootstrap
   # and service-unit changes instead of silently retaining an older template.
   gcloud compute instance-groups managed set-instance-template "$MIG_NAME" \
     --zone="$ZONE" --template="$TEMPLATE_NAME"
+  gcloud compute instance-groups managed update "$MIG_NAME" --zone="$ZONE" \
+    --stateful-disk="device-name=${DISK_DEVICE_NAME},auto-delete=never" \
+    --stateful-disk="device-name=${OPENCONNECTOR_DISK_DEVICE_NAME},auto-delete=never"
 fi
 
-echo "Hosted-Claw pilot infrastructure is ready."
+if ! gcloud compute health-checks describe "$OPENCONNECTOR_HEALTH_CHECK" --region="$REGION" >/dev/null 2>&1; then
+  gcloud compute health-checks create tcp "$OPENCONNECTOR_HEALTH_CHECK" --region="$REGION" --port=80
+fi
+if ! gcloud compute backend-services describe "$OPENCONNECTOR_BACKEND_SERVICE" --region="$REGION" >/dev/null 2>&1; then
+  gcloud compute backend-services create "$OPENCONNECTOR_BACKEND_SERVICE" \
+    --load-balancing-scheme=EXTERNAL --protocol=TCP --region="$REGION" \
+    --health-checks="$OPENCONNECTOR_HEALTH_CHECK" --health-checks-region="$REGION"
+fi
+if ! gcloud compute backend-services describe "$OPENCONNECTOR_BACKEND_SERVICE" --region="$REGION" \
+  --format='value(backends[].group)' | grep -q "/instanceGroups/${MIG_NAME}$"; then
+  gcloud compute backend-services add-backend "$OPENCONNECTOR_BACKEND_SERVICE" \
+    --instance-group="$MIG_NAME" --instance-group-zone="$ZONE" --region="$REGION"
+fi
+
+# During preparation the reserved address is still attached to the legacy VM.
+# Create the forwarding rule automatically once cutover releases the address.
+if gcloud compute forwarding-rules describe "$OPENCONNECTOR_FORWARDING_RULE" --region="$REGION" >/dev/null 2>&1; then
+  :
+elif [ -z "$(gcloud compute addresses describe "$OPENCONNECTOR_ADDRESS_NAME" --region="$REGION" --format='value(users)')" ]; then
+  gcloud compute forwarding-rules create "$OPENCONNECTOR_FORWARDING_RULE" \
+    --load-balancing-scheme=EXTERNAL --region="$REGION" --ip-protocol=TCP \
+    --ports=80,443 --address="$OPENCONNECTOR_ADDRESS_NAME" \
+    --backend-service="$OPENCONNECTOR_BACKEND_SERVICE"
+else
+  echo "OpenConnector address is still attached; forwarding-rule creation deferred until cutover."
+fi
+
+echo "Shared Hosted Claw + OpenConnector infrastructure is prepared."
 echo "Recovery target: recreate the size-one MIG and attach the newest <=24h snapshot within 30 minutes."
 echo "Before enabling intake, set Cloud Run HOSTED_CLAW_* / Slack secrets, configure NAT/private Google access, and run isolation/load tests."

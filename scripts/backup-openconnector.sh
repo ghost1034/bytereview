@@ -16,7 +16,8 @@ SNAPSHOT="/tmp/connect-${STAMP}.sqlite"
 
 # The official image ships node, not the sqlite3 CLI, so run the backup with a
 # throwaway alpine container sharing the data volume.
-docker run --rm -v "${DATA_DIR}:/data" -v /tmp:/backup alpine:3 sh -c \
+docker run --rm --network openconnector_default \
+  -v "${DATA_DIR}:/data" -v /tmp:/backup alpine:3 sh -c \
   "apk add --no-cache sqlite >/dev/null && sqlite3 /data/connect.sqlite \".backup '/backup/connect-${STAMP}.sqlite'\""
 
 gsutil cp "$SNAPSHOT" "${BUCKET}/connect-${STAMP}.sqlite"

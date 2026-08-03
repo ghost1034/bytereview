@@ -1,0 +1,13 @@
+[Unit]
+Description=Block Docker bridge containers from the GCE metadata server
+Requires=docker.service
+After=docker.service
+Before=hosted-claw-litellm.service hosted-claw-supervisor.service openconnector.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/block-container-metadata
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

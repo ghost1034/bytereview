@@ -12,17 +12,25 @@ connection is named `u_{user_id}` (or `u_{user_id}__{label}`), and every
 execution call carries `x-oo-connector-alias` derived server-side from the
 authenticated CPAA user.
 
-## Provisioning
+## Shared-host provisioning
 
 ```bash
-./scripts/setup-openconnector-vm.sh          # creates VM + data disk + firewall, seeds /opt/openconnector
-# then point DNS: connect.cpaautomation.ai A <printed static IP>
+./scripts/setup-hosted-claw-pilot.sh
+./scripts/migrate-openconnector-to-hosted-claw.sh prepare
+./scripts/migrate-openconnector-to-hosted-claw.sh cutover
 ```
 
-The script copies this directory to `/opt/openconnector` on the VM, writes
-`.env` from Secret Manager (`OOMOL_CONNECT_ENCRYPTION_KEY`,
-`OOMOL_CONNECT_ADMIN_TOKEN`, `OOMOL_CONNECT_RUNTIME_TOKEN`), and starts
-`docker compose up -d`. Caddy obtains TLS automatically once DNS resolves.
+OpenConnector and Hosted Claw share the private, size-one Hosted Claw managed
+instance group. The existing OpenConnector static IP belongs to a regional
+passthrough load balancer that forwards only TCP 80/443 to the group; the VM
+has no public NIC. OpenConnector retains its dedicated stateful disk at
+`/mnt/openconnector-data`, including Caddy's ACME state.
+
+The operator injects `/etc/openconnector/openconnector.env` from Secret Manager
+(`OOMOL_CONNECT_ENCRYPTION_KEY`, `OPENCONNECTOR_ADMIN_TOKEN`, and
+`OPENCONNECTOR_RUNTIME_TOKEN`). The file is root-owned with mode `0600` and is
+never stored in instance metadata. `openconnector.service` starts the Compose
+project after the disk and container-metadata firewall are ready.
 
 ## Registering a provider OAuth app (admin)
 
@@ -49,17 +57,17 @@ curl -sS "https://api.cpaautomation.ai/api/admin/connector/oauth-configs?admin_t
 
 ## Backups & restore
 
-`scripts/backup-openconnector.sh` (installed as a nightly cron by the setup
-script) snapshots `connect.sqlite` with `sqlite3 .backup` and copies it to
+`openconnector-backup.timer` snapshots `connect.sqlite` with `sqlite3 .backup`
+at 03:17 UTC and copies it to
 `gs://cpaautomation-openconnector-backups/` (30-day lifecycle).
 
 Restore:
 
 ```bash
 gsutil cp gs://cpaautomation-openconnector-backups/connect-<date>.sqlite /tmp/
-docker compose -f /opt/openconnector/docker-compose.yml stop open-connector
+systemctl stop openconnector
 cp /tmp/connect-<date>.sqlite /mnt/openconnector-data/connect.sqlite
-docker compose -f /opt/openconnector/docker-compose.yml start open-connector
+systemctl start openconnector
 ```
 
 Credentials decrypt only with the same `OOMOL_CONNECT_ENCRYPTION_KEY`, so the
@@ -75,5 +83,9 @@ running the runtime's key-rotation flow (`OOMOL_CONNECT_NEW_ENCRYPTION_KEY` +
   default connection), so it is NOT used: Claw MCP traffic terminates at the
   CPAA backend's `/api/connector/mcp`, which translates tool calls into
   per-user `/v1/actions/:id` executions.
-- Single-VM deployment is a known SPOF, accepted for v1. Recovery = new VM via
-  the setup script + restore from GCS.
+- OpenConnector and Hosted Claw now share a host-level trust and failure domain.
+  Tenant containers remain isolated, but the trusted supervisor controls the
+  Docker daemon and must be treated as capable of administering all containers.
+- Recovery recreates the shared MIG with both stateful disks, reinjects
+  `/etc/hosted-claw/worker.env` and `/etc/openconnector/openconnector.env`, and
+  starts the Hosted Claw and OpenConnector systemd units.

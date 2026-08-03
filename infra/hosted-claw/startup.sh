@@ -17,15 +17,40 @@ if [ -z "$(find /var/lib/clamav -maxdepth 1 -type f \( -name '*.cvd' -o -name '*
 fi
 systemctl enable --now clamav-daemon clamav-freshclam
 
-DATA_DEVICE=/dev/disk/by-id/google-hosted-claw-data
-if ! blkid "$DATA_DEVICE" >/dev/null 2>&1; then
-  mkfs.xfs -f "$DATA_DEVICE"
+wait_for_device() {
+  local device="$1"
+  for _ in $(seq 1 60); do
+    [ -e "$device" ] && return 0
+    sleep 1
+  done
+  echo "Timed out waiting for $device" >&2
+  return 1
+}
+
+HOSTED_DATA_DEVICE=/dev/disk/by-id/google-hosted-claw-data
+OPENCONNECTOR_DATA_DEVICE=/dev/disk/by-id/google-openconnector-data
+wait_for_device "$HOSTED_DATA_DEVICE"
+wait_for_device "$OPENCONNECTOR_DATA_DEVICE"
+
+if ! blkid "$HOSTED_DATA_DEVICE" >/dev/null 2>&1; then
+  mkfs.xfs -f "$HOSTED_DATA_DEVICE"
 fi
-mkdir -p /srv/hosted-claw
+if ! blkid "$OPENCONNECTOR_DATA_DEVICE" >/dev/null 2>&1; then
+  mkfs.ext4 -m 0 -E lazy_itable_init=0,lazy_journal_init=0,discard "$OPENCONNECTOR_DATA_DEVICE"
+fi
+
+mkdir -p /srv/hosted-claw /mnt/openconnector-data
 if ! mountpoint -q /srv/hosted-claw; then
-  mount -o defaults,nodev,nosuid,prjquota "$DATA_DEVICE" /srv/hosted-claw
+  mount -o defaults,nodev,nosuid,prjquota "$HOSTED_DATA_DEVICE" /srv/hosted-claw
 fi
-mkdir -p /srv/hosted-claw/tenants /srv/hosted-claw/litellm-postgres /opt/hosted-claw /etc/hosted-claw /run/hosted-claw
+if ! mountpoint -q /mnt/openconnector-data; then
+  mount -o discard,defaults,nodev,nosuid "$OPENCONNECTOR_DATA_DEVICE" /mnt/openconnector-data
+fi
+
+mkdir -p /srv/hosted-claw/tenants /srv/hosted-claw/litellm-postgres \
+  /mnt/openconnector-data/caddy-data /mnt/openconnector-data/caddy-config \
+  /opt/hosted-claw /etc/hosted-claw /run/hosted-claw \
+  /opt/openconnector /etc/openconnector
 chmod 700 /srv/hosted-claw/tenants
 
 metadata_file() {
@@ -39,6 +64,15 @@ metadata_file hosted-claw-compose /opt/hosted-claw/docker-compose.yml
 metadata_file hosted-claw-litellm-config /opt/hosted-claw/litellm-config.yaml
 metadata_file hosted-claw-litellm-service /etc/systemd/system/hosted-claw-litellm.service
 metadata_file hosted-claw-supervisor-service /etc/systemd/system/hosted-claw-supervisor.service
+metadata_file hosted-claw-activate /usr/local/sbin/activate-hosted-claw
+metadata_file container-metadata-block /usr/local/sbin/block-container-metadata
+metadata_file container-metadata-service /etc/systemd/system/container-metadata-firewall.service
+metadata_file openconnector-compose /opt/openconnector/docker-compose.yml
+metadata_file openconnector-caddy /opt/openconnector/Caddyfile
+metadata_file openconnector-service /etc/systemd/system/openconnector.service
+metadata_file openconnector-backup-script /opt/openconnector/backup-openconnector.sh
+metadata_file openconnector-backup-service /etc/systemd/system/openconnector-backup.service
+metadata_file openconnector-backup-timer /etc/systemd/system/openconnector-backup.timer
 if ! dpkg-query -W google-cloud-ops-agent >/dev/null 2>&1; then
   curl -fsS https://dl.google.com/cloudagents/add-google-cloud-ops-agent-repo.sh \
     -o /tmp/add-google-cloud-ops-agent-repo.sh
@@ -49,7 +83,12 @@ mkdir -p /etc/google-cloud-ops-agent
 metadata_file hosted-claw-ops-agent-config /etc/google-cloud-ops-agent/config.yaml
 chmod 0644 /opt/hosted-claw/docker-compose.yml /opt/hosted-claw/litellm-config.yaml \
   /etc/systemd/system/hosted-claw-litellm.service /etc/systemd/system/hosted-claw-supervisor.service \
-  /etc/google-cloud-ops-agent/config.yaml
+  /etc/systemd/system/container-metadata-firewall.service \
+  /opt/openconnector/docker-compose.yml /opt/openconnector/Caddyfile \
+  /etc/systemd/system/openconnector.service /etc/systemd/system/openconnector-backup.service \
+  /etc/systemd/system/openconnector-backup.timer /etc/google-cloud-ops-agent/config.yaml
+chmod 0755 /usr/local/sbin/activate-hosted-claw /usr/local/sbin/block-container-metadata \
+  /opt/openconnector/backup-openconnector.sh
 systemctl enable --now google-cloud-ops-agent
 systemctl restart google-cloud-ops-agent
 
@@ -60,26 +99,18 @@ if [ -f /opt/hosted-claw/requirements.txt ]; then
   /opt/hosted-claw/.venv/bin/pip install -r /opt/hosted-claw/requirements.txt
 fi
 systemctl daemon-reload
-systemctl enable hosted-claw-litellm hosted-claw-supervisor
+systemctl enable container-metadata-firewall hosted-claw-litellm hosted-claw-supervisor \
+  openconnector openconnector-backup.timer
+systemctl start container-metadata-firewall
+systemctl start openconnector-backup.timer
 if [ -f /etc/hosted-claw/worker.env ]; then
-  chmod 0600 /etc/hosted-claw/worker.env
-  # Let Docker pull immutable private images with the VM's least-privilege
-  # service identity. No registry token is persisted in worker.env.
-  supervisor_image="$(sed -n 's/^HOSTED_CLAW_SUPERVISOR_IMAGE=//p' /etc/hosted-claw/worker.env)"
-  registry_host="${supervisor_image%%/*}"
-  if [ -n "$registry_host" ] && command -v gcloud >/dev/null 2>&1; then
-    gcloud auth configure-docker "$registry_host" --quiet >/dev/null
-  fi
-  # The supervisor controls Docker through the socket but intentionally does
-  # not receive host registry credentials. Pre-pull every approved immutable
-  # image while bootstrap still has the VM service identity available.
-  for image_key in HOSTED_CLAW_SUPERVISOR_IMAGE HOSTED_CLAW_PROXY_IMAGE HOSTED_ACCOUNTINGCLAW_IMAGE HOSTED_LEGALCLAW_IMAGE; do
-    image_ref="$(sed -n "s/^${image_key}=//p" /etc/hosted-claw/worker.env)"
-    if [ -n "$image_ref" ]; then
-      docker pull "$image_ref" >/dev/null
-    fi
-  done
-  systemctl start hosted-claw-litellm hosted-claw-supervisor
+  /usr/local/sbin/activate-hosted-claw
 else
   echo "Hosted Claw services installed but inactive: provision /etc/hosted-claw/worker.env and start both units."
+fi
+if [ -f /etc/openconnector/openconnector.env ]; then
+  chmod 0600 /etc/openconnector/openconnector.env
+  systemctl start openconnector
+else
+  echo "OpenConnector installed but inactive: provision /etc/openconnector/openconnector.env and start openconnector."
 fi

@@ -1,0 +1,18 @@
+[Unit]
+Description=CPAAutomation OpenConnector runtime
+Requires=docker.service
+After=docker.service network-online.target container-metadata-firewall.service
+ConditionPathExists=/etc/openconnector/openconnector.env
+RequiresMountsFor=/mnt/openconnector-data
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/openconnector
+ExecStart=/usr/bin/docker compose --env-file /etc/openconnector/openconnector.env up -d --pull always
+ExecStop=/usr/bin/docker compose --env-file /etc/openconnector/openconnector.env down
+TimeoutStartSec=300
+TimeoutStopSec=60
+
+[Install]
+WantedBy=multi-user.target

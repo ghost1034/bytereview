@@ -1,6 +1,7 @@
 # OpenConnector runtime for CPAAutomation integrations.
 #
-# Runs on the dedicated GCE VM provisioned by scripts/setup-openconnector-vm.sh.
+# Runs on the shared Hosted Claw GCE VM provisioned by
+# scripts/setup-hosted-claw-pilot.sh.
 # The runtime's SQLite store (all user connection credentials, encrypted with
 # OOMOL_CONNECT_ENCRYPTION_KEY) lives on the attached persistent disk mounted
 # at /mnt/openconnector-data. Nightly backups: scripts/backup-openconnector.sh.
@@ -36,11 +37,9 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy-data:/data
-      - caddy-config:/config
+      # Keep ACME account/certificate state on the stateful OpenConnector disk;
+      # the shared MIG's boot disk is replaceable.
+      - /mnt/openconnector-data/caddy-data:/data
+      - /mnt/openconnector-data/caddy-config:/config
     depends_on:
       - open-connector
-
-volumes:
-  caddy-data:
-  caddy-config:
