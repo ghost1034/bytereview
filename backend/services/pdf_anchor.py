@@ -17,20 +17,33 @@ def search_pdf_anchor_text(
 ) -> list[fitz.Rect]:
     """Search one page with common E-Signature/Form Fill semantics."""
     matches: list[fitz.Rect] = []
+    page_words = page.get_text("words") if case_sensitive or whole_word else []
+
+    def centered_word_texts(rect: fitz.Rect) -> list[str]:
+        found: list[str] = []
+        for word in page_words:
+            word_rect = fitz.Rect(word[:4])
+            center = (word_rect.x0 + word_rect.x1) / 2, (word_rect.y0 + word_rect.y1) / 2
+            if rect.contains(fitz.Point(*center)):
+                found.append(str(word[4]))
+        return found
+
     for raw_rect in page.search_for(value):
-        found_text = page.get_textbox(raw_rect).strip()
-        if case_sensitive and found_text != value:
-            continue
-        if whole_word:
+        if case_sensitive or whole_word:
+            word_texts = centered_word_texts(raw_rect)
+            searchable_text = " ".join(word_texts)
             flags = 0 if case_sensitive else re.IGNORECASE
-            if re.fullmatch(rf"\b{re.escape(value)}\b", found_text, flags=flags) is None:
+            if whole_word:
+                if re.fullmatch(re.escape(value), searchable_text, flags=flags) is None:
+                    continue
+            elif value not in searchable_text:
                 continue
         matches.append(raw_rect)
     return matches
 
 
 def resolve_contextual_anchor_rect(page: fitz.Page, item: dict[str, Any]) -> tuple[fitz.Rect | None, str | None]:
-    """Resolve an AI anchor only when its context identifies one unique hit."""
+    """Resolve an AI anchor from unique context or an explicit reading-order hit."""
     anchor = str(item.get("anchor_text") or item.get("anchor") or "").strip()
     before = str(item.get("anchor_before") or "").strip()
     after = str(item.get("anchor_after") or "").strip()
@@ -41,10 +54,26 @@ def resolve_contextual_anchor_rect(page: fitz.Page, item: dict[str, Any]) -> tup
         case_sensitive=bool(item.get("case_sensitive")),
         whole_word=bool(item.get("whole_word")),
     )
+    matches.sort(key=lambda rect: (rect.y0, rect.x0, rect.y1, rect.x1))
     if not matches:
         return None, f'Anchor "{anchor[:80]}" was not found.'
+
+    match_index: int | None = None
+    raw_match_index = item.get("match_index")
+    if raw_match_index is not None:
+        try:
+            if isinstance(raw_match_index, bool):
+                raise ValueError
+            match_index = int(raw_match_index)
+        except (TypeError, ValueError):
+            return None, f'Anchor "{anchor[:80]}" returned an invalid match index.'
+        if match_index < 0 or match_index >= len(matches):
+            return None, f'Anchor "{anchor[:80]}" match index {match_index} is out of range.'
+
     if len(matches) == 1:
         return matches[0], None
+
+    indexed_match = matches[match_index] if match_index is not None else None
 
     before_matches = search_pdf_anchor_text(page, before) if before else []
     after_matches = search_pdf_anchor_text(page, after) if after else []
@@ -71,11 +100,18 @@ def resolve_contextual_anchor_rect(page: fitz.Page, item: dict[str, Any]) -> tup
             score += min(reading_delta(match, rect) for rect in eligible)
         scored.append((score, match))
     if not scored or (not before_matches and not after_matches):
+        if indexed_match is not None:
+            return indexed_match, None
         return None, f'Anchor "{anchor[:80]}" appears more than once and its context is ambiguous.'
     scored.sort(key=lambda row: row[0])
     if len(scored) > 1 and abs(scored[0][0] - scored[1][0]) < 1e-6:
+        if indexed_match is not None:
+            return indexed_match, None
         return None, f'Anchor "{anchor[:80]}" could not be resolved uniquely.'
-    return scored[0][1], None
+    contextual_match = scored[0][1]
+    if indexed_match is not None and indexed_match != contextual_match:
+        return None, f'Anchor "{anchor[:80]}" context conflicts with match index {match_index}.'
+    return contextual_match, None
 
 
 def relative_anchor_box_position(

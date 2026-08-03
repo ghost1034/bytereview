@@ -5,10 +5,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import math
 import os
 import tempfile
 import time
 import uuid
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 
@@ -55,6 +57,9 @@ DEFAULT_SIZES = {
     "text": (0.24, 0.03), "checkbox": (0.03, 0.022), "date": (0.16, 0.03),
     "number": (0.16, 0.03),
 }
+RELATIVE_POSITIONS = {"auto", "center", "right", "left", "below", "above"}
+CROSS_AXIS_ALIGNMENTS = {"auto", "start", "center", "end"}
+OPTIONAL_BY_DEFAULT = {"date_signed", "first_name", "last_name", "full_name", "email"}
 
 
 def _value(value: Any) -> str:
@@ -102,6 +107,122 @@ def parse_ai_field_placement_response(payload: Any) -> tuple[list[dict[str, Any]
             continue
         parsed.append({**item, "field_type": field_type})
     return parsed, warnings
+
+
+def _normalized_dimension(value: Any, default: float) -> tuple[float, bool]:
+    """Return a finite normalized dimension, falling back for unsafe model output."""
+    if value is None:
+        return default, False
+    try:
+        if isinstance(value, bool):
+            raise ValueError
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default, True
+    if not math.isfinite(parsed) or parsed <= 0 or parsed > 1:
+        return default, True
+    return parsed, False
+
+
+def materialize_ai_field_placement_proposal(
+    item: dict[str, Any],
+    *,
+    suggestion_number: int,
+    document_id: str,
+    participant_id: str,
+    page_number: int,
+    page: fitz.Page,
+) -> tuple[dict[str, Any] | None, list[str], list[str], str | None]:
+    """Turn one trusted-identity model item into safe normalized page geometry.
+
+    Returns the proposal, user-visible recovery/omission warnings, recovery metric
+    codes, and an omission metric code when the proposal could not be staged.
+    """
+    prefix = f"Suggestion {suggestion_number}"
+    anchor, reason = resolve_contextual_anchor_rect(page, item)
+    if anchor is None:
+        return None, [f"{prefix} was omitted. {reason}"], [], "anchor"
+
+    rotated = anchor * page.rotation_matrix
+    rotated.normalize()
+    bounds = page.rect
+    ax = rotated.x0 / bounds.width
+    ay = rotated.y0 / bounds.height
+    aw = rotated.width / bounds.width
+    ah = rotated.height / bounds.height
+    default_w, default_h = DEFAULT_SIZES[item["field_type"]]
+    width, width_recovered = _normalized_dimension(item.get("width"), default_w)
+    height, height_recovered = _normalized_dimension(item.get("height"), default_h)
+    warnings: list[str] = []
+    recovery_codes: list[str] = []
+    if width_recovered or height_recovered:
+        warnings.append(f"{prefix} used the default field size because its requested dimensions were invalid.")
+        recovery_codes.append("default_size")
+
+    relative_position = str(item.get("relative_position") or "auto").strip().lower()
+    alignment = str(item.get("cross_axis_alignment") or "auto").strip().lower()
+    if relative_position not in RELATIVE_POSITIONS:
+        relative_position = "auto"
+        warnings.append(f"{prefix} used automatic placement because its requested position was invalid.")
+        recovery_codes.append("default_position")
+    if alignment not in CROSS_AXIS_ALIGNMENTS:
+        alignment = "auto"
+        warnings.append(f"{prefix} used automatic alignment because its requested alignment was invalid.")
+        recovery_codes.append("default_alignment")
+
+    pos_x, pos_y = relative_anchor_box_position(
+        ax, ay, aw, ah,
+        relative_position=relative_position,
+        cross_axis_alignment=alignment,
+        field_width=width,
+        field_height=height,
+    )
+    default_required = item["field_type"] not in OPTIONAL_BY_DEFAULT
+    raw_required = item.get("required")
+    if raw_required is None:
+        required = default_required
+    elif isinstance(raw_required, bool):
+        required = raw_required
+    else:
+        required = default_required
+        warnings.append(f"{prefix} used the default required setting because the requested value was invalid.")
+        recovery_codes.append("default_required")
+
+    raw_properties = item.get("properties")
+    if isinstance(raw_properties, dict):
+        properties = {**raw_properties, "schema_version": 2}
+    else:
+        properties = {"schema_version": 2}
+        if raw_properties is not None:
+            warnings.append(f"{prefix} ignored malformed optional field properties.")
+            recovery_codes.append("default_properties")
+    proposal = {
+        "id": str(uuid.uuid4()),
+        "document_id": document_id,
+        "participant_id": participant_id,
+        "field_type": item["field_type"],
+        "page_number": page_number,
+        "pos_x": pos_x,
+        "pos_y": pos_y,
+        "width": width,
+        "height": height,
+        "required": required,
+        "label": str(item.get("label"))[:255] if item.get("label") else None,
+        "properties": properties,
+    }
+    try:
+        normalized = EsignAiFieldPlacementProposal.model_validate(proposal).model_dump(mode="json")
+    except Exception:
+        if properties == {"schema_version": 2}:
+            return None, warnings + [f"{prefix} was omitted because its placement geometry was invalid."], recovery_codes, "geometry"
+        proposal["properties"] = {"schema_version": 2}
+        try:
+            normalized = EsignAiFieldPlacementProposal.model_validate(proposal).model_dump(mode="json")
+        except Exception:
+            return None, warnings + [f"{prefix} was omitted because its placement geometry was invalid."], recovery_codes, "geometry"
+        warnings.append(f"{prefix} ignored optional field properties that were invalid for its field type.")
+        recovery_codes.append("default_properties")
+    return normalized, warnings, recovery_codes, None
 
 
 class EsignAiFieldPlacementService:
@@ -338,6 +459,73 @@ class EsignAiFieldPlacementService:
             self._client = genai.Client(vertexai=True, project=project, location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"))
         return self._client
 
+    @staticmethod
+    def _response_schema(document_ids: list[str], participant_ids: list[str]) -> types.Schema:
+        proposal = types.Schema(
+            type="OBJECT",
+            properties={
+                "document_id": types.Schema(type="STRING", enum=document_ids),
+                "page_number": types.Schema(type="INTEGER", minimum=0),
+                "participant_id": types.Schema(type="STRING", enum=participant_ids),
+                "field_type": types.Schema(type="STRING", enum=sorted(ALLOWED_TYPES)),
+                "anchor_text": types.Schema(type="STRING", min_length=1),
+                "anchor_before": types.Schema(type="STRING", nullable=True),
+                "anchor_after": types.Schema(type="STRING", nullable=True),
+                "match_index": types.Schema(type="INTEGER", minimum=0, nullable=True),
+                "case_sensitive": types.Schema(type="BOOLEAN", nullable=True),
+                "whole_word": types.Schema(type="BOOLEAN", nullable=True),
+                "relative_position": types.Schema(type="STRING", enum=sorted(RELATIVE_POSITIONS), nullable=True),
+                "cross_axis_alignment": types.Schema(type="STRING", enum=sorted(CROSS_AXIS_ALIGNMENTS), nullable=True),
+                "width": types.Schema(type="NUMBER", minimum=0.001, maximum=1, nullable=True),
+                "height": types.Schema(type="NUMBER", minimum=0.001, maximum=1, nullable=True),
+                "required": types.Schema(type="BOOLEAN", nullable=True),
+                "label": types.Schema(type="STRING", nullable=True),
+                "properties": types.Schema(type="OBJECT", additional_properties=True, nullable=True),
+            },
+            required=["document_id", "page_number", "participant_id", "field_type", "anchor_text"],
+        )
+        return types.Schema(
+            type="OBJECT",
+            properties={
+                "proposals": types.Schema(type="ARRAY", items=proposal),
+                "warnings": types.Schema(type="ARRAY", items=types.Schema(type="STRING")),
+            },
+            required=["proposals", "warnings"],
+        )
+
+    @staticmethod
+    def _build_model_prompt(
+        *,
+        documents: list[Any],
+        participants: list[dict[str, Any]],
+        existing: list[dict[str, Any]],
+        page_numbered_text: str,
+        instructions: str | None,
+    ) -> str:
+        document_summary = [{"id": str(document.id), "pages": int(document.page_count)} for document in documents]
+        return f"""Suggest E-Signature fields for the attached PDFs.
+
+Documents: {json.dumps(document_summary)}
+Signing roles (use these IDs exactly and never create roles): {json.dumps(participants)}
+Existing field summaries: {json.dumps(existing)}
+
+Placement rules:
+- Page numbers are zero-based. Return only fields a listed signing role should complete.
+- anchor_text must be short, exact, visible text that is searchable in the extracted page text. Do not use checkbox glyphs or drawn lines as anchors.
+- If anchor_text occurs more than once on a page, provide unique nearby anchor_before or anchor_after context. For repeated Signature/Date rows, use that row's participant or role label as context.
+- match_index is the zero-based reading-order occurrence of anchor_text. Use it when nearby searchable context cannot uniquely identify a repeated label. If both context and match_index are supplied, they must identify the same occurrence.
+- Set whole_word for short or common anchors such as Yes or No. Context must still identify the intended occurrence when the word appears elsewhere.
+- Place fields into the adjacent blank area: commonly right of a name or Signature label and left of a trailing Date label. Use only auto, center, right, left, below, or above for relative_position and auto, start, center, or end for cross_axis_alignment.
+- Width and height are optional normalized page ratios between 0 and 1. Omit them to use safe field-type defaults. Do not return point or pixel dimensions.
+- Omit properties unless a field needs type-compatible optional behavior. Never set schema_version.
+- Do not duplicate existing fields. Add document ambiguities to warnings instead of guessing.
+
+Page-numbered extracted text:
+{page_numbered_text}
+
+Additional sender instructions: {instructions or 'None'}
+"""
+
     async def _download_analysis_pdf(self, document: Any, directory: str) -> tuple[str, bool]:
         source = os.path.join(directory, f"{document.id}.pdf")
         await self.storage.download_file(document.gcs_object_name, source)
@@ -353,10 +541,14 @@ class EsignAiFieldPlacementService:
         except OCRmyPDFError as exc: raise RuntimeError(f"OCR failed for {document.original_filename}: {exc}") from exc
         return output, True
 
-    def _generate_model_payload(self, document_parts: list[Any], prompt: str) -> Any:
+    def _generate_model_payload(self, document_parts: list[Any], prompt: str, response_schema: types.Schema) -> Any:
         response = self._client_or_raise().models.generate_content(
             model=self.model_name, contents=document_parts + [prompt],
-            config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.1),
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=response_schema,
+                temperature=0.1,
+            ),
         )
         return json.loads(response.text or "{}")
 
@@ -377,6 +569,7 @@ class EsignAiFieldPlacementService:
             snapshot = run.target_snapshot or {}; participants = snapshot.get("participants", [])
             existing = [self._field_dict(item, target_type=run.target_type) for item in target.fields or []]
             document_parts: list[Any] = []; local_paths: dict[str, str] = {}; page_text_sections: list[str] = []; ocr_used = 0
+            omission_counts: Counter[str] = Counter(); recovery_counts: Counter[str] = Counter()
             with tempfile.TemporaryDirectory(prefix="esign-ai-placement-") as directory:
                 for document in documents:
                     path, used = await self._download_analysis_pdf(document, directory); ocr_used += int(used); local_paths[str(document.id)] = path
@@ -384,21 +577,29 @@ class EsignAiFieldPlacementService:
                     with fitz.open(path) as text_pdf:
                         for page_index, text_page in enumerate(text_pdf):
                             page_text_sections.append(
-                                f"Document {document.id}, page {page_index + 1}:\n{text_page.get_text().strip()}"
+                                f"Document {document.id}, zero-based page {page_index} "
+                                f"(display page {page_index + 1}):\n{text_page.get_text().strip()}"
                             )
                 page_numbered_text = "\n\n".join(page_text_sections)
-                prompt = (
-                    "Suggest E-Signature fields for the attached PDFs. Return JSON {proposals:[...]}. "
-                    "Each proposal must include document_id, zero-based page_number, participant_id, field_type, "
-                    "anchor_text, optional anchor_before/anchor_after, relative_position, cross_axis_alignment, "
-                    "width, height, required, label, and optional properties. Never create participants. "
-                    f"Allowed field types: {sorted(ALLOWED_TYPES)}. Documents: {json.dumps([{'id': str(d.id), 'pages': d.page_count} for d in documents])}. "
-                    f"Signing roles (IDs and labels only): {json.dumps(participants)}. Existing field summaries: {json.dumps(existing)}. "
-                    f"Page-numbered extracted text:\n{page_numbered_text}\n"
-                    f"Additional sender instructions: {run.instructions or 'None'}"
+                prompt = self._build_model_prompt(
+                    documents=documents,
+                    participants=participants,
+                    existing=existing,
+                    page_numbered_text=page_numbered_text,
+                    instructions=run.instructions,
                 )
-                raw = await asyncio.to_thread(self._generate_model_payload, document_parts, prompt)
+                response_schema = self._response_schema(
+                    [str(document.id) for document in documents],
+                    [str(participant["id"]) for participant in participants],
+                )
+                raw = await asyncio.to_thread(
+                    self._generate_model_payload, document_parts, prompt, response_schema,
+                )
                 candidates, warnings = parse_ai_field_placement_response(raw)
+                parse_omissions = sum("omitted" in warning.lower() for warning in warnings)
+                if parse_omissions:
+                    omission_counts["parse"] += parse_omissions
+                model_warning_count = len(warnings) - parse_omissions
                 proposals: list[dict[str, Any]] = []
                 participant_ids = {item["id"] for item in participants}; docs_by_id = {str(item.id): item for item in documents}
                 pdfs = {doc_id: fitz.open(path) for doc_id, path in local_paths.items()}
@@ -407,45 +608,35 @@ class EsignAiFieldPlacementService:
                         participant_id = str(item.get("participant_id") or "")
                         document_id = str(item.get("document_id") or "")
                         if participant_id not in participant_ids:
-                            warnings.append(f"Suggestion {index + 1} was omitted because its signing role was missing or ambiguous."); continue
+                            warnings.append(f"Suggestion {index + 1} was omitted because its signing role was missing or ambiguous.")
+                            omission_counts["signing_role"] += 1; continue
                         document = docs_by_id.get(document_id)
                         if not document:
-                            warnings.append(f"Suggestion {index + 1} was omitted because its document was not selected."); continue
-                        try: page_number = int(item.get("page_number"))
+                            warnings.append(f"Suggestion {index + 1} was omitted because its document was not selected.")
+                            omission_counts["document"] += 1; continue
+                        try:
+                            if isinstance(item.get("page_number"), bool): raise ValueError
+                            page_number = int(item.get("page_number"))
                         except (TypeError, ValueError): page_number = -1
                         if page_number < 0 or page_number >= int(document.page_count):
-                            warnings.append(f"Suggestion {index + 1} was omitted because its page was invalid."); continue
+                            warnings.append(f"Suggestion {index + 1} was omitted because its page was invalid.")
+                            omission_counts["page"] += 1; continue
                         page = pdfs[document_id][page_number]
-                        anchor, reason = resolve_contextual_anchor_rect(page, item)
-                        if anchor is None:
-                            warnings.append(f"Suggestion {index + 1} was omitted. {reason}"); continue
-                        rotated = anchor * page.rotation_matrix; rotated.normalize(); bounds = page.rect
-                        ax, ay, aw, ah = rotated.x0 / bounds.width, rotated.y0 / bounds.height, rotated.width / bounds.width, rotated.height / bounds.height
-                        default_w, default_h = DEFAULT_SIZES[item["field_type"]]
-                        try:
-                            width = float(item.get("width") or default_w); height = float(item.get("height") or default_h)
-                            relative_position = str(item.get("relative_position") or "auto")
-                            alignment = str(item.get("cross_axis_alignment") or "auto")
-                            if relative_position not in {"auto", "center", "right", "left", "below", "above"}:
-                                raise ValueError("invalid relative position")
-                            if alignment not in {"auto", "start", "center", "end"}:
-                                raise ValueError("invalid cross-axis alignment")
-                            pos_x, pos_y = relative_anchor_box_position(ax, ay, aw, ah,
-                                relative_position=relative_position, cross_axis_alignment=alignment,
-                                field_width=width, field_height=height)
-                        except (TypeError, ValueError):
-                            warnings.append(f"Suggestion {index + 1} was omitted because its placement geometry was invalid."); continue
-                        proposal = {"id": str(uuid.uuid4()), "document_id": document_id, "participant_id": participant_id,
-                                    "field_type": item["field_type"], "page_number": page_number, "pos_x": pos_x, "pos_y": pos_y,
-                                    "width": width, "height": height,
-                                    "required": bool(item.get("required", item["field_type"] not in {"date_signed", "first_name", "last_name", "full_name", "email"})),
-                                    "label": (str(item.get("label"))[:255] if item.get("label") else None),
-                                    "properties": {"schema_version": 2, **(item.get("properties") if isinstance(item.get("properties"), dict) else {})}}
-                        try: normalized = EsignAiFieldPlacementProposal.model_validate(proposal).model_dump(mode="json")
-                        except Exception:
-                            warnings.append(f"Suggestion {index + 1} was omitted because its geometry or properties were invalid."); continue
+                        normalized, candidate_warnings, recovery_codes, omission_code = materialize_ai_field_placement_proposal(
+                            item,
+                            suggestion_number=index + 1,
+                            document_id=document_id,
+                            participant_id=participant_id,
+                            page_number=page_number,
+                            page=page,
+                        )
+                        warnings.extend(candidate_warnings)
+                        recovery_counts.update(recovery_codes)
+                        if normalized is None:
+                            omission_counts[omission_code or "validation"] += 1; continue
                         if any(_overlap_duplicate(normalized, other) for other in existing + proposals):
-                            warnings.append(f"Suggestion {index + 1} overlapped an existing or duplicate field and was omitted."); continue
+                            warnings.append(f"Suggestion {index + 1} overlapped an existing or duplicate field and was omitted.")
+                            omission_counts["overlap"] += 1; continue
                         proposals.append(normalized)
                 finally:
                     for pdf in pdfs.values(): pdf.close()
@@ -462,7 +653,13 @@ class EsignAiFieldPlacementService:
                 account = billing.get_or_create_billing_account(run.requester_user_id)
                 if account.plan_code in ("basic", "pro"):
                     billing._report_usage_to_stripe(run.requester_user_id, int(run.page_usage), usage_event_id)
-            logger.info("esign_ai_field_placement_metric %s", json.dumps({"event": "completed", "run_id": str(run.id), "duration_ms": int((time.monotonic()-started)*1000), "pages": run.page_usage, "proposals": len(proposals), "omissions": len(warnings), "ocr_documents": ocr_used}))
+            logger.info("esign_ai_field_placement_metric %s", json.dumps({
+                "event": "completed", "run_id": str(run.id),
+                "duration_ms": int((time.monotonic()-started)*1000), "pages": run.page_usage,
+                "proposals": len(proposals), "omissions": sum(omission_counts.values()),
+                "omission_reasons": dict(omission_counts), "recoveries": dict(recovery_counts),
+                "model_warnings": model_warning_count, "ocr_documents": ocr_used,
+            }))
             return {"status": "completed", "proposals": len(proposals)}
         except Exception as exc:
             db.rollback()
