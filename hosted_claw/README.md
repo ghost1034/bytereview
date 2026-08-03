@@ -26,6 +26,13 @@ process provides the LiteLLM master key without putting it in tenant
 containers. A per-tenant proxy injects the revocable virtual model key and
 hosted connector token, so neither credential appears in the tenant process.
 
+Hosted turns default to a 10-minute hard deadline and a two-minute meaningful
+event inactivity deadline. Override them with
+`HOSTED_CLAW_TURN_TIMEOUT_SECONDS` and
+`HOSTED_CLAW_EVENT_INACTIVITY_SECONDS`; the inactivity limit must not exceed
+the hard deadline. A timeout stops Hermes, records `turn_timeout`, and replaces
+the Slack progress placeholder with a retryable final message.
+
 `HOSTED_CLAW_PROXY_IMAGE` must also be a digest-pinned Caddy image. The
 supervisor creates a private network and a credential-injecting proxy sidecar
 per tenant. Tenant containers receive neither connector nor LiteLLM keys and

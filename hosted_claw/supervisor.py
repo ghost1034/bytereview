@@ -44,13 +44,34 @@ MAX_TURNS = _positive_int_env("HOSTED_CLAW_MAX_TURNS", 3)
 MAX_RESIDENT_RUNTIMES = _positive_int_env("HOSTED_CLAW_MAX_RESIDENT_RUNTIMES", 3)
 IDLE_SECONDS = _positive_int_env("HOSTED_CLAW_IDLE_SECONDS", 5 * 60)
 PROGRESS_MESSAGE_DELAY_SECONDS = _positive_int_env("HOSTED_CLAW_PROGRESS_DELAY_SECONDS", 3)
+TURN_TIMEOUT_SECONDS = _positive_int_env("HOSTED_CLAW_TURN_TIMEOUT_SECONDS", 10 * 60)
+EVENT_INACTIVITY_SECONDS = _positive_int_env(
+    "HOSTED_CLAW_EVENT_INACTIVITY_SECONDS", 2 * 60
+)
 if MAX_TURNS > MAX_RESIDENT_RUNTIMES:
     raise RuntimeError("HOSTED_CLAW_MAX_TURNS cannot exceed HOSTED_CLAW_MAX_RESIDENT_RUNTIMES")
+if EVENT_INACTIVITY_SECONDS > TURN_TIMEOUT_SECONDS:
+    raise RuntimeError(
+        "HOSTED_CLAW_EVENT_INACTIVITY_SECONDS cannot exceed "
+        "HOSTED_CLAW_TURN_TIMEOUT_SECONDS"
+    )
 EGRESS_NETWORK = "hosted-claw-egress"
 DATA_ROOT = Path(os.getenv("HOSTED_CLAW_DATA_ROOT", "/srv/hosted-claw/tenants"))
 CONTROL_ROOT = Path(os.getenv("HOSTED_CLAW_CONTROL_ROOT", "/run/hosted-claw"))
 ACTIVE_TURNS_FILE = CONTROL_ROOT / "active-turns"
 DRAIN_FILE = CONTROL_ROOT / "deploy-drain"
+
+
+class HermesEventInactivityTimeout(RuntimeError):
+    """Raised when Hermes emits no meaningful run event within the limit."""
+
+
+class HostedTurnTimeout(RuntimeError):
+    """Raised when a hosted turn exceeds its hard or inactivity deadline."""
+
+    def __init__(self, reason: str):
+        self.reason = reason
+        super().__init__(f"Hosted turn timed out: {reason}")
 
 
 def _opaque(value: str) -> str:
@@ -477,6 +498,47 @@ class DockerRuntimeManager:
 
 
 class HermesRuns:
+    @staticmethod
+    async def _iter_events(
+        lines: AsyncIterator[str],
+        inactivity_seconds: float,
+    ) -> AsyncIterator[dict[str, Any]]:
+        """Parse SSE while ignoring keepalives for the inactivity deadline."""
+        iterator = lines.__aiter__()
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + inactivity_seconds
+        event_name: Optional[str] = None
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                raise HermesEventInactivityTimeout(
+                    "Hermes run event stream became inactive"
+                )
+            try:
+                line = await asyncio.wait_for(anext(iterator), timeout=remaining)
+            except StopAsyncIteration:
+                return
+            except TimeoutError as exc:
+                raise HermesEventInactivityTimeout(
+                    "Hermes run event stream became inactive"
+                ) from exc
+            if not line or line.startswith(":"):
+                continue
+            if line.startswith("event:"):
+                event_name = line[6:].strip()
+                continue
+            raw = line[5:].strip() if line.startswith("data:") else line
+            if raw == "[DONE]":
+                return
+            event = json.loads(raw)
+            if event_name and "type" not in event:
+                event["type"] = event_name
+            event_name = None
+            yield event
+            # Time spent by the supervisor processing an event does not count
+            # as Hermes stream inactivity. The hard turn deadline still applies.
+            deadline = loop.time() + inactivity_seconds
+
     async def run(
         self,
         runtime: Runtime,
@@ -498,20 +560,9 @@ class HermesRuns:
             yield {"type": "run.created", "run_id": run_id, "session_id": session_id}
             async with client.stream("GET", f"{runtime.api_url}/v1/runs/{run_id}/events", headers=headers) as response:
                 response.raise_for_status()
-                event_name: Optional[str] = None
-                async for line in response.aiter_lines():
-                    if not line or line.startswith(":"):
-                        continue
-                    if line.startswith("event:"):
-                        event_name = line[6:].strip()
-                        continue
-                    raw = line[5:].strip() if line.startswith("data:") else line
-                    if raw == "[DONE]":
-                        break
-                    event = json.loads(raw)
-                    if event_name and "type" not in event:
-                        event["type"] = event_name
-                    event_name = None
+                async for event in self._iter_events(
+                    response.aiter_lines(), EVENT_INACTIVITY_SECONDS
+                ):
                     yield event
             status = await client.get(f"{runtime.api_url}/v1/runs/{run_id}", headers=headers)
             status.raise_for_status()
@@ -685,6 +736,21 @@ class Supervisor:
             task.cancel()
         await asyncio.gather(task, return_exceptions=True)
 
+    @staticmethod
+    async def _next_hermes_event(
+        events: AsyncIterator[dict[str, Any]],
+        turn_deadline: float,
+    ) -> dict[str, Any]:
+        remaining = turn_deadline - asyncio.get_running_loop().time()
+        if remaining <= 0:
+            raise HostedTurnTimeout("maximum duration exceeded")
+        try:
+            return await asyncio.wait_for(anext(events), timeout=remaining)
+        except HermesEventInactivityTimeout as exc:
+            raise HostedTurnTimeout("event stream inactive") from exc
+        except TimeoutError as exc:
+            raise HostedTurnTimeout("maximum duration exceeded") from exc
+
     async def process(self, job: dict[str, Any]) -> None:
         async with self.semaphore:
             turn_started = time.monotonic()
@@ -806,12 +872,20 @@ class Supervisor:
                 personal = str(job["config"].get("personal_instructions") or "").strip()
                 if personal:
                     managed_instructions += f"\n\nUser preferences:\n{personal}"
-                async for event in self.hermes.run(
+                hermes_events = self.hermes.run(
                     runtime,
                     prompt,
                     hermes_session_id,
                     managed_instructions,
-                ):
+                ).__aiter__()
+                turn_deadline = asyncio.get_running_loop().time() + TURN_TIMEOUT_SECONDS
+                while True:
+                    try:
+                        event = await self._next_hermes_event(
+                            hermes_events, turn_deadline
+                        )
+                    except StopAsyncIteration:
+                        break
                     event_type = event.get("type")
                     if event_type in {"session.created", "run.created"}:
                         hermes_session_id = event.get("session_id") or hermes_session_id
@@ -908,6 +982,37 @@ class Supervisor:
                     "completion_tokens": completion_tokens,
                     "cost_usd": round(cost_usd, 6),
                 }
+            except HostedTurnTimeout as exc:
+                logger.warning(
+                    "Hosted turn timed out job_id=%s reason=%s",
+                    job.get("job_id"), exc.reason,
+                )
+                completion["error_code"] = "turn_timeout"
+                if run_ref["id"]:
+                    completion["run_id"] = run_ref["id"]
+                    try:
+                        await self.hermes.stop(runtime, str(run_ref["id"]))
+                    except Exception:
+                        logger.warning(
+                            "Could not stop timed-out Hermes run job_id=%s",
+                            job.get("job_id"),
+                        )
+                await self._settle_turn_status(status_task, status_request_started)
+                status_task = None
+                try:
+                    await self.control.request(
+                        "POST",
+                        f"/api/internal/hosted-claw/jobs/{job['job_id']}/progress?worker_id={self.worker_id}",
+                        json={
+                            "kind": "final",
+                            "text": "This hosted turn timed out before completion. Please try again.",
+                        },
+                    )
+                except Exception:
+                    logger.warning(
+                        "Could not deliver hosted timeout notice job_id=%s",
+                        job.get("job_id"),
+                    )
             except Exception:
                 logger.exception("Hosted turn failed job_id=%s", job.get("job_id"))
                 await self._settle_turn_status(status_task, status_request_started)

@@ -97,7 +97,9 @@ ensure_worker_defaults() {
     HOSTED_CLAW_MAX_TURNS=3 \
     HOSTED_CLAW_MAX_RESIDENT_RUNTIMES=3 \
     HOSTED_CLAW_IDLE_SECONDS=300 \
-    HOSTED_CLAW_PROGRESS_DELAY_SECONDS=3; do
+    HOSTED_CLAW_PROGRESS_DELAY_SECONDS=3 \
+    HOSTED_CLAW_TURN_TIMEOUT_SECONDS=600 \
+    HOSTED_CLAW_EVENT_INACTIVITY_SECONDS=120; do
     if grep -q "^${key%%=*}=" "$env_file"; then
       sed -i.bak "s/^${key%%=*}=.*/$key/" "$env_file"
       rm -f -- "$env_file.bak"

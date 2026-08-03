@@ -45,10 +45,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 try:
     from hosted_claw.supervisor import (
+        EVENT_INACTIVITY_SECONDS,
         IDLE_SECONDS,
         MAX_RESIDENT_RUNTIMES,
         MAX_TURNS,
+        TURN_TIMEOUT_SECONDS,
         DockerRuntimeManager,
+        HermesEventInactivityTimeout,
+        HermesRuns,
+        HostedTurnTimeout,
         Runtime,
         Supervisor,
     )
@@ -176,6 +181,8 @@ class HostedRuntimeCapacityTests(unittest.TestCase):
         self.assertEqual(MAX_TURNS, 3)
         self.assertEqual(MAX_RESIDENT_RUNTIMES, 3)
         self.assertEqual(IDLE_SECONDS, 300)
+        self.assertEqual(TURN_TIMEOUT_SECONDS, 600)
+        self.assertEqual(EVENT_INACTIVITY_SECONDS, 120)
 
     def test_new_tenant_evicts_the_least_recent_idle_runtime(self) -> None:
         manager = DockerRuntimeManager()
@@ -347,6 +354,123 @@ class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
             "chat.update",
             {"channel": "D123", "ts": "101.002", "text": "The answer."},
         ))
+
+
+class HostedTurnTimeoutTests(unittest.IsolatedAsyncioTestCase):
+    async def test_sse_keepalives_do_not_defeat_event_inactivity_timeout(self) -> None:
+        async def lines():
+            yield ": keepalive"
+            await asyncio.Event().wait()
+            yield "unreachable"
+
+        events = HermesRuns._iter_events(lines(), inactivity_seconds=0.01)
+        with self.assertRaises(HermesEventInactivityTimeout):
+            await anext(events)
+
+    async def test_event_inactivity_maps_to_hosted_turn_timeout(self) -> None:
+        async def events():
+            raise HermesEventInactivityTimeout("inactive")
+            yield {}
+
+        with self.assertRaises(HostedTurnTimeout) as raised:
+            await Supervisor._next_hermes_event(
+                events(), asyncio.get_running_loop().time() + 1
+            )
+
+        self.assertEqual(raised.exception.reason, "event stream inactive")
+
+    async def test_hard_timeout_stops_run_and_finalizes_slack(self) -> None:
+        runtime = Runtime(
+            runtime_id="runtime-a",
+            user_id="user-a",
+            product="accountingclaw",
+            container_name="tenant-a",
+            proxy_name="proxy-a",
+            network_name="network-a",
+            data_dir=Path("/tmp/runtime-a"),
+            api_key="key",
+            api_url="http://runtime",
+            config_revision=1,
+            model_alias="claw-default",
+            last_activity=0,
+            cold_started=False,
+        )
+
+        async def stalled_run(*_args, **_kwargs):
+            yield {"type": "run.created", "run_id": "run-a"}
+            await asyncio.Event().wait()
+
+        supervisor = Supervisor.__new__(Supervisor)
+        supervisor.semaphore = asyncio.Semaphore(1)
+        supervisor.worker_id = "worker-a"
+        supervisor.prepare_runtime_capacity = AsyncMock()
+        supervisor.release_runtime_capacity = AsyncMock()
+
+        async def control_request(_method, path, **_kwargs):
+            if path == "/api/internal/hosted-claw/runtime-credentials":
+                return {"connector_token": "connector-key"}
+            return {}
+
+        supervisor.control = SimpleNamespace(
+            request=AsyncMock(side_effect=control_request)
+        )
+        supervisor.litellm = SimpleNamespace(
+            rotate_tenant_key=AsyncMock(return_value="llm-key")
+        )
+        supervisor.docker = SimpleNamespace(ensure=MagicMock(return_value=runtime))
+        supervisor.hermes = SimpleNamespace(
+            run=stalled_run,
+            stop=AsyncMock(return_value=None),
+        )
+        job = {
+            "job_id": "job-a",
+            "queued_at": datetime.now(timezone.utc).isoformat(),
+            "runtime_id": "runtime-a",
+            "user_id": "user-a",
+            "product": "accountingclaw",
+            "session_id": None,
+            "payload": {"text": "List Linear issues", "files": []},
+            "config": {
+                "model_alias": "claw-default",
+                "revision": 1,
+                "timezone": "America/Los_Angeles",
+                "personal_instructions": "",
+            },
+            "monthly_budget_usd": "10",
+            "remaining_budget_usd": "10",
+            "budget_period": "2026-08-01",
+        }
+
+        with patch("hosted_claw.supervisor.TURN_TIMEOUT_SECONDS", 0.01), patch(
+            "hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 60
+        ):
+            await supervisor.process(job)
+
+        supervisor.hermes.stop.assert_awaited_once_with(runtime, "run-a")
+        supervisor.release_runtime_capacity.assert_awaited_once_with("runtime-a")
+        timeout_progress = unittest.mock.call(
+            "POST",
+            "/api/internal/hosted-claw/jobs/job-a/progress?worker_id=worker-a",
+            json={
+                "kind": "final",
+                "text": "This hosted turn timed out before completion. Please try again.",
+            },
+        )
+        self.assertIn(timeout_progress, supervisor.control.request.await_args_list)
+        completion_calls = [
+            call
+            for call in supervisor.control.request.await_args_list
+            if call.args[1].endswith("/complete?worker_id=worker-a")
+        ]
+        self.assertEqual(len(completion_calls), 1)
+        self.assertEqual(
+            completion_calls[0].kwargs["json"],
+            {
+                "status": "failed",
+                "error_code": "turn_timeout",
+                "run_id": "run-a",
+            },
+        )
 
 
 class HostedRuntimeStateTests(unittest.TestCase):
