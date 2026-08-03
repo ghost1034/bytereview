@@ -57,7 +57,7 @@ the disk and IP back; and `finalize` deletes the stopped legacy VM after the
 48-hour observation period.
 
 For cost migration use `scripts/migrate-hosted-claw-to-lean.sh`. Deploy a
-supervisor image containing the one-turn capacity controls first, run `prepare`
+supervisor image containing the three-turn capacity controls first, run `prepare`
 to seed the smaller disks, then run `cutover` during a 15-minute maintenance
 window. Do not run `finalize` until its seven-day guard passes. Rollback performs
 a reverse sync before restoring the previous template and network edge. Until

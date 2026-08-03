@@ -12,7 +12,7 @@ Tenant containers are one CPAAutomation user plus one product, use opaque Docker
 volumes, and are attached only to the internal hosted network. The supervisor
 starts them with a read-only root filesystem, non-root UID, all capabilities
 dropped, `no-new-privileges`, one CPU, 2 GiB memory, and 256 PIDs. The pilot
-admits one turn and retains at most one warm tenant runtime for five minutes.
+admits three concurrent turns and retains at most three warm tenant runtimes for five minutes.
 It never mounts the Docker socket into a tenant.
 
 Hosted Claw tool calls run without interactive approval. The runtime policy

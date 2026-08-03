@@ -94,8 +94,8 @@ inject_root_file() {
 ensure_worker_defaults() {
   local env_file="$1" key
   for key in \
-    HOSTED_CLAW_MAX_TURNS=1 \
-    HOSTED_CLAW_MAX_RESIDENT_RUNTIMES=1 \
+    HOSTED_CLAW_MAX_TURNS=3 \
+    HOSTED_CLAW_MAX_RESIDENT_RUNTIMES=3 \
     HOSTED_CLAW_IDLE_SECONDS=300; do
     if grep -q "^${key%%=*}=" "$env_file"; then
       sed -i.bak "s/^${key%%=*}=.*/$key/" "$env_file"

@@ -163,14 +163,17 @@ class HostedRuntimeCapacityTests(unittest.TestCase):
             cold_started=False,
         )
 
-    def test_lean_defaults_allow_one_turn_and_one_warm_runtime(self) -> None:
-        self.assertEqual(MAX_TURNS, 1)
-        self.assertEqual(MAX_RESIDENT_RUNTIMES, 1)
+    def test_defaults_allow_three_turns_and_three_warm_runtimes(self) -> None:
+        self.assertEqual(MAX_TURNS, 3)
+        self.assertEqual(MAX_RESIDENT_RUNTIMES, 3)
         self.assertEqual(IDLE_SECONDS, 300)
 
     def test_new_tenant_evicts_the_least_recent_idle_runtime(self) -> None:
         manager = DockerRuntimeManager()
         manager.runtimes["old"] = self.runtime("old", 10)
+        for index in range(1, MAX_RESIDENT_RUNTIMES):
+            runtime_id = f"warm-{index}"
+            manager.runtimes[runtime_id] = self.runtime(runtime_id, 10 + index)
 
         with patch.object(manager, "stop_runtime", side_effect=manager.runtimes.pop) as stop:
             evicted = manager.evict_for("new", {"new"})
@@ -189,10 +192,12 @@ class HostedRuntimeCapacityTests(unittest.TestCase):
 
     def test_active_runtime_is_never_evicted(self) -> None:
         manager = DockerRuntimeManager()
-        manager.runtimes["active"] = self.runtime("active", 10)
+        active_ids = {f"active-{index}" for index in range(MAX_RESIDENT_RUNTIMES)}
+        for runtime_id in active_ids:
+            manager.runtimes[runtime_id] = self.runtime(runtime_id, 10)
 
         with self.assertRaisesRegex(RuntimeError, "No idle Hosted Claw runtime"):
-            manager.evict_for("new", {"active", "new"})
+            manager.evict_for("new", active_ids | {"new"})
 
     def test_idle_sweeper_does_not_stop_an_active_runtime(self) -> None:
         manager = DockerRuntimeManager()

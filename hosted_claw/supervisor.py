@@ -40,8 +40,8 @@ def _positive_int_env(name: str, default: int) -> int:
     return value
 
 
-MAX_TURNS = _positive_int_env("HOSTED_CLAW_MAX_TURNS", 1)
-MAX_RESIDENT_RUNTIMES = _positive_int_env("HOSTED_CLAW_MAX_RESIDENT_RUNTIMES", 1)
+MAX_TURNS = _positive_int_env("HOSTED_CLAW_MAX_TURNS", 3)
+MAX_RESIDENT_RUNTIMES = _positive_int_env("HOSTED_CLAW_MAX_RESIDENT_RUNTIMES", 3)
 IDLE_SECONDS = _positive_int_env("HOSTED_CLAW_IDLE_SECONDS", 5 * 60)
 if MAX_TURNS > MAX_RESIDENT_RUNTIMES:
     raise RuntimeError("HOSTED_CLAW_MAX_TURNS cannot exceed HOSTED_CLAW_MAX_RESIDENT_RUNTIMES")
