@@ -55,7 +55,10 @@ from services.gemini_file_service import part_from_storage_object
 from services.gcs_service import get_storage_service
 from services.natural_sort import natural_text_key, sort_paths_naturally
 from services.page_counting_service import page_counting_service
-from services.pdf_anchor import relative_anchor_box_position, search_pdf_anchor_text
+from services.pdf_anchor import (
+    relative_anchor_box_position,
+    search_pdf_anchor_text,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -3062,6 +3065,7 @@ Rules:
                             "anchor_text": types.Schema(type="STRING", nullable=True),
                             "anchor_before": types.Schema(type="STRING", nullable=True),
                             "anchor_after": types.Schema(type="STRING", nullable=True),
+                            "match_index": types.Schema(type="INTEGER", minimum=0, nullable=True),
                             "case_sensitive": types.Schema(type="BOOLEAN", nullable=True),
                             "whole_word": types.Schema(type="BOOLEAN", nullable=True),
                             "overlay_text": types.Schema(type="STRING"),
@@ -3134,6 +3138,7 @@ Instructions:
 - Prefer anchor_text that appears visibly in the PDF near where the overlay should go.
 - When the same anchor_text appears more than once on the page (for example identical underscore blanks next to several labels), also set anchor_before to the unique label text immediately before the intended spot so the correct occurrence is chosen.
 - anchor_before must be text that comes before the intended spot in reading order (usually the field's own label, to the left of its blank); anchor_after must be text that comes after it. Never use another field's label as anchor_before or anchor_after unless it truly borders the intended spot.
+- If unique nearby context is unavailable, set match_index to the zero-based reading-order occurrence of anchor_text. Repeated anchor text without unique context or match_index is skipped rather than guessed.
 - Set whole_word to true when anchor_text must not match inside a longer word. Set case_sensitive only when capitalization distinguishes the intended anchor.
 - When marking a Yes/No or checkbox choice, re-check the source before choosing: anchor the mark to the option that matches the source value.
 - For content placed around a label or other non-replaced anchor, use relative_position: auto, center, right, left, below, or above. Auto tries right, left, below, then above and keeps the complete overlay box on the page.
@@ -3359,8 +3364,19 @@ Instructions:
         before_matches: list[fitz.Rect],
         after_matches: list[fitz.Rect],
     ) -> fitz.Rect:
-        if len(matches) == 1 or (not before_matches and not after_matches):
-            return matches[0]
+        chosen, _ = FormFillService._pick_pdf_anchor_match_strict(matches, before_matches, after_matches)
+        return chosen or matches[0]
+
+    @staticmethod
+    def _pick_pdf_anchor_match_strict(
+        matches: list[fitz.Rect],
+        before_matches: list[fitz.Rect],
+        after_matches: list[fitz.Rect],
+    ) -> tuple[fitz.Rect | None, str | None]:
+        if len(matches) == 1:
+            return matches[0], None
+        if not before_matches and not after_matches:
+            return None, "The anchor appears more than once and has no unique context."
 
         def distance(rect: fitz.Rect, other: fitz.Rect) -> float:
             dx = (rect.x0 + rect.x1) / 2 - (other.x0 + other.x1) / 2
@@ -3396,7 +3412,10 @@ Instructions:
                 )
             return total
 
-        return min(matches, key=score)
+        scored = sorted(((score(rect), rect) for rect in matches), key=lambda row: row[0])
+        if len(scored) > 1 and abs(scored[0][0] - scored[1][0]) < 1e-6:
+            return None, "The anchor context could not be resolved uniquely."
+        return scored[0][1], None
 
     @staticmethod
     def _search_pdf_anchor_text(
@@ -3417,6 +3436,16 @@ Instructions:
         item: dict[str, Any],
         used_rects: list[fitz.Rect] | None = None,
     ) -> fitz.Rect | None:
+        rect, _ = self._resolve_pdf_anchor_rect_with_reason(page, item, used_rects)
+        return rect
+
+    def _resolve_pdf_anchor_rect_with_reason(
+        self,
+        page: fitz.Page,
+        item: dict[str, Any],
+        used_rects: list[fitz.Rect] | None = None,
+    ) -> tuple[fitz.Rect | None, str | None]:
+        """Resolve an overlay anchor without guessing among repeated occurrences."""
         anchor_text = str(item.get("anchor_text") or "").strip()
         anchor_before = str(item.get("anchor_before") or "").strip()
         anchor_after = str(item.get("anchor_after") or "").strip()
@@ -3431,12 +3460,43 @@ Instructions:
                 case_sensitive=bool(item.get("case_sensitive")),
                 whole_word=bool(item.get("whole_word")),
             )
+            matches.sort(key=lambda rect: (rect.y0, rect.x0, rect.y1, rect.x1))
             if matches:
-                unused = [rect for rect in matches if not self._pdf_rect_is_used(rect, used_rects)]
-                chosen = self._pick_pdf_anchor_match(unused or matches, before_matches, after_matches)
+                indexed_match: fitz.Rect | None = None
+                raw_match_index = item.get("match_index")
+                if raw_match_index is not None:
+                    try:
+                        if isinstance(raw_match_index, bool):
+                            raise ValueError
+                        match_index = int(raw_match_index)
+                    except (TypeError, ValueError):
+                        return None, f'Anchor "{anchor_text[:80]}" returned an invalid match index.'
+                    if match_index < 0 or match_index >= len(matches):
+                        return None, f'Anchor "{anchor_text[:80]}" match index {match_index} is out of range.'
+                    indexed_match = matches[match_index]
+
+                contextual_match: fitz.Rect | None = None
+                if before_matches or after_matches:
+                    contextual_match, context_reason = self._pick_pdf_anchor_match_strict(
+                        matches, before_matches, after_matches,
+                    )
+                    if contextual_match is None and indexed_match is None:
+                        return None, context_reason
+                if contextual_match is not None and indexed_match is not None and contextual_match != indexed_match:
+                    return None, f'Anchor "{anchor_text[:80]}" context conflicts with match index {match_index}.'
+                chosen = contextual_match or indexed_match
+                if chosen is None:
+                    if len(matches) == 1:
+                        chosen = matches[0]
+                    else:
+                        return None, f'Anchor "{anchor_text[:80]}" appears more than once and has no unique context.'
+                if self._pdf_rect_is_used(chosen, used_rects):
+                    return None, f'Anchor "{anchor_text[:80]}" occurrence was already used.'
                 if used_rects is not None:
                     used_rects.append(fitz.Rect(chosen))
-                return chosen
+                return chosen, None
+            # A missing placeholder may still be located between explicit
+            # before/after anchors.
 
         if before_matches and after_matches:
             def pair_score(pair: tuple[fitz.Rect, fitz.Rect]) -> float:
@@ -3448,17 +3508,40 @@ Instructions:
                 dy = abs((after_rect.y0 + after_rect.y1) / 2 - (before_rect.y0 + before_rect.y1) / 2)
                 return dx + 4.0 * dy + (100000.0 if wrong_order else 0.0)
 
-            before_rect, after_rect = min(
-                ((before_rect, after_rect) for before_rect in before_matches for after_rect in after_matches),
-                key=pair_score,
+            scored_pairs = sorted(
+                (
+                    (pair_score((before_rect, after_rect)), before_rect, after_rect)
+                    for before_rect in before_matches for after_rect in after_matches
+                ),
+                key=lambda row: row[0],
             )
+            if len(scored_pairs) > 1 and abs(scored_pairs[0][0] - scored_pairs[1][0]) < 1e-6:
+                return None, "The before/after anchor context could not be resolved uniquely."
+            _, before_rect, after_rect = scored_pairs[0]
             x0 = min(before_rect.x1, after_rect.x0)
             x1 = max(before_rect.x1, after_rect.x0)
             y0 = min(before_rect.y0, after_rect.y0)
             y1 = max(before_rect.y1, after_rect.y1)
-            return fitz.Rect(x0, y0, x1, y1)
+            chosen = fitz.Rect(x0, y0, x1, y1)
+            if self._pdf_rect_is_used(chosen, used_rects):
+                return None, "The resolved before/after anchor region was already used."
+            if used_rects is not None:
+                used_rects.append(fitz.Rect(chosen))
+            return chosen, None
 
-        return (before_matches or after_matches or [None])[0]
+        context_matches = before_matches or after_matches
+        if len(context_matches) == 1:
+            chosen = context_matches[0]
+            if self._pdf_rect_is_used(chosen, used_rects):
+                return None, "The resolved context anchor was already used."
+            if used_rects is not None:
+                used_rects.append(fitz.Rect(chosen))
+            return chosen, None
+        if len(context_matches) > 1:
+            return None, "The context anchor appears more than once."
+        if anchor_text:
+            return None, f'Anchor "{anchor_text[:80]}" was not found.'
+        return None, "The overlay did not include searchable anchor text."
 
     @staticmethod
     def _pdf_anchor_baseline(page: fitz.Page, anchor_rect: fitz.Rect) -> float:
@@ -3651,10 +3734,23 @@ Instructions:
                     continue
 
                 page = doc[page_number - 1]
-                anchor_rect = self._resolve_pdf_anchor_rect(page, item, used_anchor_rects.setdefault(page_number, []))
+                anchor_rect, anchor_reason = self._resolve_pdf_anchor_rect_with_reason(
+                    page, item, used_anchor_rects.setdefault(page_number, []),
+                )
                 if anchor_rect is None:
+                    has_anchor_input = any(
+                        str(item.get(key) or "").strip()
+                        for key in ("anchor_text", "anchor_before", "anchor_after")
+                    )
+                    if has_anchor_input:
+                        warnings.append(
+                            f"Skipped overlay '{overlay_text[:40]}' on page {page_number}: "
+                            f"{anchor_reason or 'the anchor could not be resolved safely'}"
+                        )
+                        continue
                     warnings.append(
-                        f"Could not locate anchor for overlay '{overlay_text[:40]}' on page {page_number}; placed it in a fallback position."
+                        f"Overlay '{overlay_text[:40]}' on page {page_number} did not include an anchor; "
+                        "placed it in a fallback position."
                     )
                 fallback_index = fallback_slots.get(page_number, 0)
                 target_rect = self._target_rect_from_anchor(page, anchor_rect, item, fallback_index)
@@ -4137,8 +4233,9 @@ Instructions:
                 output_contract = (
                     "Return {'items': [overlay_item, ...], 'warnings': [...]}. Each overlay_item must include "
                     "page_number and overlay_text, and may include anchor_text, anchor_before, anchor_after, "
-                    "case_sensitive, whole_word, placement_hint, relative_position, cross_axis_alignment, "
+                    "match_index, case_sensitive, whole_word, placement_hint, relative_position, cross_axis_alignment, "
                     "offset_x, offset_y, offset_unit, field_width, field_height, cover_anchor, and font_size. "
+                    "Repeated anchor_text requires unique adjacent context or a zero-based reading-order match_index. "
                     "Use relative_position auto/center/right/left/below/above with cross_axis_alignment "
                     "auto/start/center/end; offsets and field dimensions use offset_unit point/mm/inch. "
                     "Use placement_hint='replace_anchor' instead of relative_position when replacing a blank "

@@ -85,24 +85,36 @@ def resolve_contextual_anchor_rect(page: fitz.Page, item: dict[str, Any]) -> tup
         lx, ly = center(left); rx, ry = center(right)
         return abs(ry - ly) * max(page.rect.width, 1) + abs(rx - lx)
 
+    def comes_before(left: fitz.Rect, right: fitz.Rect) -> bool:
+        """Compare reading order without treating adjacent text rows as one line."""
+        _, left_y = center(left); _, right_y = center(right)
+        line_tolerance = max(2.0, min(left.height, right.height) * 0.5)
+        if right_y - left_y > line_tolerance:
+            return True
+        if left_y - right_y > line_tolerance:
+            return False
+        return left.x1 <= right.x0 + 2.0
+
     scored: list[tuple[float, fitz.Rect]] = []
     for match in matches:
         score = 0.0
         if before_matches:
-            eligible = [rect for rect in before_matches if rect.y0 < match.y1 or (rect.y0 <= match.y1 and rect.x0 < match.x0)]
+            eligible = [rect for rect in before_matches if comes_before(rect, match)]
             if not eligible:
                 continue
             score += min(reading_delta(rect, match) for rect in eligible)
         if after_matches:
-            eligible = [rect for rect in after_matches if rect.y1 > match.y0 or (rect.y1 >= match.y0 and rect.x1 > match.x1)]
+            eligible = [rect for rect in after_matches if comes_before(match, rect)]
             if not eligible:
                 continue
             score += min(reading_delta(match, rect) for rect in eligible)
         scored.append((score, match))
-    if not scored or (not before_matches and not after_matches):
+    if not before_matches and not after_matches:
         if indexed_match is not None:
             return indexed_match, None
         return None, f'Anchor "{anchor[:80]}" appears more than once and its context is ambiguous.'
+    if not scored:
+        return None, f'Anchor "{anchor[:80]}" context is not on the expected side in reading order.'
     scored.sort(key=lambda row: row[0])
     if len(scored) > 1 and abs(scored[0][0] - scored[1][0]) < 1e-6:
         if indexed_match is not None:

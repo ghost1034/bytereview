@@ -62,7 +62,8 @@ class EsignAiFieldPlacementParsingTests(unittest.TestCase):
             page_numbered_text="Document doc-1, zero-based page 2: Signature: Date:",
             instructions=None,
         )
-        self.assertIn("participant or role label as context", prompt)
+        self.assertIn("participant or role label as anchor_before", prompt)
+        self.assertIn("following section label may be used as anchor_after", prompt)
         self.assertIn("zero-based reading-order occurrence", prompt)
         self.assertIn("normalized page ratios between 0 and 1", prompt)
 
@@ -122,6 +123,20 @@ class ContextualAnchorTests(unittest.TestCase):
         self.assertIsNotNone(rect)
         self.assertIsNone(warning)
         self.assertGreater(rect.y0, 100)
+        pdf.close()
+
+    def test_after_context_selects_the_nearest_preceding_anchor(self) -> None:
+        pdf = fitz.open(); page = pdf.new_page()
+        page.insert_text((72, 60), "Client")
+        page.insert_text((72, 72), "Signature")
+        page.insert_text((72, 132), "Partner")
+        page.insert_text((72, 144), "Signature")
+        rect, warning = resolve_contextual_anchor_rect(
+            page, {"anchor_text": "Signature", "anchor_after": "Partner"},
+        )
+        self.assertIsNotNone(rect)
+        self.assertIsNone(warning)
+        self.assertLess((rect or fitz.Rect()).y0, 100)
         pdf.close()
 
     def test_match_index_selects_repeated_anchor_in_reading_order(self) -> None:

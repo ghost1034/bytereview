@@ -512,10 +512,10 @@ Existing field summaries: {json.dumps(existing)}
 Placement rules:
 - Page numbers are zero-based. Return only fields a listed signing role should complete.
 - anchor_text must be short, exact, visible text that is searchable in the extracted page text. Do not use checkbox glyphs or drawn lines as anchors.
-- If anchor_text occurs more than once on a page, provide unique nearby anchor_before or anchor_after context. For repeated Signature/Date rows, use that row's participant or role label as context.
+- If anchor_text occurs more than once on a page, provide unique nearby anchor_before or anchor_after context. For repeated Signature/Date rows, prefer that row's participant or role label as anchor_before; a unique following section label may be used as anchor_after.
 - match_index is the zero-based reading-order occurrence of anchor_text. Use it when nearby searchable context cannot uniquely identify a repeated label. If both context and match_index are supplied, they must identify the same occurrence.
 - Set whole_word for short or common anchors such as Yes or No. Context must still identify the intended occurrence when the word appears elsewhere.
-- Place fields into the adjacent blank area: commonly right of a name or Signature label and left of a trailing Date label. Use only auto, center, right, left, below, or above for relative_position and auto, start, center, or end for cross_axis_alignment.
+- Place fields into the adjacent blank area. Use only auto, center, right, left, below, or above for relative_position and auto, start, center, or end for cross_axis_alignment.
 - Width and height are optional normalized page ratios between 0 and 1. Omit them to use safe field-type defaults. Do not return point or pixel dimensions.
 - Omit properties unless a field needs type-compatible optional behavior. Never set schema_version.
 - Do not duplicate existing fields. Add document ambiguities to warnings instead of guessing.

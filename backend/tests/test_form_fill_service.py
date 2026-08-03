@@ -2337,6 +2337,14 @@ class FormFillPdfOverlayAnchorTests(unittest.TestCase):
             f"{overlay_text!r} not on the {label!r} line",
         )
 
+    def test_overlay_contract_supports_explicit_anchor_occurrences(self) -> None:
+        schema = self.service._pdf_overlay_schema().model_dump(exclude_none=True, mode="json")
+        item_properties = schema["properties"]["items"]["items"]["properties"]
+        self.assertIn("match_index", item_properties)
+        prompt = self.service._build_pdf_overlay_prompt(source_text="Source", target_preview_text="Target")
+        self.assertIn("zero-based reading-order occurrence", prompt)
+        self.assertIn("skipped rather than guessed", prompt)
+
     def test_anchor_before_selects_the_matching_blank(self) -> None:
         # Deliberately out of document order: the label must pick the blank, not emission order.
         items = [
@@ -2396,7 +2404,7 @@ class FormFillPdfOverlayAnchorTests(unittest.TestCase):
         self._assert_on_label_line(centers, "Cedar Bookkeeping Services", "Vendor legal name:")
         self._assert_on_label_line(centers, "915 Alder Street", "Street address:")
 
-    def test_repeated_anchor_without_labels_consumes_blanks_in_order(self) -> None:
+    def test_repeated_anchor_without_context_is_skipped(self) -> None:
         items = [
             {
                 "page_number": 1,
@@ -2409,9 +2417,44 @@ class FormFillPdfOverlayAnchorTests(unittest.TestCase):
 
         warnings, centers = self._apply_items(items)
 
+        self.assertEqual(len(warnings), len(OVERLAY_LABELS))
+        self.assertTrue(all("appears more than once" in warning for warning in warnings))
+        for index in range(len(OVERLAY_LABELS)):
+            self.assertNotIn(f"Value {index}", centers)
+
+    def test_match_indexes_place_repeated_anchors_in_reading_order(self) -> None:
+        items = [
+            {
+                "page_number": 1,
+                "anchor_text": BLANK_RUN,
+                "match_index": index,
+                "overlay_text": f"Value {index}",
+                "placement_hint": "replace_anchor",
+            }
+            for index in range(len(OVERLAY_LABELS))
+        ]
+
+        warnings, centers = self._apply_items(items)
+
         self.assertEqual(warnings, [])
         for index, label in enumerate(OVERLAY_LABELS):
             self._assert_on_label_line(centers, f"Value {index}", label)
+
+    def test_conflicting_context_and_match_index_is_skipped(self) -> None:
+        items = [{
+            "page_number": 1,
+            "anchor_text": BLANK_RUN,
+            "anchor_before": "Street address:",
+            "match_index": 0,
+            "overlay_text": "Wrong row",
+            "placement_hint": "replace_anchor",
+        }]
+
+        warnings, centers = self._apply_items(items)
+
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("conflicts", warnings[0])
+        self.assertNotIn("Wrong row", centers)
 
     def test_case_sensitive_anchor_filter_matches_esign_semantics(self) -> None:
         doc = fitz.open(self.path)
