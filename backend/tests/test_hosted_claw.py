@@ -36,7 +36,13 @@ from routes.hosted_claw import _link_oauth_installer, _valid_slack_file_url, run
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
 try:
-    from hosted_claw.supervisor import DockerRuntimeManager
+    from hosted_claw.supervisor import (
+        IDLE_SECONDS,
+        MAX_RESIDENT_RUNTIMES,
+        MAX_TURNS,
+        DockerRuntimeManager,
+        Runtime,
+    )
 finally:
     sys.path.pop(0)
 
@@ -136,6 +142,70 @@ class HostedRuntimeReadinessTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "exited before its API became ready"):
                 manager._wait_for_api("tenant", "172.18.0.3")
         connect.assert_not_called()
+
+
+class HostedRuntimeCapacityTests(unittest.TestCase):
+    @staticmethod
+    def runtime(runtime_id: str, last_activity: float) -> Runtime:
+        return Runtime(
+            runtime_id=runtime_id,
+            user_id=f"user-{runtime_id}",
+            product="accountingclaw",
+            container_name=f"tenant-{runtime_id}",
+            proxy_name=f"proxy-{runtime_id}",
+            network_name=f"network-{runtime_id}",
+            data_dir=Path(f"/tmp/{runtime_id}"),
+            api_key="key",
+            api_url="http://runtime",
+            config_revision=1,
+            model_alias="claw-default",
+            last_activity=last_activity,
+            cold_started=False,
+        )
+
+    def test_lean_defaults_allow_one_turn_and_one_warm_runtime(self) -> None:
+        self.assertEqual(MAX_TURNS, 1)
+        self.assertEqual(MAX_RESIDENT_RUNTIMES, 1)
+        self.assertEqual(IDLE_SECONDS, 300)
+
+    def test_new_tenant_evicts_the_least_recent_idle_runtime(self) -> None:
+        manager = DockerRuntimeManager()
+        manager.runtimes["old"] = self.runtime("old", 10)
+
+        with patch.object(manager, "stop_runtime", side_effect=manager.runtimes.pop) as stop:
+            evicted = manager.evict_for("new", {"new"})
+
+        self.assertEqual(evicted, ["old"])
+        stop.assert_called_once_with("old")
+
+    def test_existing_warm_runtime_is_reused_without_eviction(self) -> None:
+        manager = DockerRuntimeManager()
+        manager.runtimes["same"] = self.runtime("same", 10)
+
+        with patch.object(manager, "stop_runtime") as stop:
+            self.assertEqual(manager.evict_for("same", {"same"}), [])
+
+        stop.assert_not_called()
+
+    def test_active_runtime_is_never_evicted(self) -> None:
+        manager = DockerRuntimeManager()
+        manager.runtimes["active"] = self.runtime("active", 10)
+
+        with self.assertRaisesRegex(RuntimeError, "No idle Hosted Claw runtime"):
+            manager.evict_for("new", {"active", "new"})
+
+    def test_idle_sweeper_does_not_stop_an_active_runtime(self) -> None:
+        manager = DockerRuntimeManager()
+        manager.runtimes["active"] = self.runtime("active", 0)
+        manager.runtimes["idle"] = self.runtime("idle", 0)
+
+        with patch("hosted_claw.supervisor.time.monotonic", return_value=IDLE_SECONDS + 1), patch.object(
+            manager, "stop_runtime", side_effect=manager.runtimes.pop
+        ) as stop:
+            stopped = manager.stop_idle({"active"})
+
+        self.assertEqual(stopped, ["idle"])
+        stop.assert_called_once_with("idle")
 
 
 class HostedRuntimeStopTests(unittest.IsolatedAsyncioTestCase):

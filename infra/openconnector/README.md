@@ -20,10 +20,10 @@ authenticated CPAA user.
 ./scripts/migrate-openconnector-to-hosted-claw.sh cutover
 ```
 
-OpenConnector and Hosted Claw share the private, size-one Hosted Claw managed
-instance group. The existing OpenConnector static IP belongs to a regional
-passthrough load balancer that forwards only TCP 80/443 to the group; the VM
-has no public NIC. OpenConnector retains its dedicated stateful disk at
+OpenConnector and Hosted Claw share the size-one Hosted Claw managed instance
+group. In the lean pilot the existing OpenConnector static IP is statefully
+assigned directly to the VM in a dedicated VPC; firewall rules expose only TCP
+80/443 and IAP SSH. OpenConnector retains its dedicated stateful disk at
 `/mnt/openconnector-data`, including Caddy's ACME state.
 
 The operator injects `/etc/openconnector/openconnector.env` from Secret Manager

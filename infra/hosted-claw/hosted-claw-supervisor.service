@@ -7,7 +7,7 @@ ConditionPathExists=/etc/hosted-claw/worker.env
 [Service]
 EnvironmentFile=/etc/hosted-claw/worker.env
 ExecStartPre=-/usr/bin/docker rm -f hosted-claw-supervisor
-ExecStart=/usr/bin/docker run --name hosted-claw-supervisor --network host --env-file /etc/hosted-claw/worker.env --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --mount type=bind,src=/srv/hosted-claw,dst=/srv/hosted-claw --mount type=bind,src=/run/hosted-claw,dst=/run/hosted-claw --mount type=bind,src=/run/clamav,dst=/run/clamav,readonly ${HOSTED_CLAW_SUPERVISOR_IMAGE}
+ExecStart=/usr/bin/docker run --name hosted-claw-supervisor --network host --pids-limit 256 --cpus 0.5 --memory 384m --env-file /etc/hosted-claw/worker.env --mount type=bind,src=/var/run/docker.sock,dst=/var/run/docker.sock --mount type=bind,src=/srv/hosted-claw,dst=/srv/hosted-claw --mount type=bind,src=/run/hosted-claw,dst=/run/hosted-claw --mount type=bind,src=/run/clamav,dst=/run/clamav,readonly ${HOSTED_CLAW_SUPERVISOR_IMAGE}
 ExecStop=/usr/bin/docker stop -t 30 hosted-claw-supervisor
 Restart=always
 RestartSec=5

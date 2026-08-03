@@ -28,11 +28,27 @@ from hosted_claw.artifacts import UnsafeArtifact, promote_clean_file, safe_desti
 
 logger = logging.getLogger("hosted_claw.supervisor")
 
-MAX_TURNS = 10
-IDLE_SECONDS = 30 * 60
+
+def _positive_int_env(name: str, default: int) -> int:
+    raw = os.getenv(name, str(default))
+    try:
+        value = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be a positive integer") from exc
+    if value < 1:
+        raise RuntimeError(f"{name} must be a positive integer")
+    return value
+
+
+MAX_TURNS = _positive_int_env("HOSTED_CLAW_MAX_TURNS", 1)
+MAX_RESIDENT_RUNTIMES = _positive_int_env("HOSTED_CLAW_MAX_RESIDENT_RUNTIMES", 1)
+IDLE_SECONDS = _positive_int_env("HOSTED_CLAW_IDLE_SECONDS", 5 * 60)
+if MAX_TURNS > MAX_RESIDENT_RUNTIMES:
+    raise RuntimeError("HOSTED_CLAW_MAX_TURNS cannot exceed HOSTED_CLAW_MAX_RESIDENT_RUNTIMES")
 EGRESS_NETWORK = "hosted-claw-egress"
 DATA_ROOT = Path(os.getenv("HOSTED_CLAW_DATA_ROOT", "/srv/hosted-claw/tenants"))
 CONTROL_ROOT = Path(os.getenv("HOSTED_CLAW_CONTROL_ROOT", "/run/hosted-claw"))
+ACTIVE_TURNS_FILE = CONTROL_ROOT / "active-turns"
 
 
 def _opaque(value: str) -> str:
@@ -404,14 +420,36 @@ class DockerRuntimeManager:
         self._docker("network", "rm", network_name, check=False)
         self.runtimes.pop(runtime_id, None)
 
-    def stop_idle(self) -> list[str]:
+    def stop_idle(self, protected_ids: Optional[set[str]] = None) -> list[str]:
         now = time.monotonic()
+        protected = protected_ids or set()
         stopped: list[str] = []
         for runtime_id, runtime in list(self.runtimes.items()):
-            if now - runtime.last_activity >= IDLE_SECONDS:
+            if runtime_id not in protected and now - runtime.last_activity >= IDLE_SECONDS:
                 self.stop_runtime(runtime_id)
                 stopped.append(runtime_id)
         return stopped
+
+    def evict_for(self, runtime_id: str, protected_ids: set[str]) -> list[str]:
+        """Make room for runtime_id without evicting a turn that is still active."""
+        if runtime_id in self.runtimes:
+            return []
+        required = max(0, len(self.runtimes) + 1 - MAX_RESIDENT_RUNTIMES)
+        candidates = sorted(
+            (
+                runtime
+                for candidate_id, runtime in self.runtimes.items()
+                if candidate_id not in protected_ids
+            ),
+            key=lambda runtime: runtime.last_activity,
+        )
+        if len(candidates) < required:
+            raise RuntimeError("No idle Hosted Claw runtime is available for eviction")
+        evicted: list[str] = []
+        for runtime in candidates[:required]:
+            self.stop_runtime(runtime.runtime_id)
+            evicted.append(runtime.runtime_id)
+        return evicted
 
     def delete_runtime(self, runtime_id: str, user_id: str, product: str) -> None:
         container_name = f"hclaw-{_opaque(runtime_id)}"
@@ -505,8 +543,42 @@ class Supervisor:
         self.docker = DockerRuntimeManager()
         self.hermes = HermesRuns()
         self.semaphore = asyncio.Semaphore(MAX_TURNS)
+        self.capacity_lock = asyncio.Lock()
+        self.active_runtime_ids: set[str] = set()
         self.worker_id = os.getenv("HOSTED_CLAW_WORKER_ID", f"worker-{_opaque(socket.gethostname())}")
         self.last_retention = 0.0
+        self._write_active_turns()
+
+    def _write_active_turns(self) -> None:
+        CONTROL_ROOT.mkdir(parents=True, exist_ok=True)
+        ACTIVE_TURNS_FILE.write_text(f"{len(self.active_runtime_ids)}\n", encoding="ascii")
+
+    async def prepare_runtime_capacity(self, runtime_id: str) -> None:
+        async with self.capacity_lock:
+            protected_ids = set(self.active_runtime_ids)
+            protected_ids.add(runtime_id)
+            evicted = await asyncio.to_thread(
+                self.docker.evict_for,
+                runtime_id,
+                protected_ids,
+            )
+            self.active_runtime_ids.add(runtime_id)
+            self._write_active_turns()
+        try:
+            for evicted_runtime_id in evicted:
+                await self.litellm.revoke_runtime(evicted_runtime_id)
+                await self.control.request(
+                    "POST",
+                    f"/api/internal/hosted-claw/runtimes/{evicted_runtime_id}/stopped?worker_id={self.worker_id}",
+                )
+        except Exception:
+            await self.release_runtime_capacity(runtime_id)
+            raise
+
+    async def release_runtime_capacity(self, runtime_id: str) -> None:
+        async with self.capacity_lock:
+            self.active_runtime_ids.discard(runtime_id)
+            self._write_active_turns()
 
     async def claim(self) -> Optional[dict[str, Any]]:
         disk = shutil.disk_usage(DATA_ROOT if DATA_ROOT.exists() else DATA_ROOT.parent)
@@ -579,6 +651,7 @@ class Supervisor:
     async def process(self, job: dict[str, Any]) -> None:
         async with self.semaphore:
             turn_started = time.monotonic()
+            capacity_reserved = False
             try:
                 queued_at = datetime.fromisoformat(str(job["queued_at"]).replace("Z", "+00:00"))
                 queue_delay = max(0.0, (datetime.now(timezone.utc) - queued_at).total_seconds())
@@ -591,6 +664,8 @@ class Supervisor:
             completion: dict[str, Any] = {"status": "failed", "error_code": "runtime_failure"}
             cancellation_task: Optional[asyncio.Task] = None
             try:
+                await self.prepare_runtime_capacity(job["runtime_id"])
+                capacity_reserved = True
                 creds = await self.control.request(
                     "POST",
                     "/api/internal/hosted-claw/runtime-credentials",
@@ -803,6 +878,8 @@ class Supervisor:
             finally:
                 if cancellation_task is not None:
                     cancellation_task.cancel()
+                if capacity_reserved:
+                    await self.release_runtime_capacity(job["runtime_id"])
                 await self.control.request("POST", f"/api/internal/hosted-claw/jobs/{job['job_id']}/complete?worker_id={self.worker_id}", json=completion)
                 logger.info(
                     "hosted_turn_finished job_id=%s status=%s duration_seconds=%.3f",
@@ -813,7 +890,7 @@ class Supervisor:
         DATA_ROOT.mkdir(parents=True, exist_ok=True)
         while True:
             try:
-                idle_runtimes = self.docker.stop_idle()
+                idle_runtimes = self.docker.stop_idle(set(self.active_runtime_ids))
                 for runtime_id in idle_runtimes:
                     await self.control.request(
                         "POST",

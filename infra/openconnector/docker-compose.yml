@@ -14,6 +14,9 @@ services:
   open-connector:
     image: ghcr.io/oomol-lab/open-connector:latest
     restart: unless-stopped
+    mem_limit: 384m
+    cpus: 0.25
+    pids_limit: 128
     environment:
       HOST: 0.0.0.0
       PORT: "3000"
@@ -32,6 +35,9 @@ services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.25
+    pids_limit: 64
     ports:
       - "80:80"
       - "443:443"

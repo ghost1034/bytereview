@@ -5,7 +5,7 @@ if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
 fi
 apt-get update
-apt-get install -y --no-install-recommends clamav-daemon python3-venv xfsprogs
+apt-get install -y --no-install-recommends clamav-daemon python3-venv rsync xfsprogs
 # Match the product's 50 MiB attachment ceiling. MaxScanSize stays larger so
 # archive/container overhead does not reject an otherwise permitted document.
 sed -i 's/^MaxFileSize .*/MaxFileSize 50M/' /etc/clamav/clamd.conf
@@ -81,12 +81,15 @@ if ! dpkg-query -W google-cloud-ops-agent >/dev/null 2>&1; then
 fi
 mkdir -p /etc/google-cloud-ops-agent
 metadata_file hosted-claw-ops-agent-config /etc/google-cloud-ops-agent/config.yaml
+mkdir -p /etc/systemd/system/clamav-daemon.service.d
+metadata_file hosted-claw-clamav-memory /etc/systemd/system/clamav-daemon.service.d/lean-memory.conf
 chmod 0644 /opt/hosted-claw/docker-compose.yml /opt/hosted-claw/litellm-config.yaml \
   /etc/systemd/system/hosted-claw-litellm.service /etc/systemd/system/hosted-claw-supervisor.service \
   /etc/systemd/system/container-metadata-firewall.service \
   /opt/openconnector/docker-compose.yml /opt/openconnector/Caddyfile \
   /etc/systemd/system/openconnector.service /etc/systemd/system/openconnector-backup.service \
-  /etc/systemd/system/openconnector-backup.timer /etc/google-cloud-ops-agent/config.yaml
+  /etc/systemd/system/openconnector-backup.timer /etc/google-cloud-ops-agent/config.yaml \
+  /etc/systemd/system/clamav-daemon.service.d/lean-memory.conf
 chmod 0755 /usr/local/sbin/activate-hosted-claw /usr/local/sbin/block-container-metadata \
   /opt/openconnector/backup-openconnector.sh
 systemctl enable --now google-cloud-ops-agent
@@ -98,7 +101,20 @@ if [ -f /opt/hosted-claw/requirements.txt ]; then
   python3 -m venv /opt/hosted-claw/.venv
   /opt/hosted-claw/.venv/bin/pip install -r /opt/hosted-claw/requirements.txt
 fi
+SWAP_FILE=/var/lib/hosted-claw.swap
+if [ ! -f "$SWAP_FILE" ]; then
+  fallocate -l 2G "$SWAP_FILE"
+  chmod 0600 "$SWAP_FILE"
+  mkswap "$SWAP_FILE" >/dev/null
+fi
+if ! grep -qF "$SWAP_FILE none swap sw 0 0" /etc/fstab; then
+  echo "$SWAP_FILE none swap sw 0 0" >>/etc/fstab
+fi
+swapon "$SWAP_FILE" 2>/dev/null || true
+sysctl -w vm.swappiness=10 >/dev/null
+
 systemctl daemon-reload
+systemctl restart clamav-daemon
 systemctl enable container-metadata-firewall hosted-claw-litellm hosted-claw-supervisor \
   openconnector openconnector-backup.timer
 systemctl start container-metadata-firewall

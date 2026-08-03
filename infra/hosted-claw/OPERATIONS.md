@@ -1,9 +1,9 @@
 # Shared Hosted Claw and OpenConnector operations
 
-The pilot is intentionally a size-one, stateful managed instance group in
-`us-central1`, defaulting to `n2-standard-16`, a 250 GB balanced persistent
-disk, daily encrypted snapshots, and 14-day snapshot retention. OpenConnector
-uses a separate 20 GB stateful disk and keeps 30 days of application-consistent
+The pilot is intentionally a size-one, stateful managed instance group named
+`hosted-claw-pilot-lean` in `us-central1`, defaulting to `e2-standard-2`, a 30 GB standard persistent data
+disk, daily encrypted snapshots, and seven-day snapshot retention. OpenConnector
+uses a separate 10 GB standard stateful disk and keeps 30 days of application-consistent
 SQLite backups in GCS. The worker
 service account can consume Pub/Sub, pull private images, invoke the internal
 Cloud Run API, and emit logs/metrics. It has no Cloud SQL, KMS decrypt, Slack
@@ -17,9 +17,9 @@ resolved to immutable digests. Then start `hosted-claw-litellm` followed by
 boundary; it is never mounted into a tenant container.
 
 OpenConnector uses `/etc/openconnector/openconnector.env` (root `0600`) and the
-`openconnector.service` unit. Its public IP terminates at a regional passthrough
-load balancer forwarding TCP 80/443 to the private MIG; do not add an external
-access configuration to the VM. `container-metadata-firewall.service` must be
+`openconnector.service` unit. Its public IP is statefully assigned to the MIG
+in a dedicated VPC. Firewall rules expose only TCP 80/443 and allow TCP 22 only
+from IAP. `container-metadata-firewall.service` must be
 active before any bridge-network container starts. It prevents OpenConnector,
 LiteLLM, and tenant proxy containers from obtaining the worker service identity;
 the host-network supervisor retains metadata access.
@@ -46,12 +46,19 @@ Recovery target for the pilot is 30 minutes RTO and 24 hours RPO. Recreate the
 MIG from the approved shared template, attach both disks restored from their
 newest snapshots, inject both root-owned environment files, and start the
 metadata firewall, LiteLLM, supervisor, OpenConnector, and backup timer. Verify
-load-balancer health, a connector action, tenant-path isolation, metadata
+the public OpenConnector health endpoint, a connector action, tenant-path isolation, metadata
 denial from bridge containers, and a GCS backup before reopening intake.
-Deleted blocks may remain only in snapshots until the 14-day policy expires.
+Deleted blocks may remain only in snapshots until the seven-day policy expires.
 
 For migration operations use
 `scripts/migrate-openconnector-to-hosted-claw.sh`. `prepare` is non-disruptive;
 `cutover` snapshots both disks and retains the old VM stopped; `rollback` moves
 the disk and IP back; and `finalize` deletes the stopped legacy VM after the
 48-hour observation period.
+
+For cost migration use `scripts/migrate-hosted-claw-to-lean.sh`. Deploy a
+supervisor image containing the one-turn capacity controls first, run `prepare`
+to seed the smaller disks, then run `cutover` during a 15-minute maintenance
+window. Do not run `finalize` until its seven-day guard passes. Rollback performs
+a reverse sync before restoring the previous template and network edge. Until
+finalization, `hosted-claw-pilot` remains at size zero as the rollback group.

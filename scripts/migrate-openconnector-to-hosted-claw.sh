@@ -73,7 +73,7 @@ inject_root_file() {
 }
 
 prepare() {
-  TEMPLATE_NAME="$SHARED_TEMPLATE" "$REPO_ROOT/scripts/setup-hosted-claw-pilot.sh"
+  MIG_NAME="$MIG_NAME" TEMPLATE_NAME="$SHARED_TEMPLATE" "$REPO_ROOT/scripts/setup-hosted-claw-pilot.sh"
   echo "Preparation complete. The current MIG remains on its existing VM until cutover."
 }
 
