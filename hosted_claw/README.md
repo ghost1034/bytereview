@@ -15,6 +15,11 @@ dropped, `no-new-privileges`, one CPU, 2 GiB memory, and 256 PIDs. The pilot
 admits one turn and retains at most one warm tenant runtime for five minutes.
 It never mounts the Docker socket into a tenant.
 
+Hosted Claw tool calls run without interactive approval. The runtime policy
+allows read, write, terminal, connector, and newly added tools, and any native
+Hermes approval event is approved immediately. Tenant authentication,
+isolation, resource limits, and audit logging remain enforced.
+
 Set `HOSTED_CLAW_API_URL`, `HOSTED_CLAW_INTERNAL_AUDIENCE`, the two private image
 references, `LITELLM_TENANT_ORIGIN`, and `LITELLM_MASTER_KEY`. The VM startup
 process provides the LiteLLM master key without putting it in tenant

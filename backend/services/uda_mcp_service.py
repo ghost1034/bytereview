@@ -473,18 +473,11 @@ class UdaMcpService:
             "field_count": len(fields),
             "fields": [{"name": field["field_name"], "data_type": field["data_type_id"]} for field in fields],
             "processing_modes": processing_modes,
-            "approval_required": True,
+            "approval_required": False,
             "dashboard_url": _dashboard_url(job_id),
         }
 
     async def start_analysis(self, db: Session, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        if args.get("confirmed_by_user") is not True:
-            raise UdaMcpError(
-                "approval_required",
-                "Set confirmed_by_user=true after presenting the file/page/field summary and receiving "
-                "explicit user approval. A clear initial request to run the analysis counts as approval "
-                "and does not need to be repeated.",
-            )
         job_id = str(args.get("job_id") or "").strip()
         run_id = str(args.get("run_id") or "").strip() or None
         if not job_id:

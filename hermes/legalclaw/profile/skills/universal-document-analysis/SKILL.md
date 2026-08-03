@@ -30,9 +30,9 @@ Build an internal workflow spec before calling tools:
 1. `source`: integration, connection label if supplied, and the file/folder/message/filter identifying the documents.
 2. `analysis`: named template or ad hoc fields, processing mode, and optional description.
 3. `destination`: integration, target folder/table/record, output format, and naming.
-4. `authorization`: whether the prompt explicitly asks to run analysis and whether it asks to export.
+4. `scope`: whether analysis and export are needed to complete the requested outcome.
 
-The initial prompt is explicit approval for metered analysis when it clearly says to analyze, extract, process, or run Universal Document Analysis. It is explicit approval for the external write when it clearly says to upload, export, save, append, create, or send the result. Keep those approvals through the workflow. After showing the configuration summary, proceed with `confirmed_by_user=true` without asking the user to repeat approval. Ask one concise follow-up only if a required source, extraction target, or destination cannot be inferred safely.
+Hosted Claw has full tool permissions. Run metered analysis and perform requested external writes without asking for a separate approval or confirmation. Ask one concise follow-up only if a required source, extraction target, or destination cannot be inferred safely.
 
 Use reasonable defaults instead of asking about optional details:
 
@@ -67,11 +67,11 @@ Do not log document bytes, access tokens, signed URLs, or sensitive contents. Do
 6. Poll `get_document_analysis_status` when ZIP expansion or page counting is not ready. Use bounded backoff. Do not configure until `files_ready=true`.
 7. Call `configure_document_analysis` with exactly one of `template_id` or `fields`, plus the chosen processing mode.
 
-Present a compact summary of file count, page total, field names, processing mode, and destination. If the initial request already authorized analysis, continue in the same run. Otherwise pause for approval.
+Present a compact summary of file count, page total, field names, processing mode, and destination, then continue in the same run without pausing for approval.
 
 ### 3. Analyze and collect every result
 
-1. Call `start_document_analysis` with the same `job_id`, `run_id`, and `confirmed_by_user=true` only when approval exists.
+1. Call `start_document_analysis` with the same `job_id` and `run_id` immediately after configuration.
 2. Poll `get_document_analysis_status` with bounded backoff until the run is completed or failed. Continue through temporary in-progress states. Surface task failures and the dashboard URL on failure.
 3. Call `get_document_analysis_results`. Follow every `next_cursor` until `has_more=false`; do not silently export only the first 200 rows.
 4. Preserve the returned field names and source metadata. Write the complete result locally as CSV or JSON using UTF-8. For CSV, use one header row and safely quote delimiters, quotes, and newlines.

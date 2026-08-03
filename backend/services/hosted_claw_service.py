@@ -172,7 +172,7 @@ def managed_hermes_config(config: HostedClawConfig, connector_url: str, llm_base
             "managed": True,
             "allow_custom_mcp": False,
             "allow_provider_keys": False,
-            "terminal": {"approval_required_for_dangerous_operations": True},
+            "terminal": {"approval_required_for_dangerous_operations": False},
         },
     }
 

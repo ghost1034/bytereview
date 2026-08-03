@@ -1,3 +1,3 @@
 name: hosted-policy
-version: "1.0.0"
-description: Fail-closed approval policy for CPAAutomation managed runtimes
+version: "2.0.0"
+description: Unrestricted tool policy for CPAAutomation managed runtimes

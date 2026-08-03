@@ -60,7 +60,6 @@ from models.db_models import (
     ConnectorConnection,
     ConnectorOAuthConfig,
     ConnectorToken,
-    HostedClawApproval,
 )
 from services.connector_service import (
     ConnectorError,
@@ -68,8 +67,6 @@ from services.connector_service import (
     connector_service,
 )
 from services.connector_token_service import mint_token, validate_token
-from services.hosted_claw_security import approval_argument_hash, sha256_token, utcnow
-from services.hosted_claw_service import action_is_read_only
 from services.rate_limit import rate_limiter
 from services.uda_mcp_service import (
     UdaMcpError,
@@ -846,19 +843,14 @@ UDA_MCP_TOOLS: List[Dict[str, Any]] = [
     },
     {
         "name": "start_document_analysis",
-        "description": (
-            "Start the metered analysis idempotently after explicit user approval. Approval may be "
-            "contained in the user's initial request when it clearly directs the Claw to run the "
-            "analysis; do not require a redundant confirmation. confirmed_by_user must be true."
-        ),
+        "description": "Start the metered analysis idempotently without interactive approval.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "job_id": {"type": "string"},
                 "run_id": {"type": "string"},
-                "confirmed_by_user": {"type": "boolean"},
             },
-            "required": ["job_id", "confirmed_by_user"],
+            "required": ["job_id"],
             "additionalProperties": False,
         },
     },
@@ -908,7 +900,8 @@ MCP_INSTRUCTIONS = (
     "call execute_action. Actions run against the user's own connected accounts; "
     f"missing providers must be connected at {DASHBOARD_INTEGRATIONS_URL}. For "
     "actions that create, update, delete, send, or otherwise affect external "
-    "systems, make sure the user's intent is explicit before executing."
+    "systems, execute the actions needed to fulfill the request without asking "
+    "for a separate approval."
 )
 
 UDA_MCP_INSTRUCTIONS = (
@@ -917,13 +910,12 @@ UDA_MCP_INSTRUCTIONS = (
     "discover options and a template; "
     "create the analysis; prepare uploads; PUT local bytes directly to each signed URL with the "
     "exact returned Content-Type (never put document bytes in MCP JSON); complete uploads; configure; "
-    "present a file/page/field/processing summary; obtain explicit user approval; start with "
-    "confirmed_by_user=true; poll status; then return paginated results. For connected-app documents, "
+    "present a file/page/field/processing summary; start the analysis without pausing for approval; "
+    "poll status; then return paginated results. For connected-app documents, "
     "first use integration tools to download the file into the local workspace. If an integration "
     "cannot provide downloadable bytes, explain that limitation; never pass an arbitrary external URL "
-    "to document analysis. A user's initial request is explicit approval when it clearly asks to run "
-    "the analysis (and, separately, to export its results); keep that approval through the workflow and "
-    "do not ask for a second confirmation after the summary. Ask a follow-up only when a required source, "
+    "to document analysis. Do not ask for confirmation before analysis or export. Ask a follow-up only "
+    "when a required source, "
     "extraction target, or destination cannot be inferred safely."
 )
 
@@ -1092,57 +1084,10 @@ async def _mcp_execute_action(db: Session, user_id: str, args: Dict[str, Any]) -
     return _tool_result({"ok": True, "data": payload.get("data")})
 
 
-def _hosted_action_requires_approval(db: Session, tool: str, args: Dict[str, Any]) -> tuple[bool, str]:
-    """Return whether a hosted MCP tool call is write/metered risk and its action id."""
-    if tool == "execute_action":
-        action_id = str(args.get("actionId") or "").strip()
-        return (not action_is_read_only(db, action_id), action_id)
-    if tool in UDA_STATE_CHANGING_TOOLS:
-        return True, tool
-    return False, tool
-
-
-def _consume_hosted_approval(
-    db: Session,
-    token_row: ConnectorToken,
-    run_id: Optional[str],
-    grant: Optional[str],
-    action_id: str,
-    args: Dict[str, Any],
-) -> bool:
-    """Consume the exact one-time grant before the external action is attempted."""
-    if str(getattr(token_row, "token_kind", "self_hosted")) != "hosted_runtime":
-        return True
-    if not run_id or not grant or not action_id:
-        return False
-    argument_hash = approval_argument_hash(args)
-    row = db.query(HostedClawApproval).filter(
-        HostedClawApproval.connector_token_id == token_row.id,
-        HostedClawApproval.run_id == run_id,
-        HostedClawApproval.action_id == action_id,
-        HostedClawApproval.argument_hash == argument_hash,
-        HostedClawApproval.status == "approved",
-        HostedClawApproval.consumed_at.is_(None),
-        HostedClawApproval.expires_at > utcnow(),
-        HostedClawApproval.grant_token_hash == sha256_token(grant),
-    ).with_for_update().first()
-    if row is None:
-        return False
-    row.consumed_at = utcnow()
-    row.status = "consumed"
-    # Commit while the row lock is held, before the external side effect. This
-    # ensures concurrent/replayed calls cannot both pass the grant check.
-    db.commit()
-    return True
-
-
 async def _handle_mcp_message(
     db: Session,
     user_id: str,
     message: Dict[str, Any],
-    token_row: Optional[ConnectorToken] = None,
-    hosted_run_id: Optional[str] = None,
-    hosted_grant: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """Process one JSON-RPC message; returns the response object (None for notifications)."""
     method = message.get("method")
@@ -1177,31 +1122,17 @@ async def _handle_mcp_message(
                 request_id,
                 _tool_error("invalid_input", "Tool arguments must be a JSON object."),
             )
-        # Hosted policy metadata is injected by the trusted Hermes plugin, not
-        # by the model. Strip it before hashing or dispatching the real tool.
-        # The request-header form remains supported for native Runs approval
-        # implementations.
+        # Strip legacy approval metadata before dispatching the real tool.
+        # Hosted Claw calls no longer require an approval grant.
         args = dict(args)
-        effective_run_id = str(args.pop("_hosted_run_id", "") or hosted_run_id or "") or None
-        effective_grant = str(args.pop("_hosted_approval_grant", "") or hosted_grant or "") or None
+        args.pop("_hosted_run_id", None)
+        args.pop("_hosted_approval_grant", None)
         if not rate_limiter.check("connector_mcp_exec", user_id, limit=60, window_seconds=60):
             return _jsonrpc_result(request_id, _tool_error("rate_limited", "Too many tool calls. Slow down."))
         started = time.monotonic()
         should_audit = tool in UDA_STATE_CHANGING_TOOLS
         success = False
         try:
-            if token_row is not None and str(getattr(token_row, "token_kind", "self_hosted")) == "hosted_runtime":
-                approval_required, hosted_action_id = _hosted_action_requires_approval(db, str(tool), args)
-                if approval_required and not _consume_hosted_approval(
-                    db, token_row, effective_run_id, effective_grant, hosted_action_id, args
-                ):
-                    return _jsonrpc_result(
-                        request_id,
-                        _tool_error(
-                            "approval_required",
-                            "This hosted action requires a current, single-use Slack approval grant.",
-                        ),
-                    )
             if tool == "list_apps":
                 result = await _mcp_list_apps(db, user_id, args)
             elif tool == "search_actions":
@@ -1268,8 +1199,6 @@ async def mcp_endpoint(request: Request, db: Session = Depends(get_db)):
     """Stateless MCP streamable-HTTP endpoint for Claw agents (JSON responses)."""
     token_row = _authenticate_mcp(request, db)
     user_id = str(token_row.user_id)
-    hosted_run_id = (request.headers.get("x-cpaa-hosted-run-id") or "").strip() or None
-    hosted_grant = (request.headers.get("x-cpaa-approval-grant") or "").strip() or None
     try:
         body = await request.json()
     except Exception:
@@ -1279,9 +1208,7 @@ async def mcp_endpoint(request: Request, db: Session = Depends(get_db)):
         responses = []
         for message in body:
             if isinstance(message, dict):
-                response = await _handle_mcp_message(
-                    db, user_id, message, token_row, hosted_run_id, hosted_grant
-                )
+                response = await _handle_mcp_message(db, user_id, message)
                 if response is not None:
                     responses.append(response)
         if not responses:
@@ -1290,9 +1217,7 @@ async def mcp_endpoint(request: Request, db: Session = Depends(get_db)):
 
     if not isinstance(body, dict):
         return JSONResponse(status_code=400, content=_jsonrpc_error(None, -32600, "Invalid request"))
-    response = await _handle_mcp_message(
-        db, user_id, body, token_row, hosted_run_id, hosted_grant
-    )
+    response = await _handle_mcp_message(db, user_id, body)
     if response is None:
         return Response(status_code=202)
     return JSONResponse(content=response)

@@ -15,8 +15,7 @@ RUN uv pip install --python /opt/hermes/.venv/bin/python --no-cache-dir \
       "PyYAML==6.0.2" "rapidfuzz==3.13.0" \
  && chmod 0755 /usr/local/bin/hosted-claw-entrypoint \
  && chown -R 65532:65532 /opt/cpaa
-ENV HERMES_HOME=/opt/data HERMES_DATA_DIR=/opt/data API_SERVER_ENABLED=true API_SERVER_HOST=0.0.0.0 \
-    HOSTED_APPROVAL_URL=http://tenant-proxy:8080/api/hosted-claw/runtime/approval
+ENV HERMES_HOME=/opt/data HERMES_DATA_DIR=/opt/data API_SERVER_ENABLED=true API_SERVER_HOST=0.0.0.0
 USER 65532:65532
 ENTRYPOINT ["/usr/local/bin/hosted-claw-entrypoint"]
 CMD ["gateway"]

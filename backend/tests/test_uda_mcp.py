@@ -46,12 +46,12 @@ class UdaToolContractTests(unittest.TestCase):
             self.assertEqual(tool["inputSchema"]["type"], "object")
             self.assertIn("additionalProperties", tool["inputSchema"])
 
-    def test_one_prompt_authorization_is_part_of_the_mcp_contract(self) -> None:
+    def test_analysis_start_is_non_interactive_in_the_mcp_contract(self) -> None:
         start_tool = next(tool for tool in UDA_MCP_TOOLS if tool["name"] == "start_document_analysis")
-        self.assertIn("initial request", start_tool["description"])
-        self.assertIn("do not require a redundant confirmation", start_tool["description"])
+        self.assertIn("without interactive approval", start_tool["description"])
+        self.assertNotIn("confirmed_by_user", start_tool["inputSchema"]["properties"])
         self.assertIn("one-prompt", UDA_MCP_INSTRUCTIONS)
-        self.assertIn("do not ask for a second confirmation", UDA_MCP_INSTRUCTIONS)
+        self.assertIn("Do not ask for confirmation", UDA_MCP_INSTRUCTIONS)
 
     def test_feature_flag_defaults_on_and_preserves_integration_tools_when_disabled(self) -> None:
         env = {key: value for key, value in os.environ.items() if key != "CLAW_UDA_MCP_ENABLED"}
@@ -109,15 +109,14 @@ class UdaValidationTests(unittest.IsolatedAsyncioTestCase):
                     self.service._validate_file_metadata([item])
                 self.assertEqual(exc.exception.code, "invalid_input")
 
-    async def test_start_requires_literal_true_approval(self) -> None:
-        for value in [None, False, 1, "true"]:
-            with self.subTest(value=value):
-                with self.assertRaises(UdaMcpError) as exc:
-                    await self.service.start_analysis(MagicMock(), "user-a", {
-                        "job_id": "job-a",
-                        "confirmed_by_user": value,
-                    })
-                self.assertEqual(exc.exception.code, "approval_required")
+    async def test_start_does_not_require_interactive_approval(self) -> None:
+        run = SimpleNamespace(id="run-a", config_step="submitted", status="in_progress")
+        with patch.object(self.service, "_owned_run", return_value=run):
+            result = await self.service.start_analysis(
+                MagicMock(), "user-a", {"job_id": "job-a"}
+            )
+
+        self.assertTrue(result["idempotent_replay"])
 
     async def test_cross_user_or_missing_run_is_hidden_as_not_found(self) -> None:
         db = MagicMock()
@@ -132,7 +131,6 @@ class UdaValidationTests(unittest.IsolatedAsyncioTestCase):
         with patch.object(self.service, "_owned_run", return_value=run):
             result = await self.service.start_analysis(MagicMock(), "user-a", {
                 "job_id": "job-a",
-                "confirmed_by_user": True,
             })
         self.assertTrue(result["idempotent_replay"])
         self.service.job_service.submit_manual_job.assert_not_called()
@@ -283,7 +281,7 @@ class UdaDispatcherTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["data"]["processing_modes"], ["individual"])
 
-    async def test_expected_error_uses_machine_readable_error_envelope(self) -> None:
+    async def test_start_dispatches_without_approval_confirmation(self) -> None:
         message = {
             "jsonrpc": "2.0",
             "id": 3,
@@ -293,10 +291,14 @@ class UdaDispatcherTests(unittest.IsolatedAsyncioTestCase):
         with patch.dict(os.environ, {"CLAW_UDA_MCP_ENABLED": "true"}):
             with patch("routes.connector.rate_limiter.check", return_value=True):
                 with patch("routes.connector.audit_uda_mcp_call"):
-                    response = await _handle_mcp_message(MagicMock(), "user-a", message)
+                    with patch(
+                        "routes.connector.uda_mcp_service.start_analysis",
+                        new=AsyncMock(return_value={"status": "in_progress"}),
+                    ):
+                        response = await _handle_mcp_message(MagicMock(), "user-a", message)
         payload = response["result"]["structuredContent"]
-        self.assertFalse(payload["ok"])
-        self.assertEqual(payload["error"]["code"], "approval_required")
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["status"], "in_progress")
 
     async def test_state_change_audit_receives_metadata_not_tool_payload(self) -> None:
         message = {

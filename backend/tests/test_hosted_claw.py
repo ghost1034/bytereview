@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
@@ -30,7 +30,7 @@ from services.hosted_claw_service import (
     publish_job,
     validate_attachment,
 )
-from routes.connector import _consume_hosted_approval
+from routes.connector import _handle_mcp_message
 from routes.hosted_claw import _link_oauth_installer, _valid_slack_file_url, runtime_stopped
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -375,36 +375,37 @@ class HostedApprovalTests(unittest.TestCase):
         db.query.return_value.filter.return_value.first.return_value = SimpleNamespace(enabled=True)
         self.assertTrue(action_is_read_only(db, "github.get_current_user"))
 
-    def test_hosted_grant_is_exact_and_committed_once(self) -> None:
-        token = SimpleNamespace(id="token-id", token_kind="hosted_runtime")
-        self.assertFalse(_consume_hosted_approval(MagicMock(), token, None, None, "x.write", {}))
-
-        db = MagicMock()
-        approval = SimpleNamespace(consumed_at=None, status="approved")
-        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = approval
-        self.assertTrue(
-            _consume_hosted_approval(db, token, "run-a", "hcgrant_secret", "x.write", {"amount": 10})
+    def test_plugin_allows_read_write_terminal_and_unknown_tools(self) -> None:
+        calls = (
+            ("list_files", {}),
+            ("execute_action", {"actionId": "slack.send_message"}),
+            ("terminal", {"command": "rm generated.txt"}),
+            ("new_unclassified_tool", {}),
         )
-        self.assertIsNotNone(approval.consumed_at)
-        self.assertEqual(approval.status, "consumed")
-        db.commit.assert_called_once_with()
+        for tool_name, args in calls:
+            with self.subTest(tool_name=tool_name):
+                self.assertIsNone(_PLUGIN.pre_tool_call(tool_name, args, "run-a"))
 
-    def test_self_hosted_tokens_remain_approval_compatible(self) -> None:
-        token = SimpleNamespace(id="token-id", token_kind="self_hosted")
-        db = MagicMock()
-        self.assertTrue(_consume_hosted_approval(db, token, None, None, "x.write", {"amount": 10}))
-        db.query.assert_not_called()
 
-    def test_plugin_defaults_unknown_tools_to_approval(self) -> None:
-        with patch.object(_PLUGIN, "_approval", return_value={"action": "block"}) as approval:
-            self.assertEqual(_PLUGIN.pre_tool_call("new_unclassified_tool", {}, "run-a"), {"action": "block"})
-            approval.assert_called_once_with("new_unclassified_tool", {}, "run-a")
+class HostedConnectorPermissionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_write_action_executes_without_approval_metadata(self) -> None:
+        action_result = {"content": [{"type": "text", "text": "done"}]}
+        message = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "execute_action",
+                "arguments": {"actionId": "slack.send_message", "input": {"text": "hello"}},
+            },
+        }
+        with patch("routes.connector.rate_limiter.check", return_value=True), patch(
+            "routes.connector._mcp_execute_action", new=AsyncMock(return_value=action_result)
+        ) as execute:
+            response = await _handle_mcp_message(MagicMock(), "user-id", message)
 
-    def test_plugin_keeps_explicit_read_tools_non_interactive(self) -> None:
-        with patch.object(_PLUGIN, "_approval") as approval:
-            self.assertIsNone(_PLUGIN.pre_tool_call("list_files", {}, "run-a"))
-            self.assertIsNone(_PLUGIN.pre_tool_call("skill_view", {"name": "lease-842-assistant"}, "run-a"))
-            approval.assert_not_called()
+        self.assertEqual(response, {"jsonrpc": "2.0", "id": 1, "result": action_result})
+        execute.assert_awaited_once()
 
 
 class HostedManagedConfigTests(unittest.TestCase):
@@ -425,6 +426,9 @@ class HostedManagedConfigTests(unittest.TestCase):
         self.assertEqual(rendered["plugins"]["enabled"], ["hosted-policy"])
         self.assertFalse(rendered["security"]["allow_custom_mcp"])
         self.assertFalse(rendered["security"]["allow_provider_keys"])
+        self.assertFalse(
+            rendered["security"]["terminal"]["approval_required_for_dangerous_operations"]
+        )
 
 
 class HostedArtifactValidationTests(unittest.TestCase):

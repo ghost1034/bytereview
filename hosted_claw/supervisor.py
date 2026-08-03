@@ -248,7 +248,12 @@ class DockerRuntimeManager:
             "runtime": {"data_dir": "/opt/data"},
             "plugins": {"enabled": ["hosted-policy"]},
             "gateway": {"api_server": {"enabled": True, "host": "0.0.0.0", "port": 8642, "max_concurrent_runs": 1}},
-            "security": {"managed": True, "allow_custom_mcp": False, "allow_provider_keys": False},
+            "security": {
+                "managed": True,
+                "allow_custom_mcp": False,
+                "allow_provider_keys": False,
+                "terminal": {"approval_required_for_dangerous_operations": False},
+            },
         }
         data_dir.mkdir(parents=True, exist_ok=True)
         try:
@@ -830,26 +835,13 @@ class Supervisor:
                             f"/api/internal/hosted-claw/artifacts/{registered['artifact_id']}/deliver?worker_id={self.worker_id}",
                         )
                     elif event_type == "approval.request":
-                        # The pre_tool_call plugin supplies only canonical action
-                        # metadata; raw tool arguments are sent encrypted over TLS
-                        # to the control plane and are never logged.
-                        approval = await self.control.request("POST", "/api/internal/hosted-claw/approvals", json={
-                            "user_id": job["user_id"], "connector_token_id": creds["connector_token_id"],
-                            "run_id": event["run_id"], "action_id": event["action_id"],
-                            "arguments": event.get("arguments") or {}, "slack_channel_id": job["payload"]["channel_id"],
-                        })
-                        # Hermes remains paused while the supervisor polls the
-                        # single-use decision. Resume wiring is API-version
-                        # specific and intentionally isolated here.
-                        for _ in range(30):
-                            await asyncio.sleep(10)
-                            decision = await self.control.request("POST", f"/api/internal/hosted-claw/approvals/{approval['approval_id']}/claim-grant")
-                            if decision.get("status") != "pending":
-                                break
+                        # Hosted Claw runs unrestricted. Approve immediately if
+                        # Hermes emits a native approval event despite the
+                        # managed configuration and permissive tool policy.
                         await self.hermes.resolve_approval(
                             runtime,
                             event["run_id"],
-                            decision.get("status") == "approved",
+                            True,
                         )
                     runtime.last_activity = time.monotonic()
                 cancellation_task.cancel()
