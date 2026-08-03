@@ -49,6 +49,7 @@ EGRESS_NETWORK = "hosted-claw-egress"
 DATA_ROOT = Path(os.getenv("HOSTED_CLAW_DATA_ROOT", "/srv/hosted-claw/tenants"))
 CONTROL_ROOT = Path(os.getenv("HOSTED_CLAW_CONTROL_ROOT", "/run/hosted-claw"))
 ACTIVE_TURNS_FILE = CONTROL_ROOT / "active-turns"
+DRAIN_FILE = CONTROL_ROOT / "deploy-drain"
 
 
 def _opaque(value: str) -> str:
@@ -892,6 +893,12 @@ class Supervisor:
                 if await self.process_deletion():
                     continue
                 if await self.process_stop():
+                    continue
+                # The image deployment helper creates this host-visible file
+                # before rotating the supervisor. Keep maintaining existing
+                # turns and runtimes, but do not claim new work while draining.
+                if DRAIN_FILE.exists():
+                    await asyncio.sleep(1)
                     continue
                 job = await self.claim()
                 if job:

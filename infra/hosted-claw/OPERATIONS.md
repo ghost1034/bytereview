@@ -16,6 +16,18 @@ resolved to immutable digests. Then start `hosted-claw-litellm` followed by
 `hosted-claw-supervisor`. The environment file is the operator-injected secret
 boundary; it is never mounted into a tenant container.
 
+Routine image releases are one command from the repository root:
+
+```sh
+./scripts/build-hosted-claw-images.sh
+```
+
+This builds and pushes all four Hosted Claw images, resolves immutable digests,
+drains the worker without accepting new turns, pre-pulls the release, creates a
+root-only rollback copy of `worker.env`, switches image references, restarts the
+supervisor, and runs service and tenant-policy smoke checks. `--build-only` and
+`--deploy-only --image-tag TAG` remain available for recovery.
+
 OpenConnector uses `/etc/openconnector/openconnector.env` (root `0600`) and the
 `openconnector.service` unit. Its public IP is statefully assigned to the MIG
 in a dedicated VPC. Firewall rules expose only TCP 80/443 and allow TCP 22 only

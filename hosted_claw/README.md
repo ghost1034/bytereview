@@ -31,12 +31,19 @@ supervisor creates a private network and a credential-injecting proxy sidecar
 per tenant. Tenant containers receive neither connector nor LiteLLM keys and
 cannot join the shared outbound network.
 
-Build each image with a digest-pinned base, for example:
+Build and deploy all Hosted Claw images with one command:
 
 ```sh
-docker build --build-arg HERMES_BASE_IMAGE='nousresearch/hermes-agent@sha256:…' \
-  -f hosted_claw/images/accountingclaw.Dockerfile -t REGION-docker.pkg.dev/PROJECT/REPO/hosted-accountingclaw:TAG .
+./scripts/build-hosted-claw-images.sh
 ```
+
+The script uses source-controlled, digest-pinned production bases, publishes
+AccountingClaw, LegalClaw, the supervisor, and the proxy, resolves their
+immutable registry digests, discovers the live MIG worker, drains active turns,
+updates its root-owned environment atomically, restarts the supervisor, and
+verifies the release. Use `--build-only` or `--deploy-only --image-tag TAG` for
+recovery workflows. A failed remote deployment automatically restores the
+previous worker environment and supervisor image.
 
 `setup-hosted-claw-pilot.sh` provisions the lean `e2-standard-2` defaults,
 30/30/10 GiB standard disks, least-privilege service account roles, seven-day
