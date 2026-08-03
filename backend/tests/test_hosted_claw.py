@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -31,7 +32,14 @@ from services.hosted_claw_service import (
     validate_attachment,
 )
 from routes.connector import _handle_mcp_message
-from routes.hosted_claw import _link_oauth_installer, _valid_slack_file_url, runtime_stopped
+from routes.hosted_claw import (
+    _link_oauth_installer,
+    _runtime_start_expected,
+    _valid_slack_file_url,
+    mark_job_started,
+    post_job_progress,
+    runtime_stopped,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
@@ -42,6 +50,7 @@ try:
         MAX_TURNS,
         DockerRuntimeManager,
         Runtime,
+        Supervisor,
     )
 finally:
     sys.path.pop(0)
@@ -229,6 +238,136 @@ class HostedRuntimeStopTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(session.runtime_id)
         token_query.filter.return_value.update.assert_called_once()
         db.commit.assert_called_once_with()
+
+
+class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
+    async def test_delayed_status_uses_neutral_copy(self) -> None:
+        supervisor = Supervisor.__new__(Supervisor)
+        supervisor.worker_id = "worker-a"
+        supervisor.control = SimpleNamespace(request=AsyncMock(return_value={"ok": True}))
+        request_started = asyncio.Event()
+
+        with patch("hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 0):
+            await supervisor._post_delayed_turn_status("job-a", request_started)
+
+        self.assertTrue(request_started.is_set())
+        supervisor.control.request.assert_awaited_once_with(
+            "POST",
+            "/api/internal/hosted-claw/jobs/job-a/progress?worker_id=worker-a",
+            json={"kind": "status", "text": "Working on it…"},
+        )
+
+    async def test_fast_turn_cancels_status_before_it_is_posted(self) -> None:
+        supervisor = Supervisor.__new__(Supervisor)
+        supervisor.worker_id = "worker-a"
+        supervisor.control = SimpleNamespace(request=AsyncMock(return_value={"ok": True}))
+        request_started = asyncio.Event()
+
+        with patch("hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 60):
+            task = asyncio.create_task(
+                supervisor._post_delayed_turn_status("job-a", request_started)
+            )
+            await asyncio.sleep(0)
+            await supervisor._settle_turn_status(task, request_started)
+
+        self.assertFalse(request_started.is_set())
+        supervisor.control.request.assert_not_awaited()
+
+    async def test_job_starts_only_after_runtime_is_ready(self) -> None:
+        job = SimpleNamespace(
+            id="job-a",
+            worker_id="worker-a",
+            status="claimed",
+            user_id="user-a",
+            product="accountingclaw",
+        )
+        job_query = MagicMock()
+        job_query.filter.return_value.with_for_update.return_value.first.return_value = job
+        session_query = MagicMock()
+        db = MagicMock()
+        db.query.side_effect = [job_query, session_query]
+
+        await mark_job_started("job-a", "worker-a", db)
+
+        self.assertEqual(job.status, "running")
+        update = session_query.filter.return_value.update
+        update.assert_called_once()
+        self.assertEqual(list(update.call_args.args[0].values()), ["running"])
+        self.assertEqual(update.call_args.kwargs, {"synchronize_session": False})
+        db.commit.assert_called_once_with()
+
+    async def test_final_response_updates_existing_placeholder(self) -> None:
+        job = SimpleNamespace(
+            id="job-a",
+            worker_id="worker-a",
+            status="claimed",
+            slack_link_id="link-a",
+            slack_response_ts=None,
+            slack_response_finalized_at=None,
+            payload_ciphertext=b"encrypted",
+            event_id="event-a",
+            kms_key_version="key-a",
+            user_id="user-a",
+            product="accountingclaw",
+        )
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = job
+        link = SimpleNamespace(installation_id="installation-a")
+        installation = SimpleNamespace(id="installation-a")
+        db.get.side_effect = [link, installation, link, installation]
+        status_request = MagicMock()
+        status_request.json = AsyncMock(
+            return_value={"kind": "status", "text": "Working on it…"}
+        )
+        final_request = MagicMock()
+        final_request.json = AsyncMock(
+            return_value={"kind": "final", "text": "The answer."}
+        )
+
+        with patch(
+            "routes.hosted_claw.KmsEnvelope.decrypt",
+            return_value=b'{"channel_id":"D123","thread_ts":"100.001"}',
+        ), patch(
+            "routes.hosted_claw.slack_api",
+            new=AsyncMock(side_effect=[{"ok": True, "ts": "101.002"}, {"ok": True}]),
+        ) as slack:
+            await post_job_progress("job-a", "worker-a", status_request, db)
+            await post_job_progress("job-a", "worker-a", final_request, db)
+            late_status = await post_job_progress("job-a", "worker-a", status_request, db)
+
+        self.assertEqual(job.slack_response_ts, "101.002")
+        self.assertIsNotNone(job.slack_response_finalized_at)
+        self.assertEqual(late_status.message, "Final response already delivered.")
+        self.assertEqual(slack.await_count, 2)
+        self.assertEqual(slack.await_args_list[0].args[1:], (
+            "chat.postMessage",
+            {"channel": "D123", "thread_ts": "100.001", "text": "Working on it…"},
+        ))
+        self.assertEqual(slack.await_args_list[1].args[1:], (
+            "chat.update",
+            {"channel": "D123", "ts": "101.002", "text": "The answer."},
+        ))
+
+
+class HostedRuntimeStateTests(unittest.TestCase):
+    def test_warm_same_worker_same_revision_does_not_restart(self) -> None:
+        session = SimpleNamespace(
+            runtime_id="runtime-a",
+            status="ready",
+            worker_id="worker-a",
+            applied_config_revision=3,
+        )
+        self.assertFalse(_runtime_start_expected(session, "worker-a", 3))
+
+    def test_stopped_moved_or_reconfigured_runtime_starts(self) -> None:
+        cases = [
+            SimpleNamespace(runtime_id="runtime-a", status="stopped", worker_id="worker-a", applied_config_revision=3),
+            SimpleNamespace(runtime_id="runtime-a", status="ready", worker_id="worker-b", applied_config_revision=3),
+            SimpleNamespace(runtime_id="runtime-a", status="ready", worker_id="worker-a", applied_config_revision=2),
+        ]
+        for session in cases:
+            with self.subTest(session=session):
+                self.assertTrue(_runtime_start_expected(session, "worker-a", 3))
 
 
 class HostedOneTimeTokenTests(unittest.TestCase):

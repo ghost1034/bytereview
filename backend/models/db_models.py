@@ -2312,6 +2312,8 @@ class HostedClawJob(Base):
     lease_expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
     run_id = Column(String(128), nullable=True)
     error_code = Column(String(64), nullable=True)
+    slack_response_ts = Column(String(32), nullable=True)
+    slack_response_finalized_at = Column(TIMESTAMP(timezone=True), nullable=True)
     available_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     completed_at = Column(TIMESTAMP(timezone=True), nullable=True)

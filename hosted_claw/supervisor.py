@@ -43,6 +43,7 @@ def _positive_int_env(name: str, default: int) -> int:
 MAX_TURNS = _positive_int_env("HOSTED_CLAW_MAX_TURNS", 3)
 MAX_RESIDENT_RUNTIMES = _positive_int_env("HOSTED_CLAW_MAX_RESIDENT_RUNTIMES", 3)
 IDLE_SECONDS = _positive_int_env("HOSTED_CLAW_IDLE_SECONDS", 5 * 60)
+PROGRESS_MESSAGE_DELAY_SECONDS = _positive_int_env("HOSTED_CLAW_PROGRESS_DELAY_SECONDS", 3)
 if MAX_TURNS > MAX_RESIDENT_RUNTIMES:
     raise RuntimeError("HOSTED_CLAW_MAX_TURNS cannot exceed HOSTED_CLAW_MAX_RESIDENT_RUNTIMES")
 EGRESS_NETWORK = "hosted-claw-egress"
@@ -654,6 +655,36 @@ class Supervisor:
         )
         return True
 
+    async def _post_delayed_turn_status(
+        self,
+        job_id: str,
+        request_started: asyncio.Event,
+    ) -> None:
+        await asyncio.sleep(PROGRESS_MESSAGE_DELAY_SECONDS)
+        request_started.set()
+        try:
+            await self.control.request(
+                "POST",
+                f"/api/internal/hosted-claw/jobs/{job_id}/progress?worker_id={self.worker_id}",
+                json={"kind": "status", "text": "Working on it…"},
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            # Status delivery is best-effort and must never fail the hosted turn.
+            logger.warning("Could not deliver hosted progress notice job_id=%s", job_id)
+
+    @staticmethod
+    async def _settle_turn_status(
+        task: Optional[asyncio.Task],
+        request_started: asyncio.Event,
+    ) -> None:
+        if task is None:
+            return
+        if not request_started.is_set():
+            task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
     async def process(self, job: dict[str, Any]) -> None:
         async with self.semaphore:
             turn_started = time.monotonic()
@@ -669,6 +700,10 @@ class Supervisor:
             )
             completion: dict[str, Any] = {"status": "failed", "error_code": "runtime_failure"}
             cancellation_task: Optional[asyncio.Task] = None
+            status_request_started = asyncio.Event()
+            status_task: Optional[asyncio.Task] = asyncio.create_task(
+                self._post_delayed_turn_status(job["job_id"], status_request_started)
+            )
             try:
                 await self.prepare_runtime_capacity(job["runtime_id"])
                 capacity_reserved = True
@@ -693,6 +728,10 @@ class Supervisor:
                     "hosted_runtime_ready runtime_id=%s cold_start=%s startup_seconds=%.3f",
                     job.get("runtime_id"), runtime.cold_started,
                     time.monotonic() - cold_start_started,
+                )
+                await self.control.request(
+                    "POST",
+                    f"/api/internal/hosted-claw/jobs/{job['job_id']}/started?worker_id={self.worker_id}",
                 )
                 clean_files: list[str] = []
                 for item in job["payload"].get("files") or []:
@@ -734,7 +773,6 @@ class Supervisor:
                             f"/api/internal/hosted-claw/artifacts/{item['artifact_id']}/scan?worker_id={self.worker_id}",
                             json={"status": scan_status},
                         )
-                await self.control.request("POST", f"/api/internal/hosted-claw/jobs/{job['job_id']}/progress?worker_id={self.worker_id}", json={"text": "Starting your hosted Claw…"})
                 final_text = ""
                 hermes_session_id = job.get("session_id")
                 prompt_tokens = 0
@@ -848,8 +886,20 @@ class Supervisor:
                 cancellation_task.cancel()
                 if not final_text and not cancelled.is_set():
                     raise RuntimeError("Hermes completed without response text")
+                await self._settle_turn_status(status_task, status_request_started)
+                status_task = None
                 if final_text:
-                    await self.control.request("POST", f"/api/internal/hosted-claw/jobs/{job['job_id']}/progress?worker_id={self.worker_id}", json={"text": final_text[:12000]})
+                    await self.control.request(
+                        "POST",
+                        f"/api/internal/hosted-claw/jobs/{job['job_id']}/progress?worker_id={self.worker_id}",
+                        json={"kind": "final", "text": final_text[:12000]},
+                    )
+                elif cancelled.is_set():
+                    await self.control.request(
+                        "POST",
+                        f"/api/internal/hosted-claw/jobs/{job['job_id']}/progress?worker_id={self.worker_id}",
+                        json={"kind": "final", "text": "This hosted turn was cancelled."},
+                    )
                 completion = {
                     "status": "cancelled" if cancelled.is_set() else "completed",
                     "hermes_session_id": hermes_session_id,
@@ -860,15 +910,18 @@ class Supervisor:
                 }
             except Exception:
                 logger.exception("Hosted turn failed job_id=%s", job.get("job_id"))
+                await self._settle_turn_status(status_task, status_request_started)
+                status_task = None
                 try:
                     await self.control.request(
                         "POST",
                         f"/api/internal/hosted-claw/jobs/{job['job_id']}/progress?worker_id={self.worker_id}",
-                        json={"text": "This hosted turn could not be completed. Please try again."},
+                        json={"kind": "final", "text": "This hosted turn could not be completed. Please try again."},
                     )
                 except Exception:
                     logger.warning("Could not deliver hosted failure notice job_id=%s", job.get("job_id"))
             finally:
+                await self._settle_turn_status(status_task, status_request_started)
                 if cancellation_task is not None:
                     cancellation_task.cancel()
                 if capacity_reserved:

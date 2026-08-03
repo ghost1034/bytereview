@@ -115,6 +115,20 @@ def _valid_slack_file_url(value: str) -> bool:
     )
 
 
+def _runtime_start_expected(
+    session: HostedClawProductSession | None,
+    worker_id: str,
+    config_revision: int,
+) -> bool:
+    return bool(
+        session is None
+        or not session.runtime_id
+        or session.status in {"stopped", "error"}
+        or session.worker_id != worker_id
+        or int(session.applied_config_revision or 0) != int(config_revision)
+    )
+
+
 def _require_feature() -> None:
     if not hosted_enabled():
         raise HTTPException(status_code=404, detail="Hosted Claw is not enabled")
@@ -986,6 +1000,7 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
         HostedClawProductSession.user_id == job.user_id,
         HostedClawProductSession.product == job.product,
     ).first()
+    runtime_start_expected = _runtime_start_expected(session, body.worker_id, config.revision)
     if session is None:
         session = HostedClawProductSession(user_id=job.user_id, product=job.product, runtime_id=f"hcr_{uuid.uuid4().hex}")
         db.add(session)
@@ -993,7 +1008,7 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
     elif not session.runtime_id:
         session.runtime_id = f"hcr_{uuid.uuid4().hex}"
     session.worker_id = body.worker_id
-    session.status = "starting"
+    session.status = "starting" if runtime_start_expected else "ready"
     db.query(HostedClawProductSession).filter(
         HostedClawProductSession.user_id == job.user_id,
         HostedClawProductSession.product != job.product,
@@ -1140,19 +1155,43 @@ async def job_state(job_id: str, worker_id: str, db: Session = Depends(get_db)):
     return {"status": job.status}
 
 
-@internal_router.post("/jobs/{job_id}/progress", response_model=HostedCommandResponse)
-async def post_job_progress(job_id: str, worker_id: str, request: Request, db: Session = Depends(get_db)):
-    """Relay ephemeral run progress without storing tenant response content."""
-    body = await request.json()
-    text = str(body.get("text") or "").strip()
-    if not text or len(text) > 12000:
-        raise HTTPException(status_code=400, detail="Progress text must be 1-12000 characters")
+@internal_router.post("/jobs/{job_id}/started", response_model=HostedCommandResponse)
+async def mark_job_started(job_id: str, worker_id: str, db: Session = Depends(get_db)):
+    """Record that the tenant runtime is ready and the Hermes turn is starting."""
     job = db.query(HostedClawJob).filter(
         HostedClawJob.id == job_id,
         HostedClawJob.worker_id == worker_id,
-    ).first()
+    ).with_for_update().first()
     if job is None or job.status not in {"claimed", "running"}:
         raise HTTPException(status_code=404, detail="Active job not found")
+    job.status = "running"
+    db.query(HostedClawProductSession).filter(
+        HostedClawProductSession.user_id == job.user_id,
+        HostedClawProductSession.product == job.product,
+        HostedClawProductSession.worker_id == worker_id,
+    ).update({HostedClawProductSession.status: "running"}, synchronize_session=False)
+    db.commit()
+    return HostedCommandResponse(message="Hosted turn started.")
+
+
+@internal_router.post("/jobs/{job_id}/progress", response_model=HostedCommandResponse)
+async def post_job_progress(job_id: str, worker_id: str, request: Request, db: Session = Depends(get_db)):
+    """Create or update the single Slack response for a hosted turn."""
+    body = await request.json()
+    text = str(body.get("text") or "").strip()
+    kind = str(body.get("kind") or "status").strip().lower()
+    if not text or len(text) > 12000:
+        raise HTTPException(status_code=400, detail="Progress text must be 1-12000 characters")
+    if kind not in {"status", "final"}:
+        raise HTTPException(status_code=400, detail="Progress kind must be status or final")
+    job = db.query(HostedClawJob).filter(
+        HostedClawJob.id == job_id,
+        HostedClawJob.worker_id == worker_id,
+    ).with_for_update().first()
+    if job is None or job.status not in {"claimed", "running"}:
+        raise HTTPException(status_code=404, detail="Active job not found")
+    if kind == "status" and job.slack_response_finalized_at is not None:
+        return HostedCommandResponse(message="Final response already delivered.")
     link = db.get(HostedClawSlackLink, job.slack_link_id)
     installation = db.get(HostedClawSlackInstallation, link.installation_id) if link else None
     if installation is None:
@@ -1160,14 +1199,25 @@ async def post_job_progress(job_id: str, worker_id: str, request: Request, db: S
     # The channel identifier is encrypted with the job, so decrypt it only for
     # this relay and never place the text or channel in logs.
     payload = json.loads(KmsEnvelope().decrypt(job.payload_ciphertext, aad=f"hosted-job:{job.event_id}".encode(), key_version=str(job.kms_key_version)))
-    await slack_api(installation, "chat.postMessage", {"channel": payload["channel_id"], "thread_ts": payload.get("thread_ts"), "text": text})
-    if job.status == "claimed":
-        job.status = "running"
-        db.query(HostedClawProductSession).filter(
-            HostedClawProductSession.user_id == job.user_id,
-            HostedClawProductSession.product == job.product,
-        ).update({HostedClawProductSession.status: "running"}, synchronize_session=False)
-        db.commit()
+    if job.slack_response_ts:
+        await slack_api(
+            installation,
+            "chat.update",
+            {"channel": payload["channel_id"], "ts": job.slack_response_ts, "text": text},
+        )
+    else:
+        response = await slack_api(
+            installation,
+            "chat.postMessage",
+            {"channel": payload["channel_id"], "thread_ts": payload.get("thread_ts"), "text": text},
+        )
+        response_ts = str(response.get("ts") or "").strip()
+        if not response_ts:
+            raise RuntimeError("Slack did not return a message timestamp")
+        job.slack_response_ts = response_ts
+    if kind == "final":
+        job.slack_response_finalized_at = utcnow()
+    db.commit()
     return HostedCommandResponse(message="Progress delivered.")
 
 
@@ -1181,7 +1231,7 @@ async def rotate_runtime_credentials(body: RuntimeCredentialRequest, db: Session
         HostedClawProductSession.product == body.product,
         HostedClawProductSession.runtime_id == body.runtime_id,
         HostedClawProductSession.worker_id == body.worker_id,
-        HostedClawProductSession.status.in_(["starting", "running"]),
+        HostedClawProductSession.status.in_(["starting", "ready", "running"]),
     ).first()
     if session is None:
         raise HTTPException(status_code=404, detail="Assigned hosted runtime not found")
