@@ -36,6 +36,7 @@ import { getFloatingToolbarPosition } from './floatingToolbar'
 import { snapRect, type SnapGuide } from './snapping'
 import { configuredTextFontSize, textFontFamily, TEXT_FONT_OPTIONS } from './textAppearance'
 import { apiClient, type EsignAiFieldPlacementAction, type EsignAiFieldPlacementRun } from '@/lib/api'
+import { pollAiFieldPlacementRun } from './aiFieldPlacementPolling'
 
 export type { EditorFieldType } from './anchorPlacement'
 
@@ -461,17 +462,20 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
 
   React.useEffect(() => {
     if (!aiFieldPlacement || !aiRun || !['queued', 'processing'].includes(aiRun.status)) return
-    const timer = window.setTimeout(async () => {
-      try {
-        const latest = await apiClient.getEsignAiFieldPlacementRun(aiRun.id)
+    const controller = new AbortController()
+    void pollAiFieldPlacementRun({
+      runId: aiRun.id,
+      signal: controller.signal,
+      fetchRun: (runId) => apiClient.getEsignAiFieldPlacementRun(runId),
+      onRun: (latest) => {
         setAiRun(latest)
         if (latest.status === 'completed') {
           setAcceptedAiIds(new Set(latest.proposals.map((proposal) => proposal.id)))
           aiFieldPlacement.onPendingChange?.(true)
         } else if (latest.status === 'failed') aiFieldPlacement.onPendingChange?.(false)
-      } catch { /* the next editor visit restores the durable run */ }
-    }, 2000)
-    return () => window.clearTimeout(timer)
+      },
+    })
+    return () => controller.abort()
     // Poll by durable run identity/status; callback object identity is irrelevant.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aiRun?.id, aiRun?.status, aiFieldPlacement?.targetId])
