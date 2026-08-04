@@ -25,8 +25,8 @@ from services.hosted_claw_security import KmsEnvelope, new_secret, sha256_token,
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".csv", ".txt", ".png", ".jpg", ".jpeg"}
-REJECTED_EXTENSIONS = {".docm", ".xlsm", ".xlam", ".zip", ".rar", ".7z", ".tar", ".gz", ".exe", ".dll", ".sh", ".bat", ".cmd"}
+ALLOWED_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".csv", ".txt", ".png", ".jpg", ".jpeg", ".zip"}
+REJECTED_EXTENSIONS = {".docm", ".xlsm", ".xlam", ".rar", ".7z", ".tar", ".gz", ".exe", ".dll", ".sh", ".bat", ".cmd"}
 MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024
 MAX_ATTACHMENTS = 10
 
@@ -130,11 +130,18 @@ def validate_attachment(filename: str, content_type: str, size_bytes: int) -> No
     if size_bytes < 1 or size_bytes > MAX_ATTACHMENT_BYTES:
         raise HTTPException(status_code=400, detail=f"Attachment exceeds the 50 MB limit: {safe_name}")
     guessed, _ = mimetypes.guess_type(safe_name)
-    if content_type in {"application/x-msdownload", "application/zip", "application/x-rar-compressed"}:
+    if content_type in {"application/x-msdownload", "application/x-rar-compressed"}:
         raise HTTPException(status_code=400, detail=f"Unsafe attachment type: {safe_name}")
+    if suffix == ".zip" and content_type not in {
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/octet-stream",
+    }:
+        raise HTTPException(status_code=400, detail=f"Attachment type does not match filename: {safe_name}")
     if guessed and content_type and content_type != "application/octet-stream":
         # Be deliberately permissive for CSV/TXT browser variations, strict for binaries.
-        if suffix not in {".csv", ".txt"} and guessed != content_type:
+        zip_alias = suffix == ".zip" and content_type == "application/x-zip-compressed"
+        if suffix not in {".csv", ".txt"} and guessed != content_type and not zip_alias:
             raise HTTPException(status_code=400, detail=f"Attachment type does not match filename: {safe_name}")
 
 

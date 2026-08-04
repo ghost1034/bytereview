@@ -11,6 +11,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import mimetypes
 import os
 import shutil
 import socket
@@ -61,6 +62,39 @@ DATA_ROOT = Path(os.getenv("HOSTED_CLAW_DATA_ROOT", "/srv/hosted-claw/tenants"))
 CONTROL_ROOT = Path(os.getenv("HOSTED_CLAW_CONTROL_ROOT", "/run/hosted-claw"))
 ACTIVE_TURNS_FILE = CONTROL_ROOT / "active-turns"
 DRAIN_FILE = CONTROL_ROOT / "deploy-drain"
+
+
+def _workspace_file_snapshot(workspace: Path) -> dict[Path, tuple[int, int, int]]:
+    """Record safe top-level output files without reading tenant contents."""
+    snapshot: dict[Path, tuple[int, int, int]] = {}
+    if not workspace.exists():
+        return snapshot
+    for path in workspace.iterdir():
+        if path.name.startswith(".") or path.is_symlink() or not path.is_file():
+            continue
+        try:
+            safe_destination(workspace, path.name)
+            metadata = path.stat()
+        except (OSError, UnsafeArtifact):
+            continue
+        snapshot[path.resolve()] = (
+            int(metadata.st_ino),
+            int(metadata.st_size),
+            int(metadata.st_mtime_ns),
+        )
+    return snapshot
+
+
+def _changed_workspace_files(
+    workspace: Path,
+    before: dict[Path, tuple[int, int, int]],
+) -> list[Path]:
+    """Return safe files created or modified during a hosted turn."""
+    after = _workspace_file_snapshot(workspace)
+    return sorted(
+        (path for path, metadata in after.items() if before.get(path) != metadata),
+        key=lambda path: path.name,
+    )
 
 
 class HermesEventInactivityTimeout(RuntimeError):
@@ -284,6 +318,10 @@ class DockerRuntimeManager:
             os.chown(data_dir, 65532, 65532)
         except PermissionError:
             logger.warning("Could not set tenant directory ownership path=%s", data_dir)
+        workspace = data_dir / "workspace"
+        workspace.mkdir(parents=True, exist_ok=True)
+        os.chown(workspace, 65532, 65532)
+        workspace.chmod(0o700)
         config_path = data_dir / "config.yaml"
         config_path.write_text(yaml.safe_dump(profile, sort_keys=True), encoding="utf-8")
         os.chown(config_path, 65532, 65532)
@@ -805,6 +843,69 @@ class Supervisor:
         except TimeoutError as exc:
             raise HostedTurnTimeout("maximum duration exceeded") from exc
 
+    async def _deliver_generated_artifact(
+        self,
+        job: dict[str, Any],
+        runtime: Runtime,
+        artifact_path: Path,
+        content_type: Optional[str] = None,
+    ) -> Path:
+        """Scan, stage, and deliver one tenant-generated workspace file."""
+        workspace = (runtime.data_dir / "workspace").resolve()
+        if artifact_path.is_symlink():
+            raise UnsafeArtifact("Generated artifact symlinks are not allowed")
+        resolved_path = artifact_path.resolve()
+        if resolved_path.parent != workspace:
+            raise UnsafeArtifact("Generated artifact escaped the tenant workspace")
+        promoted = await asyncio.to_thread(
+            promote_clean_file,
+            resolved_path,
+            workspace,
+            resolved_path.name,
+        )
+        resolved_path = promoted.resolve()
+        size_bytes = resolved_path.stat().st_size
+        detected_type = content_type or mimetypes.guess_type(resolved_path.name)[0]
+        detected_type = detected_type or "application/octet-stream"
+        registered = await self.control.request(
+            "POST",
+            f"/api/internal/hosted-claw/artifacts?worker_id={self.worker_id}",
+            json={
+                "user_id": job["user_id"],
+                "job_id": job["job_id"],
+                "direction": "outbound",
+                "filename": resolved_path.name,
+                "content_type": detected_type,
+                "size_bytes": size_bytes,
+            },
+        )
+
+        async def file_chunks() -> AsyncIterator[bytes]:
+            with resolved_path.open("rb") as handle:
+                while True:
+                    chunk = await asyncio.to_thread(handle.read, 1024 * 1024)
+                    if not chunk:
+                        break
+                    yield chunk
+
+        async with httpx.AsyncClient(timeout=120) as client:
+            upload = await client.put(
+                registered["upload_url"],
+                headers={"Content-Type": detected_type},
+                content=file_chunks(),
+            )
+            upload.raise_for_status()
+        await self.control.request(
+            "POST",
+            f"/api/internal/hosted-claw/artifacts/{registered['artifact_id']}/scan?worker_id={self.worker_id}",
+            json={"status": "clean"},
+        )
+        await self.control.request(
+            "POST",
+            f"/api/internal/hosted-claw/artifacts/{registered['artifact_id']}/deliver?worker_id={self.worker_id}",
+        )
+        return resolved_path
+
     async def process(self, job: dict[str, Any]) -> None:
         async with self.semaphore:
             turn_started = time.monotonic()
@@ -883,7 +984,8 @@ class Supervisor:
                             runtime.data_dir / "workspace" / ".artifacts" / job["job_id"],
                             item["name"],
                         )
-                        clean_files.append(str(promoted))
+                        relative_path = promoted.relative_to(runtime.data_dir)
+                        clean_files.append(str(Path("/opt/data") / relative_path))
                         scan_status = "clean"
                     except UnsafeArtifact:
                         scan_status = "infected"
@@ -894,6 +996,9 @@ class Supervisor:
                             json={"status": scan_status},
                         )
                 final_text = ""
+                workspace = (runtime.data_dir / "workspace").resolve()
+                workspace_before = _workspace_file_snapshot(workspace)
+                delivered_artifacts: set[Path] = set()
                 hermes_session_id = str(job["session_id"])
                 prompt_tokens = 0
                 completion_tokens = 0
@@ -976,43 +1081,34 @@ class Supervisor:
                     elif event_type == "error":
                         raise RuntimeError("Hermes native session turn failed")
                     elif event_type == "artifact.created":
-                        workspace = (runtime.data_dir / "workspace").resolve()
                         raw_artifact_path = Path(str(event.get("path") or ""))
-                        if raw_artifact_path.is_symlink():
-                            raise UnsafeArtifact("Generated artifact symlinks are not allowed")
-                        artifact_path = raw_artifact_path.resolve()
-                        if workspace not in artifact_path.parents:
-                            raise UnsafeArtifact("Generated artifact escaped the tenant workspace")
-                        await asyncio.to_thread(promote_clean_file, artifact_path, workspace, artifact_path.name)
-                        size_bytes = artifact_path.stat().st_size
-                        registered = await self.control.request(
-                            "POST",
-                            f"/api/internal/hosted-claw/artifacts?worker_id={self.worker_id}",
-                            json={
-                                "user_id": job["user_id"], "job_id": job["job_id"],
-                                "direction": "outbound", "filename": artifact_path.name,
-                                "content_type": str(event.get("content_type") or "application/octet-stream"),
-                                "size_bytes": size_bytes,
-                            },
-                        )
-                        async with httpx.AsyncClient(timeout=120) as client:
-                            with artifact_path.open("rb") as handle:
-                                upload = await client.put(
-                                    registered["upload_url"],
-                                    headers={"Content-Type": str(event.get("content_type") or "application/octet-stream")},
-                                    content=handle,
-                                )
-                                upload.raise_for_status()
-                        await self.control.request(
-                            "POST",
-                            f"/api/internal/hosted-claw/artifacts/{registered['artifact_id']}/scan?worker_id={self.worker_id}",
-                            json={"status": "clean"},
-                        )
-                        await self.control.request(
-                            "POST",
-                            f"/api/internal/hosted-claw/artifacts/{registered['artifact_id']}/deliver?worker_id={self.worker_id}",
+                        try:
+                            relative_path = raw_artifact_path.relative_to("/opt/data/workspace")
+                        except ValueError:
+                            artifact_path = raw_artifact_path
+                        else:
+                            artifact_path = workspace / relative_path
+                        delivered_artifacts.add(
+                            await self._deliver_generated_artifact(
+                                job,
+                                runtime,
+                                artifact_path,
+                                str(event.get("content_type") or "") or None,
+                            )
                         )
                     runtime.last_activity = time.monotonic()
+                changed_files = _changed_workspace_files(workspace, workspace_before)
+                if len(changed_files) > 10:
+                    raise UnsafeArtifact("A hosted turn generated more than 10 output files")
+                for artifact_path in changed_files:
+                    if artifact_path.resolve() not in delivered_artifacts:
+                        delivered_artifacts.add(
+                            await self._deliver_generated_artifact(
+                                job,
+                                runtime,
+                                artifact_path,
+                            )
+                        )
                 cancellation_task.cancel()
                 if not final_text and not cancelled.is_set():
                     raise RuntimeError("Hermes completed without response text")

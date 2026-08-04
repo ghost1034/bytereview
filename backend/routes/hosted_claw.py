@@ -115,6 +115,22 @@ def _valid_slack_file_url(value: str) -> bool:
     )
 
 
+def _supported_slack_message_event(event: dict[str, Any]) -> bool:
+    """Return whether a Slack event represents a user-authored DM we can run.
+
+    Slack labels messages containing newly shared attachments as ``file_share``.
+    Treat that subtype as an ordinary message so attachment workflows reach the
+    quarantine pipeline, while continuing to ignore edits, deletes, bot output,
+    and every other message subtype.
+    """
+    return bool(
+        event.get("type") == "message"
+        and event.get("channel_type") == "im"
+        and not event.get("bot_id")
+        and event.get("subtype") in {None, "file_share"}
+    )
+
+
 def _runtime_start_expected(
     session: HostedClawProductSession | None,
     worker_id: str,
@@ -730,7 +746,7 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks, db: 
                 installation.revoked_at = utcnow()
                 db.commit()
         return {"ok": True}
-    if event_type != "message" or event.get("channel_type") != "im" or event.get("bot_id") or event.get("subtype"):
+    if not _supported_slack_message_event(event):
         return {"ok": True}
     slack_user = event.get("user")
     enterprise, team, slack_user = _identity(enterprise, team, slack_user)

@@ -307,7 +307,14 @@ class UdaMcpService:
             raise UdaMcpError("internal_error", "The initial document analysis run was not created.")
         return {"job_id": job_id, "run_id": str(run.id), "dashboard_url": _dashboard_url(job_id)}
 
-    async def prepare_uploads(self, db: Session, user_id: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def prepare_uploads(
+        self,
+        db: Session,
+        user_id: str,
+        args: Dict[str, Any],
+        *,
+        upload_relay_base_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
         job_id = str(args.get("job_id") or "").strip()
         run_id = str(args.get("run_id") or "").strip() or None
         if not job_id:
@@ -330,7 +337,11 @@ class UdaMcpService:
                 {
                     "source_file_id": item.id,
                     "original_path": item.original_path,
-                    "upload_url": item.upload_url,
+                    "upload_url": (
+                        f"{upload_relay_base_url.rstrip('/')}/{item.id}"
+                        if upload_relay_base_url
+                        else item.upload_url
+                    ),
                     "method": "PUT",
                     "required_headers": {"Content-Type": by_path[item.original_path].type},
                 }

@@ -21,6 +21,7 @@ never forwarded.
 import json
 import logging
 import os
+import tempfile
 import time
 import uuid as uuid_module
 from datetime import datetime, timezone
@@ -31,6 +32,7 @@ from fastapi.responses import JSONResponse, Response
 from sqlalchemy.orm import Session
 
 from core.database import get_db
+from core.constants import MAX_DIRECT_UPLOAD_BYTES
 from dependencies.auth import get_current_user_id
 from models.connector import (
     ActionInfo,
@@ -60,6 +62,9 @@ from models.db_models import (
     ConnectorConnection,
     ConnectorOAuthConfig,
     ConnectorToken,
+    ExtractionJob,
+    JobRun,
+    SourceFile,
 )
 from services.connector_service import (
     ConnectorError,
@@ -1088,6 +1093,8 @@ async def _handle_mcp_message(
     db: Session,
     user_id: str,
     message: Dict[str, Any],
+    *,
+    hosted_runtime: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """Process one JSON-RPC message; returns the response object (None for notifications)."""
     method = message.get("method")
@@ -1153,7 +1160,16 @@ async def _handle_mcp_message(
                 elif tool == "create_document_analysis":
                     data = await uda_mcp_service.create_analysis(db, user_id, args)
                 elif tool == "prepare_document_uploads":
-                    data = await uda_mcp_service.prepare_uploads(db, user_id, args)
+                    data = await uda_mcp_service.prepare_uploads(
+                        db,
+                        user_id,
+                        args,
+                        upload_relay_base_url=(
+                            "http://tenant-proxy:8080/api/connector/mcp/uploads"
+                            if hosted_runtime
+                            else None
+                        ),
+                    )
                 elif tool == "complete_document_uploads":
                     data = await uda_mcp_service.complete_uploads(db, user_id, args)
                 elif tool == "configure_document_analysis":
@@ -1199,6 +1215,7 @@ async def mcp_endpoint(request: Request, db: Session = Depends(get_db)):
     """Stateless MCP streamable-HTTP endpoint for Claw agents (JSON responses)."""
     token_row = _authenticate_mcp(request, db)
     user_id = str(token_row.user_id)
+    hosted_runtime = str(token_row.token_kind or "") == "hosted_runtime"
     try:
         body = await request.json()
     except Exception:
@@ -1208,7 +1225,9 @@ async def mcp_endpoint(request: Request, db: Session = Depends(get_db)):
         responses = []
         for message in body:
             if isinstance(message, dict):
-                response = await _handle_mcp_message(db, user_id, message)
+                response = await _handle_mcp_message(
+                    db, user_id, message, hosted_runtime=hosted_runtime
+                )
                 if response is not None:
                     responses.append(response)
         if not responses:
@@ -1217,10 +1236,68 @@ async def mcp_endpoint(request: Request, db: Session = Depends(get_db)):
 
     if not isinstance(body, dict):
         return JSONResponse(status_code=400, content=_jsonrpc_error(None, -32600, "Invalid request"))
-    response = await _handle_mcp_message(db, user_id, body)
+    response = await _handle_mcp_message(
+        db, user_id, body, hosted_runtime=hosted_runtime
+    )
     if response is None:
         return Response(status_code=202)
     return JSONResponse(content=response)
+
+
+@router.put("/mcp/uploads/{file_id}", status_code=204)
+async def hosted_mcp_upload(file_id: str, request: Request, db: Session = Depends(get_db)):
+    """Relay a hosted runtime upload without granting the tenant public egress."""
+    token_row = _authenticate_mcp(request, db)
+    if str(token_row.token_kind or "") != "hosted_runtime":
+        raise HTTPException(status_code=403, detail="Hosted runtime token required.")
+    try:
+        parsed_file_id = uuid_module.UUID(file_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Pending upload not found.")
+    source_file = (
+        db.query(SourceFile)
+        .join(JobRun, SourceFile.job_run_id == JobRun.id)
+        .join(ExtractionJob, JobRun.job_id == ExtractionJob.id)
+        .filter(
+            SourceFile.id == parsed_file_id,
+            ExtractionJob.user_id == token_row.user_id,
+            SourceFile.status == "uploading",
+        )
+        .first()
+    )
+    if source_file is None:
+        raise HTTPException(status_code=404, detail="Pending upload not found.")
+    expected_size = int(source_file.file_size_bytes or 0)
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) != expected_size:
+                raise HTTPException(status_code=409, detail="Upload size does not match prepared metadata.")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid Content-Length header.")
+    storage = uda_mcp_service.job_service.storage_service
+    if not getattr(storage, "is_available", lambda: False)():
+        raise HTTPException(status_code=503, detail="Storage is unavailable.")
+    tmp_path = ""
+    try:
+        with tempfile.NamedTemporaryFile(prefix="hosted-mcp-upload-", delete=False) as handle:
+            tmp_path = handle.name
+            total = 0
+            async for chunk in request.stream():
+                total += len(chunk)
+                if total > expected_size or total > MAX_DIRECT_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="Upload exceeds prepared size.")
+                handle.write(chunk)
+        if total != expected_size:
+            raise HTTPException(status_code=409, detail="Upload size does not match prepared metadata.")
+        await storage.upload_file(tmp_path, str(source_file.gcs_object_name))
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+    return Response(status_code=204)
 
 
 @router.get("/mcp")

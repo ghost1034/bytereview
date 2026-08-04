@@ -6,7 +6,9 @@ import hmac
 import json
 import os
 import sys
+import tempfile
 import unittest
+import zipfile
 from datetime import datetime, timedelta, timezone
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
@@ -38,6 +40,7 @@ from routes.hosted_claw import (
     _ensure_hermes_session_id,
     _link_oauth_installer,
     _runtime_start_expected,
+    _supported_slack_message_event,
     _valid_slack_file_url,
     mark_job_started,
     post_job_progress,
@@ -59,6 +62,8 @@ try:
         HostedTurnTimeout,
         Runtime,
         Supervisor,
+        _changed_workspace_files,
+        _workspace_file_snapshot,
     )
 finally:
     sys.path.pop(0)
@@ -90,6 +95,35 @@ class HostedSlackSignatureTests(unittest.TestCase):
         self.assertTrue(verify_slack_signature(body, timestamp, signature, "secret", now=1700000300))
         self.assertFalse(verify_slack_signature(body, timestamp, signature, "secret", now=1700000301))
         self.assertFalse(verify_slack_signature(body + b"x", timestamp, signature, "secret", now=1700000000))
+
+
+class HostedSlackMessageEventTests(unittest.TestCase):
+    def test_accepts_plain_and_file_share_direct_messages(self) -> None:
+        base = {"type": "message", "channel_type": "im", "user": "U123"}
+
+        self.assertTrue(_supported_slack_message_event(base))
+        self.assertTrue(
+            _supported_slack_message_event(
+                {
+                    **base,
+                    "subtype": "file_share",
+                    "files": [{"id": "F123", "name": "invoices.zip"}],
+                }
+            )
+        )
+
+    def test_rejects_non_dm_bot_and_mutating_message_subtypes(self) -> None:
+        base = {"type": "message", "channel_type": "im", "user": "U123"}
+        cases = [
+            {**base, "channel_type": "channel"},
+            {**base, "bot_id": "B123"},
+            {**base, "subtype": "message_changed"},
+            {**base, "subtype": "message_deleted"},
+        ]
+
+        for event in cases:
+            with self.subTest(event=event):
+                self.assertFalse(_supported_slack_message_event(event))
 
 
 class HostedArtifactScannerTests(unittest.TestCase):
@@ -128,6 +162,42 @@ class HostedArtifactScannerTests(unittest.TestCase):
 
 
 class HostedRuntimeReadinessTests(unittest.TestCase):
+    def test_detects_safe_workspace_outputs_without_hidden_or_unsupported_files(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            (workspace / "existing.csv").write_text("old", encoding="utf-8")
+            before = _workspace_file_snapshot(workspace)
+            (workspace / "existing.csv").write_text("updated", encoding="utf-8")
+            (workspace / "result.csv").write_text("answer", encoding="utf-8")
+            (workspace / ".private.txt").write_text("secret", encoding="utf-8")
+            (workspace / "script.py").write_text("print('no')", encoding="utf-8")
+
+            changed = _changed_workspace_files(workspace, before)
+
+        self.assertEqual(
+            [path.name for path in changed],
+            ["existing.csv", "result.csv"],
+        )
+
+    def test_managed_workspace_is_writable_by_tenant_uid(self) -> None:
+        manager = DockerRuntimeManager()
+        config = {
+            "active_product": "accountingclaw",
+            "model_alias": "claw-default",
+            "timezone": "UTC",
+            "memory_enabled": True,
+        }
+        with tempfile.TemporaryDirectory() as directory, patch(
+            "hosted_claw.supervisor.os.chown"
+        ) as chown:
+            data_dir = Path(directory) / "tenant"
+            manager._write_config(data_dir, config, "http://connector", "http://model")
+
+        self.assertIn(
+            (data_dir / "workspace", 65532, 65532),
+            [call.args for call in chown.call_args_list],
+        )
+
     def test_docker_failure_does_not_expose_command_arguments(self) -> None:
         manager = DockerRuntimeManager()
         with patch(
@@ -945,11 +1015,13 @@ class HostedArtifactValidationTests(unittest.TestCase):
 
     def test_supported_file_and_limits(self) -> None:
         validate_attachment("report.pdf", "application/pdf", 50 * 1024 * 1024)
+        validate_attachment("invoices.zip", "application/zip", 1024)
+        validate_attachment("invoices.zip", "application/x-zip-compressed", 1024)
 
     def test_macro_archive_executable_traversal_and_oversize_rejected(self) -> None:
         cases = [
             ("macro.xlsm", "application/vnd.ms-excel.sheet.macroEnabled.12", 10),
-            ("files.zip", "application/zip", 10),
+            ("files.zip", "application/pdf", 10),
             ("run.exe", "application/x-msdownload", 10),
             ("../report.pdf", "application/pdf", 10),
             ("report.pdf", "application/pdf", 50 * 1024 * 1024 + 1),
@@ -958,6 +1030,19 @@ class HostedArtifactValidationTests(unittest.TestCase):
             with self.subTest(filename=filename):
                 with self.assertRaises(HTTPException):
                     validate_attachment(filename, content_type, size)
+
+    def test_zip_validation_accepts_documents_and_rejects_traversal(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            safe = Path(directory) / "safe.zip"
+            with zipfile.ZipFile(safe, "w") as archive:
+                archive.writestr("invoices/one.pdf", b"%PDF-1.4\n")
+            _ARTIFACTS.validate_zip_archive(safe)
+
+            unsafe = Path(directory) / "unsafe.zip"
+            with zipfile.ZipFile(unsafe, "w") as archive:
+                archive.writestr("../escape.pdf", b"%PDF-1.4\n")
+            with self.assertRaises(_ARTIFACTS.UnsafeArtifact):
+                _ARTIFACTS.validate_zip_archive(unsafe)
 
 
 if __name__ == "__main__":
