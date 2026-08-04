@@ -33,6 +33,14 @@ event inactivity deadline. Override them with
 the hard deadline. A timeout stops Hermes, records `turn_timeout`, and replaces
 the Slack progress placeholder with a retryable final message.
 
+Conversation continuity uses Hermes's native session resource API. The control
+plane assigns one active transcript per CPAAutomation user and Claw product;
+the supervisor creates or resumes that transcript through `/api/sessions` and
+submits turns through `/api/sessions/{id}/chat/stream`. A runtime that does not
+advertise the required session endpoints fails closed instead of falling back
+to a stateless turn. New-session commands rotate the transcript while retaining
+the product's separately scoped long-term memory.
+
 `HOSTED_CLAW_PROXY_IMAGE` must also be a digest-pinned Caddy image. The
 supervisor creates a private network and a credential-injecting proxy sidecar
 per tenant. Tenant containers receive neither connector nor LiteLLM keys and

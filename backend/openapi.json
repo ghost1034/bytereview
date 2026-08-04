@@ -41657,14 +41657,9 @@
             "$ref": "#/components/schemas/HostedConfigResponse"
           },
           "session_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
             "title": "Session Id"
           },
           "runtime_id": {
@@ -41695,6 +41690,7 @@
           "user_id",
           "product",
           "config",
+          "session_id",
           "runtime_id",
           "monthly_budget_usd",
           "remaining_budget_usd",

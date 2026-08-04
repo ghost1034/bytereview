@@ -13,6 +13,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
+
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
 from fastapi import HTTPException
@@ -33,6 +35,7 @@ from services.hosted_claw_service import (
 )
 from routes.connector import _handle_mcp_message
 from routes.hosted_claw import (
+    _ensure_hermes_session_id,
     _link_oauth_installer,
     _runtime_start_expected,
     _valid_slack_file_url,
@@ -397,7 +400,7 @@ class HostedTurnTimeoutTests(unittest.IsolatedAsyncioTestCase):
         )
 
         async def stalled_run(*_args, **_kwargs):
-            yield {"type": "run.created", "run_id": "run-a"}
+            yield {"type": "run.started", "run_id": "run-a"}
             await asyncio.Event().wait()
 
         supervisor = Supervisor.__new__(Supervisor)
@@ -417,7 +420,10 @@ class HostedTurnTimeoutTests(unittest.IsolatedAsyncioTestCase):
         supervisor.litellm = SimpleNamespace(
             rotate_tenant_key=AsyncMock(return_value="llm-key")
         )
-        supervisor.docker = SimpleNamespace(ensure=MagicMock(return_value=runtime))
+        supervisor.docker = SimpleNamespace(
+            ensure=MagicMock(return_value=runtime),
+            stop_runtime=MagicMock(),
+        )
         supervisor.hermes = SimpleNamespace(
             run=stalled_run,
             stop=AsyncMock(return_value=None),
@@ -428,7 +434,7 @@ class HostedTurnTimeoutTests(unittest.IsolatedAsyncioTestCase):
             "runtime_id": "runtime-a",
             "user_id": "user-a",
             "product": "accountingclaw",
-            "session_id": None,
+            "session_id": "hcs-session-a",
             "payload": {"text": "List Linear issues", "files": []},
             "config": {
                 "model_alias": "claw-default",
@@ -447,6 +453,7 @@ class HostedTurnTimeoutTests(unittest.IsolatedAsyncioTestCase):
             await supervisor.process(job)
 
         supervisor.hermes.stop.assert_awaited_once_with(runtime, "run-a")
+        supervisor.docker.stop_runtime.assert_called_once_with("runtime-a")
         supervisor.release_runtime_capacity.assert_awaited_once_with("runtime-a")
         timeout_progress = unittest.mock.call(
             "POST",
@@ -473,7 +480,237 @@ class HostedTurnTimeoutTests(unittest.IsolatedAsyncioTestCase):
         )
 
 
+class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
+    @staticmethod
+    def runtime() -> Runtime:
+        return Runtime(
+            runtime_id="runtime-native",
+            user_id="user-native",
+            product="accountingclaw",
+            container_name="tenant-native",
+            proxy_name="proxy-native",
+            network_name="network-native",
+            data_dir=Path("/tmp/runtime-native"),
+            api_key="api-key",
+            api_url="http://hermes",
+            config_revision=1,
+            model_alias="claw-default",
+            last_activity=0,
+            cold_started=False,
+        )
+
+    async def test_creates_then_reuses_native_session_and_streams_rotation(self) -> None:
+        requests: list[httpx.Request] = []
+        session_exists = False
+        chat_count = 0
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            nonlocal session_exists, chat_count
+            requests.append(request)
+            if request.url.path == "/v1/capabilities":
+                endpoints = {
+                    name: {"path": name}
+                    for name in HermesRuns.REQUIRED_SESSION_ENDPOINTS
+                }
+                return httpx.Response(200, json={"endpoints": endpoints})
+            if request.url.path == "/api/sessions/hcs-native" and request.method == "GET":
+                return httpx.Response(
+                    200 if session_exists else 404,
+                    json={"session": {"id": "hcs-native"}} if session_exists else {},
+                )
+            if request.url.path == "/api/sessions" and request.method == "POST":
+                session_exists = True
+                return httpx.Response(201, json={"session": {"id": "hcs-native"}})
+            if request.url.path == "/api/sessions/hcs-native/model":
+                return httpx.Response(200, json={"session_id": "hcs-native"})
+            if request.url.path == "/api/sessions/hcs-native/chat/stream":
+                chat_count += 1
+                effective_id = "hcs-rotated" if chat_count == 2 else "hcs-native"
+                content = "second answer" if chat_count == 2 else "first answer"
+                sse = (
+                    'event: run.started\ndata: {"run_id":"run-native"}\n\n'
+                    f'event: assistant.delta\ndata: {{"delta":"{content}"}}\n\n'
+                    f'event: assistant.completed\ndata: {{"content":"{content}","session_id":"{effective_id}"}}\n\n'
+                    f'event: run.completed\ndata: {{"session_id":"{effective_id}","usage":{{"input_tokens":7,"output_tokens":3}}}}\n\n'
+                    'event: done\ndata: {}\n\n'
+                )
+                return httpx.Response(
+                    200,
+                    content=sse.encode(),
+                    headers={"content-type": "text/event-stream"},
+                )
+            return httpx.Response(404)
+
+        transport = httpx.MockTransport(handler)
+        real_client = httpx.AsyncClient
+
+        def client_factory(*_args, **kwargs):
+            return real_client(transport=transport, timeout=kwargs.get("timeout"))
+
+        hermes = HermesRuns()
+        runtime = self.runtime()
+        with patch("hosted_claw.supervisor.httpx.AsyncClient", side_effect=client_factory):
+            first = [
+                event
+                async for event in hermes.run(
+                    runtime, "first prompt", "hcs-native", "managed instructions"
+                )
+            ]
+            second = [
+                event
+                async for event in hermes.run(
+                    runtime, "follow-up", "hcs-native", "managed instructions"
+                )
+            ]
+
+        creates = [
+            request
+            for request in requests
+            if request.method == "POST" and request.url.path == "/api/sessions"
+        ]
+        self.assertEqual(len(creates), 1)
+        self.assertEqual(
+            json.loads(creates[0].content),
+            {"id": "hcs-native", "source": "slack", "model": "claw-default"},
+        )
+        chat_requests = [request for request in requests if request.url.path.endswith("/chat/stream")]
+        self.assertEqual(len(chat_requests), 2)
+        self.assertEqual(json.loads(chat_requests[1].content)["input"], "follow-up")
+        self.assertTrue(
+            chat_requests[0].headers["X-Hermes-Session-Key"].startswith(
+                "agent:main:slack:dm:"
+            )
+        )
+        self.assertEqual(first[-2]["session_id"], "hcs-native")
+        self.assertEqual(second[-2]["session_id"], "hcs-rotated")
+
+    async def test_missing_native_capability_fails_without_starting_a_run(self) -> None:
+        requests: list[httpx.Request] = []
+
+        async def handler(request: httpx.Request) -> httpx.Response:
+            requests.append(request)
+            return httpx.Response(200, json={"endpoints": {}})
+
+        transport = httpx.MockTransport(handler)
+        real_client = httpx.AsyncClient
+
+        def client_factory(*_args, **kwargs):
+            return real_client(transport=transport, timeout=kwargs.get("timeout"))
+
+        with patch("hosted_claw.supervisor.httpx.AsyncClient", side_effect=client_factory):
+            with self.assertRaisesRegex(RuntimeError, "native session API is unavailable"):
+                _ = [
+                    event
+                    async for event in HermesRuns().run(
+                        self.runtime(), "prompt", "hcs-native", "instructions"
+                    )
+                ]
+
+        self.assertEqual([request.url.path for request in requests], ["/v1/capabilities"])
+
+    async def test_supervisor_persists_native_session_rotation_and_usage(self) -> None:
+        runtime = self.runtime()
+
+        async def native_events(*_args, **_kwargs):
+            yield {"type": "session.ready", "session_id": "hcs-native"}
+            yield {"type": "run.started", "run_id": "run-native"}
+            yield {"type": "assistant.delta", "delta": "partial"}
+            yield {
+                "type": "assistant.completed",
+                "content": "final answer",
+                "session_id": "hcs-rotated",
+            }
+            yield {
+                "type": "run.completed",
+                "session_id": "hcs-rotated",
+                "usage": {"input_tokens": 11, "output_tokens": 5},
+            }
+            yield {"type": "done"}
+
+        async def control_request(_method, path, **_kwargs):
+            if path == "/api/internal/hosted-claw/runtime-credentials":
+                return {"connector_token": "connector-key"}
+            if path.endswith("/state?worker_id=worker-a"):
+                return {"status": "running"}
+            return {}
+
+        supervisor = Supervisor.__new__(Supervisor)
+        supervisor.semaphore = asyncio.Semaphore(1)
+        supervisor.worker_id = "worker-a"
+        supervisor.prepare_runtime_capacity = AsyncMock()
+        supervisor.release_runtime_capacity = AsyncMock()
+        supervisor.control = SimpleNamespace(
+            request=AsyncMock(side_effect=control_request)
+        )
+        supervisor.litellm = SimpleNamespace(
+            rotate_tenant_key=AsyncMock(return_value="llm-key")
+        )
+        supervisor.docker = SimpleNamespace(
+            ensure=MagicMock(return_value=runtime),
+            stop_runtime=MagicMock(),
+        )
+        supervisor.hermes = SimpleNamespace(
+            run=native_events,
+            stop=AsyncMock(),
+        )
+        job = {
+            "job_id": "job-native",
+            "queued_at": datetime.now(timezone.utc).isoformat(),
+            "runtime_id": runtime.runtime_id,
+            "user_id": runtime.user_id,
+            "product": runtime.product,
+            "session_id": "hcs-native",
+            "payload": {"text": "follow-up", "files": []},
+            "config": {
+                "model_alias": runtime.model_alias,
+                "revision": 1,
+                "timezone": "America/Los_Angeles",
+                "personal_instructions": "",
+            },
+            "monthly_budget_usd": "10",
+            "remaining_budget_usd": "10",
+            "budget_period": "2026-08-01",
+        }
+
+        with patch("hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 60):
+            await supervisor.process(job)
+
+        final_progress = unittest.mock.call(
+            "POST",
+            "/api/internal/hosted-claw/jobs/job-native/progress?worker_id=worker-a",
+            json={"kind": "final", "text": "final answer"},
+        )
+        self.assertIn(final_progress, supervisor.control.request.await_args_list)
+        completion = [
+            call
+            for call in supervisor.control.request.await_args_list
+            if call.args[1].endswith("/complete?worker_id=worker-a")
+        ]
+        self.assertEqual(
+            completion[0].kwargs["json"],
+            {
+                "status": "completed",
+                "hermes_session_id": "hcs-rotated",
+                "applied_config_revision": 1,
+                "prompt_tokens": 11,
+                "completion_tokens": 5,
+                "cost_usd": 0.0,
+            },
+        )
+        supervisor.hermes.stop.assert_not_awaited()
+        supervisor.docker.stop_runtime.assert_not_called()
+
+
 class HostedRuntimeStateTests(unittest.TestCase):
+    def test_hermes_session_id_is_stable_until_explicitly_cleared(self) -> None:
+        existing = SimpleNamespace(hermes_session_id="run-existing")
+        self.assertEqual(_ensure_hermes_session_id(existing), "run-existing")
+
+        fresh = SimpleNamespace(hermes_session_id=None)
+        generated = _ensure_hermes_session_id(fresh)
+        self.assertTrue(generated.startswith("hcs_"))
+        self.assertEqual(fresh.hermes_session_id, generated)
+
     def test_warm_same_worker_same_revision_does_not_restart(self) -> None:
         session = SimpleNamespace(
             runtime_id="runtime-a",

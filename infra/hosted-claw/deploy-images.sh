@@ -147,8 +147,17 @@ smoke_policy() {
   "$docker_bin" run --rm --entrypoint /opt/hermes/.venv/bin/python "$image" -c \
     "import importlib.util;s=importlib.util.spec_from_file_location('hosted_policy','/opt/cpaa/plugin/__init__.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m);assert m.pre_tool_call('terminal',{},'deploy-smoke') is None"
 }
+
+smoke_native_sessions() {
+  image="$1"
+  "$docker_bin" run --rm --entrypoint /opt/hermes/.venv/bin/python "$image" -c \
+    "from pathlib import Path;p=Path('/opt/hermes/gateway/platforms/api_server.py').read_text();required=['/api/sessions/{session_id}/chat/stream','session_model_lock','_handle_create_session'];missing=[item for item in required if item not in p];assert not missing, f'missing native Hermes session support: {missing}'"
+}
+
 smoke_policy "$accounting_image"
 smoke_policy "$legal_image"
+smoke_native_sessions "$accounting_image"
+smoke_native_sessions "$legal_image"
 
 rm -f "$drain_file"
 rollback_needed=false

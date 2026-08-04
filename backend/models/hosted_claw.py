@@ -122,7 +122,7 @@ class WorkerJobResponse(BaseModel):
     user_id: str
     product: Product
     config: HostedConfigResponse
-    session_id: Optional[str] = None
+    session_id: str = Field(..., min_length=1, max_length=128)
     runtime_id: str
     monthly_budget_usd: Decimal
     remaining_budget_usd: Decimal

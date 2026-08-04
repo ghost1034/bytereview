@@ -13733,7 +13733,7 @@ export interface components {
             product: "accountingclaw" | "legalclaw";
             config: components["schemas"]["HostedConfigResponse"];
             /** Session Id */
-            session_id?: string | null;
+            session_id: string;
             /** Runtime Id */
             runtime_id: string;
             /** Monthly Budget Usd */

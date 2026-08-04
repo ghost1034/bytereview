@@ -16,6 +16,7 @@ import shutil
 import socket
 import subprocess
 import time
+import urllib.parse
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -498,6 +499,17 @@ class DockerRuntimeManager:
 
 
 class HermesRuns:
+    REQUIRED_SESSION_ENDPOINTS = {
+        "session_create",
+        "session",
+        "session_chat_stream",
+        "session_model_lock",
+    }
+
+    def __init__(self) -> None:
+        self._active_responses: dict[str, httpx.Response] = {}
+        self._stopped_runtimes: set[str] = set()
+
     @staticmethod
     async def _iter_events(
         lines: AsyncIterator[str],
@@ -543,54 +555,96 @@ class HermesRuns:
         self,
         runtime: Runtime,
         prompt: str,
-        session_id: Optional[str],
+        session_id: str,
         instructions: str,
     ) -> AsyncIterator[dict[str, Any]]:
-        headers = {"Authorization": f"Bearer {runtime.api_key}"}
-        payload = {
-            "input": prompt,
-            "session_id": session_id,
-            "instructions": instructions,
-            "model": runtime.model_alias,
+        session_key = (
+            f"agent:main:slack:dm:{_opaque(runtime.user_id)}:{runtime.product}"
+        )
+        headers = {
+            "Authorization": f"Bearer {runtime.api_key}",
+            "X-Hermes-Session-Key": session_key,
         }
+        encoded_session_id = urllib.parse.quote(session_id, safe="")
         async with httpx.AsyncClient(timeout=None) as client:
-            created = await client.post(f"{runtime.api_url}/v1/runs", headers=headers, json=payload)
-            created.raise_for_status()
-            run_id = str(created.json()["run_id"])
-            yield {"type": "run.created", "run_id": run_id, "session_id": session_id}
-            async with client.stream("GET", f"{runtime.api_url}/v1/runs/{run_id}/events", headers=headers) as response:
-                response.raise_for_status()
-                async for event in self._iter_events(
-                    response.aiter_lines(), EVENT_INACTIVITY_SECONDS
-                ):
-                    yield event
-            status = await client.get(f"{runtime.api_url}/v1/runs/{run_id}", headers=headers)
-            status.raise_for_status()
-            yield {"type": "run.status", **status.json()}
-
-    async def resolve_approval(
-        self,
-        runtime: Runtime,
-        run_id: str,
-        approved: bool,
-    ) -> None:
-        payload = {"decision": "approve" if approved else "deny"}
-        async with httpx.AsyncClient(timeout=15) as client:
-            response = await client.post(
-                f"{runtime.api_url}/v1/runs/{run_id}/approval",
-                headers={"Authorization": f"Bearer {runtime.api_key}"},
-                json=payload,
+            capabilities = await client.get(
+                f"{runtime.api_url}/v1/capabilities",
+                headers=headers,
+                timeout=15,
             )
-            response.raise_for_status()
+            capabilities.raise_for_status()
+            advertised = set((capabilities.json().get("endpoints") or {}).keys())
+            missing = self.REQUIRED_SESSION_ENDPOINTS - advertised
+            if missing:
+                raise RuntimeError(
+                    "Hermes native session API is unavailable: "
+                    + ", ".join(sorted(missing))
+                )
 
-    async def stop(self, runtime: Runtime, run_id: str) -> None:
-        async with httpx.AsyncClient(timeout=15) as client:
-            response = await client.post(
-                f"{runtime.api_url}/v1/runs/{run_id}/stop",
-                headers={"Authorization": f"Bearer {runtime.api_key}"},
+            session_url = f"{runtime.api_url}/api/sessions/{encoded_session_id}"
+            existing = await client.get(session_url, headers=headers, timeout=15)
+            if existing.status_code == 404:
+                created = await client.post(
+                    f"{runtime.api_url}/api/sessions",
+                    headers=headers,
+                    json={
+                        "id": session_id,
+                        "source": "slack",
+                        "model": runtime.model_alias,
+                    },
+                    timeout=15,
+                )
+                if created.status_code not in {201, 409}:
+                    created.raise_for_status()
+                logger.info(
+                    "hermes_session_created runtime_id=%s session=%s",
+                    runtime.runtime_id,
+                    _opaque(session_id),
+                )
+            else:
+                existing.raise_for_status()
+                logger.info(
+                    "hermes_session_reused runtime_id=%s session=%s",
+                    runtime.runtime_id,
+                    _opaque(session_id),
+                )
+
+            model_lock = await client.post(
+                f"{session_url}/model",
+                headers=headers,
+                json={"model": runtime.model_alias},
+                timeout=15,
             )
-            if response.status_code not in {200, 202, 404, 409}:
-                response.raise_for_status()
+            model_lock.raise_for_status()
+            yield {"type": "session.ready", "session_id": session_id}
+
+            self._stopped_runtimes.discard(runtime.runtime_id)
+            try:
+                async with client.stream(
+                    "POST",
+                    f"{session_url}/chat/stream",
+                    headers=headers,
+                    json={"input": prompt, "instructions": instructions},
+                ) as response:
+                    self._active_responses[runtime.runtime_id] = response
+                    response.raise_for_status()
+                    async for event in self._iter_events(
+                        response.aiter_lines(), EVENT_INACTIVITY_SECONDS
+                    ):
+                        yield event
+            except (httpx.ReadError, httpx.RemoteProtocolError, httpx.StreamClosed):
+                if runtime.runtime_id not in self._stopped_runtimes:
+                    raise
+            finally:
+                self._active_responses.pop(runtime.runtime_id, None)
+                self._stopped_runtimes.discard(runtime.runtime_id)
+
+    async def stop(self, runtime: Runtime, run_id: str = "") -> None:
+        """Close a native session stream; the supervisor then stops its tenant."""
+        self._stopped_runtimes.add(runtime.runtime_id)
+        response = self._active_responses.get(runtime.runtime_id)
+        if response is not None:
+            await response.aclose()
 
 
 class Supervisor:
@@ -840,12 +894,28 @@ class Supervisor:
                             json={"status": scan_status},
                         )
                 final_text = ""
-                hermes_session_id = job.get("session_id")
+                hermes_session_id = str(job["session_id"])
                 prompt_tokens = 0
                 completion_tokens = 0
                 cost_usd = 0.0
                 run_ref: dict[str, Optional[str]] = {"id": None}
                 cancelled = asyncio.Event()
+                tenant_terminated = asyncio.Event()
+
+                async def terminate_native_turn() -> None:
+                    if tenant_terminated.is_set():
+                        return
+                    tenant_terminated.set()
+                    try:
+                        await self.hermes.stop(
+                            runtime,
+                            str(run_ref["id"] or ""),
+                        )
+                    finally:
+                        await asyncio.to_thread(
+                            self.docker.stop_runtime,
+                            runtime.runtime_id,
+                        )
 
                 async def watch_cancellation() -> None:
                     while not cancelled.is_set():
@@ -855,8 +925,7 @@ class Supervisor:
                         )
                         if state.get("status") == "cancelled":
                             cancelled.set()
-                            if run_ref["id"]:
-                                await self.hermes.stop(runtime, str(run_ref["id"]))
+                            await terminate_native_turn()
                             return
                         await asyncio.sleep(2)
 
@@ -887,29 +956,25 @@ class Supervisor:
                     except StopAsyncIteration:
                         break
                     event_type = event.get("type")
-                    if event_type in {"session.created", "run.created"}:
+                    if event_type == "session.ready":
                         hermes_session_id = event.get("session_id") or hermes_session_id
+                    elif event_type == "run.started":
                         run_ref["id"] = event.get("run_id") or event.get("id") or run_ref["id"]
-                        if cancelled.is_set() and run_ref["id"]:
-                            await self.hermes.stop(runtime, str(run_ref["id"]))
-                    elif event_type in {"message.delta", "response.delta"}:
-                        final_text += str(event.get("text") or event.get("delta") or "")
-                    elif event_type in {"usage", "run.usage"}:
-                        usage = event.get("usage") or event
-                        prompt_tokens += int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0)
-                        completion_tokens += int(usage.get("completion_tokens") or usage.get("output_tokens") or 0)
-                        cost_usd += float(usage.get("cost_usd") or usage.get("cost") or 0)
-                    elif event_type == "run.status":
-                        terminal_status = str(event.get("status") or "").lower()
-                        if terminal_status == "failed":
-                            raise RuntimeError("Hermes run failed")
-                        if terminal_status == "cancelled":
-                            cancelled.set()
-                        final_text = str(event.get("output") or final_text)
+                        if cancelled.is_set():
+                            await terminate_native_turn()
+                    elif event_type == "assistant.delta":
+                        final_text += str(event.get("delta") or "")
+                    elif event_type == "assistant.completed":
+                        final_text = str(event.get("content") or final_text)
+                        hermes_session_id = event.get("session_id") or hermes_session_id
+                    elif event_type == "run.completed":
                         hermes_session_id = event.get("session_id") or hermes_session_id
                         usage = event.get("usage") or {}
                         prompt_tokens = int(usage.get("input_tokens") or prompt_tokens)
                         completion_tokens = int(usage.get("output_tokens") or completion_tokens)
+                        cost_usd = float(usage.get("cost_usd") or usage.get("cost") or cost_usd)
+                    elif event_type == "error":
+                        raise RuntimeError("Hermes native session turn failed")
                     elif event_type == "artifact.created":
                         workspace = (runtime.data_dir / "workspace").resolve()
                         raw_artifact_path = Path(str(event.get("path") or ""))
@@ -947,15 +1012,6 @@ class Supervisor:
                             "POST",
                             f"/api/internal/hosted-claw/artifacts/{registered['artifact_id']}/deliver?worker_id={self.worker_id}",
                         )
-                    elif event_type == "approval.request":
-                        # Hosted Claw runs unrestricted. Approve immediately if
-                        # Hermes emits a native approval event despite the
-                        # managed configuration and permissive tool policy.
-                        await self.hermes.resolve_approval(
-                            runtime,
-                            event["run_id"],
-                            True,
-                        )
                     runtime.last_activity = time.monotonic()
                 cancellation_task.cancel()
                 if not final_text and not cancelled.is_set():
@@ -990,13 +1046,13 @@ class Supervisor:
                 completion["error_code"] = "turn_timeout"
                 if run_ref["id"]:
                     completion["run_id"] = run_ref["id"]
-                    try:
-                        await self.hermes.stop(runtime, str(run_ref["id"]))
-                    except Exception:
-                        logger.warning(
-                            "Could not stop timed-out Hermes run job_id=%s",
-                            job.get("job_id"),
-                        )
+                try:
+                    await terminate_native_turn()
+                except Exception:
+                    logger.warning(
+                        "Could not terminate timed-out Hermes session job_id=%s",
+                        job.get("job_id"),
+                    )
                 await self._settle_turn_status(status_task, status_request_started)
                 status_task = None
                 try:

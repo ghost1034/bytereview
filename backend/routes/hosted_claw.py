@@ -129,6 +129,12 @@ def _runtime_start_expected(
     )
 
 
+def _ensure_hermes_session_id(session: HostedClawProductSession) -> str:
+    if not session.hermes_session_id:
+        session.hermes_session_id = f"hcs_{uuid.uuid4().hex}"
+    return str(session.hermes_session_id)
+
+
 def _require_feature() -> None:
     if not hosted_enabled():
         raise HTTPException(status_code=404, detail="Hosted Claw is not enabled")
@@ -1002,11 +1008,16 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
     ).first()
     runtime_start_expected = _runtime_start_expected(session, body.worker_id, config.revision)
     if session is None:
-        session = HostedClawProductSession(user_id=job.user_id, product=job.product, runtime_id=f"hcr_{uuid.uuid4().hex}")
+        session = HostedClawProductSession(
+            user_id=job.user_id,
+            product=job.product,
+            runtime_id=f"hcr_{uuid.uuid4().hex}",
+        )
         db.add(session)
         db.flush()
     elif not session.runtime_id:
         session.runtime_id = f"hcr_{uuid.uuid4().hex}"
+    _ensure_hermes_session_id(session)
     session.worker_id = body.worker_id
     session.status = "starting" if runtime_start_expected else "ready"
     db.query(HostedClawProductSession).filter(
