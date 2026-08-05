@@ -80,7 +80,7 @@ export function TasklyticHome() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-tour-page="home">
       <div className="bg-aurora rounded-2xl p-6 shadow-paper-sm">
         <h1 className="font-serif text-3xl">Good day{user ? `, ${user.name.split(' ')[0]}` : ''}</h1>
         <p className="mt-2 max-w-prose text-sm" style={{ color: 'var(--ink-secondary)' }}>

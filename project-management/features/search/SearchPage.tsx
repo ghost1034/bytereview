@@ -145,7 +145,7 @@ export function SearchPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="search">
       <div>
         <h1 className="font-serif text-2xl">Search</h1>
         <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>

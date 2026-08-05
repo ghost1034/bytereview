@@ -70,7 +70,7 @@ export function GoalsPage() {
   if (!workspaceId || !currentUserId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="goals">
       <GoalsToolbar
         tab={tab}
         onTabChange={setTab}

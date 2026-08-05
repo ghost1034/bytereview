@@ -100,6 +100,7 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
 
   const pane = (
     <aside
+      data-tour-page="tasks"
       className={
         mode === 'fullscreen'
           ? 'flex h-full min-h-screen w-full flex-col tl-task-detail-pane tl-dialog-surface tasklytic-root'

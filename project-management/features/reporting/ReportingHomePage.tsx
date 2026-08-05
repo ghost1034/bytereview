@@ -61,7 +61,7 @@ export function ReportingHomePage() {
   if (!workspaceId || !dataCtx) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="reporting">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-2xl">Reporting</h1>
         <Button className="tl-btn-primary gap-2 border-0" onClick={() => setCreateOpen(true)}>

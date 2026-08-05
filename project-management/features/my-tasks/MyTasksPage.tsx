@@ -49,7 +49,7 @@ export function MyTasksPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="my-tasks">
       <MyTasksHeader
         workspaceId={workspaceId}
         userId={currentUserId}

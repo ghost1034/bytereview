@@ -85,6 +85,7 @@ export function TasklyticTopbar({
   return (
     <>
       <header
+        data-tour="topbar"
         className="flex h-[52px] shrink-0 items-center gap-2 border-b px-3 backdrop-blur-md lg:px-4"
         style={{
           borderColor: 'var(--border-subtle)',

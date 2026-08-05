@@ -28,7 +28,7 @@ export function FormsPage() {
   if (!workspaceId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="forms">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-2xl">Forms</h1>
         <Button className="tl-btn-primary gap-2 border-0" onClick={() => setCreateOpen(true)} disabled={!projects.length}>

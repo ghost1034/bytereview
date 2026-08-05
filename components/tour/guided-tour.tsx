@@ -13,6 +13,10 @@ export type GuidedTourStep = {
   title: string
   body: string
   target?: string
+  /** Optional grouping label shown above the step title. */
+  section?: string
+  /** Optional destination used by route-aware tour controllers. */
+  route?: string
   nextLabel?: string
   manual?: boolean
 }
@@ -235,16 +239,31 @@ export function GuidedTourOverlay({
           </>
         ) : (
           <>
+            {step.section ? (
+              <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--primary)' }}>
+                {step.section}
+              </p>
+            ) : null}
             <p className="font-medium" style={{ color: 'var(--ink-primary)' }}>{step.title}</p>
             <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>{step.body}</p>
+            {step.target && !found ? (
+              <p className="mt-3 rounded-md px-3 py-2 text-xs" style={{ background: 'var(--bg-muted)', color: 'var(--ink-muted)' }}>
+                Loading this part of Tasklytic…
+              </p>
+            ) : null}
             <div className="mt-4 flex items-center justify-between gap-2">
               <Button variant="ghost" size="sm" onClick={onEnd}>Skip</Button>
               <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
                 {stepIndex + 1} / {totalSteps}
               </span>
-              <Button size="sm" className={primaryButtonClassName} onClick={onNext}>
-                {step.nextLabel || (stepIndex === totalSteps - 1 ? 'Done' : 'Next')}
-              </Button>
+              <div className="flex items-center gap-2">
+                {onBack && stepIndex > 0 ? (
+                  <Button variant="outline" size="sm" onClick={onBack}>Back</Button>
+                ) : null}
+                <Button size="sm" className={primaryButtonClassName} onClick={onNext}>
+                  {step.nextLabel || (stepIndex === totalSteps - 1 ? 'Done' : 'Next')}
+                </Button>
+              </div>
             </div>
           </>
         )}
@@ -259,18 +278,20 @@ type GuidedTourProps = {
   onOpenChange: (open: boolean) => void
   steps: GuidedTourStep[]
   onComplete?: () => void | Promise<void>
+  onStepChange?: (step: GuidedTourStep, stepIndex: number) => void
   overlayProps?: Omit<
     GuidedTourOverlayProps,
     'step' | 'stepIndex' | 'totalSteps' | 'onBack' | 'onNext' | 'onEnd'
   >
 }
 
-/** Simple ordered tour controller for tours that do not navigate between routes. */
+/** Ordered tour controller with optional step-change hooks for route-aware tours. */
 export function GuidedTour({
   open,
   onOpenChange,
   steps,
   onComplete,
+  onStepChange,
   overlayProps,
 }: GuidedTourProps) {
   const [mounted, setMounted] = React.useState(false)
@@ -302,6 +323,11 @@ export function GuidedTour({
   }, [endTour, stepIndex, steps.length])
 
   const step = steps[stepIndex]
+
+  React.useEffect(() => {
+    if (open && step) onStepChange?.(step, stepIndex)
+  }, [onStepChange, open, step, stepIndex])
+
   if (!mounted || !open || !step) return null
 
   return (
@@ -310,6 +336,7 @@ export function GuidedTour({
       step={step}
       stepIndex={stepIndex}
       totalSteps={steps.length}
+      onBack={stepIndex > 0 ? () => setStepIndex((current) => Math.max(0, current - 1)) : undefined}
       onNext={next}
       onEnd={() => void endTour()}
     />

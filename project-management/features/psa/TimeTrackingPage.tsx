@@ -82,7 +82,7 @@ export function TimeTrackingPage() {
   if (!workspaceId || !userId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="time">
       <TimerBanner />
       {pendingSheet && <Badge className="w-full justify-center py-2">Timesheet submitted — awaiting approval</Badge>}
       {rejectedSheet && <Badge variant="destructive" className="w-full justify-center py-2">Rejected: {rejectedSheet.rejectedReason}</Badge>}

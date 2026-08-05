@@ -55,7 +55,7 @@ export function TrustPage() {
   if (!workspaceId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="trust">
       <h1 className="font-serif text-2xl">Trust accounting</h1>
       <div className="tl-card grid gap-3 p-4 shadow-paper-sm md:grid-cols-4">
         <Select value={clientId} onValueChange={setClientId}>

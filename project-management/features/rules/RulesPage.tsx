@@ -88,7 +88,7 @@ export function RulesPage() {
   if (!workspaceId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="rules">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-2xl">Rules</h1>
         <div className="flex items-center gap-2">

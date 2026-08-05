@@ -53,7 +53,7 @@ export function MembersPage() {
   }
 
   return (
-    <div className="tasklytic-root space-y-4">
+    <div className="tasklytic-root space-y-4" data-tour-page="members">
       <div>
         <h1 className="font-serif text-2xl">Members</h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>

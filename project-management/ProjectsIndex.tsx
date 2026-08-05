@@ -65,7 +65,7 @@ export function ProjectsIndex() {
   if (!workspaceId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="projects">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-2xl">Projects</h1>
         <Button className="tl-btn-primary border-0" size="sm" onClick={() => setCreateOpen(true)}>

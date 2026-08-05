@@ -96,7 +96,7 @@ export function ProjectPage({ projectId }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="projects">
       <ProjectHeader
         project={project}
         workspaceId={workspaceId}

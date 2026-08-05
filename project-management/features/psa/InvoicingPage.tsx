@@ -58,7 +58,7 @@ export function InvoicingPage() {
   if (!workspaceId || !userId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="invoicing">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-serif text-2xl">Invoicing</h1>

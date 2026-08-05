@@ -68,7 +68,7 @@ export function PortfoliosPage() {
   if (!workspaceId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="portfolios">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-2xl">Portfolios</h1>
         <Button className="tl-btn-primary border-0" size="sm" onClick={() => setCreateOpen(true)}>

@@ -27,7 +27,7 @@ export function ClientsPage() {
   if (!workspaceId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="clients">
       <div className="flex items-center justify-between">
         <h1 className="font-serif text-2xl">Clients</h1>
         <Button className="tl-btn-primary border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New client</Button>

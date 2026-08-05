@@ -14,7 +14,7 @@ export function WorkloadPage() {
   if (!workspaceId) return null
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-tour-page="workload">
       <div>
         <h1 className="font-serif text-2xl">Workload</h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
