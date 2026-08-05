@@ -653,6 +653,64 @@ class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(job.slack_response_ts, "101.002")
         self.assertIsNotNone(job.slack_response_finalized_at)
 
+    async def test_concurrent_progress_waits_without_blocking_the_event_loop(self) -> None:
+        job = SimpleNamespace(
+            id="job-concurrent",
+            worker_id="worker-a",
+            status="running",
+            slack_link_id="link-a",
+            slack_response_ts=None,
+            slack_response_finalized_at=None,
+            payload_ciphertext=b"encrypted",
+            event_id="event-a",
+            kms_key_version="key-a",
+            user_id="user-a",
+            product="accountingclaw",
+        )
+        link = SimpleNamespace(installation_id="installation-a")
+        installation = SimpleNamespace(id="installation-a")
+        databases = []
+        requests = []
+        for text in ("First", "Second"):
+            db = MagicMock()
+            db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = job
+            db.get.side_effect = [link, installation]
+            databases.append(db)
+            request = MagicMock()
+            request.json = AsyncMock(return_value={"kind": "status", "text": text})
+            requests.append(request)
+
+        first_slack_started = asyncio.Event()
+        release_first_slack = asyncio.Event()
+
+        async def controlled_slack(*args, **kwargs):
+            if not first_slack_started.is_set():
+                first_slack_started.set()
+                await release_first_slack.wait()
+                return {"ok": True, "ts": "101.002"}
+            return {"ok": True}
+
+        with patch(
+            "routes.hosted_claw.KmsEnvelope.decrypt",
+            return_value=b'{"channel_id":"D123","thread_ts":"100.001"}',
+        ), patch("routes.hosted_claw.slack_api", side_effect=controlled_slack):
+            first = asyncio.create_task(
+                post_job_progress("job-concurrent", "worker-a", requests[0], databases[0])
+            )
+            await first_slack_started.wait()
+            second = asyncio.create_task(
+                post_job_progress("job-concurrent", "worker-a", requests[1], databases[1])
+            )
+            await asyncio.sleep(0)
+
+            databases[1].query.assert_not_called()
+
+            release_first_slack.set()
+            await asyncio.gather(first, second)
+
+        databases[0].commit.assert_called_once_with()
+        databases[1].commit.assert_called_once_with()
+
 
 class HostedCronMarkdownDeliveryTests(unittest.IsolatedAsyncioTestCase):
     async def test_scheduled_result_posts_as_standard_markdown(self) -> None:

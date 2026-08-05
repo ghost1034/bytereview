@@ -11,6 +11,7 @@ import secrets
 import urllib.parse
 import uuid
 import tempfile
+from weakref import WeakValueDictionary
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any
@@ -139,6 +140,21 @@ internal_router = APIRouter(
     dependencies=[Depends(require_hosted_worker)],
 )
 admin_router = APIRouter(prefix="/api/admin/hosted-claw", tags=["admin-hosted-claw"])
+
+# SQLAlchemy's synchronous row locks block the event-loop thread. Serialize
+# progress relays in-process before acquiring the database lock so a second
+# update for the same job cannot prevent the first Slack request from resuming
+# and releasing its transaction. The database lock still coordinates separate
+# Cloud Run instances/processes.
+_job_progress_locks: WeakValueDictionary[str, asyncio.Lock] = WeakValueDictionary()
+
+
+def _job_progress_lock(job_id: str) -> asyncio.Lock:
+    lock = _job_progress_locks.get(job_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _job_progress_locks[job_id] = lock
+    return lock
 
 
 def _tenant_prefix(user_id: str) -> str:
@@ -1785,45 +1801,46 @@ async def post_job_progress(job_id: str, worker_id: str, request: Request, db: S
         raise HTTPException(status_code=400, detail="Progress text must be 1-12000 characters")
     if kind not in {"status", "final"}:
         raise HTTPException(status_code=400, detail="Progress kind must be status or final")
-    job = db.query(HostedClawJob).filter(
-        HostedClawJob.id == job_id,
-        HostedClawJob.worker_id == worker_id,
-    ).with_for_update().first()
-    if job is None or job.status not in {"claimed", "running"}:
-        raise HTTPException(status_code=404, detail="Active job not found")
-    if kind == "status" and job.slack_response_finalized_at is not None:
-        return HostedCommandResponse(message="Final response already delivered.")
-    link = db.get(HostedClawSlackLink, job.slack_link_id)
-    installation = db.get(HostedClawSlackInstallation, link.installation_id) if link else None
-    if installation is None:
-        raise HTTPException(status_code=409, detail="Slack installation is unavailable")
-    # The channel identifier is encrypted with the job, so decrypt it only for
-    # this relay and never place the text or channel in logs.
-    payload = json.loads(KmsEnvelope().decrypt(job.payload_ciphertext, aad=f"hosted-job:{job.event_id}".encode(), key_version=str(job.kms_key_version)))
-    # Hermes final responses are standard Markdown. Status updates are authored
-    # directly in Slack's mrkdwn dialect, so only final responses should use
-    # Slack's standard-Markdown translation field.
-    content = {"markdown_text": text} if kind == "final" else {"text": text}
-    if job.slack_response_ts:
-        await slack_api(
-            installation,
-            "chat.update",
-            {"channel": payload["channel_id"], "ts": job.slack_response_ts, **content},
-        )
-    else:
-        response = await slack_api(
-            installation,
-            "chat.postMessage",
-            {"channel": payload["channel_id"], "thread_ts": payload.get("thread_ts"), **content},
-        )
-        response_ts = str(response.get("ts") or "").strip()
-        if not response_ts:
-            raise RuntimeError("Slack did not return a message timestamp")
-        job.slack_response_ts = response_ts
-    if kind == "final":
-        job.slack_response_finalized_at = utcnow()
-    db.commit()
-    return HostedCommandResponse(message="Progress delivered.")
+    async with _job_progress_lock(job_id):
+        job = db.query(HostedClawJob).filter(
+            HostedClawJob.id == job_id,
+            HostedClawJob.worker_id == worker_id,
+        ).with_for_update().first()
+        if job is None or job.status not in {"claimed", "running"}:
+            raise HTTPException(status_code=404, detail="Active job not found")
+        if kind == "status" and job.slack_response_finalized_at is not None:
+            return HostedCommandResponse(message="Final response already delivered.")
+        link = db.get(HostedClawSlackLink, job.slack_link_id)
+        installation = db.get(HostedClawSlackInstallation, link.installation_id) if link else None
+        if installation is None:
+            raise HTTPException(status_code=409, detail="Slack installation is unavailable")
+        # The channel identifier is encrypted with the job, so decrypt it only for
+        # this relay and never place the text or channel in logs.
+        payload = json.loads(KmsEnvelope().decrypt(job.payload_ciphertext, aad=f"hosted-job:{job.event_id}".encode(), key_version=str(job.kms_key_version)))
+        # Hermes final responses are standard Markdown. Status updates are authored
+        # directly in Slack's mrkdwn dialect, so only final responses should use
+        # Slack's standard-Markdown translation field.
+        content = {"markdown_text": text} if kind == "final" else {"text": text}
+        if job.slack_response_ts:
+            await slack_api(
+                installation,
+                "chat.update",
+                {"channel": payload["channel_id"], "ts": job.slack_response_ts, **content},
+            )
+        else:
+            response = await slack_api(
+                installation,
+                "chat.postMessage",
+                {"channel": payload["channel_id"], "thread_ts": payload.get("thread_ts"), **content},
+            )
+            response_ts = str(response.get("ts") or "").strip()
+            if not response_ts:
+                raise RuntimeError("Slack did not return a message timestamp")
+            job.slack_response_ts = response_ts
+        if kind == "final":
+            job.slack_response_finalized_at = utcnow()
+        db.commit()
+        return HostedCommandResponse(message="Progress delivered.")
 
 
 @internal_router.post("/runtime-credentials", response_model=RuntimeCredentialResponse)
