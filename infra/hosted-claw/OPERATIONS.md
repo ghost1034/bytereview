@@ -33,8 +33,11 @@ OpenConnector uses `/etc/openconnector/openconnector.env` (root `0600`) and the
 in a dedicated VPC. Firewall rules expose only TCP 80/443 and allow TCP 22 only
 from IAP. `container-metadata-firewall.service` must be
 active before any bridge-network container starts. It prevents OpenConnector,
-LiteLLM, and tenant proxy containers from obtaining the worker service identity;
-the host-network supervisor retains metadata access.
+LiteLLM, tenant runtimes, and tenant proxy containers from obtaining the worker
+service identity; the host-network supervisor retains metadata access. Tenant
+runtimes use isolated outbound-capable bridges so they can PUT files directly
+to workflow-provided signed upload URLs without joining the shared Hosted Claw
+network.
 
 For Slack, replace `API_HOST` in `slack-app-manifest.yaml`, import the manifest
 into the CPAAutomation Slack app, and enable unlisted distribution for the

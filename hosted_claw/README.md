@@ -48,9 +48,11 @@ generic progress placeholder as soon as the first action begins. Native
 reasoning progress is deliberately not relayed.
 
 `HOSTED_CLAW_PROXY_IMAGE` must also be a digest-pinned Caddy image. The
-supervisor creates a private network and a credential-injecting proxy sidecar
-per tenant. Tenant containers receive neither connector nor LiteLLM keys and
-cannot join the shared outbound network.
+supervisor creates an isolated bridge network and a credential-injecting proxy
+sidecar per tenant. The tenant bridge permits direct outbound traffic so files
+can be sent to signed upload URLs from any workflow; it is not attached to the
+shared Hosted Claw network. Tenant containers receive neither connector nor
+LiteLLM keys, and the host firewall blocks bridge access to GCE metadata.
 
 Build and deploy all Hosted Claw images with one command:
 

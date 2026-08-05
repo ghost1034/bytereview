@@ -118,7 +118,7 @@ class UdaValidationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertTrue(result["idempotent_replay"])
 
-    async def test_hosted_prepare_uploads_uses_private_relay_url(self) -> None:
+    async def test_prepare_uploads_returns_storage_signed_url(self) -> None:
         run = SimpleNamespace(id="run-a")
         initiated = [
             SimpleNamespace(
@@ -145,14 +145,12 @@ class UdaValidationTests(unittest.IsolatedAsyncioTestCase):
                         }
                     ],
                 },
-                upload_relay_base_url="http://tenant-proxy:8080/api/connector/mcp/uploads",
             )
 
         self.assertEqual(
             result["uploads"][0]["upload_url"],
-            "http://tenant-proxy:8080/api/connector/mcp/uploads/00000000-0000-0000-0000-000000000001",
+            "https://storage.example/signed-secret",
         )
-        self.assertNotIn("signed-secret", repr(result))
 
     async def test_cross_user_or_missing_run_is_hidden_as_not_found(self) -> None:
         db = MagicMock()

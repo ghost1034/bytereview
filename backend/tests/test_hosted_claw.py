@@ -170,6 +170,57 @@ class HostedArtifactScannerTests(unittest.TestCase):
 
 
 class HostedRuntimeReadinessTests(unittest.TestCase):
+    def test_tenant_network_supports_direct_outbound_uploads(self) -> None:
+        manager = DockerRuntimeManager()
+        manager._docker = MagicMock(
+            side_effect=[
+                SimpleNamespace(returncode=1, stdout=""),
+                SimpleNamespace(returncode=0, stdout=""),
+            ]
+        )
+
+        manager.ensure_network("tenant-network", internal=False)
+
+        manager._docker.assert_any_call(
+            "network",
+            "inspect",
+            "--format",
+            "{{.Internal}}",
+            "tenant-network",
+            check=False,
+        )
+        manager._docker.assert_any_call("network", "create", "tenant-network")
+        create_call = manager._docker.call_args_list[1]
+        self.assertNotIn("--internal", create_call.args)
+
+    def test_stale_internal_tenant_network_is_recreated(self) -> None:
+        manager = DockerRuntimeManager()
+        manager._docker = MagicMock(
+            side_effect=[
+                SimpleNamespace(returncode=0, stdout="true\n"),
+                SimpleNamespace(returncode=0, stdout=""),
+                SimpleNamespace(returncode=0, stdout=""),
+                SimpleNamespace(returncode=0, stdout=""),
+                SimpleNamespace(returncode=0, stdout=""),
+            ]
+        )
+
+        manager.ensure_network(
+            "tenant-network",
+            internal=False,
+            replace_containers=("tenant", "proxy"),
+        )
+
+        self.assertEqual(
+            manager._docker.call_args_list[1:],
+            [
+                unittest.mock.call("rm", "--force", "tenant", check=False),
+                unittest.mock.call("rm", "--force", "proxy", check=False),
+                unittest.mock.call("network", "rm", "tenant-network"),
+                unittest.mock.call("network", "create", "tenant-network"),
+            ],
+        )
+
     def test_detects_safe_workspace_outputs_without_hidden_or_unsupported_files(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             workspace = Path(directory)

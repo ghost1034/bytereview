@@ -312,8 +312,6 @@ class UdaMcpService:
         db: Session,
         user_id: str,
         args: Dict[str, Any],
-        *,
-        upload_relay_base_url: Optional[str] = None,
     ) -> Dict[str, Any]:
         job_id = str(args.get("job_id") or "").strip()
         run_id = str(args.get("run_id") or "").strip() or None
@@ -337,11 +335,7 @@ class UdaMcpService:
                 {
                     "source_file_id": item.id,
                     "original_path": item.original_path,
-                    "upload_url": (
-                        f"{upload_relay_base_url.rstrip('/')}/{item.id}"
-                        if upload_relay_base_url
-                        else item.upload_url
-                    ),
+                    "upload_url": item.upload_url,
                     "method": "PUT",
                     "required_headers": {"Content-Type": by_path[item.original_path].type},
                 }

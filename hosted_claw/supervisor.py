@@ -417,13 +417,32 @@ class DockerRuntimeManager:
                 time.sleep(0.25)
         raise RuntimeError("Tenant runtime API did not become ready within 30 seconds")
 
-    def ensure_network(self, network_name: str, *, internal: bool) -> None:
-        inspected = self._docker("network", "inspect", network_name, check=False)
-        if inspected.returncode != 0:
-            args = ["network", "create"]
-            if internal:
-                args.append("--internal")
-            self._docker(*args, network_name)
+    def ensure_network(
+        self,
+        network_name: str,
+        *,
+        internal: bool,
+        replace_containers: tuple[str, ...] = (),
+    ) -> None:
+        inspected = self._docker(
+            "network",
+            "inspect",
+            "--format",
+            "{{.Internal}}",
+            network_name,
+            check=False,
+        )
+        if inspected.returncode == 0:
+            existing_internal = inspected.stdout.strip().lower() == "true"
+            if existing_internal == internal:
+                return
+            for container_name in replace_containers:
+                self._docker("rm", "--force", container_name, check=False)
+            self._docker("network", "rm", network_name)
+        args = ["network", "create"]
+        if internal:
+            args.append("--internal")
+        self._docker(*args, network_name)
 
     def _write_config(
         self,
@@ -524,11 +543,19 @@ class DockerRuntimeManager:
     ) -> Runtime:
         user_id, product, runtime_id = job["user_id"], job["product"], job["runtime_id"]
         network_name = f"hcn-{_opaque(runtime_id)}"
-        self.ensure_network(network_name, internal=True)
-        self.ensure_network(EGRESS_NETWORK, internal=False)
-        self.stop_other_products(user_id, product)
         container_name = f"hclaw-{_opaque(runtime_id)}"
         proxy_name = f"hcproxy-{_opaque(runtime_id)}"
+        # Each tenant keeps its own bridge network, but the bridge has outbound
+        # connectivity so signed upload URLs from any MCP tool work directly.
+        # The host firewall still denies bridge containers access to GCE
+        # metadata, and credentials continue to flow only through the sidecar.
+        self.ensure_network(
+            network_name,
+            internal=False,
+            replace_containers=(container_name, proxy_name),
+        )
+        self.ensure_network(EGRESS_NETWORK, internal=False)
+        self.stop_other_products(user_id, product)
         data_dir = DATA_ROOT / _opaque(user_id) / product
         data_dir.mkdir(parents=True, exist_ok=True)
         self._ensure_quota(data_dir, user_id, product)
