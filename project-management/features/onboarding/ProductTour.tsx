@@ -3,7 +3,7 @@
 /**
  * Lightweight guided product tour — runs after onboarding; replayable from Help menu.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -11,6 +11,7 @@ import { track } from '../../lib/analytics/track'
 import { now } from '../../lib/time'
 import { useAuthStore } from '../../stores/auth'
 import { useUsersStore } from '../../stores/entities'
+import { getTourPanelPosition } from './productTourPosition'
 import { TOUR_STEPS } from './tourSteps'
 
 type Props = {
@@ -28,22 +29,11 @@ export function startProductTour(): void {
 export function ProductTour({ open, onOpenChange }: Props) {
   const [index, setIndex] = useState(0)
   const [mounted, setMounted] = useState(false)
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const updateUser = useUsersStore((s) => s.update)
   const user = useUsersStore((s) => (currentUserId ? s.getById(currentUserId) : undefined))
-
-  useEffect(() => setMounted(true), [])
-
-  useEffect(() => {
-    externalStart = () => {
-      setIndex(0)
-      onOpenChange(true)
-      track('product_tour_started', {})
-    }
-    return () => {
-      externalStart = null
-    }
-  }, [onOpenChange])
 
   const complete = useCallback(async () => {
     if (currentUserId && user) {
@@ -59,47 +49,130 @@ export function ProductTour({ open, onOpenChange }: Props) {
     onOpenChange(false)
   }, [currentUserId, onOpenChange, updateUser, user])
 
+  useEffect(() => setMounted(true), [])
+
   const step = TOUR_STEPS[index]
-  const rect =
-    mounted && step
-      ? document.querySelector(step.target)?.getBoundingClientRect()
-      : undefined
+
+  useEffect(() => {
+    if (!open || !step) {
+      setTargetRect(null)
+      return
+    }
+
+    let frame = 0
+    let observedTarget: Element | null = null
+    const resizeObserver = new ResizeObserver(() => scheduleUpdate())
+
+    const findVisibleTarget = () => {
+      const matches = Array.from(document.querySelectorAll(step.target))
+      return (
+        matches.find((element) => {
+          const rect = element.getBoundingClientRect()
+          return rect.width > 0 && rect.height > 0
+        }) ?? null
+      )
+    }
+
+    const update = () => {
+      const target = findVisibleTarget()
+      if (target !== observedTarget) {
+        resizeObserver.disconnect()
+        observedTarget = target
+        if (target) resizeObserver.observe(target)
+      }
+      setTargetRect(target?.getBoundingClientRect() ?? null)
+    }
+
+    function scheduleUpdate() {
+      window.cancelAnimationFrame(frame)
+      frame = window.requestAnimationFrame(update)
+    }
+
+    const mutationObserver = new MutationObserver(scheduleUpdate)
+    mutationObserver.observe(document.body, { childList: true, subtree: true })
+    window.addEventListener('resize', scheduleUpdate)
+    window.addEventListener('scroll', scheduleUpdate, true)
+    scheduleUpdate()
+
+    return () => {
+      window.cancelAnimationFrame(frame)
+      mutationObserver.disconnect()
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', scheduleUpdate)
+      window.removeEventListener('scroll', scheduleUpdate, true)
+    }
+  }, [open, step])
+
+  useEffect(() => {
+    if (!open) return
+    const frame = window.requestAnimationFrame(() => dialogRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [index, open])
+
+  useEffect(() => {
+    if (!open) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      void complete()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [complete, open])
+
+  useEffect(() => {
+    externalStart = () => {
+      setIndex(0)
+      onOpenChange(true)
+      track('product_tour_started', {})
+    }
+    return () => {
+      externalStart = null
+    }
+  }, [onOpenChange])
 
   if (!open || !mounted || !step) return null
 
-  const top = rect ? rect.bottom + 8 : 80
-  const left = rect ? Math.min(rect.left, window.innerWidth - 320) : 24
+  const position = getTourPanelPosition(targetRect, {
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  })
 
   return createPortal(
     <>
       <div
         className="fixed inset-0 z-[200] bg-black/30"
-        aria-label="Dismiss tour"
-        role="button"
-        tabIndex={-1}
-        onClick={() => void complete()}
+        aria-hidden="true"
       />
-      {rect ? (
+      {targetRect ? (
         <div
           className="pointer-events-none fixed z-[201] rounded-lg ring-2 ring-[#cc785c]"
-          style={{ top: rect.top - 4, left: rect.left - 4, width: rect.width + 8, height: rect.height + 8 }}
+          style={{
+            top: targetRect.top - 4,
+            left: targetRect.left - 4,
+            width: targetRect.width + 8,
+            height: targetRect.height + 8,
+          }}
         />
       ) : null}
       <Card
-        className="fixed z-[202] w-80 bg-background p-4 text-foreground shadow-lg"
-        style={{ top, left }}
+        ref={dialogRef}
+        className="tl-popover-surface fixed z-[202] max-h-[calc(100vh-2rem)] overflow-y-auto p-4 focus:outline-none"
+        style={position}
         role="dialog"
+        aria-modal="true"
         aria-label={step.title}
+        tabIndex={-1}
       >
-        <p className="font-medium text-foreground">{step.title}</p>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="font-medium" style={{ color: 'var(--ink-primary)' }}>{step.title}</p>
+        <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>
           {step.body}
         </p>
         <div className="mt-4 flex items-center justify-between gap-2">
           <Button variant="ghost" size="sm" onClick={() => void complete()}>
             Skip
           </Button>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
             {index + 1} / {TOUR_STEPS.length}
           </span>
           {index < TOUR_STEPS.length - 1 ? (
