@@ -1,11 +1,12 @@
 'use client'
 
 import * as React from 'react'
-import { createPortal } from 'react-dom'
 import { usePathname, useRouter } from 'next/navigation'
-import { X } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
+import {
+  GuidedTourOverlay,
+  type GuidedTourStep,
+} from '@/components/tour/guided-tour'
 
 const STORAGE_KEY = 'cpaautomation.product-tour.v2'
 const LEGACY_STORAGE_KEY = 'cpaautomation.product-tour.v1'
@@ -17,13 +18,7 @@ type TourNextAction =
   | { kind: 'click'; selector: string }
   | { kind: 'end' }
 
-interface TourStep {
-  id: string
-  title: string
-  body: string
-  target?: string
-  nextLabel?: string
-  manual?: boolean
+interface TourStep extends GuidedTourStep {
   /** What clicking Next does, in addition to advancing to the next step. */
   onNext?: TourNextAction
   /** Selector polled while on this step; when it appears, the tour advances. */
@@ -310,174 +305,6 @@ function clickTarget(selector: string) {
   target?.click()
 }
 
-function useTargetRect(selector?: string, stepId?: string) {
-  const [rect, setRect] = React.useState<DOMRect | null>(null)
-  const [found, setFound] = React.useState(false)
-
-  React.useEffect(() => {
-    if (!selector) {
-      setRect(null)
-      setFound(false)
-      return
-    }
-
-    let frame = 0
-
-    const update = () => {
-      const target = document.querySelector<HTMLElement>(selector)
-      setFound(Boolean(target))
-      setRect(target ? target.getBoundingClientRect() : null)
-    }
-
-    const scheduleUpdate = () => {
-      window.cancelAnimationFrame(frame)
-      frame = window.requestAnimationFrame(update)
-    }
-
-    const scrollToTarget = window.setTimeout(() => {
-      document.querySelector<HTMLElement>(selector)?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-        inline: 'nearest',
-      })
-      scheduleUpdate()
-    }, 100)
-
-    update()
-    const interval = window.setInterval(update, 300)
-    window.addEventListener('resize', scheduleUpdate)
-    window.addEventListener('scroll', scheduleUpdate, true)
-
-    return () => {
-      window.clearTimeout(scrollToTarget)
-      window.clearInterval(interval)
-      window.cancelAnimationFrame(frame)
-      window.removeEventListener('resize', scheduleUpdate)
-      window.removeEventListener('scroll', scheduleUpdate, true)
-    }
-  }, [selector, stepId])
-
-  return { rect, found }
-}
-
-function ProductTourOverlay({
-  step,
-  stepIndex,
-  totalSteps,
-  onBack,
-  onNext,
-  onEnd,
-}: {
-  step: TourStep
-  stepIndex: number
-  totalSteps: number
-  onBack: () => void
-  onNext: () => void
-  onEnd: () => void
-}) {
-  const { rect, found } = useTargetRect(step.target, step.id)
-  const panelPosition = React.useMemo(() => {
-    const width = Math.min(360, Math.max(300, typeof window === 'undefined' ? 340 : window.innerWidth - 32))
-    if (!rect) {
-      return {
-        left: `calc(50vw - ${width / 2}px)`,
-        top: 'calc(50vh - 150px)',
-        width,
-      }
-    }
-
-    const margin = 16
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
-    const rightSpace = viewportWidth - rect.right
-    const leftSpace = rect.left
-    let left = rect.right + margin
-    let top = rect.top
-
-    if (rightSpace < width + margin && leftSpace > width + margin) {
-      left = rect.left - width - margin
-    } else if (rightSpace < width + margin) {
-      left = Math.min(Math.max(margin, rect.left), viewportWidth - width - margin)
-      top = rect.bottom + margin
-    }
-
-    if (top + 260 > viewportHeight) {
-      top = Math.max(margin, viewportHeight - 280)
-    }
-
-    return {
-      left: `${Math.max(margin, Math.min(left, viewportWidth - width - margin))}px`,
-      top: `${Math.max(margin, top)}px`,
-      width,
-    }
-  }, [rect])
-
-  return createPortal(
-    <div className="fixed inset-0 z-[80] pointer-events-none" aria-live="polite">
-      <div className="absolute inset-0 bg-slate-950/20" />
-
-      {rect && (
-        <div
-          className="absolute rounded-xl border-2 border-primary bg-primary/10 shadow-[0_0_0_9999px_rgba(15,23,42,0.25)] transition-all"
-          style={{
-            left: rect.left - 6,
-            top: rect.top - 6,
-            width: rect.width + 12,
-            height: rect.height + 12,
-          }}
-        />
-      )}
-
-      <section
-        role="dialog"
-        aria-modal="false"
-        aria-label="Product tour"
-        className="absolute pointer-events-auto rounded-xl border border-border bg-background p-4 shadow-xl"
-        style={panelPosition}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-foreground-muted">
-              Tour step {stepIndex + 1} of {totalSteps}
-            </p>
-            <h2 className="mt-1 text-base font-semibold text-foreground">{step.title}</h2>
-          </div>
-          <Button variant="ghost" size="icon" className="-mr-2 -mt-2 size-8" onClick={onEnd} aria-label="End tour">
-            <X className="size-4" aria-hidden />
-          </Button>
-        </div>
-
-        <p className="mt-3 text-sm leading-6 text-foreground-muted">{step.body}</p>
-
-        {step.target && !found && (
-          <p className="mt-3 rounded-md bg-muted px-3 py-2 text-xs text-foreground-muted">
-            Waiting for this part of the page to load.
-          </p>
-        )}
-
-        {step.manual && (
-          <p className="mt-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
-            Complete the highlighted action to continue the tour automatically.
-          </p>
-        )}
-
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <Button variant="ghost" size="sm" onClick={onEnd}>Skip tour</Button>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={onBack} disabled={stepIndex === 0}>Back</Button>
-            {!step.manual && (
-              <Button size="sm" onClick={onNext}>
-                {step.nextLabel || (stepIndex === totalSteps - 1 ? 'Finish tour' : 'Next')}
-              </Button>
-            )}
-          </div>
-        </div>
-      </section>
-    </div>,
-    document.body,
-  )
-}
-
 export function ProductTourProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname() ?? ''
@@ -560,16 +387,6 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
     return () => window.clearInterval(interval)
   }, [active, definition, setStep, step, stepIndex, tourId])
 
-  React.useEffect(() => {
-    if (!active) return
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') endTour()
-    }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [active, endTour])
-
   const goBack = React.useCallback(() => {
     if (stepIndex <= 0) return
     setStep(tourId, definition.steps[stepIndex - 1].id)
@@ -607,7 +424,7 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
     <ProductTourContext.Provider value={contextValue}>
       {children}
       {mounted && active && step && (
-        <ProductTourOverlay
+        <GuidedTourOverlay
           step={step}
           stepIndex={stepIndex}
           totalSteps={definition.steps.length}

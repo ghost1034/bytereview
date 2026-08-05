@@ -21,17 +21,17 @@ type PositionOptions = {
 const clamp = (value: number, min: number, max: number) =>
   Math.min(Math.max(value, min), Math.max(min, max))
 
-/** Keep the tour card visible while preferring a side that does not cover its target. */
+/** Keep a tour card visible while preferring a side that does not cover its target. */
 export function getTourPanelPosition(
   target: TourTargetRect | null,
   {
     viewportWidth,
     viewportHeight,
-    panelWidth = 320,
-    panelHeight = 220,
+    panelWidth = 360,
+    panelHeight = 280,
     margin = 16,
-    gap = 12,
-  }: PositionOptions
+    gap = 16,
+  }: PositionOptions,
 ): TourPanelPosition {
   const width = Math.min(panelWidth, Math.max(0, viewportWidth - margin * 2))
   const height = Math.min(panelHeight, Math.max(0, viewportHeight - margin * 2))
@@ -47,12 +47,12 @@ export function getTourPanelPosition(
   const centeredTop = clamp(
     target.top + (target.height - height) / 2,
     margin,
-    viewportHeight - height - margin
+    viewportHeight - height - margin,
   )
   const centeredLeft = clamp(
     target.left + (target.width - width) / 2,
     margin,
-    viewportWidth - width - margin
+    viewportWidth - width - margin,
   )
 
   if (target.right + gap + width <= viewportWidth - margin) {

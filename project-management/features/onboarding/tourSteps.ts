@@ -1,12 +1,7 @@
 /** Product tour step definitions — anchored tooltips across the shell. */
-export type TourStep = {
-  id: string
-  target: string
-  title: string
-  body: string
-}
+import type { GuidedTourStep } from '@/components/tour/guided-tour'
 
-export const TOUR_STEPS: TourStep[] = [
+export const TOUR_STEPS: GuidedTourStep[] = [
   {
     id: 'sidebar',
     target: '[data-tour="sidebar"]',
