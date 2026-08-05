@@ -683,16 +683,17 @@ if [ "$HOSTED_CLAW_ENABLED" = true ]; then
     --time-zone="UTC"
     --uri="${API_URL}/api/internal/hosted-claw/cron/dispatch-due"
     --http-method=POST
-    --headers="Content-Type=application/json"
     --message-body="{}"
     --oidc-service-account-email="$HOSTED_CLAW_WORKER_SERVICE_ACCOUNT"
     --oidc-token-audience="$API_URL"
     --attempt-deadline=60s
   )
   if gcloud scheduler jobs describe "$scheduler_name" --location="$REGION" >/dev/null 2>&1; then
-    gcloud scheduler jobs update http "$scheduler_name" "${scheduler_args[@]}" >/dev/null
+    gcloud scheduler jobs update http "$scheduler_name" "${scheduler_args[@]}" \
+      --update-headers="Content-Type=application/json" >/dev/null
   else
-    gcloud scheduler jobs create http "$scheduler_name" "${scheduler_args[@]}" >/dev/null
+    gcloud scheduler jobs create http "$scheduler_name" "${scheduler_args[@]}" \
+      --headers="Content-Type=application/json" >/dev/null
   fi
   ok "Hosted Claw minute dispatcher configured (feature=${HOSTED_CLAW_CRON_ENABLED})"
   PROJECT_ID="$PROJECT_ID" \

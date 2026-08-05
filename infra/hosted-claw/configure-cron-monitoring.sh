@@ -66,13 +66,16 @@ ensure_alert() {
   if [ -n "$existing" ]; then
     return
   fi
-  local channel_args=()
+  # Keep this array non-empty: macOS Bash 3.2 treats an empty array expansion
+  # as an unbound variable when nounset is enabled.
+  local create_args=(--project="$project_id")
   if [ -n "$notification_channels" ]; then
-    channel_args+=(--notification-channels="$notification_channels")
+    create_args+=(--notification-channels="$notification_channels")
   fi
   "${monitoring_policies[@]}" create \
-    --project="$project_id" \
+    "${create_args[@]}" \
     --display-name="$display_name" \
+    --combiner=OR \
     --condition-display-name="$display_name" \
     --condition-filter="metric.type=\"logging.googleapis.com/user/${metric_name}\" AND resource.type=\"cloud_run_revision\"" \
     --aggregation="{\"alignmentPeriod\":\"60s\",\"perSeriesAligner\":\"${aligner}\",\"crossSeriesReducer\":\"${reducer}\"}" \
@@ -80,7 +83,7 @@ ensure_alert() {
     --duration="0s" \
     --trigger-count=1 \
     --documentation="Hosted Claw native cron signal ${metric_name} crossed its rollout threshold. Inspect only opaque occurrence/runtime IDs and error codes in Cloud Logging." \
-    "${channel_args[@]}" >/dev/null
+    >/dev/null
 }
 
 cloud_run_filter='resource.type="cloud_run_revision"'
