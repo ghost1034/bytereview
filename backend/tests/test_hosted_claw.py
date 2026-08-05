@@ -435,37 +435,22 @@ class HostedRuntimeStopTests(unittest.IsolatedAsyncioTestCase):
 
 
 class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
-    async def test_delayed_status_uses_neutral_copy(self) -> None:
+    async def test_status_is_posted_immediately_with_neutral_copy(self) -> None:
         supervisor = Supervisor.__new__(Supervisor)
         supervisor.worker_id = "worker-a"
         supervisor.control = SimpleNamespace(request=AsyncMock(return_value={"ok": True}))
         request_started = asyncio.Event()
 
-        with patch("hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 0):
-            await supervisor._post_delayed_turn_status("job-a", request_started)
+        with patch("hosted_claw.supervisor.asyncio.sleep", new=AsyncMock()) as sleep:
+            await supervisor._post_turn_status("job-a", request_started)
 
+        sleep.assert_not_awaited()
         self.assertTrue(request_started.is_set())
         supervisor.control.request.assert_awaited_once_with(
             "POST",
             "/api/internal/hosted-claw/jobs/job-a/progress?worker_id=worker-a",
             json={"kind": "status", "text": "Working on it…"},
         )
-
-    async def test_fast_turn_cancels_status_before_it_is_posted(self) -> None:
-        supervisor = Supervisor.__new__(Supervisor)
-        supervisor.worker_id = "worker-a"
-        supervisor.control = SimpleNamespace(request=AsyncMock(return_value={"ok": True}))
-        request_started = asyncio.Event()
-
-        with patch("hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 60):
-            task = asyncio.create_task(
-                supervisor._post_delayed_turn_status("job-a", request_started)
-            )
-            await asyncio.sleep(0)
-            await supervisor._settle_turn_status(task, request_started)
-
-        self.assertFalse(request_started.is_set())
-        supervisor.control.request.assert_not_awaited()
 
     async def test_native_tool_events_render_as_coalesced_slack_actions(self) -> None:
         supervisor = SimpleNamespace(
@@ -849,9 +834,7 @@ class HostedTurnTimeoutTests(unittest.IsolatedAsyncioTestCase):
             "budget_period": "2026-08-01",
         }
 
-        with patch("hosted_claw.supervisor.TURN_TIMEOUT_SECONDS", 0.01), patch(
-            "hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 60
-        ):
+        with patch("hosted_claw.supervisor.TURN_TIMEOUT_SECONDS", 0.01):
             await supervisor.process(job)
 
         supervisor.hermes.stop.assert_awaited_once_with(runtime, "run-a")
@@ -1086,9 +1069,7 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
             "budget_period": "2026-08-01",
         }
 
-        with patch("hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 60), patch(
-            "hosted_claw.supervisor.ACTION_PROGRESS_MIN_INTERVAL_SECONDS", 0
-        ):
+        with patch("hosted_claw.supervisor.ACTION_PROGRESS_MIN_INTERVAL_SECONDS", 0):
             await supervisor.process(job)
 
         action_progress = unittest.mock.call(

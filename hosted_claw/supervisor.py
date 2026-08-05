@@ -46,7 +46,6 @@ def _positive_int_env(name: str, default: int) -> int:
 MAX_TURNS = _positive_int_env("HOSTED_CLAW_MAX_TURNS", 3)
 MAX_RESIDENT_RUNTIMES = _positive_int_env("HOSTED_CLAW_MAX_RESIDENT_RUNTIMES", 3)
 IDLE_SECONDS = _positive_int_env("HOSTED_CLAW_IDLE_SECONDS", 5 * 60)
-PROGRESS_MESSAGE_DELAY_SECONDS = _positive_int_env("HOSTED_CLAW_PROGRESS_DELAY_SECONDS", 3)
 ACTION_PROGRESS_MIN_INTERVAL_SECONDS = 1.0
 ACTION_PROGRESS_MAX_ITEMS = 8
 ACTION_PROGRESS_MAX_PREVIEW_CHARS = 240
@@ -981,12 +980,11 @@ class Supervisor:
         )
         return True
 
-    async def _post_delayed_turn_status(
+    async def _post_turn_status(
         self,
         job_id: str,
         request_started: asyncio.Event,
     ) -> None:
-        await asyncio.sleep(PROGRESS_MESSAGE_DELAY_SECONDS)
         request_started.set()
         try:
             await self.control.request(
@@ -1106,7 +1104,7 @@ class Supervisor:
             cancellation_task: Optional[asyncio.Task] = None
             status_request_started = asyncio.Event()
             status_task: Optional[asyncio.Task] = asyncio.create_task(
-                self._post_delayed_turn_status(job["job_id"], status_request_started)
+                self._post_turn_status(job["job_id"], status_request_started)
             )
             action_progress = HermesSlackActionProgress(self, job["job_id"])
             try:
