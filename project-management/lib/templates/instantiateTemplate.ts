@@ -118,6 +118,13 @@ async function instantiateOneTemplate(
     taskOrderBySection[id] = []
   })
 
+  // Persist parents first because the backend validates every task's project
+  // and section references before accepting the task record.
+  await useProjectsStore.getState().add(project)
+  for (const section of sections) {
+    await useSectionsStore.getState().add(section)
+  }
+
   for (let i = 0; i < template.taskTemplates.length; i++) {
     const spec = template.taskSpecs?.[i]
     const sectionIndex = spec?.sectionIndex ?? 0
@@ -134,8 +141,7 @@ async function instantiateOneTemplate(
 
   project.taskOrderBySection = taskOrderBySection
 
-  await useProjectsStore.getState().add(project)
-  for (const s of sections) await useSectionsStore.getState().add(s)
+  await useProjectsStore.getState().update(projectId, { taskOrderBySection })
   for (const fieldId of project.customFieldIds) await addFieldToProject(projectId, fieldId)
 
   await createRulesFormsDashboards(template, projectId, input)
