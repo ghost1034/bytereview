@@ -1,6 +1,7 @@
 'use client'
 
 /** AttachmentInput — file picker that stores data URLs in form answers. */
+import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 import type { AttachmentAnswer } from '../../lib/forms/answerFormat'
 
@@ -15,6 +16,7 @@ type Props = {
 
 /** Multi-file attachment control for public and preview forms. */
 export function AttachmentInput({ fieldId, value, onChange, readOnly, required, directUpload }: Props) {
+  const [readError, setReadError] = useState<string | null>(null)
   const files: AttachmentAnswer[] = Array.isArray(value)
     ? (value as AttachmentAnswer[])
     : value && typeof value === 'object' && ('dataUrl' in (value as object) || 'file' in (value as object))
@@ -23,6 +25,7 @@ export function AttachmentInput({ fieldId, value, onChange, readOnly, required, 
 
   const onFiles = (list: FileList | null) => {
     if (!list?.length) return
+    setReadError(null)
     if (directUpload) {
       const selected: AttachmentAnswer[] = Array.from(list).map((file) => ({
         file,
@@ -45,11 +48,17 @@ export function AttachmentInput({ fieldId, value, onChange, readOnly, required, 
                 size: file.size,
                 dataUrl: String(reader.result),
               })
-            reader.onerror = () => reject(reader.error)
+            reader.onerror = () => reject(reader.error ?? new Error(`Could not read ${file.name}`))
+            reader.onabort = () => reject(new Error(`Reading ${file.name} was cancelled`))
             reader.readAsDataURL(file)
           })
       )
-    ).then((uploaded) => onChange([...files, ...uploaded]))
+    )
+      .then((uploaded) => onChange([...files, ...uploaded]))
+      .catch((cause) => {
+        console.error('Tasklytic attachment read failed:', cause)
+        setReadError('One or more files could not be read. Please try again.')
+      })
   }
 
   return (
@@ -63,6 +72,11 @@ export function AttachmentInput({ fieldId, value, onChange, readOnly, required, 
         className="tl-input"
         onChange={(e) => onFiles(e.target.files)}
       />
+      {readError ? (
+        <p className="text-xs text-destructive" role="alert">
+          {readError}
+        </p>
+      ) : null}
       {files.map((f, i) => (
         <p key={i} className="text-xs" style={{ color: 'var(--ink-secondary)' }}>
           {f.name} ({Math.round(f.size / 1024)} KB)

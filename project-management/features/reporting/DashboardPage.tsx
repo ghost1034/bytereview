@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { CalendarClock, Copy, Download, Plus, Printer, Share2, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useToast } from '@/hooks/use-toast'
+import { normalizeUnknownError } from '../../lib/errors'
 import { appendChartToDashboard, duplicateDashboard } from '../../lib/reporting/dashboardActions'
 import { exportDashboardPng, exportDashboardPrint } from '../../lib/reporting/exportDashboard'
 import type { ReportingDashboard } from '../../lib/reporting/types'
@@ -36,6 +38,7 @@ type Props = { workspaceId: string; dashboardId: string; basePath: string }
 /** Dashboard detail with editable title, chart grid, and actions. */
 export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
   const router = useRouter()
+  const { toast } = useToast()
   const gridRef = useRef<HTMLDivElement>(null)
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const dashboard = useDashboardsStore((s) => s.getById(dashboardId)) as ReportingDashboard | undefined
@@ -59,6 +62,7 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
   const [shareOpen, setShareOpen] = useState(false)
   const [digestOpen, setDigestOpen] = useState(false)
   const [title, setTitle] = useState(dashboard?.name ?? '')
+  const [exporting, setExporting] = useState(false)
 
   usePageMeta({
     breadcrumbs: [
@@ -100,6 +104,24 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
     } as Partial<ReportingDashboard>)
   }
 
+  const handleExportPng = async () => {
+    if (!gridRef.current || exporting) return
+    setExporting(true)
+    try {
+      await exportDashboardPng(gridRef.current, `${dashboard.name}.png`)
+    } catch (cause) {
+      const error = normalizeUnknownError(cause, 'The dashboard could not be exported.')
+      console.error('Tasklytic dashboard export failed:', error)
+      toast({
+        title: 'Export failed',
+        description: error.message,
+        variant: 'destructive',
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
@@ -130,9 +152,10 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
             variant="outline"
             size="sm"
             className="gap-1.5"
-            onClick={() => void exportDashboardPng(gridRef.current!, `${dashboard.name}.png`)}
+            disabled={exporting}
+            onClick={() => void handleExportPng()}
           >
-            <Download className="h-4 w-4" /> Export PNG
+            <Download className="h-4 w-4" /> {exporting ? 'Exporting…' : 'Export PNG'}
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5" onClick={exportDashboardPrint}>
             <Printer className="h-4 w-4" /> Print / PDF

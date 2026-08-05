@@ -248,7 +248,9 @@ export function TasklyticProvider({ children }: Props) {
   useEffect(() => {
     if (authLoading || !usesTasklyticBackend() || !effectiveWorkspaceId || !bootReady) return
     setActiveRepositoryWorkspaceId(effectiveWorkspaceId)
-    void rehydrateWorkspaceStores(effectiveWorkspaceId)
+    void rehydrateWorkspaceStores(effectiveWorkspaceId).catch((err) => {
+      console.warn('Tasklytic workspace refresh failed:', err)
+    })
   }, [authLoading, bootReady, effectiveWorkspaceId])
 
   useEffect(() => {
