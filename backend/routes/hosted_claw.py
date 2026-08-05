@@ -18,7 +18,7 @@ from typing import Any
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -31,6 +31,8 @@ from models.db_models import (
     HostedClawApproval,
     HostedClawArtifact,
     HostedClawConfig,
+    HostedClawCronOccurrence,
+    HostedClawCronSchedule,
     HostedClawEntitlement,
     HostedClawJob,
     HostedClawLinkToken,
@@ -47,6 +49,9 @@ from models.hosted_claw import (
     ApprovalResponse,
     ArtifactRegisterRequest,
     ArtifactRegisterResponse,
+    CronOccurrenceProviderCompleteRequest,
+    CronScheduleReconcileRequest,
+    CronTextDeliveryRequest,
     EntitlementUpdate,
     HostedCommandResponse,
     HostedConfigResponse,
@@ -62,6 +67,9 @@ from models.hosted_claw import (
     SlackInstallResponse,
     WorkerClaimRequest,
     WorkerClaimResponse,
+    WorkerCronClaimResponse,
+    WorkerCronCompleteRequest,
+    WorkerCronOccurrenceResponse,
     WorkerJobResponse,
 )
 from routes.admin import require_system_admin
@@ -90,6 +98,36 @@ from services.hosted_claw_service import (
     validate_attachment,
     decrypt_bot_token,
 )
+from services.hosted_claw_cron import (
+    active_slack_context,
+    cron_enabled,
+    dispatch_due_occurrences,
+    publish_occurrences,
+    reconcile_schedules,
+    recover_expired_occurrences,
+)
+
+
+def _lock_hosted_user_work(db: Session, user_id: str) -> None:
+    """Serialize interactive and cron admission across worker processes."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:user_id, 0))"),
+            {"user_id": user_id},
+        )
+
+
+def _hosted_user_has_active_work(db: Session, user_id: str) -> bool:
+    active_job = db.query(HostedClawJob.id).filter(
+        HostedClawJob.user_id == user_id,
+        HostedClawJob.status.in_(["claimed", "running"]),
+    ).first()
+    if active_job is not None:
+        return True
+    return db.query(HostedClawCronOccurrence.id).filter(
+        HostedClawCronOccurrence.user_id == user_id,
+        HostedClawCronOccurrence.status.in_(["claimed", "ready", "running"]),
+    ).first() is not None
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +187,10 @@ def _ensure_hermes_session_id(session: HostedClawProductSession) -> str:
     if not session.hermes_session_id:
         session.hermes_session_id = f"hcs_{uuid.uuid4().hex}"
     return str(session.hermes_session_id)
+
+
+def _aware_datetime(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
 
 
 def _require_feature() -> None:
@@ -233,9 +275,9 @@ def _link_oauth_installer(
     return link
 
 
-def _config_response(row: HostedClawConfig) -> HostedConfigResponse:
+def _config_response(row: HostedClawConfig, *, product: str | None = None) -> HostedConfigResponse:
     return HostedConfigResponse(
-        active_product=str(row.active_product),
+        active_product=str(product or row.active_product),
         model_alias=str(row.model_alias),
         personal_instructions=str(row.personal_instructions or ""),
         timezone=str(row.timezone),
@@ -270,6 +312,20 @@ def _hosted_connector(request: Request, db: Session) -> ConnectorToken:
     return row
 
 
+def _connector_runtime_session(
+    db: Session,
+    connector: ConnectorToken,
+) -> HostedClawProductSession:
+    session = db.query(HostedClawProductSession).filter(
+        HostedClawProductSession.user_id == connector.user_id,
+        HostedClawProductSession.runtime_id == connector.runtime_id,
+        HostedClawProductSession.status.in_(["starting", "ready", "running"]),
+    ).first()
+    if session is None:
+        raise HTTPException(status_code=409, detail="Hosted runtime is not active")
+    return session
+
+
 def _delete_artifact_objects(object_names: list[str]) -> None:
     bucket_name = os.getenv("HOSTED_CLAW_ARTIFACT_BUCKET", "").strip()
     if not object_names:
@@ -290,6 +346,36 @@ def _delete_artifact_objects(object_names: list[str]) -> None:
         raise
     except Exception as exc:
         raise HostedClawUnavailable("Hosted artifact deletion failed") from exc
+
+
+def _interrupt_cron_runtime_work(db: Session, user_id: str, now: datetime) -> None:
+    """Stop runtime-owned cron work without deleting or disabling schedules."""
+    db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.user_id == user_id,
+        HostedClawCronOccurrence.status.in_(["claimed", "ready"]),
+        HostedClawCronOccurrence.provider_claimed_at.is_(None),
+    ).update(
+        {
+            HostedClawCronOccurrence.status: "pending",
+            HostedClawCronOccurrence.worker_id: None,
+            HostedClawCronOccurrence.runtime_id: None,
+            HostedClawCronOccurrence.claimed_at: None,
+            HostedClawCronOccurrence.ready_at: None,
+            HostedClawCronOccurrence.lease_expires_at: None,
+        },
+        synchronize_session=False,
+    )
+    db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.user_id == user_id,
+        HostedClawCronOccurrence.status == "running",
+    ).update(
+        {
+            HostedClawCronOccurrence.status: "unknown",
+            HostedClawCronOccurrence.error_code: "runtime_stopped_after_native_claim",
+            HostedClawCronOccurrence.completed_at: now,
+        },
+        synchronize_session=False,
+    )
 
 
 def _register_claim_attachments(
@@ -450,6 +536,191 @@ async def runtime_approval(body: RuntimeApprovalRequest, request: Request, db: S
     return {"status": "pending", "expires_at": approval.expires_at}
 
 
+@user_router.post("/runtime/cron/schedules/reconcile")
+async def reconcile_runtime_cron_schedules(
+    body: CronScheduleReconcileRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Accept a full metadata-only snapshot from one tenant runtime."""
+    _require_feature()
+    connector = _hosted_connector(request, db)
+    session = _connector_runtime_session(db, connector)
+    try:
+        queued, synced = reconcile_schedules(
+            db,
+            user_id=str(connector.user_id),
+            product=str(session.product),
+            snapshots=body.schedules,
+            manual_job_id=body.manual_job_id,
+            manual_request_id=body.manual_request_id,
+        )
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "hosted_cron_schedule_sync_failed runtime_id=%s",
+            connector.runtime_id,
+        )
+        raise
+    try:
+        publish_occurrences(queued)
+    except Exception:
+        logger.exception("hosted_cron_manual_publish_failed count=%d", len(queued))
+    return {"synced": synced, "queued_occurrence_ids": queued}
+
+
+@user_router.post("/runtime/cron/occurrences/claim")
+async def claim_runtime_cron_occurrence(request: Request, db: Session = Depends(get_db)):
+    """Let the managed provider claim the one occurrence made ready for it."""
+    _require_feature()
+    if not cron_enabled():
+        return {"occurrence": None}
+    connector = _hosted_connector(request, db)
+    session = _connector_runtime_session(db, connector)
+    now = utcnow()
+    occurrence = db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.user_id == connector.user_id,
+        HostedClawCronOccurrence.product == session.product,
+        HostedClawCronOccurrence.runtime_id == connector.runtime_id,
+        HostedClawCronOccurrence.status == "ready",
+    ).order_by(HostedClawCronOccurrence.fire_at.asc()).with_for_update(skip_locked=True).first()
+    if occurrence is None:
+        return {"occurrence": None}
+    occurrence.status = "running"
+    occurrence.provider_claimed_at = now
+    occurrence.heartbeat_at = now
+    occurrence.lease_expires_at = now + timedelta(minutes=5)
+    db.commit()
+    logger.info(
+        "hosted_cron_provider_claimed occurrence_id=%s schedule_id=%s runtime_id=%s",
+        occurrence.id, occurrence.schedule_id, occurrence.runtime_id,
+    )
+    return {
+        "occurrence": {
+            "occurrence_id": str(occurrence.id),
+            "native_job_id": str(occurrence.native_job_id),
+            "fire_at": occurrence.fire_at,
+        }
+    }
+
+
+@user_router.post("/runtime/cron/occurrences/{occurrence_id}/heartbeat")
+async def heartbeat_runtime_cron_occurrence(
+    occurrence_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    connector = _hosted_connector(request, db)
+    occurrence = db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.id == occurrence_id,
+        HostedClawCronOccurrence.user_id == connector.user_id,
+        HostedClawCronOccurrence.runtime_id == connector.runtime_id,
+        HostedClawCronOccurrence.status == "running",
+    ).first()
+    if occurrence is None:
+        raise HTTPException(status_code=404, detail="Running cron occurrence not found")
+    occurrence.heartbeat_at = utcnow()
+    occurrence.lease_expires_at = utcnow() + timedelta(minutes=5)
+    db.commit()
+    return {"status": "running"}
+
+
+@user_router.post("/runtime/cron/occurrences/{occurrence_id}/complete")
+async def complete_runtime_cron_occurrence(
+    occurrence_id: str,
+    body: CronOccurrenceProviderCompleteRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    connector = _hosted_connector(request, db)
+    occurrence = db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.id == occurrence_id,
+        HostedClawCronOccurrence.user_id == connector.user_id,
+        HostedClawCronOccurrence.runtime_id == connector.runtime_id,
+    ).with_for_update().first()
+    if occurrence is None:
+        raise HTTPException(status_code=404, detail="Cron occurrence not found")
+    if occurrence.status in {"completed", "failed"}:
+        return {"status": occurrence.status}
+    if occurrence.status != "running" or occurrence.provider_claimed_at is None:
+        raise HTTPException(status_code=409, detail="Cron occurrence was not claimed by Hermes")
+    occurrence.status = body.status
+    occurrence.error_code = body.error_code
+    occurrence.completed_at = utcnow()
+    if occurrence.delivery_status == "pending":
+        occurrence.delivery_status = "skipped"
+    db.commit()
+    logger.info(
+        "hosted_cron_provider_completed occurrence_id=%s status=%s delivery=%s",
+        occurrence.id, occurrence.status, occurrence.delivery_status,
+    )
+    return {"status": occurrence.status}
+
+
+@user_router.post("/runtime/cron/deliver")
+async def deliver_runtime_cron_text(
+    body: CronTextDeliveryRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Deliver one text result without exposing a Slack credential to a tenant."""
+    connector = _hosted_connector(request, db)
+    occurrence = db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.id == body.occurrence_id,
+        HostedClawCronOccurrence.user_id == connector.user_id,
+        HostedClawCronOccurrence.runtime_id == connector.runtime_id,
+    ).with_for_update().first()
+    if occurrence is None or occurrence.status != "running":
+        raise HTTPException(status_code=404, detail="Running cron occurrence not found")
+    if occurrence.delivery_attempted_at is not None:
+        if occurrence.delivery_status == "delivered":
+            return {"success": True, "duplicate": True}
+        raise HTTPException(status_code=409, detail="Cron delivery was already attempted")
+    occurrence.delivery_attempted_at = utcnow()
+    link, installation = active_slack_context(db, str(connector.user_id))
+    if link is None or installation is None:
+        occurrence.delivery_status = "failed"
+        occurrence.error_code = "slack_unlinked"
+        db.commit()
+        logger.warning("hosted_cron_delivery_failed occurrence_id=%s code=slack_unlinked", occurrence.id)
+        raise HTTPException(status_code=409, detail="Slack is not linked")
+    # Persist the attempt before making an external call. An ambiguous process
+    # exit must not cause the same occurrence to post a second Slack message.
+    db.commit()
+    try:
+        opened = await slack_api(
+            installation,
+            "conversations.open",
+            {"users": str(link.slack_user_id)},
+        )
+        channel_id = str((opened.get("channel") or {}).get("id") or "")
+        if not channel_id:
+            raise RuntimeError("Slack did not return a DM channel")
+        sent = await slack_api(
+            installation,
+            "chat.postMessage",
+            {
+                "channel": channel_id,
+                "text": body.text[:12000],
+                "client_msg_id": str(occurrence.id),
+            },
+        )
+        occurrence.delivery_status = "delivered"
+        occurrence.delivered_at = utcnow()
+        db.commit()
+        return {"success": True, "message_id": str(sent.get("ts") or "")}
+    except Exception:
+        occurrence.delivery_status = "failed"
+        occurrence.error_code = "slack_delivery_failed"
+        db.commit()
+        logger.exception("hosted_cron_delivery_failed occurrence_id=%s code=slack_delivery_failed", occurrence.id)
+        raise HTTPException(status_code=502, detail="Slack delivery failed")
+
+
 @user_router.patch("/config", response_model=HostedConfigResponse)
 async def update_config(body: HostedConfigUpdate, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
     _require_feature()
@@ -521,13 +792,14 @@ async def stop_runtime(user_id: str = Depends(get_current_user_id), db: Session 
     db.query(HostedClawProductSession).filter(HostedClawProductSession.user_id == user_id).update(
         {HostedClawProductSession.status: "stopped"}, synchronize_session=False
     )
+    _interrupt_cron_runtime_work(db, user_id, now)
     db.query(ConnectorToken).filter(
         ConnectorToken.user_id == user_id,
         ConnectorToken.token_kind == "hosted_runtime",
         ConnectorToken.revoked_at.is_(None),
     ).update({ConnectorToken.revoked_at: now}, synchronize_session=False)
     db.commit()
-    return HostedCommandResponse(message="Hosted Claw work was stopped.")
+    return HostedCommandResponse(message="Hosted Claw runtime was stopped. Active schedules remain enabled and can wake it again.")
 
 
 @user_router.post("/session/new", response_model=HostedCommandResponse)
@@ -590,6 +862,17 @@ async def reset_product(user_id: str = Depends(get_current_user_id), db: Session
         HostedClawJob.user_id == user_id,
         HostedClawJob.product == config.active_product,
     ).delete(synchronize_session=False)
+    schedule_ids = db.query(HostedClawCronSchedule.id).filter(
+        HostedClawCronSchedule.user_id == user_id,
+        HostedClawCronSchedule.product == config.active_product,
+    )
+    db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.schedule_id.in_(schedule_ids)
+    ).delete(synchronize_session=False)
+    db.query(HostedClawCronSchedule).filter(
+        HostedClawCronSchedule.user_id == user_id,
+        HostedClawCronSchedule.product == config.active_product,
+    ).delete(synchronize_session=False)
     db.commit()
     return HostedCommandResponse(message="The active product history, memory, files, and workspace are being reset.")
 
@@ -607,6 +890,7 @@ async def unlink(user_id: str = Depends(get_current_user_id), db: Session = Depe
     db.query(HostedClawProductSession).filter(
         HostedClawProductSession.user_id == user_id
     ).update({HostedClawProductSession.status: "stopped"}, synchronize_session=False)
+    _interrupt_cron_runtime_work(db, user_id, now)
     db.query(ConnectorToken).filter(
         ConnectorToken.user_id == user_id,
         ConnectorToken.token_kind == "hosted_runtime",
@@ -637,7 +921,14 @@ async def delete_hosted(user_id: str = Depends(get_current_user_id), db: Session
         await asyncio.to_thread(_delete_artifact_objects, artifact_objects)
     except HostedClawUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc))
-    for model in (HostedClawJob, HostedClawArtifact, HostedClawConfig, HostedClawUsageSummary):
+    for model in (
+        HostedClawCronOccurrence,
+        HostedClawCronSchedule,
+        HostedClawJob,
+        HostedClawArtifact,
+        HostedClawConfig,
+        HostedClawUsageSummary,
+    ):
         db.query(model).filter(model.user_id == user_id).delete(synchronize_session=False)
     db.query(HostedClawLinkToken).filter(
         HostedClawLinkToken.consumed_by_user_id == user_id
@@ -831,6 +1122,8 @@ def _slash_text(command: str, linked: bool, runtime_status: str = "stopped") -> 
         return "Your Slack identity is not linked. Send the app a DM to receive a 10-minute link."
     if command == "status":
         return f"Hosted Claw is linked. Runtime status: {runtime_status}. Product and model are managed in the dashboard."
+    if command == "stop":
+        return "Hosted Claw runtime was stopped. Active schedules remain enabled and can wake it again."
     return "Command accepted."
 
 
@@ -867,15 +1160,18 @@ async def slack_commands(request: Request, db: Session = Depends(get_db)):
                 ConnectorToken.revoked_at.is_(None),
             ).update({ConnectorToken.revoked_at: utcnow()}, synchronize_session=False)
         elif action == "stop":
+            now = utcnow()
             db.query(HostedClawJob).filter(HostedClawJob.user_id == link.user_id, HostedClawJob.status.in_(["queued", "claimed", "running"])).update({HostedClawJob.status: "cancelled", HostedClawJob.completed_at: utcnow()}, synchronize_session=False)
             db.query(HostedClawProductSession).filter(HostedClawProductSession.user_id == link.user_id).update({HostedClawProductSession.status: "stopped"}, synchronize_session=False)
+            _interrupt_cron_runtime_work(db, str(link.user_id), now)
             db.query(ConnectorToken).filter(
                 ConnectorToken.user_id == link.user_id,
                 ConnectorToken.token_kind == "hosted_runtime",
                 ConnectorToken.revoked_at.is_(None),
             ).update({ConnectorToken.revoked_at: utcnow()}, synchronize_session=False)
         elif action == "unlink":
-            link.unlinked_at = utcnow()
+            now = utcnow()
+            link.unlinked_at = now
             db.query(HostedClawJob).filter(
                 HostedClawJob.user_id == link.user_id,
                 HostedClawJob.status.in_(["queued", "claimed", "running"]),
@@ -883,6 +1179,7 @@ async def slack_commands(request: Request, db: Session = Depends(get_db)):
             db.query(HostedClawProductSession).filter(
                 HostedClawProductSession.user_id == link.user_id
             ).update({HostedClawProductSession.status: "stopped"}, synchronize_session=False)
+            _interrupt_cron_runtime_work(db, str(link.user_id), now)
             db.query(ConnectorToken).filter(
                 ConnectorToken.user_id == link.user_id,
                 ConnectorToken.token_kind == "hosted_runtime",
@@ -962,6 +1259,9 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
     if body.active_turns >= min(body.capacity, 10):
         db.commit()
         return WorkerClaimResponse(job=None)
+    busy_cron_users = db.query(HostedClawCronOccurrence.user_id).filter(
+        HostedClawCronOccurrence.status.in_(["claimed", "ready", "running"])
+    )
     busy_users = db.query(HostedClawJob.user_id).filter(HostedClawJob.status.in_(["claimed", "running"]))
     deleting_users = db.query(HostedClawProductSession.user_id).filter(
         HostedClawProductSession.status == "deleting"
@@ -970,9 +1270,14 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
         HostedClawJob.status == "queued",
         HostedClawJob.available_at <= now,
         HostedClawJob.user_id.notin_(busy_users),
+        HostedClawJob.user_id.notin_(busy_cron_users),
         HostedClawJob.user_id.notin_(deleting_users),
     ).order_by(HostedClawJob.created_at.asc()).with_for_update(skip_locked=True).first()
     if job is None:
+        db.commit()
+        return WorkerClaimResponse(job=None)
+    _lock_hosted_user_work(db, str(job.user_id))
+    if _hosted_user_has_active_work(db, str(job.user_id)):
         db.commit()
         return WorkerClaimResponse(job=None)
     job.status = "claimed"
@@ -1052,6 +1357,269 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
     )
     db.commit()
     return WorkerClaimResponse(job=result)
+
+
+@internal_router.post("/cron/occurrences/claim", response_model=WorkerCronClaimResponse)
+async def claim_cron_occurrence(body: WorkerClaimRequest, db: Session = Depends(get_db)):
+    """Claim scheduled work through the same admission and budget path as a turn."""
+    _require_feature()
+    if not cron_enabled():
+        return WorkerCronClaimResponse(occurrence=None)
+    now = utcnow()
+    reclaimable, unknown = recover_expired_occurrences(db, now)
+    lease = db.get(HostedClawWorkerLease, body.worker_id)
+    if lease is None:
+        lease = HostedClawWorkerLease(worker_id=body.worker_id, hostname=body.hostname)
+        db.add(lease)
+    lease.hostname = body.hostname
+    lease.capacity = body.capacity
+    lease.active_turns = body.active_turns
+    lease.disk_percent = body.disk_percent
+    lease.status = "degraded" if body.disk_percent is not None and body.disk_percent >= 80 else "healthy"
+    lease.last_heartbeat_at = now
+    lease.lease_expires_at = now + timedelta(seconds=90)
+    if body.active_turns >= min(body.capacity, 10):
+        db.commit()
+        return WorkerCronClaimResponse(occurrence=None)
+
+    busy_job_users = db.query(HostedClawJob.user_id).filter(
+        HostedClawJob.status.in_(["claimed", "running"])
+    )
+    busy_cron_users = db.query(HostedClawCronOccurrence.user_id).filter(
+        HostedClawCronOccurrence.status.in_(["claimed", "ready", "running"])
+    )
+    deleting_users = db.query(HostedClawProductSession.user_id).filter(
+        HostedClawProductSession.status == "deleting"
+    )
+    linked_users = db.query(HostedClawSlackLink.user_id).join(
+        HostedClawSlackInstallation,
+        HostedClawSlackInstallation.id == HostedClawSlackLink.installation_id,
+    ).filter(
+        HostedClawSlackLink.unlinked_at.is_(None),
+        HostedClawSlackInstallation.status == "active",
+    )
+    occurrence = db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.status == "pending",
+        HostedClawCronOccurrence.fire_at <= now,
+        HostedClawCronOccurrence.user_id.notin_(busy_job_users),
+        HostedClawCronOccurrence.user_id.notin_(busy_cron_users),
+        HostedClawCronOccurrence.user_id.notin_(deleting_users),
+        HostedClawCronOccurrence.user_id.in_(linked_users),
+    ).order_by(HostedClawCronOccurrence.fire_at.asc()).with_for_update(skip_locked=True).first()
+    if occurrence is None:
+        db.commit()
+        return WorkerCronClaimResponse(occurrence=None)
+
+    _lock_hosted_user_work(db, str(occurrence.user_id))
+    if _hosted_user_has_active_work(db, str(occurrence.user_id)):
+        db.commit()
+        return WorkerCronClaimResponse(occurrence=None)
+
+    occurrence.status = "claimed"
+    occurrence.worker_id = body.worker_id
+    occurrence.claimed_at = now
+    occurrence.heartbeat_at = now
+    occurrence.lease_expires_at = now + timedelta(minutes=5)
+    config = get_or_create_config(db, str(occurrence.user_id))
+    entitlement = db.query(HostedClawEntitlement).filter(
+        HostedClawEntitlement.user_id == occurrence.user_id,
+        HostedClawEntitlement.enabled.is_(True),
+        HostedClawEntitlement.revoked_at.is_(None),
+    ).first()
+    if (
+        entitlement is None
+        or occurrence.product not in (entitlement.allowed_products or [])
+        or config.model_alias not in (entitlement.allowed_model_aliases or [])
+    ):
+        occurrence.status = "rejected"
+        occurrence.error_code = "entitlement_changed"
+        occurrence.completed_at = now
+        db.commit()
+        logger.warning("hosted_cron_rejected occurrence_id=%s code=entitlement_changed", occurrence.id)
+        return WorkerCronClaimResponse(occurrence=None)
+
+    period = date.today().replace(day=1)
+    usage_cost = db.query(HostedClawUsageSummary.cost_usd).filter(
+        HostedClawUsageSummary.user_id == occurrence.user_id,
+        HostedClawUsageSummary.period_start == period,
+    ).scalar() or Decimal("0")
+    monthly_budget = Decimal(entitlement.monthly_budget_usd or 0)
+    remaining_budget = max(Decimal("0"), monthly_budget - Decimal(usage_cost)) if monthly_budget > 0 else Decimal("0")
+    if monthly_budget > 0 and remaining_budget <= 0:
+        occurrence.status = "rejected"
+        occurrence.error_code = "budget_exhausted"
+        occurrence.completed_at = now
+        db.commit()
+        logger.warning("hosted_cron_rejected occurrence_id=%s code=budget_exhausted", occurrence.id)
+        link, installation = active_slack_context(db, str(occurrence.user_id))
+        if link and installation:
+            try:
+                opened = await slack_api(installation, "conversations.open", {"users": str(link.slack_user_id)})
+                channel = str((opened.get("channel") or {}).get("id") or "")
+                if channel:
+                    await slack_api(
+                        installation,
+                        "chat.postMessage",
+                        {"channel": channel, "text": "Your Hosted Claw monthly model budget is exhausted; this scheduled job was not run."},
+                    )
+            except Exception:
+                logger.warning("hosted_cron_rejection_delivery_failed occurrence_id=%s", occurrence.id)
+        return WorkerCronClaimResponse(occurrence=None)
+
+    session = db.query(HostedClawProductSession).filter(
+        HostedClawProductSession.user_id == occurrence.user_id,
+        HostedClawProductSession.product == occurrence.product,
+    ).first()
+    runtime_start_expected = _runtime_start_expected(session, body.worker_id, config.revision)
+    if session is None:
+        session = HostedClawProductSession(
+            user_id=occurrence.user_id,
+            product=occurrence.product,
+            runtime_id=f"hcr_{uuid.uuid4().hex}",
+        )
+        db.add(session)
+        db.flush()
+    elif not session.runtime_id:
+        session.runtime_id = f"hcr_{uuid.uuid4().hex}"
+    session.worker_id = body.worker_id
+    session.status = "starting" if runtime_start_expected else "ready"
+    occurrence.runtime_id = session.runtime_id
+    db.query(HostedClawProductSession).filter(
+        HostedClawProductSession.user_id == occurrence.user_id,
+        HostedClawProductSession.product != occurrence.product,
+        HostedClawProductSession.status.in_(["starting", "ready", "running"]),
+    ).update({HostedClawProductSession.status: "stopped"}, synchronize_session=False)
+    result = WorkerCronOccurrenceResponse(
+        occurrence_id=str(occurrence.id),
+        schedule_id=str(occurrence.schedule_id),
+        native_job_id=str(occurrence.native_job_id),
+        fire_at=occurrence.fire_at,
+        queued_at=occurrence.created_at,
+        user_id=str(occurrence.user_id),
+        product=str(occurrence.product),
+        config=_config_response(config, product=str(occurrence.product)),
+        runtime_id=str(session.runtime_id),
+        monthly_budget_usd=monthly_budget,
+        remaining_budget_usd=remaining_budget,
+        budget_period=period,
+    )
+    db.commit()
+    if reclaimable or unknown:
+        logger.info("hosted_cron_recovery reclaimable=%d unknown=%d", reclaimable, unknown)
+    return WorkerCronClaimResponse(occurrence=result)
+
+
+@internal_router.post("/cron/occurrences/{occurrence_id}/started")
+async def mark_cron_occurrence_ready(occurrence_id: str, worker_id: str, db: Session = Depends(get_db)):
+    occurrence = db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.id == occurrence_id,
+        HostedClawCronOccurrence.worker_id == worker_id,
+        HostedClawCronOccurrence.status == "claimed",
+    ).with_for_update().first()
+    if occurrence is None:
+        raise HTTPException(status_code=404, detail="Claimed cron occurrence not found")
+    now = utcnow()
+    occurrence.status = "ready"
+    occurrence.ready_at = now
+    occurrence.heartbeat_at = now
+    occurrence.lease_expires_at = now + timedelta(minutes=5)
+    db.query(HostedClawProductSession).filter(
+        HostedClawProductSession.runtime_id == occurrence.runtime_id,
+        HostedClawProductSession.worker_id == worker_id,
+    ).update({HostedClawProductSession.status: "running"}, synchronize_session=False)
+    db.commit()
+    logger.info(
+        "hosted_cron_runtime_ready occurrence_id=%s runtime_id=%s due_to_ready_seconds=%.3f",
+        occurrence.id,
+        occurrence.runtime_id,
+        max(0.0, (now - _aware_datetime(occurrence.fire_at)).total_seconds()),
+    )
+    return {"status": "ready"}
+
+
+@internal_router.get("/cron/occurrences/{occurrence_id}/state")
+async def cron_occurrence_state(occurrence_id: str, worker_id: str, db: Session = Depends(get_db)):
+    occurrence = db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.id == occurrence_id,
+        HostedClawCronOccurrence.worker_id == worker_id,
+    ).first()
+    if occurrence is None:
+        raise HTTPException(status_code=404, detail="Claimed cron occurrence not found")
+    if occurrence.status in {"claimed", "ready", "running"}:
+        occurrence.heartbeat_at = utcnow()
+        occurrence.lease_expires_at = utcnow() + timedelta(minutes=5)
+        db.commit()
+    return {
+        "status": occurrence.status,
+        "provider_claimed": occurrence.provider_claimed_at is not None,
+        "error_code": occurrence.error_code,
+        "delivery_status": occurrence.delivery_status,
+    }
+
+
+@internal_router.post("/cron/occurrences/{occurrence_id}/complete")
+async def complete_cron_occurrence_worker(
+    occurrence_id: str,
+    body: WorkerCronCompleteRequest,
+    worker_id: str,
+    db: Session = Depends(get_db),
+):
+    occurrence = db.query(HostedClawCronOccurrence).filter(
+        HostedClawCronOccurrence.id == occurrence_id,
+        HostedClawCronOccurrence.worker_id == worker_id,
+    ).with_for_update().first()
+    if occurrence is None:
+        raise HTTPException(status_code=404, detail="Claimed cron occurrence not found")
+    now = utcnow()
+    if body.status == "requeue":
+        if occurrence.provider_claimed_at is not None or occurrence.status == "running":
+            occurrence.status = "unknown"
+            occurrence.error_code = body.error_code or "ambiguous_runtime_exit"
+            occurrence.completed_at = now
+        elif occurrence.status not in {"completed", "failed", "unknown", "cancelled", "rejected"}:
+            occurrence.status = "pending"
+            occurrence.worker_id = None
+            occurrence.runtime_id = None
+            occurrence.claimed_at = None
+            occurrence.ready_at = None
+            occurrence.lease_expires_at = None
+    elif occurrence.status not in {"completed", "failed", "unknown"}:
+        occurrence.status = body.status
+        occurrence.error_code = body.error_code
+        occurrence.completed_at = now
+
+    if occurrence.usage_accounted_at is None and body.status != "requeue":
+        period = date.today().replace(day=1)
+        usage = db.query(HostedClawUsageSummary).filter(
+            HostedClawUsageSummary.user_id == occurrence.user_id,
+            HostedClawUsageSummary.period_start == period,
+        ).first()
+        if usage is None:
+            usage = HostedClawUsageSummary(user_id=occurrence.user_id, period_start=period)
+            db.add(usage)
+        usage.prompt_tokens = int(usage.prompt_tokens or 0) + body.prompt_tokens
+        usage.completion_tokens = int(usage.completion_tokens or 0) + body.completion_tokens
+        usage.cost_usd = Decimal(usage.cost_usd or 0) + body.cost_usd
+        usage.turns = int(usage.turns or 0) + 1
+        occurrence.cost_usd = body.cost_usd
+        occurrence.usage_accounted_at = now
+    session = db.query(HostedClawProductSession).filter(
+        HostedClawProductSession.runtime_id == occurrence.runtime_id,
+        HostedClawProductSession.worker_id == worker_id,
+    ).first()
+    if session:
+        session.status = "stopped" if occurrence.status == "unknown" else "ready"
+        session.last_activity_at = now
+        if body.applied_config_revision is not None:
+            session.applied_config_revision = body.applied_config_revision
+    db.commit()
+    return {"status": occurrence.status}
+
+
+@internal_router.post("/cron/dispatch-due")
+async def dispatch_due_cron(db: Session = Depends(get_db)):
+    occurrence_ids = dispatch_due_occurrences(db)
+    return {"enabled": cron_enabled(), "registered": len(occurrence_ids)}
 
 
 @internal_router.post("/deletions/claim")

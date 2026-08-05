@@ -7,6 +7,7 @@ import json
 import os
 import sys
 import tempfile
+import types
 import unittest
 import zipfile
 from datetime import datetime, timedelta, timezone
@@ -16,6 +17,9 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
@@ -35,6 +39,8 @@ from services.hosted_claw_service import (
     publish_job,
     validate_attachment,
 )
+from services.hosted_claw_cron import reconcile_schedules, recover_expired_occurrences
+from models.db_models import HostedClawCronOccurrence, HostedClawCronSchedule
 from routes.connector import _handle_mcp_message
 from routes.hosted_claw import (
     _ensure_hermes_session_id,
@@ -1078,12 +1084,308 @@ class HostedManagedConfigTests(unittest.TestCase):
         self.assertEqual(list(rendered["mcp_servers"]), ["cpaautomation"])
         self.assertFalse(rendered["memory"]["memory_enabled"])
         self.assertIn("memory", rendered["agent"]["disabled_toolsets"])
-        self.assertEqual(rendered["plugins"]["enabled"], ["hosted-policy"])
+        self.assertEqual(rendered["plugins"]["enabled"], ["hosted-policy", "cpaa-hosted"])
+        self.assertEqual(rendered["cron"]["provider"], "cpaa-hosted")
         self.assertFalse(rendered["security"]["allow_custom_mcp"])
         self.assertFalse(rendered["security"]["allow_provider_keys"])
         self.assertFalse(
             rendered["security"]["terminal"]["approval_required_for_dangerous_operations"]
         )
+
+    def test_cron_feature_uses_managed_provider_and_delivery_platform(self) -> None:
+        config = SimpleNamespace(
+            active_product="legalclaw",
+            model_alias="claw-default",
+            personal_instructions="",
+            timezone="America/New_York",
+            memory_enabled=True,
+        )
+        with patch.dict(os.environ, {"HOSTED_CLAW_CRON_ENABLED": "true"}):
+            rendered = managed_hermes_config(config, "https://api.example/mcp", "http://litellm/v1")
+
+        self.assertNotIn("cron", rendered["agent"]["disabled_toolsets"])
+        self.assertEqual(rendered["cron"]["provider"], "cpaa-hosted")
+        self.assertEqual(rendered["cron"]["completed_retention_days"], 30)
+        self.assertTrue(rendered["platforms"]["cpaa-hosted"]["enabled"])
+        self.assertEqual(rendered["plugins"]["enabled"], ["hosted-policy", "cpaa-hosted"])
+
+    def test_supervisor_renderer_matches_managed_cron_configuration(self) -> None:
+        manager = DockerRuntimeManager()
+        config = {
+            "active_product": "accountingclaw",
+            "model_alias": "claw-default",
+            "timezone": "UTC",
+            "memory_enabled": True,
+        }
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"HOSTED_CLAW_CRON_ENABLED": "true"}
+        ), patch("hosted_claw.supervisor.os.chown"):
+            data_dir = Path(directory) / "tenant"
+            manager._write_config(data_dir, config, "http://connector", "http://model")
+            rendered = __import__("yaml").safe_load((data_dir / "config.yaml").read_text())
+
+        self.assertNotIn("cron", rendered["agent"]["disabled_toolsets"])
+        self.assertEqual(rendered["cron"]["provider"], "cpaa-hosted")
+        self.assertEqual(rendered["plugins"]["enabled"], ["hosted-policy", "cpaa-hosted"])
+
+
+def _load_hosted_cron_plugin():
+    scheduler_module = types.ModuleType("cron.scheduler_provider")
+
+    class FakeScheduler:
+        def fire_due(self, *args, **kwargs):
+            return True
+
+        def recover_interrupted(self):
+            return 0
+
+    scheduler_module.CronScheduler = FakeScheduler
+    cron_package = types.ModuleType("cron")
+    cron_package.__path__ = []
+    spec = spec_from_file_location(
+        "_cpaa_hosted_cron_plugin",
+        Path(__file__).resolve().parents[2] / "hosted_claw" / "cpaa_hosted_plugin" / "__init__.py",
+    )
+    assert spec is not None and spec.loader is not None
+    module = module_from_spec(spec)
+    with patch.dict(sys.modules, {"cron": cron_package, "cron.scheduler_provider": scheduler_module}):
+        spec.loader.exec_module(module)
+    return module
+
+
+class HostedCronPolicyTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.plugin = _load_hosted_cron_plugin()
+
+    def test_safe_agent_job_shape_is_allowed(self) -> None:
+        self.assertIsNone(
+            self.plugin.pre_tool_call(
+                "cronjob",
+                {
+                    "action": "create",
+                    "schedule": "0 9 * * *",
+                    "prompt": "Prepare the daily close summary.",
+                    "deliver": "cpaa-hosted",
+                    "workdir": "/opt/data/workspace",
+                },
+            )
+        )
+
+    def test_plugin_registers_provider_and_outbound_only_platform(self) -> None:
+        context = MagicMock()
+        self.plugin.register(context)
+
+        context.register_cron_scheduler.assert_called_once()
+        platform = context.register_platform.call_args.kwargs
+        self.assertEqual(platform["name"], "cpaa-hosted")
+        self.assertEqual(platform["cron_deliver_env_var"], "CPAA_HOSTED_HOME_CHANNEL")
+        self.assertIs(platform["standalone_sender_fn"], self.plugin._standalone_send)
+        self.assertIsNone(platform["adapter_factory"](None))
+
+    def test_unsafe_cron_shapes_are_blocked(self) -> None:
+        base = {
+            "action": "create",
+            "schedule": "0 9 * * *",
+            "prompt": "Prepare a summary.",
+            "deliver": "cpaa-hosted",
+            "workdir": "/opt/data/workspace",
+        }
+        cases = [
+            {"script": "watch.py"},
+            {"no_agent": True},
+            {"workdir": "/tmp"},
+            {"deliver": "slack:U123"},
+            {"model": "other"},
+            {"provider": "other"},
+            {"base_url": "https://example.invalid"},
+            {"profile": "other"},
+            {"profile_id": "other"},
+            {"enabled_toolsets": ["terminal"]},
+        ]
+        for changes in cases:
+            with self.subTest(changes=changes):
+                result = self.plugin.pre_tool_call("cronjob", {**base, **changes})
+                self.assertEqual(result["action"], "block")
+
+    def test_manual_run_queues_a_wake_instead_of_running_inline(self) -> None:
+        jobs_module = types.ModuleType("cron.jobs")
+        jobs_module.resolve_job_ref = lambda value: {"id": "native-1", "enabled": True, "state": "scheduled"}
+        with patch.dict(sys.modules, {"cron.jobs": jobs_module}), patch.object(
+            self.plugin,
+            "_sync",
+            return_value={"queued_occurrence_ids": ["occurrence-1"]},
+        ) as sync:
+            result = self.plugin.pre_tool_call("cronjob", {"action": "run", "job_id": "daily"})
+
+        self.assertEqual(result["action"], "block")
+        self.assertIn("queued", result["message"])
+        self.assertEqual(sync.call_args.kwargs["manual_job_id"], "native-1")
+
+    def test_provider_reports_native_ledger_failure(self) -> None:
+        executions_module = types.ModuleType("cron.executions")
+        executions_module.latest_execution = lambda job_id: {
+            "job_id": job_id,
+            "status": "failed",
+        }
+        calls = []
+
+        def request(path, payload=None):
+            calls.append((path, payload))
+            return {"success": True}
+
+        provider = self.plugin.CpaaHostedCronScheduler()
+        with patch.dict(sys.modules, {"cron.executions": executions_module}), patch.object(
+            self.plugin, "_request", side_effect=request
+        ), patch.object(provider, "reconcile"), patch.object(self.plugin, "_prune_local_history"):
+            provider._fire_occurrence(
+                {"occurrence_id": "occurrence-1", "native_job_id": "native-1"},
+            )
+
+        completion = [payload for path, payload in calls if path.endswith("/complete")]
+        self.assertEqual(completion, [{"status": "failed", "error_code": "native_execution_failed"}])
+
+
+class HostedCronLedgerTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.engine = create_engine("sqlite://")
+        HostedClawCronSchedule.__table__.create(self.engine)
+        HostedClawCronOccurrence.__table__.create(self.engine)
+        self.db = Session(self.engine)
+
+    def tearDown(self) -> None:
+        self.db.close()
+        self.engine.dispose()
+
+    def test_reconciliation_stores_only_metadata_and_is_full_snapshot(self) -> None:
+        queued, synced = reconcile_schedules(
+            self.db,
+            user_id="user-a",
+            product="accountingclaw",
+            snapshots=[
+                SimpleNamespace(
+                    native_job_id="native-a",
+                    state="scheduled",
+                    next_fire_at=datetime(2026, 8, 5, 16, tzinfo=timezone.utc),
+                )
+            ],
+        )
+        self.db.commit()
+        row = self.db.query(HostedClawCronSchedule).one()
+
+        self.assertEqual((queued, synced), ([], 1))
+        self.assertEqual(row.native_job_id, "native-a")
+        self.assertFalse(hasattr(row, "prompt"))
+        self.assertFalse(hasattr(row, "arguments"))
+        reconcile_schedules(
+            self.db,
+            user_id="user-a",
+            product="accountingclaw",
+            snapshots=[],
+        )
+        self.db.commit()
+        self.assertEqual(row.state, "removed")
+        self.assertIsNone(row.next_fire_at)
+
+    def test_manual_reconciliation_is_idempotent_by_request(self) -> None:
+        snapshot = SimpleNamespace(
+            native_job_id="native-a",
+            state="scheduled",
+            next_fire_at=datetime(2026, 8, 5, 16, tzinfo=timezone.utc),
+        )
+        first, _ = reconcile_schedules(
+            self.db,
+            user_id="user-a",
+            product="accountingclaw",
+            snapshots=[snapshot],
+            manual_job_id="native-a",
+            manual_request_id="manual-request-0001",
+        )
+        self.db.commit()
+        second, _ = reconcile_schedules(
+            self.db,
+            user_id="user-a",
+            product="accountingclaw",
+            snapshots=[snapshot],
+            manual_job_id="native-a",
+            manual_request_id="manual-request-0001",
+        )
+        self.db.commit()
+
+        self.assertEqual(len(first), 1)
+        self.assertEqual(second, [])
+        self.assertEqual(self.db.query(HostedClawCronOccurrence).count(), 1)
+
+    def test_schedule_and_fire_time_identify_one_occurrence(self) -> None:
+        schedule = HostedClawCronSchedule(
+            user_id="user-a",
+            product="accountingclaw",
+            native_job_id="native-a",
+            state="scheduled",
+            next_fire_at=datetime.now(timezone.utc),
+        )
+        self.db.add(schedule)
+        self.db.flush()
+        fire_at = datetime.now(timezone.utc)
+        for _ in range(2):
+            self.db.add(
+                HostedClawCronOccurrence(
+                    schedule_id=schedule.id,
+                    user_id="user-a",
+                    product="accountingclaw",
+                    native_job_id="native-a",
+                    fire_at=fire_at,
+                )
+            )
+        with self.assertRaises(IntegrityError):
+            self.db.commit()
+        self.db.rollback()
+
+    def test_expiry_reclaims_before_native_claim_and_quarantines_after(self) -> None:
+        schedule = HostedClawCronSchedule(
+            user_id="user-a",
+            product="accountingclaw",
+            native_job_id="native-a",
+            state="scheduled",
+            next_fire_at=datetime.now(timezone.utc),
+        )
+        self.db.add(schedule)
+        self.db.flush()
+        expired = datetime.now(timezone.utc) - timedelta(minutes=1)
+        before = HostedClawCronOccurrence(
+            schedule_id=schedule.id,
+            user_id="user-a",
+            product="accountingclaw",
+            native_job_id="native-a",
+            fire_at=datetime.now(timezone.utc) - timedelta(minutes=3),
+            status="ready",
+            worker_id="dead-worker",
+            runtime_id="runtime-a",
+            lease_expires_at=expired,
+        )
+        after = HostedClawCronOccurrence(
+            schedule_id=schedule.id,
+            user_id="user-b",
+            product="accountingclaw",
+            native_job_id="native-b",
+            fire_at=datetime.now(timezone.utc) - timedelta(minutes=2),
+            status="running",
+            worker_id="dead-worker",
+            runtime_id="runtime-b",
+            provider_claimed_at=expired,
+            lease_expires_at=expired,
+        )
+        self.db.add_all([before, after])
+        self.db.commit()
+
+        reclaimed, unknown = recover_expired_occurrences(self.db)
+        self.db.commit()
+
+        self.assertEqual((reclaimed, unknown), (1, 1))
+        self.assertEqual(before.status, "pending")
+        self.assertIsNone(before.worker_id)
+        self.assertEqual(after.status, "unknown")
+        self.assertEqual(after.error_code, "ambiguous_runtime_exit")
 
 
 class HostedArtifactValidationTests(unittest.TestCase):

@@ -259,6 +259,7 @@ class Runtime:
     model_alias: str
     last_activity: float
     cold_started: bool
+    cron_enabled: bool = False
 
 
 class ControlPlane:
@@ -368,6 +369,24 @@ class LiteLlm:
             if response.status_code not in {200, 404}:
                 response.raise_for_status()
 
+    async def tenant_spend(self, key: str) -> float:
+        """Read the virtual-key spend counter without exposing it to a tenant."""
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.get(
+                f"{self.url}/key/info",
+                headers={"Authorization": f"Bearer {self.master_key}"},
+                params={"key": key},
+            )
+            response.raise_for_status()
+            payload = response.json()
+        info = payload.get("info") if isinstance(payload, dict) else None
+        if not isinstance(info, dict):
+            info = payload if isinstance(payload, dict) else {}
+        try:
+            return max(0.0, float(info.get("spend") or info.get("current_spend") or 0))
+        except (TypeError, ValueError):
+            return 0.0
+
 
 class DockerRuntimeManager:
     def __init__(self):
@@ -413,7 +432,10 @@ class DockerRuntimeManager:
         connector_url: str,
         llm_url: str,
     ) -> None:
-        disabled_toolsets = ["web", "browser", "delegation", "cron", "homeassistant", "messaging"]
+        cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+        disabled_toolsets = ["web", "browser", "delegation", "homeassistant", "messaging"]
+        if not cron_is_enabled:
+            disabled_toolsets.append("cron")
         if not config["memory_enabled"]:
             disabled_toolsets.append("memory")
         profile = {
@@ -435,7 +457,14 @@ class DockerRuntimeManager:
             "mcp_servers": {"cpaautomation": {"url": connector_url}},
             "skills": {"directory": "skills", "guard_agent_created": True, "write_approval": False},
             "runtime": {"data_dir": "/opt/data"},
-            "plugins": {"enabled": ["hosted-policy"]},
+            "plugins": {"enabled": ["hosted-policy", "cpaa-hosted"]},
+            "cron": {
+                "provider": "cpaa-hosted",
+                "completed_retention_days": 30,
+            },
+            "platforms": {
+                "cpaa-hosted": {"enabled": cron_is_enabled},
+            },
             "gateway": {"api_server": {"enabled": True, "host": "0.0.0.0", "port": 8642, "max_concurrent_runs": 1}},
             "security": {
                 "managed": True,
@@ -516,7 +545,7 @@ class DockerRuntimeManager:
         proxy_config = CONTROL_ROOT / f"{_opaque(runtime_id)}.Caddyfile"
         proxy_config.write_text(
             ":8080 {\n"
-            "  @connector path /api/connector/mcp /api/connector/mcp/* /api/hosted-claw/runtime/approval\n"
+            "  @connector path /api/connector/mcp /api/connector/mcp/* /api/hosted-claw/runtime/approval /api/hosted-claw/runtime/cron/*\n"
             "  handle @connector {\n"
             "    reverse_proxy {$CPAA_API_ORIGIN} {\n"
             "      header_up Authorization \"Bearer {$CONNECTOR_TOKEN}\"\n"
@@ -556,7 +585,13 @@ class DockerRuntimeManager:
         self._docker("network", "connect", EGRESS_NETWORK, proxy_name)
         running = self._docker("inspect", "--format", "{{.State.Running}}", container_name, check=False)
         current = self.runtimes.get(runtime_id)
-        if running.returncode == 0 and current and current.config_revision != int(job["config"]["revision"]):
+        cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() in {
+            "1", "true", "yes", "on",
+        }
+        if running.returncode == 0 and current and (
+            current.config_revision != int(job["config"]["revision"])
+            or current.cron_enabled != cron_is_enabled
+        ):
             self._docker("rm", "--force", container_name, check=False)
             running = self._docker("inspect", "--format", "{{.State.Running}}", container_name, check=False)
         cold_started = running.returncode != 0
@@ -582,6 +617,9 @@ class DockerRuntimeManager:
                 "--label", f"cpaa.hosted.runtime={runtime_id}",
                 "--env", "OPENAI_API_KEY=managed-by-tenant-proxy",
                 "--env", "OPENAI_BASE_URL=http://tenant-proxy:8080/v1",
+                "--env", "CPAA_HOSTED_PROXY_URL=http://tenant-proxy:8080",
+                "--env", "CPAA_HOSTED_HOME_CHANNEL=linked",
+                "--env", f"HOSTED_CLAW_CRON_ENABLED={'true' if cron_is_enabled else 'false'}",
                 "--env", f"API_SERVER_KEY={api_key}",
                 image,
             )
@@ -603,7 +641,7 @@ class DockerRuntimeManager:
             runtime_id, user_id, product, container_name, proxy_name, network_name,
             data_dir, api_key, f"http://{address}:8642",
             int(job["config"]["revision"]), str(job["config"]["model_alias"]),
-            time.monotonic(), cold_started,
+            time.monotonic(), cold_started, cron_is_enabled,
         )
         self.runtimes[runtime_id] = runtime
         return runtime
@@ -869,6 +907,26 @@ class Supervisor:
             json={"worker_id": self.worker_id, "hostname": socket.gethostname(), "capacity": MAX_TURNS, "active_turns": MAX_TURNS - self.semaphore._value, "disk_percent": disk_percent},
         )
         return result.get("job")
+
+    async def claim_cron(self) -> Optional[dict[str, Any]]:
+        if os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() not in {
+            "1", "true", "yes", "on",
+        }:
+            return None
+        disk = shutil.disk_usage(DATA_ROOT if DATA_ROOT.exists() else DATA_ROOT.parent)
+        disk_percent = round((disk.used / disk.total) * 100, 2)
+        result = await self.control.request(
+            "POST",
+            "/api/internal/hosted-claw/cron/occurrences/claim",
+            json={
+                "worker_id": self.worker_id,
+                "hostname": socket.gethostname(),
+                "capacity": MAX_TURNS,
+                "active_turns": MAX_TURNS - self.semaphore._value,
+                "disk_percent": disk_percent,
+            },
+        )
+        return result.get("occurrence")
 
     async def process_deletion(self) -> bool:
         result = await self.control.request(
@@ -1332,6 +1390,106 @@ class Supervisor:
                     job.get("job_id"), completion.get("status"), time.monotonic() - turn_started,
                 )
 
+    async def process_cron(self, occurrence: dict[str, Any]) -> None:
+        """Wake a tenant and wait while its managed provider runs native fire_due."""
+        async with self.semaphore:
+            started = time.monotonic()
+            capacity_reserved = False
+            llm_key = ""
+            spend_before = 0.0
+            completion: dict[str, Any] = {
+                "status": "requeue",
+                "error_code": "runtime_failure_before_native_claim",
+                "applied_config_revision": occurrence["config"]["revision"],
+            }
+            runtime: Optional[Runtime] = None
+            try:
+                await self.prepare_runtime_capacity(occurrence["runtime_id"])
+                capacity_reserved = True
+                creds = await self.control.request(
+                    "POST",
+                    "/api/internal/hosted-claw/runtime-credentials",
+                    json={
+                        "user_id": occurrence["user_id"],
+                        "product": occurrence["product"],
+                        "runtime_id": occurrence["runtime_id"],
+                        "worker_id": self.worker_id,
+                    },
+                )
+                llm_key = await self.litellm.rotate_tenant_key(
+                    occurrence["runtime_id"],
+                    occurrence["config"]["model_alias"],
+                    float(occurrence["monthly_budget_usd"]),
+                    float(occurrence["remaining_budget_usd"]),
+                    str(occurrence["budget_period"]),
+                )
+                spend_before = await self.litellm.tenant_spend(llm_key)
+                runtime = await asyncio.to_thread(
+                    self.docker.ensure,
+                    occurrence,
+                    creds["connector_token"],
+                    llm_key,
+                )
+                await self.control.request(
+                    "POST",
+                    f"/api/internal/hosted-claw/cron/occurrences/{occurrence['occurrence_id']}/started"
+                    f"?worker_id={self.worker_id}",
+                )
+                deadline = asyncio.get_running_loop().time() + TURN_TIMEOUT_SECONDS
+                while True:
+                    state = await self.control.request(
+                        "GET",
+                        f"/api/internal/hosted-claw/cron/occurrences/{occurrence['occurrence_id']}/state"
+                        f"?worker_id={self.worker_id}",
+                    )
+                    status = str(state.get("status") or "")
+                    if status in {"completed", "failed", "unknown"}:
+                        completion = {
+                            "status": status,
+                            "error_code": state.get("error_code"),
+                            "applied_config_revision": occurrence["config"]["revision"],
+                        }
+                        logger.info(
+                            "hosted_cron_terminal occurrence_id=%s status=%s delivery=%s",
+                            occurrence["occurrence_id"], status, state.get("delivery_status"),
+                        )
+                        break
+                    if asyncio.get_running_loop().time() >= deadline:
+                        raise HostedTurnTimeout("scheduled execution duration exceeded")
+                    await asyncio.sleep(2)
+                runtime.last_activity = time.monotonic()
+            except HostedTurnTimeout:
+                completion["error_code"] = "cron_timeout"
+                logger.warning("Hosted cron timed out occurrence_id=%s", occurrence.get("occurrence_id"))
+                if runtime is not None:
+                    await asyncio.to_thread(self.docker.stop_runtime, runtime.runtime_id)
+            except Exception:
+                logger.exception("Hosted cron failed occurrence_id=%s", occurrence.get("occurrence_id"))
+                if runtime is not None:
+                    await asyncio.to_thread(self.docker.stop_runtime, runtime.runtime_id)
+            finally:
+                if llm_key:
+                    try:
+                        spend_after = await self.litellm.tenant_spend(llm_key)
+                        completion["cost_usd"] = round(max(0.0, spend_after - spend_before), 6)
+                    except Exception:
+                        logger.warning(
+                            "Could not read scheduled key spend occurrence_id=%s",
+                            occurrence.get("occurrence_id"),
+                        )
+                if capacity_reserved:
+                    await self.release_runtime_capacity(occurrence["runtime_id"])
+                await self.control.request(
+                    "POST",
+                    f"/api/internal/hosted-claw/cron/occurrences/{occurrence['occurrence_id']}/complete"
+                    f"?worker_id={self.worker_id}",
+                    json=completion,
+                )
+                logger.info(
+                    "hosted_cron_finished occurrence_id=%s status=%s duration_seconds=%.3f",
+                    occurrence.get("occurrence_id"), completion.get("status"), time.monotonic() - started,
+                )
+
     async def serve(self) -> None:
         DATA_ROOT.mkdir(parents=True, exist_ok=True)
         while True:
@@ -1358,7 +1516,12 @@ class Supervisor:
                     asyncio.create_task(self.process(job))
                     await asyncio.sleep(0)
                 else:
-                    await self.hints.wait()
+                    occurrence = await self.claim_cron()
+                    if occurrence:
+                        asyncio.create_task(self.process_cron(occurrence))
+                        await asyncio.sleep(0)
+                    else:
+                        await self.hints.wait()
             except Exception:
                 logger.exception("Supervisor poll failed")
                 await asyncio.sleep(5)

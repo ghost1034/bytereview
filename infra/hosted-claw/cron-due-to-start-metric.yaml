@@ -1,0 +1,15 @@
+name: hosted_claw_cron_due_to_start_seconds
+description: Seconds from a native Hermes occurrence due time until its runtime is ready.
+filter: >-
+  resource.type="cloud_run_revision"
+  AND textPayload:"hosted_cron_runtime_ready"
+  AND textPayload:"due_to_ready_seconds="
+valueExtractor: 'REGEXP_EXTRACT(textPayload, "due_to_ready_seconds=([0-9]+(?:\\.[0-9]+)?)")'
+metricDescriptor:
+  metricKind: DELTA
+  valueType: DISTRIBUTION
+  unit: s
+  displayName: Hosted Claw cron due-to-start latency
+bucketOptions:
+  explicitBuckets:
+    bounds: [15, 30, 60, 90, 120, 180, 300, 600]

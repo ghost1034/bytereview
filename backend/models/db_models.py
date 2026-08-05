@@ -2426,6 +2426,90 @@ class HostedClawUsageSummary(Base):
     )
 
 
+class HostedClawCronSchedule(Base):
+    """Metadata-only mirror of one native Hermes cron job."""
+
+    __tablename__ = "hosted_claw_cron_schedules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    product = Column(String(32), nullable=False)
+    native_job_id = Column(String(128), nullable=False)
+    state = Column(String(20), nullable=False)
+    next_fire_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_synced_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "product", "native_job_id", name="uq_hosted_claw_cron_native_job"),
+        CheckConstraint("product IN ('accountingclaw', 'legalclaw')", name="ck_hosted_claw_cron_schedule_product"),
+        CheckConstraint(
+            "state IN ('scheduled', 'paused', 'completed', 'removed')",
+            name="ck_hosted_claw_cron_schedule_state",
+        ),
+        Index("ix_hosted_claw_cron_due", "state", "next_fire_at"),
+    )
+
+
+class HostedClawCronOccurrence(Base):
+    """Control-plane wake and delivery ledger for one native Hermes fire."""
+
+    __tablename__ = "hosted_claw_cron_occurrences"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    schedule_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("hosted_claw_cron_schedules.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    product = Column(String(32), nullable=False)
+    native_job_id = Column(String(128), nullable=False)
+    fire_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    trigger_kind = Column(String(16), nullable=False, server_default="scheduled")
+    request_key = Column(String(128), nullable=True, unique=True)
+    status = Column(String(20), nullable=False, server_default="pending")
+    worker_id = Column(String(128), nullable=True)
+    runtime_id = Column(String(128), nullable=True)
+    lease_expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    ready_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    provider_claimed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    heartbeat_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    completed_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    error_code = Column(String(64), nullable=True)
+    delivery_status = Column(String(16), nullable=False, server_default="pending")
+    delivery_attempted_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    delivered_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    usage_accounted_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    cost_usd = Column(Numeric(12, 6), nullable=False, server_default="0")
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("schedule_id", "fire_at", name="uq_hosted_claw_cron_occurrence_fire"),
+        CheckConstraint("product IN ('accountingclaw', 'legalclaw')", name="ck_hosted_claw_cron_occurrence_product"),
+        CheckConstraint("trigger_kind IN ('scheduled', 'manual')", name="ck_hosted_claw_cron_trigger_kind"),
+        CheckConstraint(
+            "status IN ('pending', 'claimed', 'ready', 'running', 'completed', 'failed', 'unknown', 'cancelled', 'rejected')",
+            name="ck_hosted_claw_cron_occurrence_status",
+        ),
+        CheckConstraint(
+            "delivery_status IN ('pending', 'delivered', 'failed', 'skipped')",
+            name="ck_hosted_claw_cron_delivery_status",
+        ),
+        Index("ix_hosted_claw_cron_occurrence_claim", "status", "fire_at", "created_at"),
+        Index(
+            "uq_hosted_claw_active_cron_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status IN ('claimed', 'ready', 'running')"),
+            sqlite_where=text("status IN ('claimed', 'ready', 'running')"),
+        ),
+    )
+
+
 # ===================================================================
 # E-Signature firm administration
 # ===================================================================

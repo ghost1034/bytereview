@@ -4,11 +4,13 @@ set -eu
 DATA_DIR="${HERMES_DATA_DIR:-/opt/data}"
 mkdir -p "$DATA_DIR"
 mkdir -p "$DATA_DIR/plugins/hosted-policy"
+mkdir -p "$DATA_DIR/plugins/cpaa-hosted"
 
 # Product assets are baked into the private image. Copy only absent files so
 # the supervisor-authored managed config always wins and persistent memory,
 # sessions, and workspace data are never overwritten on restart.
 cp -a -n /opt/cpaa/profile/. "$DATA_DIR/"
 cp -a /opt/cpaa/plugin/. "$DATA_DIR/plugins/hosted-policy/"
+cp -a /opt/cpaa/cpaa-hosted/. "$DATA_DIR/plugins/cpaa-hosted/"
 
 exec /opt/hermes/.venv/bin/hermes "$@"

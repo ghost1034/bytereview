@@ -157,6 +157,64 @@ class RuntimeCredentialResponse(BaseModel):
     connector_token_id: str
 
 
+class CronScheduleSnapshot(BaseModel):
+    native_job_id: str = Field(..., min_length=1, max_length=128)
+    state: Literal["scheduled", "paused", "completed"]
+    next_fire_at: Optional[datetime] = None
+
+
+class CronScheduleReconcileRequest(BaseModel):
+    schedules: list[CronScheduleSnapshot] = Field(default_factory=list, max_length=100)
+    manual_job_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    manual_request_id: Optional[str] = Field(default=None, min_length=16, max_length=128)
+
+    @model_validator(mode="after")
+    def manual_request_is_complete(self):
+        if bool(self.manual_job_id) != bool(self.manual_request_id):
+            raise ValueError("manual_job_id and manual_request_id must be provided together")
+        if len({item.native_job_id for item in self.schedules}) != len(self.schedules):
+            raise ValueError("Duplicate native_job_id in schedule snapshot")
+        return self
+
+
+class CronOccurrenceProviderCompleteRequest(BaseModel):
+    status: Literal["completed", "failed"]
+    error_code: Optional[str] = Field(default=None, max_length=64)
+
+
+class CronTextDeliveryRequest(BaseModel):
+    occurrence_id: str = Field(..., min_length=1, max_length=128)
+    text: str = Field(..., min_length=1, max_length=40000)
+
+
+class WorkerCronOccurrenceResponse(BaseModel):
+    occurrence_id: str
+    schedule_id: str
+    native_job_id: str
+    fire_at: datetime
+    queued_at: datetime
+    user_id: str
+    product: Product
+    config: HostedConfigResponse
+    runtime_id: str
+    monthly_budget_usd: Decimal
+    remaining_budget_usd: Decimal
+    budget_period: date
+
+
+class WorkerCronClaimResponse(BaseModel):
+    occurrence: Optional[WorkerCronOccurrenceResponse] = None
+
+
+class WorkerCronCompleteRequest(BaseModel):
+    status: Literal["completed", "failed", "unknown", "requeue"]
+    error_code: Optional[str] = Field(default=None, max_length=64)
+    prompt_tokens: int = Field(default=0, ge=0)
+    completion_tokens: int = Field(default=0, ge=0)
+    cost_usd: Decimal = Field(default=Decimal("0"), ge=0)
+    applied_config_revision: Optional[int] = Field(default=None, ge=1)
+
+
 class ApprovalRequest(BaseModel):
     user_id: str = Field(..., max_length=128)
     connector_token_id: str

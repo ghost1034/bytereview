@@ -1,0 +1,7 @@
+name: cpaa-hosted
+label: CPAAutomation Hosted Cron
+kind: standalone
+version: 1.0.0
+description: Metadata-only scheduler and outbound delivery bridge for Hosted Claw
+provides_hooks:
+  - pre_tool_call

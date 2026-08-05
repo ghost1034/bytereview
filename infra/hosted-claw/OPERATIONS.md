@@ -49,6 +49,48 @@ IDs, durations, queue/cold-start delays, token and cost totals, action IDs,
 approval decisions, restart counts, rate-limit status, disk pressure, and error
 codes. Never emit prompts, document content, credentials, or raw arguments.
 
+## Native Hermes cron
+
+Hosted Claw uses Hermes's native job store, schedule calculations, execution
+ledger, and `fire_due` implementation. The control plane mirrors only native job
+ID, state, next UTC fire time, and opaque occurrence/runtime IDs. Prompts,
+outputs, credentials, and raw tool arguments must never enter the schedule
+registration tables or logs. Native output and execution history remain on the
+tenant disk and are pruned after 30 days; generated files are not uploaded by
+scheduled runs in v1.
+
+The Cloud Scheduler job `hosted-claw-cron-dispatch` calls the internal due
+dispatcher every minute with OIDC. Expected precision is 60 seconds plus queue
+and cold-start delay. A future schedule does not keep a runtime warm. A claimed
+occurrence protects the runtime while it executes, after which the normal
+five-minute eviction applies. `/claw stop` stops only the runtime, so a due
+schedule can wake it again. Slack unlinking suspends dispatch until relink;
+Hosted Claw data deletion removes registrations, occurrences, and native tenant
+data.
+
+`HOSTED_CLAW_CRON_ENABLED` is a fail-closed kill switch and defaults to false on
+both the API and worker. Roll out in this order:
+
+1. Deploy migration `065_hosted_claw_native_cron` and the backend endpoints.
+2. Configure the minute dispatcher while the flag remains false.
+3. Deploy both tenant images and the supervisor, and confirm the native-cron
+   image smoke checks pass.
+4. Set the flag true on the API and in `/etc/hosted-claw/worker.env`, then
+   restart the supervisor and run canaries for AccountingClaw and LegalClaw.
+
+Disabling the flag stops new due registration and worker claims without
+deleting native schedules. Runs Hermes has already claimed are allowed to
+finish or become `unknown`; they are never automatically replayed after an
+ambiguous exit.
+
+`deploy-services.sh` installs the log-based cron metrics and alert policies.
+Set `HOSTED_CLAW_NOTIFICATION_CHANNELS` to comma-separated Monitoring channel
+resource names to attach notifications. The installed signals cover schedule
+sync/wake failures, due-to-start p99 above 180 seconds, unknown executions,
+Slack delivery failures, and budget/entitlement rejections. Re-run
+`infra/hosted-claw/configure-cron-monitoring.sh` after changing a metric; alert
+policies are created once so operator tuning is preserved.
+
 Roll back by setting `HOSTED_CLAW_ENABLED=false`, waiting for claimed work to
 finish or cancelling it through the user/admin endpoints, revoking all
 `hosted_runtime` connector and LiteLLM virtual keys, and scaling the MIG to

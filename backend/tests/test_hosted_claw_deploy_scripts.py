@@ -10,6 +10,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BUILD_SCRIPT = REPO_ROOT / "scripts" / "build-hosted-claw-images.sh"
 REMOTE_SCRIPT = REPO_ROOT / "infra" / "hosted-claw" / "deploy-images.sh"
+SERVICE_DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy-services.sh"
 DIGEST = "sha256:" + ("a" * 64)
 
 
@@ -19,6 +20,17 @@ def _write_executable(path: Path, text: str) -> None:
 
 
 class HostedClawReleaseScriptTests(unittest.TestCase):
+    def test_release_smoke_and_dispatcher_are_fail_closed_for_native_cron(self) -> None:
+        remote = REMOTE_SCRIPT.read_text(encoding="utf-8")
+        service_deploy = SERVICE_DEPLOY_SCRIPT.read_text(encoding="utf-8")
+        self.assertIn("load_cron_scheduler('cpaa-hosted')", remote)
+        self.assertIn('smoke_native_cron "$accounting_image"', remote)
+        self.assertIn('smoke_native_cron "$legal_image"', remote)
+        self.assertIn('scheduler_name="hosted-claw-cron-dispatch"', service_deploy)
+        self.assertIn('--schedule="* * * * *"', service_deploy)
+        self.assertIn('--oidc-service-account-email="$HOSTED_CLAW_WORKER_SERVICE_ACCOUNT"', service_deploy)
+        self.assertIn("configure-cron-monitoring.sh", service_deploy)
+
     def test_build_only_uses_source_controlled_pinned_bases_for_all_images(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

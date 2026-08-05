@@ -78,6 +78,7 @@ API_TIMEOUT="${API_TIMEOUT:-900}"
 # Universal Document Analysis tools on the Claw MCP gateway.
 CLAW_UDA_MCP_ENABLED="${CLAW_UDA_MCP_ENABLED:-true}"
 HOSTED_CLAW_ENABLED="${HOSTED_CLAW_ENABLED:-true}"
+HOSTED_CLAW_CRON_ENABLED="${HOSTED_CLAW_CRON_ENABLED:-false}"
 HOSTED_CLAW_KMS_KEY="${HOSTED_CLAW_KMS_KEY:-projects/${PROJECT_ID}/locations/${REGION}/keyRings/hosted-claw/cryptoKeys/control-plane}"
 HOSTED_CLAW_ARTIFACT_BUCKET="${HOSTED_CLAW_ARTIFACT_BUCKET:-${PROJECT_ID}-hosted-claw-artifacts}"
 HOSTED_CLAW_PUBSUB_TOPIC="${HOSTED_CLAW_PUBSUB_TOPIC:-hosted-claw-jobs}"
@@ -387,6 +388,7 @@ deploy_api() {
     "${BACKEND_BASE_ENV[@]}"
     "INKWISE_ENABLED=true"
     "HOSTED_CLAW_ENABLED=${HOSTED_CLAW_ENABLED}"
+    "HOSTED_CLAW_CRON_ENABLED=${HOSTED_CLAW_CRON_ENABLED}"
     "HOSTED_CLAW_INTERNAL_AUDIENCE=${api_url}"
     "INKWISE_DERIVED_BUCKET=${INKWISE_DERIVED_BUCKET}"
     "INKWISE_MAX_UPLOAD_MB=${INKWISE_MAX_UPLOAD_MB}"
@@ -626,7 +628,7 @@ if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q
 fi
 
 gcloud config set project "$PROJECT_ID" >/dev/null
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudtasks.googleapis.com secretmanager.googleapis.com >/dev/null
+gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudtasks.googleapis.com cloudscheduler.googleapis.com logging.googleapis.com monitoring.googleapis.com secretmanager.googleapis.com >/dev/null
 ok "Using project ${PROJECT_ID} in ${REGION} (${ENVIRONMENT})"
 
 if [ "$SKIP_BUILD" = false ]; then
@@ -670,6 +672,32 @@ if [ "$SKIP_MIGRATE" = false ]; then
   run_migrations "$BACKEND_IMAGE" "$MIGRATION_JOB_NAME"
 else
   warn "Skipping Alembic migrations"
+fi
+
+if [ "$HOSTED_CLAW_ENABLED" = true ]; then
+  section "Configuring Hosted Claw cron dispatcher"
+  scheduler_name="hosted-claw-cron-dispatch"
+  scheduler_args=(
+    --location="$REGION"
+    --schedule="* * * * *"
+    --time-zone="UTC"
+    --uri="${API_URL}/api/internal/hosted-claw/cron/dispatch-due"
+    --http-method=POST
+    --headers="Content-Type=application/json"
+    --message-body="{}"
+    --oidc-service-account-email="$HOSTED_CLAW_WORKER_SERVICE_ACCOUNT"
+    --oidc-token-audience="$API_URL"
+    --attempt-deadline=60s
+  )
+  if gcloud scheduler jobs describe "$scheduler_name" --location="$REGION" >/dev/null 2>&1; then
+    gcloud scheduler jobs update http "$scheduler_name" "${scheduler_args[@]}" >/dev/null
+  else
+    gcloud scheduler jobs create http "$scheduler_name" "${scheduler_args[@]}" >/dev/null
+  fi
+  ok "Hosted Claw minute dispatcher configured (feature=${HOSTED_CLAW_CRON_ENABLED})"
+  PROJECT_ID="$PROJECT_ID" \
+    HOSTED_CLAW_NOTIFICATION_CHANNELS="${HOSTED_CLAW_NOTIFICATION_CHANNELS:-}" \
+    "$ROOT_DIR/infra/hosted-claw/configure-cron-monitoring.sh"
 fi
 
 section "Deployment complete"

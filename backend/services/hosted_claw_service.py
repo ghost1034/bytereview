@@ -156,7 +156,10 @@ def action_is_read_only(db: Session, action_id: str) -> bool:
 
 def managed_hermes_config(config: HostedClawConfig, connector_url: str, llm_base_url: str) -> dict[str, Any]:
     """Render the only configuration surface accepted by hosted containers."""
-    disabled_toolsets = ["web", "browser", "delegation", "cron", "homeassistant", "messaging"]
+    cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    disabled_toolsets = ["web", "browser", "delegation", "homeassistant", "messaging"]
+    if not cron_is_enabled:
+        disabled_toolsets.append("cron")
     if not bool(config.memory_enabled):
         disabled_toolsets.append("memory")
     return {
@@ -173,7 +176,17 @@ def managed_hermes_config(config: HostedClawConfig, connector_url: str, llm_base
         "agent": {"disabled_toolsets": disabled_toolsets},
         "terminal": {"backend": "local", "cwd": "/opt/data/workspace", "persistent_shell": False},
         "mcp_servers": {"cpaautomation": {"url": connector_url}},
-        "plugins": {"enabled": ["hosted-policy"]},
+        # Keep the managed provider selected even while the kill switch is
+        # off. Falling back to Hermes's built-in ticker could fire native jobs
+        # left on disk from an earlier enabled period.
+        "plugins": {"enabled": ["hosted-policy", "cpaa-hosted"]},
+        "cron": {
+            "provider": "cpaa-hosted",
+            "completed_retention_days": 30,
+        },
+        "platforms": {
+            "cpaa-hosted": {"enabled": cron_is_enabled},
+        },
         "gateway": {"api_server": {"enabled": True, "host": "0.0.0.0", "port": 8642, "max_concurrent_runs": 1}},
         "security": {
             "managed": True,

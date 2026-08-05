@@ -154,10 +154,18 @@ smoke_native_sessions() {
     "from pathlib import Path;p=Path('/opt/hermes/gateway/platforms/api_server.py').read_text();required=['/api/sessions/{session_id}/chat/stream','session_model_lock','_handle_create_session'];missing=[item for item in required if item not in p];assert not missing, f'missing native Hermes session support: {missing}'"
 }
 
+smoke_native_cron() {
+  image="$1"
+  "$docker_bin" run --rm --entrypoint /opt/hermes/.venv/bin/python "$image" -c \
+    "from pathlib import Path;from tools.cronjob_tools import CRONJOB_SCHEMA;from cron.scheduler_provider import CronScheduler;from cron.executions import create_execution;from plugins.cron_providers import load_cron_scheduler;provider=load_cron_scheduler('cpaa-hosted');assert CRONJOB_SCHEMA['name']=='cronjob';assert callable(CronScheduler.fire_due);assert callable(create_execution);assert provider is not None and provider.name=='cpaa-hosted';assert Path('/opt/cpaa/plugin/__init__.py').is_file();assert Path('/opt/cpaa/cpaa-hosted/__init__.py').is_file();assert Path('/opt/hermes/plugins/cron_providers/cpaa-hosted/__init__.py').is_file()"
+}
+
 smoke_policy "$accounting_image"
 smoke_policy "$legal_image"
 smoke_native_sessions "$accounting_image"
 smoke_native_sessions "$legal_image"
+smoke_native_cron "$accounting_image"
+smoke_native_cron "$legal_image"
 
 rm -f "$drain_file"
 rollback_needed=false
