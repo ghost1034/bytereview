@@ -46,7 +46,12 @@ case "$*" in
   "alpha monitoring policies list --help") ;;
   "logging metrics describe"*) ;;
   "logging metrics update"*) ;;
-  "alpha monitoring policies list"*) echo "projects/test/alertPolicies/existing" ;;
+  "alpha monitoring policies list"*) printf '%s\\n' \\
+    "Hosted Claw cron schedule sync failures" \\
+    "Hosted Claw cron unknown execution" \\
+    "Hosted Claw cron delivery failures" \\
+    "Hosted Claw cron admission rejections" \\
+    "Hosted Claw cron due-to-start p99 over 180s" ;;
   *) echo "Unexpected gcloud invocation: $*" >&2; exit 1 ;;
 esac
 """,
@@ -70,8 +75,10 @@ esac
                 for call in calls
                 if call.startswith("alpha monitoring policies list --project=")
             ]
-            self.assertEqual(len(policy_lists), 5)
-            self.assertFalse(any(call.startswith("monitoring policies create") for call in calls))
+            self.assertEqual(len(policy_lists), 1)
+            self.assertFalse(any("monitoring policies create" in call for call in calls))
+            self.assertIn("Updating Hosted Claw cron log metrics", result.stdout)
+            self.assertIn("Checking Hosted Claw cron alert policies", result.stdout)
 
     def test_build_only_uses_source_controlled_pinned_bases_for_all_images(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

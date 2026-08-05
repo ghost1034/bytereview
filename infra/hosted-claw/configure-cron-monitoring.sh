@@ -7,6 +7,11 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 project_id="${PROJECT_ID:-$(gcloud config get-value project 2>/dev/null)}"
 notification_channels="${HOSTED_CLAW_NOTIFICATION_CHANNELS:-}"
 
+# This helper runs inside the non-interactive deployment script. In particular,
+# probing an alpha command group must never stop to ask whether its component
+# should be installed.
+export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+
 if [ -z "$project_id" ]; then
   echo "PROJECT_ID or a gcloud default project is required" >&2
   exit 2
@@ -57,13 +62,7 @@ ensure_alert() {
   local threshold="$3"
   local aligner="$4"
   local reducer="$5"
-  local existing
-  existing="$("${monitoring_policies[@]}" list \
-    --project="$project_id" \
-    --filter="displayName=\"${display_name}\"" \
-    --limit=1 \
-    --format='value(name)')"
-  if [ -n "$existing" ]; then
+  if printf '%s\n' "$existing_alert_names" | grep -Fqx "$display_name"; then
     return
   fi
   # Keep this array non-empty: macOS Bash 3.2 treats an empty array expansion
@@ -87,23 +86,47 @@ ensure_alert() {
 }
 
 cloud_run_filter='resource.type="cloud_run_revision"'
+
+echo "Updating Hosted Claw cron log metrics..."
 upsert_counter \
   hosted_claw_cron_schedule_sync_failures \
   "Hosted Claw native schedule reconciliation or wake publication failures." \
-  "$cloud_run_filter AND (textPayload:\"hosted_cron_schedule_sync_failed\" OR textPayload:\"hosted_cron_manual_publish_failed\" OR textPayload:\"hosted_cron_wake_publish_failed\")"
+  "$cloud_run_filter AND (textPayload:\"hosted_cron_schedule_sync_failed\" OR textPayload:\"hosted_cron_manual_publish_failed\" OR textPayload:\"hosted_cron_wake_publish_failed\")" &
+metric_pids=("$!")
 upsert_counter \
   hosted_claw_cron_unknown_executions \
   "Hosted cron executions quarantined after an ambiguous post-claim failure." \
-  "$cloud_run_filter AND textPayload:\"hosted_cron_unknown_executions\""
+  "$cloud_run_filter AND textPayload:\"hosted_cron_unknown_executions\"" &
+metric_pids+=("$!")
 upsert_counter \
   hosted_claw_cron_delivery_failures \
   "Hosted cron text deliveries that failed before confirmation." \
-  "$cloud_run_filter AND textPayload:\"hosted_cron_delivery_failed\""
+  "$cloud_run_filter AND textPayload:\"hosted_cron_delivery_failed\"" &
+metric_pids+=("$!")
 upsert_counter \
   hosted_claw_cron_admission_rejections \
   "Hosted cron executions rejected for budget or entitlement changes." \
-  "$cloud_run_filter AND textPayload:\"hosted_cron_rejected\""
-upsert_distribution
+  "$cloud_run_filter AND textPayload:\"hosted_cron_rejected\"" &
+metric_pids+=("$!")
+upsert_distribution &
+metric_pids+=("$!")
+
+metric_update_failed=false
+for metric_pid in "${metric_pids[@]}"; do
+  if ! wait "$metric_pid"; then
+    metric_update_failed=true
+  fi
+done
+if [ "$metric_update_failed" = true ]; then
+  echo "One or more Hosted Claw cron metrics could not be configured" >&2
+  exit 1
+fi
+
+echo "Checking Hosted Claw cron alert policies..."
+existing_alert_names="$("${monitoring_policies[@]}" list \
+  --project="$project_id" \
+  --filter='displayName:"Hosted Claw cron"' \
+  --format='value(displayName)')"
 
 ensure_alert "Hosted Claw cron schedule sync failures" hosted_claw_cron_schedule_sync_failures 0 ALIGN_SUM REDUCE_SUM
 ensure_alert "Hosted Claw cron unknown execution" hosted_claw_cron_unknown_executions 0 ALIGN_SUM REDUCE_SUM

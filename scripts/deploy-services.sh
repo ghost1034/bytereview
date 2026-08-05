@@ -750,6 +750,7 @@ if [ "$DEPLOY_BACKEND" = true ] && [ "$HOSTED_CLAW_ENABLED" = true ]; then
       --headers="Content-Type=application/json" >/dev/null
   fi
   ok "Hosted Claw minute dispatcher configured (feature=${HOSTED_CLAW_CRON_ENABLED})"
+  info "Configuring Hosted Claw cron monitoring..."
   PROJECT_ID="$PROJECT_ID" \
     HOSTED_CLAW_NOTIFICATION_CHANNELS="${HOSTED_CLAW_NOTIFICATION_CHANNELS:-}" \
     "$ROOT_DIR/infra/hosted-claw/configure-cron-monitoring.sh"
