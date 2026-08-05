@@ -11,6 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 BUILD_SCRIPT = REPO_ROOT / "scripts" / "build-hosted-claw-images.sh"
 REMOTE_SCRIPT = REPO_ROOT / "infra" / "hosted-claw" / "deploy-images.sh"
 SERVICE_DEPLOY_SCRIPT = REPO_ROOT / "scripts" / "deploy-services.sh"
+MONITORING_SCRIPT = REPO_ROOT / "infra" / "hosted-claw" / "configure-cron-monitoring.sh"
 DIGEST = "sha256:" + ("a" * 64)
 
 
@@ -30,6 +31,47 @@ class HostedClawReleaseScriptTests(unittest.TestCase):
         self.assertIn('--schedule="* * * * *"', service_deploy)
         self.assertIn('--oidc-service-account-email="$HOSTED_CLAW_WORKER_SERVICE_ACCOUNT"', service_deploy)
         self.assertIn("configure-cron-monitoring.sh", service_deploy)
+
+    def test_cron_monitoring_falls_back_to_alpha_alert_policy_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            log = tmp_path / "gcloud.log"
+            _write_executable(
+                tmp_path / "gcloud",
+                f"""#!/usr/bin/env bash
+set -eu
+printf '%s\n' "$*" >> "{log}"
+case "$*" in
+  "monitoring policies list --help") exit 2 ;;
+  "alpha monitoring policies list --help") ;;
+  "logging metrics describe"*) ;;
+  "logging metrics update"*) ;;
+  "alpha monitoring policies list"*) echo "projects/test/alertPolicies/existing" ;;
+  *) echo "Unexpected gcloud invocation: $*" >&2; exit 1 ;;
+esac
+""",
+            )
+            env = os.environ.copy()
+            env["PATH"] = f"{tmp_path}:{env['PATH']}"
+            env["PROJECT_ID"] = "test-project"
+            result = subprocess.run(
+                [str(MONITORING_SCRIPT)],
+                cwd=REPO_ROOT,
+                env=env,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            calls = log.read_text(encoding="utf-8").splitlines()
+            policy_lists = [
+                call
+                for call in calls
+                if call.startswith("alpha monitoring policies list --project=")
+            ]
+            self.assertEqual(len(policy_lists), 5)
+            self.assertFalse(any(call.startswith("monitoring policies create") for call in calls))
 
     def test_build_only_uses_source_controlled_pinned_bases_for_all_images(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

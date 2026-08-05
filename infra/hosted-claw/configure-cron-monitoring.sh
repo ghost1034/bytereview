@@ -12,6 +12,18 @@ if [ -z "$project_id" ]; then
   exit 2
 fi
 
+# Alert-policy commands are still exposed through the alpha command group in
+# some Cloud SDK releases (including 577.0.0), even though other releases also
+# expose the same commands through the GA monitoring group.
+if gcloud monitoring policies list --help >/dev/null 2>&1; then
+  monitoring_policies=(gcloud monitoring policies)
+elif gcloud alpha monitoring policies list --help >/dev/null 2>&1; then
+  monitoring_policies=(gcloud alpha monitoring policies)
+else
+  echo "This gcloud installation does not provide Monitoring alert-policy commands" >&2
+  exit 2
+fi
+
 upsert_counter() {
   local name="$1"
   local description="$2"
@@ -46,7 +58,7 @@ ensure_alert() {
   local aligner="$4"
   local reducer="$5"
   local existing
-  existing="$(gcloud monitoring policies list \
+  existing="$("${monitoring_policies[@]}" list \
     --project="$project_id" \
     --filter="displayName=\"${display_name}\"" \
     --limit=1 \
@@ -58,7 +70,7 @@ ensure_alert() {
   if [ -n "$notification_channels" ]; then
     channel_args+=(--notification-channels="$notification_channels")
   fi
-  gcloud monitoring policies create \
+  "${monitoring_policies[@]}" create \
     --project="$project_id" \
     --display-name="$display_name" \
     --condition-display-name="$display_name" \
