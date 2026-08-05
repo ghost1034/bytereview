@@ -41,6 +41,12 @@ advertise the required session endpoints fails closed instead of falling back
 to a stateless turn. New-session commands rotate the transcript while retaining
 the product's separately scoped long-term memory.
 
+The supervisor also consumes Hermes's native `tool.started`, `tool.completed`,
+and `tool.failed` stream events. It renders their user-facing previews into a
+rate-limited action list in the turn's existing Slack response, replacing the
+generic progress placeholder as soon as the first action begins. Native
+reasoning progress is deliberately not relayed.
+
 `HOSTED_CLAW_PROXY_IMAGE` must also be a digest-pinned Caddy image. The
 supervisor creates a private network and a credential-injecting proxy sidecar
 per tenant. Tenant containers receive neither connector nor LiteLLM keys and

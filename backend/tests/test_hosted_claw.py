@@ -52,6 +52,7 @@ sys.path.insert(0, str(_REPO_ROOT))
 try:
     from hosted_claw.supervisor import (
         EVENT_INACTIVITY_SECONDS,
+        HermesSlackActionProgress,
         IDLE_SECONDS,
         MAX_RESIDENT_RUNTIMES,
         MAX_TURNS,
@@ -351,6 +352,67 @@ class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
             await supervisor._settle_turn_status(task, request_started)
 
         self.assertFalse(request_started.is_set())
+        supervisor.control.request.assert_not_awaited()
+
+    async def test_native_tool_events_render_as_coalesced_slack_actions(self) -> None:
+        supervisor = SimpleNamespace(
+            worker_id="worker-a",
+            control=SimpleNamespace(request=AsyncMock(return_value={"ok": True})),
+        )
+        progress = HermesSlackActionProgress(supervisor, "job-a")
+
+        with patch("hosted_claw.supervisor.ACTION_PROGRESS_MIN_INTERVAL_SECONDS", 0):
+            await progress.record(
+                {
+                    "type": "tool.started",
+                    "tool_name": "web_search",
+                    "preview": "Search for <quarterly results>",
+                }
+            )
+            await progress.record(
+                {"type": "tool.completed", "tool_name": "web_search"}
+            )
+            await progress.record(
+                {
+                    "type": "tool.started",
+                    "tool_name": "terminal",
+                    "preview": "Run reconciliation.py",
+                }
+            )
+        await progress.close()
+
+        last_update = supervisor.control.request.await_args_list[-1]
+        self.assertEqual(
+            last_update.args,
+            (
+                "POST",
+                "/api/internal/hosted-claw/jobs/job-a/progress?worker_id=worker-a",
+            ),
+        )
+        self.assertEqual(last_update.kwargs["json"]["kind"], "status")
+        self.assertEqual(
+            last_update.kwargs["json"]["text"],
+            "Working on it…\n\n*Actions*\n"
+            "• ✅ Web search — Search for &lt;quarterly results&gt;\n"
+            "• ⏳ Terminal — Run reconciliation.py",
+        )
+
+    async def test_reasoning_progress_is_not_shown_in_slack(self) -> None:
+        supervisor = SimpleNamespace(
+            worker_id="worker-a",
+            control=SimpleNamespace(request=AsyncMock(return_value={"ok": True})),
+        )
+        progress = HermesSlackActionProgress(supervisor, "job-a")
+
+        await progress.record(
+            {
+                "type": "tool.progress",
+                "tool_name": "_thinking",
+                "delta": "private model reasoning",
+            }
+        )
+        await progress.close()
+
         supervisor.control.request.assert_not_awaited()
 
     async def test_job_starts_only_after_runtime_is_ready(self) -> None:
@@ -684,6 +746,12 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
         async def native_events(*_args, **_kwargs):
             yield {"type": "session.ready", "session_id": "hcs-native"}
             yield {"type": "run.started", "run_id": "run-native"}
+            yield {
+                "type": "tool.started",
+                "tool_name": "connector_search",
+                "preview": "Search connected records",
+            }
+            yield {"type": "tool.completed", "tool_name": "connector_search"}
             yield {"type": "assistant.delta", "delta": "partial"}
             yield {
                 "type": "assistant.completed",
@@ -742,9 +810,21 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
             "budget_period": "2026-08-01",
         }
 
-        with patch("hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 60):
+        with patch("hosted_claw.supervisor.PROGRESS_MESSAGE_DELAY_SECONDS", 60), patch(
+            "hosted_claw.supervisor.ACTION_PROGRESS_MIN_INTERVAL_SECONDS", 0
+        ):
             await supervisor.process(job)
 
+        action_progress = unittest.mock.call(
+            "POST",
+            "/api/internal/hosted-claw/jobs/job-native/progress?worker_id=worker-a",
+            json={
+                "kind": "status",
+                "text": "Working on it…\n\n*Actions*\n"
+                "• ✅ Connector search — Search connected records",
+            },
+        )
+        self.assertIn(action_progress, supervisor.control.request.await_args_list)
         final_progress = unittest.mock.call(
             "POST",
             "/api/internal/hosted-claw/jobs/job-native/progress?worker_id=worker-a",

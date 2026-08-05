@@ -13,6 +13,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -46,6 +47,9 @@ MAX_TURNS = _positive_int_env("HOSTED_CLAW_MAX_TURNS", 3)
 MAX_RESIDENT_RUNTIMES = _positive_int_env("HOSTED_CLAW_MAX_RESIDENT_RUNTIMES", 3)
 IDLE_SECONDS = _positive_int_env("HOSTED_CLAW_IDLE_SECONDS", 5 * 60)
 PROGRESS_MESSAGE_DELAY_SECONDS = _positive_int_env("HOSTED_CLAW_PROGRESS_DELAY_SECONDS", 3)
+ACTION_PROGRESS_MIN_INTERVAL_SECONDS = 1.0
+ACTION_PROGRESS_MAX_ITEMS = 8
+ACTION_PROGRESS_MAX_PREVIEW_CHARS = 240
 TURN_TIMEOUT_SECONDS = _positive_int_env("HOSTED_CLAW_TURN_TIMEOUT_SECONDS", 10 * 60)
 EVENT_INACTIVITY_SECONDS = _positive_int_env(
     "HOSTED_CLAW_EVENT_INACTIVITY_SECONDS", 2 * 60
@@ -99,6 +103,133 @@ def _changed_workspace_files(
 
 class HermesEventInactivityTimeout(RuntimeError):
     """Raised when Hermes emits no meaningful run event within the limit."""
+
+
+@dataclass
+class HermesAction:
+    name: str
+    preview: str
+    status: str = "running"
+
+
+class HermesSlackActionProgress:
+    """Coalesce Hermes tool lifecycle events into one Slack status message."""
+
+    EVENT_TYPES = {"tool.started", "tool.completed", "tool.failed"}
+
+    def __init__(self, supervisor: "Supervisor", job_id: str) -> None:
+        self.supervisor = supervisor
+        self.job_id = job_id
+        self.actions: list[HermesAction] = []
+        self.last_sent_at = 0.0
+        self.pending_task: Optional[asyncio.Task] = None
+        self.closed = False
+        self.lock = asyncio.Lock()
+
+    @staticmethod
+    def _clean_text(value: Any, limit: int) -> str:
+        text = re.sub(r"\s+", " ", str(value or "")).strip()
+        text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        if len(text) > limit:
+            return text[: limit - 1].rstrip() + "…"
+        return text
+
+    @classmethod
+    def _display_name(cls, value: Any) -> str:
+        name = cls._clean_text(value, 100)
+        name = re.sub(r"[._-]+", " ", name).strip()
+        return name[:1].upper() + name[1:] if name else "Use tool"
+
+    def _record(self, event: dict[str, Any]) -> None:
+        event_type = str(event.get("type") or "")
+        name = self._display_name(event.get("tool_name") or event.get("tool"))
+        preview = self._clean_text(
+            event.get("preview") or event.get("delta"),
+            ACTION_PROGRESS_MAX_PREVIEW_CHARS,
+        )
+        if event_type == "tool.started":
+            self.actions.append(HermesAction(name=name, preview=preview))
+            return
+
+        for action in reversed(self.actions):
+            if action.name == name and action.status == "running":
+                action.status = "failed" if event_type == "tool.failed" else "completed"
+                if preview:
+                    action.preview = preview
+                return
+        self.actions.append(
+            HermesAction(
+                name=name,
+                preview=preview,
+                status="failed" if event_type == "tool.failed" else "completed",
+            )
+        )
+
+    def render(self) -> str:
+        visible = self.actions[-ACTION_PROGRESS_MAX_ITEMS:]
+        lines = ["Working on it…", "", "*Actions*"]
+        hidden = len(self.actions) - len(visible)
+        if hidden:
+            lines.append(f"• … {hidden} earlier action{'s' if hidden != 1 else ''}")
+        icons = {"running": "⏳", "completed": "✅", "failed": "⚠️"}
+        for action in visible:
+            line = f"• {icons[action.status]} {action.name}"
+            if action.preview:
+                line += f" — {action.preview}"
+            lines.append(line)
+        return "\n".join(lines)
+
+    async def _flush(self) -> None:
+        async with self.lock:
+            if self.closed or not self.actions:
+                return
+            # Count failed attempts toward the interval too, preventing a burst
+            # of Slack retries from delaying or failing the hosted turn.
+            self.last_sent_at = asyncio.get_running_loop().time()
+            try:
+                await self.supervisor.control.request(
+                    "POST",
+                    f"/api/internal/hosted-claw/jobs/{self.job_id}/progress"
+                    f"?worker_id={self.supervisor.worker_id}",
+                    json={"kind": "status", "text": self.render()},
+                )
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.warning(
+                    "Could not deliver hosted action progress job_id=%s",
+                    self.job_id,
+                )
+
+    async def _flush_after(self, delay: float) -> None:
+        try:
+            await asyncio.sleep(delay)
+            await self._flush()
+        finally:
+            self.pending_task = None
+
+    async def record(self, event: dict[str, Any]) -> None:
+        if self.closed or event.get("type") not in self.EVENT_TYPES:
+            return
+        self._record(event)
+        if self.pending_task is not None:
+            return
+        elapsed = asyncio.get_running_loop().time() - self.last_sent_at
+        delay = max(0.0, ACTION_PROGRESS_MIN_INTERVAL_SECONDS - elapsed)
+        if delay == 0:
+            await self._flush()
+        else:
+            self.pending_task = asyncio.create_task(self._flush_after(delay))
+
+    async def close(self) -> None:
+        self.closed = True
+        if self.pending_task is not None:
+            self.pending_task.cancel()
+            await asyncio.gather(self.pending_task, return_exceptions=True)
+            self.pending_task = None
+        # Wait for an in-flight flush before the caller posts the final answer.
+        async with self.lock:
+            pass
 
 
 class HostedTurnTimeout(RuntimeError):
@@ -925,6 +1056,7 @@ class Supervisor:
             status_task: Optional[asyncio.Task] = asyncio.create_task(
                 self._post_delayed_turn_status(job["job_id"], status_request_started)
             )
+            action_progress = HermesSlackActionProgress(self, job["job_id"])
             try:
                 await self.prepare_runtime_capacity(job["runtime_id"])
                 capacity_reserved = True
@@ -1072,6 +1204,13 @@ class Supervisor:
                     elif event_type == "assistant.completed":
                         final_text = str(event.get("content") or final_text)
                         hermes_session_id = event.get("session_id") or hermes_session_id
+                    elif event_type in HermesSlackActionProgress.EVENT_TYPES:
+                        # The first native action replaces (or preempts) the
+                        # generic delayed placeholder. Subsequent lifecycle
+                        # events update the same Slack message.
+                        await self._settle_turn_status(status_task, status_request_started)
+                        status_task = None
+                        await action_progress.record(event)
                     elif event_type == "run.completed":
                         hermes_session_id = event.get("session_id") or hermes_session_id
                         usage = event.get("usage") or {}
@@ -1114,6 +1253,7 @@ class Supervisor:
                     raise RuntimeError("Hermes completed without response text")
                 await self._settle_turn_status(status_task, status_request_started)
                 status_task = None
+                await action_progress.close()
                 if final_text:
                     await self.control.request(
                         "POST",
@@ -1151,6 +1291,7 @@ class Supervisor:
                     )
                 await self._settle_turn_status(status_task, status_request_started)
                 status_task = None
+                await action_progress.close()
                 try:
                     await self.control.request(
                         "POST",
@@ -1169,6 +1310,7 @@ class Supervisor:
                 logger.exception("Hosted turn failed job_id=%s", job.get("job_id"))
                 await self._settle_turn_status(status_task, status_request_started)
                 status_task = None
+                await action_progress.close()
                 try:
                     await self.control.request(
                         "POST",
@@ -1179,6 +1321,7 @@ class Supervisor:
                     logger.warning("Could not deliver hosted failure notice job_id=%s", job.get("job_id"))
             finally:
                 await self._settle_turn_status(status_task, status_request_started)
+                await action_progress.close()
                 if cancellation_task is not None:
                     cancellation_task.cancel()
                 if capacity_reserved:
