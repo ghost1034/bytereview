@@ -68,39 +68,6 @@ ACTIVE_TURNS_FILE = CONTROL_ROOT / "active-turns"
 DRAIN_FILE = CONTROL_ROOT / "deploy-drain"
 
 
-def _workspace_file_snapshot(workspace: Path) -> dict[Path, tuple[int, int, int]]:
-    """Record safe top-level output files without reading tenant contents."""
-    snapshot: dict[Path, tuple[int, int, int]] = {}
-    if not workspace.exists():
-        return snapshot
-    for path in workspace.iterdir():
-        if path.name.startswith(".") or path.is_symlink() or not path.is_file():
-            continue
-        try:
-            safe_destination(workspace, path.name)
-            metadata = path.stat()
-        except (OSError, UnsafeArtifact):
-            continue
-        snapshot[path.resolve()] = (
-            int(metadata.st_ino),
-            int(metadata.st_size),
-            int(metadata.st_mtime_ns),
-        )
-    return snapshot
-
-
-def _changed_workspace_files(
-    workspace: Path,
-    before: dict[Path, tuple[int, int, int]],
-) -> list[Path]:
-    """Return safe files created or modified during a hosted turn."""
-    after = _workspace_file_snapshot(workspace)
-    return sorted(
-        (path for path, metadata in after.items() if before.get(path) != metadata),
-        key=lambda path: path.name,
-    )
-
-
 class HermesEventInactivityTimeout(RuntimeError):
     """Raised when Hermes emits no meaningful run event within the limit."""
 
@@ -1214,8 +1181,6 @@ class Supervisor:
                         )
                 final_text = ""
                 workspace = (runtime.data_dir / "workspace").resolve()
-                workspace_before = _workspace_file_snapshot(workspace)
-                delivered_artifacts: set[Path] = set()
                 hermes_session_id = str(job["session_id"])
                 prompt_tokens = 0
                 completion_tokens = 0
@@ -1305,6 +1270,8 @@ class Supervisor:
                     elif event_type == "error":
                         raise RuntimeError("Hermes native session turn failed")
                     elif event_type == "artifact.created":
+                        # Workspace files may be intermediate or persistent state.
+                        # Send only artifacts Hermes explicitly marks for delivery.
                         raw_artifact_path = Path(str(event.get("path") or ""))
                         try:
                             relative_path = raw_artifact_path.relative_to("/opt/data/workspace")
@@ -1312,27 +1279,13 @@ class Supervisor:
                             artifact_path = raw_artifact_path
                         else:
                             artifact_path = workspace / relative_path
-                        delivered_artifacts.add(
-                            await self._deliver_generated_artifact(
-                                job,
-                                runtime,
-                                artifact_path,
-                                str(event.get("content_type") or "") or None,
-                            )
+                        await self._deliver_generated_artifact(
+                            job,
+                            runtime,
+                            artifact_path,
+                            str(event.get("content_type") or "") or None,
                         )
                     runtime.last_activity = time.monotonic()
-                changed_files = _changed_workspace_files(workspace, workspace_before)
-                if len(changed_files) > 10:
-                    raise UnsafeArtifact("A hosted turn generated more than 10 output files")
-                for artifact_path in changed_files:
-                    if artifact_path.resolve() not in delivered_artifacts:
-                        delivered_artifacts.add(
-                            await self._deliver_generated_artifact(
-                                job,
-                                runtime,
-                                artifact_path,
-                            )
-                        )
                 cancellation_task.cancel()
                 if not final_text and not cancelled.is_set():
                     raise RuntimeError("Hermes completed without response text")

@@ -70,8 +70,6 @@ try:
         HostedTurnTimeout,
         Runtime,
         Supervisor,
-        _changed_workspace_files,
-        _workspace_file_snapshot,
     )
 finally:
     sys.path.pop(0)
@@ -221,23 +219,6 @@ class HostedRuntimeReadinessTests(unittest.TestCase):
             ],
         )
 
-    def test_detects_safe_workspace_outputs_without_hidden_or_unsupported_files(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            workspace = Path(directory)
-            (workspace / "existing.csv").write_text("old", encoding="utf-8")
-            before = _workspace_file_snapshot(workspace)
-            (workspace / "existing.csv").write_text("updated", encoding="utf-8")
-            (workspace / "result.csv").write_text("answer", encoding="utf-8")
-            (workspace / ".private.txt").write_text("secret", encoding="utf-8")
-            (workspace / "script.py").write_text("print('no')", encoding="utf-8")
-
-            changed = _changed_workspace_files(workspace, before)
-
-        self.assertEqual(
-            [path.name for path in changed],
-            ["existing.csv", "result.csv"],
-        )
-
     def test_managed_workspace_is_writable_by_tenant_uid(self) -> None:
         manager = DockerRuntimeManager()
         config = {
@@ -288,6 +269,80 @@ class HostedRuntimeReadinessTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "exited before its API became ready"):
                 manager._wait_for_api("tenant", "172.18.0.3")
         connect.assert_not_called()
+
+
+class HostedGeneratedArtifactDeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_explicit_generated_artifact_is_still_delivered_to_slack(self) -> None:
+        supervisor = Supervisor.__new__(Supervisor)
+        supervisor.worker_id = "worker-a"
+        supervisor.control = SimpleNamespace(
+            request=AsyncMock(
+                side_effect=[
+                    {"artifact_id": "artifact-a", "upload_url": "https://upload.example"},
+                    {"ok": True},
+                    {"ok": True},
+                ]
+            )
+        )
+        client = MagicMock()
+        upload_response = MagicMock()
+        client.put = AsyncMock(return_value=upload_response)
+        client_context = MagicMock()
+        client_context.__aenter__ = AsyncMock(return_value=client)
+        client_context.__aexit__ = AsyncMock(return_value=False)
+
+        with tempfile.TemporaryDirectory() as directory:
+            data_dir = Path(directory)
+            workspace = data_dir / "workspace"
+            workspace.mkdir()
+            artifact_path = workspace / "report.csv"
+            artifact_path.write_text("account,balance\nCash,100\n", encoding="utf-8")
+            runtime = SimpleNamespace(data_dir=data_dir)
+            job = {"user_id": "user-a", "job_id": "job-a"}
+
+            with patch(
+                "hosted_claw.supervisor.promote_clean_file",
+                return_value=artifact_path,
+            ), patch(
+                "hosted_claw.supervisor.httpx.AsyncClient",
+                return_value=client_context,
+            ):
+                delivered = await supervisor._deliver_generated_artifact(
+                    job,
+                    runtime,
+                    artifact_path,
+                    "text/csv",
+                )
+
+        self.assertEqual(delivered, artifact_path.resolve())
+        self.assertEqual(
+            supervisor.control.request.await_args_list,
+            [
+                unittest.mock.call(
+                    "POST",
+                    "/api/internal/hosted-claw/artifacts?worker_id=worker-a",
+                    json={
+                        "user_id": "user-a",
+                        "job_id": "job-a",
+                        "direction": "outbound",
+                        "filename": "report.csv",
+                        "content_type": "text/csv",
+                        "size_bytes": 25,
+                    },
+                ),
+                unittest.mock.call(
+                    "POST",
+                    "/api/internal/hosted-claw/artifacts/artifact-a/scan?worker_id=worker-a",
+                    json={"status": "clean"},
+                ),
+                unittest.mock.call(
+                    "POST",
+                    "/api/internal/hosted-claw/artifacts/artifact-a/deliver?worker_id=worker-a",
+                ),
+            ],
+        )
+        client.put.assert_awaited_once()
+        upload_response.raise_for_status.assert_called_once_with()
 
 
 class HostedRuntimeCapacityTests(unittest.TestCase):
@@ -915,6 +970,11 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
                 "session_id": "hcs-rotated",
             }
             yield {
+                "type": "artifact.created",
+                "path": "/opt/data/workspace/report.csv",
+                "content_type": "text/csv",
+            }
+            yield {
                 "type": "run.completed",
                 "session_id": "hcs-rotated",
                 "usage": {"input_tokens": 11, "output_tokens": 5},
@@ -947,6 +1007,7 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
             run=native_events,
             stop=AsyncMock(),
         )
+        supervisor._deliver_generated_artifact = AsyncMock()
         job = {
             "job_id": "job-native",
             "queued_at": datetime.now(timezone.utc).isoformat(),
@@ -1005,6 +1066,12 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
         )
         supervisor.hermes.stop.assert_not_awaited()
         supervisor.docker.stop_runtime.assert_not_called()
+        supervisor._deliver_generated_artifact.assert_awaited_once_with(
+            job,
+            runtime,
+            (runtime.data_dir / "workspace").resolve() / "report.csv",
+            "text/csv",
+        )
 
 
 class HostedRuntimeStateTests(unittest.TestCase):
