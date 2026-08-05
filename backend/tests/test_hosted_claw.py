@@ -48,6 +48,7 @@ from routes.hosted_claw import (
     _runtime_start_expected,
     _supported_slack_message_event,
     _valid_slack_file_url,
+    deliver_runtime_cron_text,
     mark_job_started,
     post_job_progress,
     runtime_stopped,
@@ -469,7 +470,10 @@ class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
         )
         final_request = MagicMock()
         final_request.json = AsyncMock(
-            return_value={"kind": "final", "text": "The answer."}
+            return_value={
+                "kind": "final",
+                "text": "## The answer\n\n**Total:** [report](https://example.com/report)",
+            }
         )
 
         with patch(
@@ -493,8 +497,103 @@ class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
         ))
         self.assertEqual(slack.await_args_list[1].args[1:], (
             "chat.update",
-            {"channel": "D123", "ts": "101.002", "text": "The answer."},
+            {
+                "channel": "D123",
+                "ts": "101.002",
+                "markdown_text": "## The answer\n\n**Total:** [report](https://example.com/report)",
+            },
         ))
+
+    async def test_final_response_posts_standard_markdown_without_placeholder(self) -> None:
+        job = SimpleNamespace(
+            id="job-a",
+            worker_id="worker-a",
+            status="running",
+            slack_link_id="link-a",
+            slack_response_ts=None,
+            slack_response_finalized_at=None,
+            payload_ciphertext=b"encrypted",
+            event_id="event-a",
+            kms_key_version="key-a",
+            user_id="user-a",
+            product="accountingclaw",
+        )
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = job
+        link = SimpleNamespace(installation_id="installation-a")
+        installation = SimpleNamespace(id="installation-a")
+        db.get.side_effect = [link, installation]
+        request = MagicMock()
+        request.json = AsyncMock(return_value={"kind": "final", "text": "**Done**"})
+
+        with patch(
+            "routes.hosted_claw.KmsEnvelope.decrypt",
+            return_value=b'{"channel_id":"D123","thread_ts":"100.001"}',
+        ), patch(
+            "routes.hosted_claw.slack_api",
+            new=AsyncMock(return_value={"ok": True, "ts": "101.002"}),
+        ) as slack:
+            await post_job_progress("job-a", "worker-a", request, db)
+
+        self.assertEqual(slack.await_args.args[1:], (
+            "chat.postMessage",
+            {
+                "channel": "D123",
+                "thread_ts": "100.001",
+                "markdown_text": "**Done**",
+            },
+        ))
+        self.assertEqual(job.slack_response_ts, "101.002")
+        self.assertIsNotNone(job.slack_response_finalized_at)
+
+
+class HostedCronMarkdownDeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_scheduled_result_posts_as_standard_markdown(self) -> None:
+        connector = SimpleNamespace(user_id="user-a", runtime_id="runtime-a")
+        occurrence = SimpleNamespace(
+            id="occurrence-a",
+            status="running",
+            delivery_attempted_at=None,
+            delivery_status="pending",
+            error_code=None,
+            delivered_at=None,
+        )
+        db = MagicMock()
+        db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = occurrence
+        link = SimpleNamespace(slack_user_id="U123")
+        installation = SimpleNamespace(id="installation-a")
+        body = SimpleNamespace(
+            occurrence_id="occurrence-a",
+            text="## Daily report\n\n**Total:** [details](https://example.com/report)",
+        )
+
+        with patch(
+            "routes.hosted_claw._hosted_connector",
+            return_value=connector,
+        ), patch(
+            "routes.hosted_claw.active_slack_context",
+            return_value=(link, installation),
+        ), patch(
+            "routes.hosted_claw.slack_api",
+            new=AsyncMock(
+                side_effect=[
+                    {"ok": True, "channel": {"id": "D123"}},
+                    {"ok": True, "ts": "101.002"},
+                ]
+            ),
+        ) as slack:
+            result = await deliver_runtime_cron_text(body, MagicMock(), db)
+
+        self.assertEqual(result, {"success": True, "message_id": "101.002"})
+        self.assertEqual(slack.await_args_list[1].args[1:], (
+            "chat.postMessage",
+            {
+                "channel": "D123",
+                "markdown_text": "## Daily report\n\n**Total:** [details](https://example.com/report)",
+                "client_msg_id": "occurrence-a",
+            },
+        ))
+        self.assertEqual(occurrence.delivery_status, "delivered")
 
 
 class HostedTurnTimeoutTests(unittest.IsolatedAsyncioTestCase):

@@ -705,7 +705,10 @@ async def deliver_runtime_cron_text(
             "chat.postMessage",
             {
                 "channel": channel_id,
-                "text": body.text[:12000],
+                # Hosted cron results are authored as standard Markdown. Slack's
+                # top-level text field uses its proprietary ``mrkdwn`` dialect,
+                # while markdown_text performs the standard-Markdown translation.
+                "markdown_text": body.text[:12000],
                 "client_msg_id": str(occurrence.id),
             },
         )
@@ -1794,17 +1797,21 @@ async def post_job_progress(job_id: str, worker_id: str, request: Request, db: S
     # The channel identifier is encrypted with the job, so decrypt it only for
     # this relay and never place the text or channel in logs.
     payload = json.loads(KmsEnvelope().decrypt(job.payload_ciphertext, aad=f"hosted-job:{job.event_id}".encode(), key_version=str(job.kms_key_version)))
+    # Hermes final responses are standard Markdown. Status updates are authored
+    # directly in Slack's mrkdwn dialect, so only final responses should use
+    # Slack's standard-Markdown translation field.
+    content = {"markdown_text": text} if kind == "final" else {"text": text}
     if job.slack_response_ts:
         await slack_api(
             installation,
             "chat.update",
-            {"channel": payload["channel_id"], "ts": job.slack_response_ts, "text": text},
+            {"channel": payload["channel_id"], "ts": job.slack_response_ts, **content},
         )
     else:
         response = await slack_api(
             installation,
             "chat.postMessage",
-            {"channel": payload["channel_id"], "thread_ts": payload.get("thread_ts"), "text": text},
+            {"channel": payload["channel_id"], "thread_ts": payload.get("thread_ts"), **content},
         )
         response_ts = str(response.get("ts") or "").strip()
         if not response_ts:
