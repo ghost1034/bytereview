@@ -71,8 +71,7 @@ schedule can wake it again. Slack unlinking suspends dispatch until relink;
 Hosted Claw data deletion removes registrations, occurrences, and native tenant
 data.
 
-`HOSTED_CLAW_CRON_ENABLED` is a fail-closed kill switch and defaults to false on
-both the API and worker. Roll out in this order:
+`HOSTED_CLAW_CRON_ENABLED` is a fail-closed kill switch. Roll out in this order:
 
 1. Deploy migration `065_hosted_claw_native_cron` and the backend endpoints.
 2. Configure the minute dispatcher while the flag remains false.

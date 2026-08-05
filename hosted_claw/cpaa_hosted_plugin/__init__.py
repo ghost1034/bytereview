@@ -180,7 +180,7 @@ class CpaaHostedCronScheduler(CronScheduler):
     def start(self, stop_event, *, adapters=None, loop=None, interval=60):
         if not _proxy_url():
             raise RuntimeError("CPAA_HOSTED_PROXY_URL is required for managed cron")
-        if os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() not in {
+        if os.getenv("HOSTED_CLAW_CRON_ENABLED", "true").strip().lower() not in {
             "1", "true", "yes", "on",
         }:
             # The provider stays selected to prevent the built-in ticker from

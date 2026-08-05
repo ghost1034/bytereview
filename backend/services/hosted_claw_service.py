@@ -156,7 +156,7 @@ def action_is_read_only(db: Session, action_id: str) -> bool:
 
 def managed_hermes_config(config: HostedClawConfig, connector_url: str, llm_base_url: str) -> dict[str, Any]:
     """Render the only configuration surface accepted by hosted containers."""
-    cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+    cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
     disabled_toolsets = ["web", "browser", "delegation", "homeassistant", "messaging"]
     if not cron_is_enabled:
         disabled_toolsets.append("cron")

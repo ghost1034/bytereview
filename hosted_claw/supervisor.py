@@ -418,7 +418,7 @@ class DockerRuntimeManager:
         connector_url: str,
         llm_url: str,
     ) -> None:
-        cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
+        cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
         disabled_toolsets = ["web", "browser", "delegation", "homeassistant", "messaging"]
         if not cron_is_enabled:
             disabled_toolsets.append("cron")
@@ -579,7 +579,7 @@ class DockerRuntimeManager:
         self._docker("network", "connect", EGRESS_NETWORK, proxy_name)
         running = self._docker("inspect", "--format", "{{.State.Running}}", container_name, check=False)
         current = self.runtimes.get(runtime_id)
-        cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() in {
+        cron_is_enabled = os.getenv("HOSTED_CLAW_CRON_ENABLED", "true").strip().lower() in {
             "1", "true", "yes", "on",
         }
         if running.returncode == 0 and current and (
@@ -903,7 +903,7 @@ class Supervisor:
         return result.get("job")
 
     async def claim_cron(self) -> Optional[dict[str, Any]]:
-        if os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() not in {
+        if os.getenv("HOSTED_CLAW_CRON_ENABLED", "true").strip().lower() not in {
             "1", "true", "yes", "on",
         }:
             return None

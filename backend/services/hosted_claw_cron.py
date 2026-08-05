@@ -31,7 +31,7 @@ TERMINAL_OCCURRENCE_STATES = {"completed", "failed", "unknown", "cancelled", "re
 
 
 def cron_enabled() -> bool:
-    return os.getenv("HOSTED_CLAW_CRON_ENABLED", "false").strip().lower() in {
+    return os.getenv("HOSTED_CLAW_CRON_ENABLED", "true").strip().lower() in {
         "1", "true", "yes", "on",
     }
 
