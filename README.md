@@ -584,8 +584,11 @@ Step-by-step GCP setup (high level)
   - Store TASK_* URLs (or set post-deploy when URLs are known)
 5) Build & deploy services
   - Run `./scripts/deploy.sh` to build images and deploy the API/frontend + task services
+  - Use `./scripts/deploy.sh --frontend-only` to build and deploy only the frontend
+  - Use `./scripts/deploy.sh --backend-only` to build and deploy only the API + task services
   - Use `./scripts/deploy.sh --build-only` to build and push all images without deploying
   - Use `./scripts/deploy.sh --deploy-only` to deploy existing images without rebuilding
+  - Target flags can be combined with phase flags, for example `./scripts/deploy.sh --frontend-only --deploy-only`
   - Set env vars and secret mounts per service
 6) Tasks and queues
   - Ensure Cloud Tasks queues exist; run `cloud_run_task_service.setup_task_queues()` once or create via gcloud

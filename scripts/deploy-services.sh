@@ -107,6 +107,7 @@ CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT="${CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT:-legalclaw/
 SKIP_BUILD=false
 SKIP_MIGRATE=false
 ROTATE_TASK_TOKEN=false
+DEPLOY_TARGET="all"
 
 if git -C "$ROOT_DIR" rev-parse --short HEAD >/dev/null 2>&1; then
   IMAGE_TAG_DEFAULT="$(git -C "$ROOT_DIR" rev-parse --short HEAD)"
@@ -140,6 +141,8 @@ Options:
   --region REGION           GCP region (default: ${REGION})
   --image-tag TAG           Docker image tag to deploy (default: git sha)
   --environment ENV         production or staging (default: ${ENVIRONMENT})
+  --frontend-only           Build/deploy only cpa-web
+  --backend-only            Build/deploy only cpa-api and backend resources
   --skip-build              Reuse existing backend/frontend images
   --skip-migrate            Skip Alembic migration job
   --rotate-task-token       Force a new Inkwise task token secret version
@@ -325,7 +328,7 @@ ensure_base_services() {
   local api_service="$1"
   local web_service="$2"
 
-  if ! service_exists "$api_service"; then
+  if [ "$DEPLOY_BACKEND" = true ] && ! service_exists "$api_service"; then
     warn "Base API service ${api_service} missing; creating it"
     gcloud run deploy "$api_service" \
       --image="$BACKEND_IMAGE" \
@@ -350,7 +353,7 @@ ensure_base_services() {
     ok "Created ${api_service}"
   fi
 
-  if ! service_exists "$web_service"; then
+  if [ "$DEPLOY_FRONTEND" = true ] && ! service_exists "$web_service"; then
     warn "Base web service ${web_service} missing; creating it"
     gcloud run deploy "$web_service" \
       --image="$FRONTEND_IMAGE" \
@@ -520,6 +523,20 @@ while [[ $# -gt 0 ]]; do
       ENVIRONMENT="$2"
       shift 2
       ;;
+    --frontend-only)
+      if [ "$DEPLOY_TARGET" != "all" ] && [ "$DEPLOY_TARGET" != "frontend" ]; then
+        die "Cannot combine frontend-only and backend-only options"
+      fi
+      DEPLOY_TARGET="frontend"
+      shift
+      ;;
+    --backend-only)
+      if [ "$DEPLOY_TARGET" != "all" ] && [ "$DEPLOY_TARGET" != "backend" ]; then
+        die "Cannot combine frontend-only and backend-only options"
+      fi
+      DEPLOY_TARGET="backend"
+      shift
+      ;;
     --skip-build)
       SKIP_BUILD=true
       shift
@@ -541,6 +558,15 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+DEPLOY_BACKEND=false
+DEPLOY_FRONTEND=false
+if [ "$DEPLOY_TARGET" = "all" ] || [ "$DEPLOY_TARGET" = "backend" ]; then
+  DEPLOY_BACKEND=true
+fi
+if [ "$DEPLOY_TARGET" = "all" ] || [ "$DEPLOY_TARGET" = "frontend" ]; then
+  DEPLOY_FRONTEND=true
+fi
 
 ARTIFACT_REGISTRY_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}"
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-cpaautomation-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
@@ -620,61 +646,89 @@ BACKEND_BASE_ENV=(
 
 section "Checking prerequisites"
 command_exists gcloud || die "gcloud CLI not found"
-command_exists docker || die "docker not found"
-command_exists openssl || die "openssl not found"
+if [ "$SKIP_BUILD" = false ]; then
+  command_exists docker || die "docker not found"
+fi
+if [ "$DEPLOY_BACKEND" = true ]; then
+  command_exists openssl || die "openssl not found"
+fi
 
 if ! gcloud auth list --filter=status:ACTIVE --format="value(account)" | grep -q .; then
   die "Not logged into gcloud. Run 'gcloud auth login' first."
 fi
 
 gcloud config set project "$PROJECT_ID" >/dev/null
-gcloud services enable run.googleapis.com artifactregistry.googleapis.com cloudtasks.googleapis.com cloudscheduler.googleapis.com logging.googleapis.com monitoring.googleapis.com secretmanager.googleapis.com >/dev/null
-ok "Using project ${PROJECT_ID} in ${REGION} (${ENVIRONMENT})"
+REQUIRED_APIS=(run.googleapis.com artifactregistry.googleapis.com)
+if [ "$DEPLOY_BACKEND" = true ]; then
+  REQUIRED_APIS+=(cloudtasks.googleapis.com cloudscheduler.googleapis.com logging.googleapis.com monitoring.googleapis.com secretmanager.googleapis.com)
+fi
+gcloud services enable "${REQUIRED_APIS[@]}" >/dev/null
+ok "Using project ${PROJECT_ID} in ${REGION} (${ENVIRONMENT}); target=${DEPLOY_TARGET}"
 
 if [ "$SKIP_BUILD" = false ]; then
   section "Building images"
-  "$ROOT_DIR/scripts/build-images.sh" "$IMAGE_TAG"
+  BUILD_IMAGE_ARGS=("$IMAGE_TAG")
+  if [ "$DEPLOY_TARGET" = "frontend" ]; then
+    BUILD_IMAGE_ARGS+=(--frontend-only)
+  elif [ "$DEPLOY_TARGET" = "backend" ]; then
+    BUILD_IMAGE_ARGS+=(--backend-only)
+  fi
+  "$ROOT_DIR/scripts/build-images.sh" "${BUILD_IMAGE_ARGS[@]}"
 else
   warn "Skipping image build"
 fi
 
-section "Preparing infrastructure (secrets + queue)"
-ensure_bundle_secret
-ensure_legalclaw_bundle_secret
-# Mount the LegalClaw bundle secret only once it exists, so deploys keep
-# working before LegalClaw is rolled out.
-if secret_exists "$LEGALCLAW_BUNDLE_SECRET_NAME"; then
-  BACKEND_BASE_SECRETS+=",${LEGALCLAW_BUNDLE_SECRET_NAME}=${LEGALCLAW_BUNDLE_SECRET_NAME}:latest"
+if [ "$DEPLOY_BACKEND" = true ]; then
+  section "Preparing infrastructure (secrets + queue)"
+  ensure_bundle_secret
+  ensure_legalclaw_bundle_secret
+  # Mount the LegalClaw bundle secret only once it exists, so deploys keep
+  # working before LegalClaw is rolled out.
+  if secret_exists "$LEGALCLAW_BUNDLE_SECRET_NAME"; then
+    BACKEND_BASE_SECRETS+=",${LEGALCLAW_BUNDLE_SECRET_NAME}=${LEGALCLAW_BUNDLE_SECRET_NAME}:latest"
+  fi
+  if [ "$HOSTED_CLAW_ENABLED" = true ]; then
+    for hosted_secret in SLACK_CLIENT_ID SLACK_CLIENT_SECRET SLACK_SIGNING_SECRET; do
+      secret_exists "$hosted_secret" || die "Hosted Claw is enabled but Secret Manager secret ${hosted_secret} is missing"
+      BACKEND_BASE_SECRETS+=",${hosted_secret}=${hosted_secret}:latest"
+    done
+  fi
+  ensure_secret_value "$TASK_TOKEN_SECRET" "$ROTATE_TASK_TOKEN"
+  ensure_queue "$QUEUE_NAME"
 fi
-if [ "$HOSTED_CLAW_ENABLED" = true ]; then
-  for hosted_secret in SLACK_CLIENT_ID SLACK_CLIENT_SECRET SLACK_SIGNING_SECRET; do
-    secret_exists "$hosted_secret" || die "Hosted Claw is enabled but Secret Manager secret ${hosted_secret} is missing"
-    BACKEND_BASE_SECRETS+=",${hosted_secret}=${hosted_secret}:latest"
-  done
-fi
-ensure_secret_value "$TASK_TOKEN_SECRET" "$ROTATE_TASK_TOKEN"
-ensure_queue "$QUEUE_NAME"
 
 section "Ensuring base services exist"
 ensure_base_services "$API_SERVICE" "$WEB_SERVICE"
 
-API_URL="$(gcloud run services describe "$API_SERVICE" --region="$REGION" --format='value(status.url)')"
-WEB_URL="$(gcloud run services describe "$WEB_SERVICE" --region="$REGION" --format='value(status.url)')"
-ok "API URL: ${API_URL}"
-ok "Web URL: ${WEB_URL}"
-
-section "Deploying services (backend + frontend)"
-deploy_api "$API_SERVICE" "$BACKEND_IMAGE" "$API_URL" "$QUEUE_NAME" "$TASK_TOKEN_SECRET"
-deploy_web "$WEB_SERVICE" "$FRONTEND_IMAGE"
-
-if [ "$SKIP_MIGRATE" = false ]; then
-  section "Running database migrations"
-  run_migrations "$BACKEND_IMAGE" "$MIGRATION_JOB_NAME"
-else
-  warn "Skipping Alembic migrations"
+API_URL=""
+WEB_URL=""
+if [ "$DEPLOY_BACKEND" = true ]; then
+  API_URL="$(gcloud run services describe "$API_SERVICE" --region="$REGION" --format='value(status.url)')"
+  ok "API URL: ${API_URL}"
+fi
+if [ "$DEPLOY_FRONTEND" = true ]; then
+  WEB_URL="$(gcloud run services describe "$WEB_SERVICE" --region="$REGION" --format='value(status.url)')"
+  ok "Web URL: ${WEB_URL}"
 fi
 
-if [ "$HOSTED_CLAW_ENABLED" = true ]; then
+section "Deploying services (${DEPLOY_TARGET})"
+if [ "$DEPLOY_BACKEND" = true ]; then
+  deploy_api "$API_SERVICE" "$BACKEND_IMAGE" "$API_URL" "$QUEUE_NAME" "$TASK_TOKEN_SECRET"
+fi
+if [ "$DEPLOY_FRONTEND" = true ]; then
+  deploy_web "$WEB_SERVICE" "$FRONTEND_IMAGE"
+fi
+
+if [ "$DEPLOY_BACKEND" = true ]; then
+  if [ "$SKIP_MIGRATE" = false ]; then
+    section "Running database migrations"
+    run_migrations "$BACKEND_IMAGE" "$MIGRATION_JOB_NAME"
+  else
+    warn "Skipping Alembic migrations"
+  fi
+fi
+
+if [ "$DEPLOY_BACKEND" = true ] && [ "$HOSTED_CLAW_ENABLED" = true ]; then
   section "Configuring Hosted Claw cron dispatcher"
   scheduler_name="hosted-claw-cron-dispatch"
   scheduler_args=(
@@ -702,9 +756,13 @@ if [ "$HOSTED_CLAW_ENABLED" = true ]; then
 fi
 
 section "Deployment complete"
-ok "CPAAutomation services deployed (backend + frontend, incl. Inkwise)."
+ok "CPAAutomation ${DEPLOY_TARGET} services deployed."
 echo -e "${BLUE}Next checks:${NC}"
-echo -e "- API docs: ${API_URL}/api/docs"
-echo -e "- Inkwise UI: ${WEB_URL}/dashboard/inkwise"
-echo -e "- Queue: ${QUEUE_NAME}"
-echo -e "- Migration job: ${MIGRATION_JOB_NAME}"
+if [ "$DEPLOY_BACKEND" = true ]; then
+  echo -e "- API docs: ${API_URL}/api/docs"
+  echo -e "- Queue: ${QUEUE_NAME}"
+  echo -e "- Migration job: ${MIGRATION_JOB_NAME}"
+fi
+if [ "$DEPLOY_FRONTEND" = true ]; then
+  echo -e "- Inkwise UI: ${WEB_URL}/dashboard/inkwise"
+fi

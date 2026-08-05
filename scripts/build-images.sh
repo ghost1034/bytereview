@@ -17,8 +17,53 @@ REGION="us-central1"
 ARTIFACT_REGISTRY_REPO="cpa-docker"
 ARTIFACT_REGISTRY_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}"
 
-# Get git hash from parameter or generate
-GIT_HASH=${1:-$(git rev-parse --short HEAD)}
+# Get git hash from parameter or generate. The optional target flags let the
+# deployment entry points avoid building an image they will not deploy.
+GIT_HASH=""
+BUILD_TARGET="all"
+
+usage() {
+    echo "Usage: $0 [IMAGE_TAG] [--frontend-only|--backend-only]"
+}
+
+set_target() {
+    if [ "$BUILD_TARGET" != "all" ] && [ "$BUILD_TARGET" != "$1" ]; then
+        echo -e "${RED}Cannot combine frontend-only and backend-only options${NC}"
+        exit 1
+    fi
+    BUILD_TARGET="$1"
+}
+
+if [[ "${1:-}" != "" && "${1:-}" != -* ]]; then
+    GIT_HASH="$1"
+    shift
+fi
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --frontend-only)
+            set_target "frontend"
+            shift
+            ;;
+        --backend-only)
+            set_target "backend"
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+if [ -z "$GIT_HASH" ]; then
+    GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || true)
+fi
 
 if [ -z "$GIT_HASH" ]; then
     echo -e "${RED}❌ No git hash provided and not in a git repository${NC}"
@@ -28,6 +73,7 @@ fi
 echo -e "${BLUE}🏗️  Building CPAAutomation Docker images...${NC}"
 echo -e "${BLUE}Git Hash: ${GIT_HASH}${NC}"
 echo -e "${BLUE}Registry: ${ARTIFACT_REGISTRY_URL}${NC}"
+echo -e "${BLUE}Target: ${BUILD_TARGET}${NC}"
 echo ""
 
 # Function to build and push image
@@ -76,70 +122,84 @@ gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 echo -e "${GREEN}✅ Docker authentication complete${NC}"
 echo ""
 
-# Build backend image (API + Workers)
-echo -e "${BLUE}=== Building Backend (API + Workers) ===${NC}"
-build_and_push "backend" "backend/Dockerfile" "." ""
-
-# Build frontend image with environment variables
-echo -e "${BLUE}=== Building Frontend ===${NC}"
-
-# Load environment variables from .env.local for build args
-if [ -f ".env.local" ]; then
-    echo -e "${BLUE}Loading environment variables from .env.local...${NC}"
-    export $(grep -v '^#' .env.local | grep 'NEXT_PUBLIC_' | xargs)
+if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "backend" ]; then
+    # Build backend image (API + Workers)
+    echo -e "${BLUE}=== Building Backend (API + Workers) ===${NC}"
+    build_and_push "backend" "backend/Dockerfile" "." ""
 fi
 
-# Prepare build args for frontend
-FRONTEND_BUILD_ARGS=""
-if [ -n "$NEXT_PUBLIC_FIREBASE_API_KEY" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY"
-fi
-if [ -n "$NEXT_PUBLIC_FIREBASE_PROJECT_ID" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID"
-fi
-if [ -n "$NEXT_PUBLIC_FIREBASE_APP_ID" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID"
-fi
-if [ -n "$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"
-fi
-if [ -n "$NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=$NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID"
-fi
-if [ -n "$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
-fi
-if [ -n "$NEXT_PUBLIC_API_URL" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
-fi
-if [ -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID"
-fi
-if [ -n "$NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER=$NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER"
-fi
-if [ -n "$NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE=$NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE"
-fi
-if [ -n "$NEXT_PUBLIC_LEGALCLAW_IMAGE" ]; then
-    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_LEGALCLAW_IMAGE=$NEXT_PUBLIC_LEGALCLAW_IMAGE"
-fi
-FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_TASKLYTIC_BACKEND=${NEXT_PUBLIC_TASKLYTIC_BACKEND:-1}"
-FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FILE_STORAGE_ADAPTER=${NEXT_PUBLIC_FILE_STORAGE_ADAPTER:-object_store}"
+if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "frontend" ]; then
+    # Build frontend image with environment variables
+    echo -e "${BLUE}=== Building Frontend ===${NC}"
 
-echo -e "${BLUE}Build args: ${FRONTEND_BUILD_ARGS}${NC}"
-build_and_push "frontend" "Dockerfile" "." "$FRONTEND_BUILD_ARGS"
+    # Load environment variables from .env.local for build args
+    if [ -f ".env.local" ]; then
+        echo -e "${BLUE}Loading environment variables from .env.local...${NC}"
+        export $(grep -v '^#' .env.local | grep 'NEXT_PUBLIC_' | xargs)
+    fi
+
+    # Prepare build args for frontend
+    FRONTEND_BUILD_ARGS=""
+    if [ -n "$NEXT_PUBLIC_FIREBASE_API_KEY" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY"
+    fi
+    if [ -n "$NEXT_PUBLIC_FIREBASE_PROJECT_ID" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID"
+    fi
+    if [ -n "$NEXT_PUBLIC_FIREBASE_APP_ID" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID"
+    fi
+    if [ -n "$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"
+    fi
+    if [ -n "$NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=$NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID"
+    fi
+    if [ -n "$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
+    fi
+    if [ -n "$NEXT_PUBLIC_API_URL" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL"
+    fi
+    if [ -n "$NEXT_PUBLIC_GOOGLE_CLIENT_ID" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID"
+    fi
+    if [ -n "$NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER=$NEXT_PUBLIC_GOOGLE_PROJECT_NUMBER"
+    fi
+    if [ -n "$NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE=$NEXT_PUBLIC_ACCOUNTINGCLAW_IMAGE"
+    fi
+    if [ -n "$NEXT_PUBLIC_LEGALCLAW_IMAGE" ]; then
+        FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_LEGALCLAW_IMAGE=$NEXT_PUBLIC_LEGALCLAW_IMAGE"
+    fi
+    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_TASKLYTIC_BACKEND=${NEXT_PUBLIC_TASKLYTIC_BACKEND:-1}"
+    FRONTEND_BUILD_ARGS="$FRONTEND_BUILD_ARGS --build-arg NEXT_PUBLIC_FILE_STORAGE_ADAPTER=${NEXT_PUBLIC_FILE_STORAGE_ADAPTER:-object_store}"
+
+    echo -e "${BLUE}Build args: ${FRONTEND_BUILD_ARGS}${NC}"
+    build_and_push "frontend" "Dockerfile" "." "$FRONTEND_BUILD_ARGS"
+fi
 
 # Build summary
-echo -e "${GREEN}🎉 All images built and pushed successfully!${NC}"
+echo -e "${GREEN}🎉 ${BUILD_TARGET} image build completed successfully!${NC}"
 echo ""
 echo -e "${BLUE}📋 Built images:${NC}"
-echo -e "• Backend (API + Workers): ${ARTIFACT_REGISTRY_URL}/backend:${GIT_HASH}"
-echo -e "• Frontend: ${ARTIFACT_REGISTRY_URL}/frontend:${GIT_HASH}"
+if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "backend" ]; then
+    echo -e "• Backend (API + Workers): ${ARTIFACT_REGISTRY_URL}/backend:${GIT_HASH}"
+fi
+if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "frontend" ]; then
+    echo -e "• Frontend: ${ARTIFACT_REGISTRY_URL}/frontend:${GIT_HASH}"
+fi
 echo ""
 echo -e "${YELLOW}📝 Next steps:${NC}"
-echo -e "1. Deploy services using: ./scripts/deploy-services.sh --image-tag ${GIT_HASH} --skip-build"
-echo -e "2. Or deploy all existing images: ./scripts/deploy.sh --deploy-only"
+TARGET_ARG=""
+if [ "$BUILD_TARGET" = "frontend" ]; then
+    TARGET_ARG=" --frontend-only"
+elif [ "$BUILD_TARGET" = "backend" ]; then
+    TARGET_ARG=" --backend-only"
+fi
+echo -e "1. Deploy services using: ./scripts/deploy-services.sh --image-tag ${GIT_HASH} --skip-build${TARGET_ARG}"
+echo -e "2. Or deploy existing images: ./scripts/deploy.sh --deploy-only${TARGET_ARG}"
 echo ""
 
 echo -e "${GREEN}✨ Image building complete!${NC}"
