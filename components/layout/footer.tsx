@@ -67,7 +67,7 @@ export default function Footer() {
               </li>
               <li>
                 <FooterLink href="/dashboard/project-management">
-                  AI Productivity Suite
+                  AI Project Management
                 </FooterLink>
               </li>
               <li>

@@ -46,7 +46,7 @@ export function AcceptInvitePage() {
             <h1 className="mt-4 font-serif text-2xl">Invitation unavailable</h1>
             <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>{error}</p>
             <Button asChild variant="outline" className="mt-5">
-              <Link href="/dashboard/project-management">AI Productivity Suite home</Link>
+              <Link href="/dashboard/project-management">AI Project Management home</Link>
             </Button>
           </>
         ) : accepted ? (

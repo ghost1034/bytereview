@@ -62,7 +62,7 @@ export function SearchPage() {
   usePageMeta({
     breadcrumbs: workspaceId
       ? [
-          { label: 'AI Productivity Suite', href: `${basePath}/home` },
+          { label: 'AI Project Management', href: `${basePath}/home` },
           { label: 'Search' },
         ]
       : [],

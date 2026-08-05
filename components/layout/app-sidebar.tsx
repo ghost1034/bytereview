@@ -89,7 +89,7 @@ const PRODUCTS_GROUP: NavGroup = {
     { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
     {
-      name: 'AI Productivity Suite',
+      name: 'AI Project Management',
       href: '/dashboard/project-management',
       icon: FolderKanban,
     },

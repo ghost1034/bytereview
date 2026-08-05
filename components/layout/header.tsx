@@ -103,7 +103,7 @@ const PRODUCT_LINKS: ProductLink[] = [
     icon: BarChart3,
   },
   {
-    label: 'AI Productivity Suite',
+    label: 'AI Project Management',
     href: '/#productivity-suite-showcase',
     description: 'Projects, tasks, forms, time, reporting & AI',
     icon: FolderKanban,
