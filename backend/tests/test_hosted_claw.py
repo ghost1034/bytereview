@@ -537,7 +537,7 @@ class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
             product="accountingclaw",
         )
         job_query = MagicMock()
-        job_query.filter.return_value.with_for_update.return_value.first.return_value = job
+        job_query.filter.return_value.first.return_value = job
         session_query = MagicMock()
         db = MagicMock()
         db.query.side_effect = [job_query, session_query]
@@ -549,6 +549,7 @@ class HostedSlackProgressTests(unittest.IsolatedAsyncioTestCase):
         update.assert_called_once()
         self.assertEqual(list(update.call_args.args[0].values()), ["running"])
         self.assertEqual(update.call_args.kwargs, {"synchronize_session": False})
+        job_query.filter.return_value.with_for_update.assert_not_called()
         db.commit.assert_called_once_with()
 
     async def test_final_response_updates_existing_placeholder(self) -> None:

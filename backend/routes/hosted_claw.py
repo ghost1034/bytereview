@@ -1756,10 +1756,13 @@ async def job_state(job_id: str, worker_id: str, db: Session = Depends(get_db)):
 @internal_router.post("/jobs/{job_id}/started", response_model=HostedCommandResponse)
 async def mark_job_started(job_id: str, worker_id: str, db: Session = Depends(get_db)):
     """Record that the tenant runtime is ready and the Hermes turn is starting."""
+    # This endpoint only updates the product-session row. Do not lock the job
+    # row: a concurrent progress relay may hold it while awaiting Slack, and a
+    # synchronous lock wait here would stall the async API process.
     job = db.query(HostedClawJob).filter(
         HostedClawJob.id == job_id,
         HostedClawJob.worker_id == worker_id,
-    ).with_for_update().first()
+    ).first()
     if job is None or job.status not in {"claimed", "running"}:
         raise HTTPException(status_code=404, detail="Active job not found")
     job.status = "running"
