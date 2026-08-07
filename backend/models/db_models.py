@@ -2247,7 +2247,7 @@ class HostedClawEntitlement(Base):
     __tablename__ = "hosted_claw_entitlements"
 
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    enabled = Column(Boolean, nullable=False, server_default=expression.false())
+    enabled = Column(Boolean, nullable=False, server_default=expression.true())
     allowed_products = Column(JSONB, nullable=False, server_default='["accountingclaw"]')
     allowed_model_aliases = Column(JSONB, nullable=False, server_default='["claw-default"]')
     monthly_budget_usd = Column(Numeric(12, 4), nullable=False, server_default="0")

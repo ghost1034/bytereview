@@ -81,15 +81,15 @@ export function HostedClawCard() {
       description="Run an isolated AccountingClaw or LegalClaw worker by messaging the CPAAutomation Slack app. Desktop and self-hosted installs remain separate."
     >
       {!status.feature_enabled ? (
-        <p className="text-sm text-foreground-muted">Hosted Slack is not accepting pilot traffic.</p>
+        <p className="text-sm text-foreground-muted">Hosted Slack is not currently available.</p>
       ) : !status.entitled ? (
-        <p className="text-sm text-foreground-muted">Your account is not currently on the hosted pilot allowlist. Contact CPAAutomation to request access.</p>
+        <p className="text-sm text-foreground-muted">Hosted Slack is unavailable for this account.</p>
       ) : config ? (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted/40 p-4">
             <div>
               <p className="text-sm font-medium">{status.linked ? `Linked to ${status.workspace_name || 'Slack'}` : 'Slack is not linked'}</p>
-              <p className="mt-1 text-xs text-foreground-muted">Runtime: {status.runtime_status} · {status.usage_turns} turns · ${Number(status.usage_cost_usd).toFixed(2)} used {Number(status.monthly_budget_usd) > 0 ? `of $${Number(status.monthly_budget_usd).toFixed(2)} this month` : '(no pilot cap)'}</p>
+              <p className="mt-1 text-xs text-foreground-muted">Runtime: {status.runtime_status} · {status.usage_turns} turns · ${Number(status.usage_cost_usd).toFixed(2)} used {Number(status.monthly_budget_usd) > 0 ? `of $${Number(status.monthly_budget_usd).toFixed(2)} this month` : '(no monthly cap)'}</p>
             </div>
             {status.linked ? (
               <Button variant="outline" size="sm" disabled={busy} onClick={() => run(() => apiClient.unlinkHostedSlack(), 'Slack unlinked')}><Unlink className="size-4" aria-hidden />Unlink</Button>

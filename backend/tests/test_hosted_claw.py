@@ -35,8 +35,10 @@ from services.hosted_claw_security import (
 )
 from services.hosted_claw_service import (
     action_is_read_only,
+    get_or_create_entitlement,
     managed_hermes_config,
     publish_job,
+    require_entitlement,
     validate_attachment,
 )
 from services.hosted_claw_cron import reconcile_schedules, recover_expired_occurrences
@@ -89,6 +91,33 @@ _ARTIFACTS_SPEC = spec_from_file_location(
 assert _ARTIFACTS_SPEC is not None and _ARTIFACTS_SPEC.loader is not None
 _ARTIFACTS = module_from_spec(_ARTIFACTS_SPEC)
 _ARTIFACTS_SPEC.loader.exec_module(_ARTIFACTS)
+
+
+class HostedClawPublicAccessTests(unittest.TestCase):
+    def test_missing_entitlement_is_created_enabled_with_public_defaults(self) -> None:
+        db = MagicMock(spec=Session)
+        db.query.return_value.filter.return_value.first.return_value = None
+
+        row = get_or_create_entitlement(db, "user-a")
+
+        self.assertEqual(row.user_id, "user-a")
+        self.assertTrue(row.enabled)
+        self.assertEqual(row.allowed_products, ["accountingclaw"])
+        self.assertEqual(row.allowed_model_aliases, ["claw-default"])
+        self.assertEqual(str(row.monthly_budget_usd), "0")
+        db.add.assert_called_once_with(row)
+        db.flush.assert_called_once_with()
+
+    def test_explicitly_suspended_account_remains_blocked(self) -> None:
+        row = SimpleNamespace(enabled=False, revoked_at=datetime.now(timezone.utc))
+        db = MagicMock(spec=Session)
+        db.query.return_value.filter.return_value.first.return_value = row
+
+        with self.assertRaises(HTTPException) as error:
+            require_entitlement(db, "user-a")
+
+        self.assertEqual(error.exception.status_code, 403)
+        self.assertEqual(error.exception.detail, "Hosted Claw is unavailable for this account")
 
 
 class HostedSlackSignatureTests(unittest.TestCase):

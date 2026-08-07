@@ -8,6 +8,7 @@ import mimetypes
 import os
 import urllib.parse
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import PurePath
 from typing import Any, Optional
 
@@ -31,12 +32,28 @@ MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024
 MAX_ATTACHMENTS = 10
 
 
-def require_entitlement(db: Session, user_id: str) -> HostedClawEntitlement:
+def get_or_create_entitlement(db: Session, user_id: str) -> HostedClawEntitlement:
+    """Return a user's Hosted Claw settings, enabling public access by default."""
     row = db.query(HostedClawEntitlement).filter(HostedClawEntitlement.user_id == user_id).first()
+    if row is None:
+        row = HostedClawEntitlement(
+            user_id=user_id,
+            enabled=True,
+            allowed_products=["accountingclaw"],
+            allowed_model_aliases=["claw-default"],
+            monthly_budget_usd=Decimal("0"),
+        )
+        db.add(row)
+        db.flush()
+    return row
+
+
+def require_entitlement(db: Session, user_id: str) -> HostedClawEntitlement:
+    row = get_or_create_entitlement(db, user_id)
     if row is None or not bool(row.enabled) or row.revoked_at is not None:
         from fastapi import HTTPException
 
-        raise HTTPException(status_code=403, detail="Hosted Claw pilot entitlement required")
+        raise HTTPException(status_code=403, detail="Hosted Claw is unavailable for this account")
     return row
 
 

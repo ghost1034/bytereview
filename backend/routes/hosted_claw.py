@@ -91,6 +91,7 @@ from services.hosted_claw_service import (
     artifact_expiry,
     exchange_slack_code,
     get_or_create_config,
+    get_or_create_entitlement,
     new_link_url,
     publish_job,
     require_entitlement,
@@ -436,8 +437,10 @@ def _register_claim_attachments(
 
 @user_router.get("/status", response_model=HostedStatusResponse)
 async def status(user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
-    entitlement = db.query(HostedClawEntitlement).filter(HostedClawEntitlement.user_id == user_id).first()
-    entitled = bool(entitlement and entitlement.enabled and entitlement.revoked_at is None)
+    if not hosted_enabled():
+        return HostedStatusResponse(feature_enabled=False, entitled=False)
+    entitlement = get_or_create_entitlement(db, user_id)
+    entitled = bool(entitlement.enabled and entitlement.revoked_at is None)
     if not entitled:
         return HostedStatusResponse(feature_enabled=hosted_enabled(), entitled=False)
     config = get_or_create_config(db, user_id)
@@ -1068,7 +1071,7 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks, db: 
         message = _create_link_message(db, installation, enterprise, team, slack_user, event.get("channel"))
         background_tasks.add_task(slack_api, installation, "chat.postMessage", message)
         return {"ok": True}
-    entitlement = db.query(HostedClawEntitlement).filter(HostedClawEntitlement.user_id == link.user_id).first()
+    entitlement = get_or_create_entitlement(db, str(link.user_id))
     if not entitlement or not entitlement.enabled or entitlement.revoked_at is not None:
         background_tasks.add_task(slack_api, installation, "chat.postMessage", {"channel": event.get("channel"), "text": "Hosted Claw is not enabled for this CPAAutomation account."})
         return {"ok": True}
