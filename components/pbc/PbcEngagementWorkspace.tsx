@@ -28,6 +28,8 @@ const statusStyle: Record<string, string> = {
 const formatStatus = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter: string) => letter.toUpperCase())
 const formatBytes = (value: number) => value < 1024 * 1024 ? `${Math.ceil(value / 1024)} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`
 
+type CompletenessFlag = { request_id: string; request_number: string; warnings: string[] }
+
 export function PbcEngagementWorkspace({ engagementId }: { engagementId: string }) {
   const engagement = usePbcEngagement(engagementId)
   const invalidate = useInvalidatePbc()
@@ -42,7 +44,7 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
   const [comment, setComment] = React.useState('')
   const [commentVisibility, setCommentVisibility] = React.useState<'client' | 'internal'>('client')
   const [ai, setAi] = React.useState<{ summary: string; proposals: Array<Record<string, unknown>> } | null>(null)
-  const [flags, setFlags] = React.useState<Array<{ request_id: string; request_number: string; warnings: string[] }>>([])
+  const [flags, setFlags] = React.useState<CompletenessFlag[] | null>(null)
   const fileRef = React.useRef<HTMLInputElement>(null)
   const importRef = React.useRef<HTMLInputElement>(null)
 
@@ -119,6 +121,7 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
   }
 
   const checkCompleteness = async () => {
+    setFlags(null)
     await run('flags', async () => { setFlags((await pbcApi.completeness(engagementId)).flags) })
   }
 
@@ -141,7 +144,7 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
           <div className="mt-3 flex max-w-md items-center gap-3"><Progress value={data.progress} className="h-2" /><span className="text-sm font-medium tabular-nums">{data.progress}%</span></div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={checkCompleteness} disabled={!!busy}><AlertTriangle className="mr-2 size-4" />Check completeness</Button>
+          <Button variant="outline" onClick={checkCompleteness} disabled={!!busy}><AlertTriangle className="mr-2 size-4" />{busy === 'flags' ? 'Checking…' : 'Check completeness'}</Button>
           <Button variant="outline" onClick={loadAi} disabled={!!busy || data.status !== 'draft'}><Bot className="mr-2 size-4" />Draft with AI</Button>
           <Button variant="outline" onClick={() => run('export', () => pbcApi.downloadArtifact(engagementId, 'export.xlsx', `${data.name}-pbc.xlsx`))}><Download className="mr-2 size-4" />Tracker</Button>
           <Button variant="outline" onClick={() => run('package', () => pbcApi.downloadArtifact(engagementId, 'package.zip', `${data.name}-evidence-package.zip`))}><Download className="mr-2 size-4" />Package</Button>
@@ -151,7 +154,8 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
       </div>
 
       {error && <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span><button className="ml-auto" onClick={() => setError(null)} aria-label="Dismiss"><X className="size-4" /></button></div>}
-      {flags.length > 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-medium">Completeness review found {flags.length} item{flags.length === 1 ? '' : 's'} requiring attention.</p><ul className="mt-2 list-disc space-y-1 pl-5">{flags.slice(0, 5).map((flag) => <li key={flag.request_id}><button className="underline" onClick={() => setSelectedId(flag.request_id)}>{flag.request_number}</button>: {flag.warnings.join('; ')}</li>)}</ul></div>}
+      {flags && flags.length === 0 && <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"><Check className="mt-0.5 size-4 shrink-0" /><span><strong>Completeness check passed.</strong> No items currently require attention.</span></div>}
+      {flags && flags.length > 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-medium">Completeness review found {flags.length} item{flags.length === 1 ? '' : 's'} requiring attention.</p><ul className="mt-2 list-disc space-y-1 pl-5">{flags.slice(0, 5).map((flag) => <li key={flag.request_id}><button className="underline" onClick={() => setSelectedId(flag.request_id)}>{flag.request_number}</button>: {flag.warnings.join('; ')}</li>)}</ul></div>}
 
       <div className="grid min-h-[620px] overflow-hidden rounded-xl border bg-card shadow-sm xl:grid-cols-[minmax(0,1fr)_400px]">
         <section className="min-w-0 border-r">
