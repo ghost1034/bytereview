@@ -13,6 +13,7 @@ import pytest
 from fastapi import HTTPException
 
 from models.pbc import PbcEngagement, PbcRequest
+from routes.pbc import _request_assignment_ids
 from services.pbc_service import actor_role, token_hash, transition_request
 
 
@@ -33,6 +34,25 @@ class FakeDb:
 
     def add(self, value):
         self.added.append(value)
+
+
+class RequestIdQuery:
+    def __init__(self, request_ids):
+        self.request_ids = request_ids
+
+    def filter(self, *_args, **_kwargs):
+        return self
+
+    def all(self):
+        return [(request_id,) for request_id in self.request_ids]
+
+
+class RequestIdDb:
+    def __init__(self, request_ids):
+        self.request_ids = request_ids
+
+    def query(self, *_args):
+        return RequestIdQuery(self.request_ids)
 
 
 def engagement_and_request(status="open", revision=1):
@@ -90,3 +110,23 @@ def test_access_secrets_are_one_way_hashes():
     assert token_hash(raw) == token_hash(raw)
     assert len(token_hash(raw)) == 64
 
+
+def test_request_assignment_ids_preserve_database_uuid_types_and_deduplicate():
+    engagement_id = uuid.uuid4()
+    request_ids = [uuid.uuid4(), uuid.uuid4()]
+
+    resolved = _request_assignment_ids(
+        RequestIdDb(request_ids),
+        engagement_id,
+        [str(request_ids[0]), str(request_ids[1]), str(request_ids[0])],
+    )
+
+    assert resolved == request_ids
+    assert all(isinstance(request_id, uuid.UUID) for request_id in resolved)
+
+
+def test_request_assignment_ids_reject_requests_from_another_engagement():
+    with pytest.raises(HTTPException) as invalid:
+        _request_assignment_ids(RequestIdDb([uuid.uuid4()]), uuid.uuid4(), [str(uuid.uuid4())])
+
+    assert invalid.value.status_code == 422

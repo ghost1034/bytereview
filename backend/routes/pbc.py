@@ -127,6 +127,17 @@ def _request_number(db: Session, engagement_id) -> str:
     return f"PBC-{index:03d}"
 
 
+def _request_assignment_ids(db: Session, engagement_id, request_ids: list[str]) -> list[uuid.UUID]:
+    """Validate request membership and retain the UUID type expected by SQLAlchemy."""
+    known = {
+        str(request_id): request_id
+        for (request_id,) in db.query(PbcRequest.id).filter(PbcRequest.engagement_id == engagement_id).all()
+    }
+    if any(request_id not in known for request_id in request_ids):
+        raise HTTPException(status_code=422, detail="Assigned request does not belong to this engagement")
+    return [known[request_id] for request_id in dict.fromkeys(request_ids)]
+
+
 def _safe_upload(payload: PbcUploadInitiate) -> tuple[str, str, int]:
     filename = PurePath(payload.filename.replace("\\", "/")).name
     suffix = PurePath(filename.lower()).suffix
@@ -531,6 +542,7 @@ def assign_contact(engagement_id: str, contact_id: str, payload: PbcContactAssig
     contact = db.query(PbcContact).filter(PbcContact.id == contact_id, PbcContact.firm_id == engagement.firm_id).first()
     if contact is None:
         raise HTTPException(status_code=404, detail="PBC contact not found")
+    request_ids = _request_assignment_ids(db, engagement.id, payload.request_ids)
     membership = db.get(PbcEngagementContact, (engagement.id, contact.id))
     if membership is None:
         membership = PbcEngagementContact(engagement_id=engagement.id, contact_id=contact.id, role=payload.role)
@@ -541,13 +553,10 @@ def assign_contact(engagement_id: str, contact_id: str, payload: PbcContactAssig
         PbcRequestAssignment.contact_id == contact.id,
         PbcRequestAssignment.request_id.in_(db.query(PbcRequest.id).filter(PbcRequest.engagement_id == engagement.id)),
     ).delete(synchronize_session=False)
-    known = {str(item[0]) for item in db.query(PbcRequest.id).filter(PbcRequest.engagement_id == engagement.id)}
-    if any(value not in known for value in payload.request_ids):
-        raise HTTPException(status_code=422, detail="Assigned request does not belong to this engagement")
-    for request_id in payload.request_ids:
+    for request_id in request_ids:
         db.add(PbcRequestAssignment(request_id=request_id, contact_id=contact.id))
     audit(db, engagement, "contact_assigned", actor_kind="firm", actor_id=actor.id,
-          details={"contact_id": contact_id, "role": payload.role, "request_ids": payload.request_ids})
+          details={"contact_id": contact_id, "role": payload.role, "request_ids": [str(value) for value in request_ids]})
     _commit(db)
     return serialize_engagement(db, engagement, detail=True)
 
