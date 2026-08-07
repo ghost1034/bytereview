@@ -16,7 +16,7 @@ from fastapi import HTTPException
 
 from models.pbc import PbcAccessToken, PbcContact, PbcEngagement, PbcRequest
 from routes import pbc as pbc_routes
-from routes.pbc import _request_assignment_ids
+from routes.pbc import _raise_for_failed_scan, _request_assignment_ids
 from models.pbc_schemas import PbcPortalExchange
 from starlette.requests import Request
 from services.pbc_service import actor_role, exchange_access_token, serialize_contact, token_hash, transition_request, utcnow
@@ -207,6 +207,18 @@ def test_request_assignment_ids_reject_requests_from_another_engagement():
         _request_assignment_ids(RequestIdDb([uuid.uuid4()]), uuid.uuid4(), [str(uuid.uuid4())])
 
     assert invalid.value.status_code == 422
+
+
+def test_completed_upload_only_succeeds_for_available_document():
+    _raise_for_failed_scan(SimpleNamespace(state="available", scan_status="clean"))
+
+    with pytest.raises(HTTPException) as unavailable:
+        _raise_for_failed_scan(SimpleNamespace(state="quarantined", scan_status="failed"))
+    assert unavailable.value.status_code == 503
+
+    with pytest.raises(HTTPException) as infected:
+        _raise_for_failed_scan(SimpleNamespace(state="rejected", scan_status="infected"))
+    assert infected.value.status_code == 422
 
 
 def test_portal_exchange_json_encodes_datetime_payloads(monkeypatch):

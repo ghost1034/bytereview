@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import io
+import logging
 import os
 import re
 import secrets
@@ -103,6 +104,7 @@ COOKIE_NAME = "pbc_portal_session"
 MAX_UPLOAD = 100 * 1024 * 1024
 BLOCKED_EXTENSIONS = {".app", ".bat", ".cmd", ".com", ".dll", ".dmg", ".exe", ".jar", ".js", ".lnk", ".msi", ".ps1", ".reg", ".scr", ".sh", ".vbs"}
 SAFE_MIME_PREFIXES = ("application/pdf", "application/zip", "application/vnd.", "text/", "image/")
+logger = logging.getLogger(__name__)
 
 
 def _commit(db: Session) -> None:
@@ -177,16 +179,34 @@ async def _scan_document(document: PbcDocument) -> tuple[str, str | None, str]:
         if not clamscan:
             if is_local():
                 return "skipped", "Malware scanner unavailable in local development", actual_checksum
+            logger.error("PBC malware scanner binary is unavailable for document %s", document.id)
             return "failed", "Malware scanner unavailable", actual_checksum
-        result = await asyncio.to_thread(
-            subprocess.run, [clamscan, "--no-summary", handle.name], capture_output=True, text=True, timeout=180
-        )
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run, [clamscan, "--no-summary", handle.name], capture_output=True, text=True, timeout=180
+            )
+        except subprocess.TimeoutExpired:
+            logger.error("PBC malware scan timed out for document %s", document.id)
+            return "failed", "Malware scan timed out", actual_checksum
     detail = (result.stdout or result.stderr or "").strip()[-2000:]
     if result.returncode == 0:
         return "clean", detail or None, actual_checksum
     if result.returncode == 1:
         return "infected", detail or "Malware detected", actual_checksum
+    logger.error("PBC malware scan failed for document %s: %s", document.id, detail or f"exit code {result.returncode}")
     return "failed", detail or "Malware scan failed", actual_checksum
+
+
+def _raise_for_failed_scan(document: PbcDocument) -> None:
+    """Do not tell clients a quarantined or infected upload succeeded."""
+    if document.state == "available":
+        return
+    if document.scan_status == "infected":
+        raise HTTPException(status_code=422, detail="The uploaded file was rejected because malware was detected")
+    raise HTTPException(
+        status_code=503,
+        detail="The file was uploaded, but its security scan could not be completed. Please try again shortly.",
+    )
 
 
 def _rate_limit(request: Request, key: str, limit: int = 30) -> None:
@@ -832,6 +852,7 @@ async def complete_firm_upload(payload: PbcUploadComplete, actor: User = Depends
     engagement = get_engagement(db, document.firm_id, str(request_row.engagement_id))
     await _complete_upload(db, document, payload.checksum_sha256, engagement, "firm", actor.id)
     _commit(db)
+    _raise_for_failed_scan(document)
     return {"document": serialize_document(document)}
 
 
@@ -974,6 +995,7 @@ async def portal_upload_complete(payload: PbcUploadComplete, request: Request,
         raise HTTPException(status_code=403, detail="This upload belongs to another contributor")
     await _complete_upload(db, document, payload.checksum_sha256, engagement, "client", str(contact.id))
     _commit(db)
+    _raise_for_failed_scan(document)
     return {"document": serialize_document(document)}
 
 
