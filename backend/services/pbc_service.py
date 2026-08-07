@@ -204,8 +204,7 @@ def serialize_document(row: PbcDocument) -> dict[str, Any]:
     return {
         "id": str(row.id), "request_id": str(row.request_id), "filename": row.filename,
         "mime_type": row.mime_type, "size_bytes": row.size_bytes, "checksum_sha256": row.checksum_sha256,
-        "version": row.version, "state": row.state, "scan_status": row.scan_status,
-        "scan_detail": row.scan_detail, "uploaded_by_kind": row.uploaded_by_kind,
+        "version": row.version, "state": row.state, "uploaded_by_kind": row.uploaded_by_kind,
         "uploaded_by_id": row.uploaded_by_id, "ai_metadata": row.ai_metadata,
         "completed_at": row.completed_at, "created_at": row.created_at,
     }
@@ -640,7 +639,7 @@ def build_metadata_zip(db: Session, engagement: PbcEngagement, evidence_files: l
         archive.writestr("pbc_readiness.xlsx", build_tracker_xlsx(db, engagement))
         index_io = io.StringIO()
         writer = csv.writer(index_io)
-        writer.writerow(["request_id", "request_number", "category", "status", "filename", "version", "checksum_sha256", "scan_status"])
+        writer.writerow(["request_id", "request_number", "category", "status", "filename", "version", "checksum_sha256"])
         for request_row in requests:
             if request_row.status == "waived":
                 continue
@@ -649,11 +648,11 @@ def build_metadata_zip(db: Session, engagement: PbcEngagement, evidence_files: l
             ).order_by(PbcDocument.version).all()
             if not docs:
                 writer.writerow([str(request_row.id), _spreadsheet_safe(request_row.request_number),
-                                 _spreadsheet_safe(request_row.category or ""), request_row.status, "", "", "", ""])
+                                 _spreadsheet_safe(request_row.category or ""), request_row.status, "", "", ""])
             for document in docs:
                 writer.writerow([str(request_row.id), _spreadsheet_safe(request_row.request_number),
                                  _spreadsheet_safe(request_row.category or ""), request_row.status,
-                                 _spreadsheet_safe(document.filename), document.version, document.checksum_sha256 or "", document.scan_status])
+                                 _spreadsheet_safe(document.filename), document.version, document.checksum_sha256 or ""])
         archive.writestr("index.csv", index_io.getvalue())
         for path, content in evidence_files or []:
             archive.writestr(path, content)

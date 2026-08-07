@@ -9,7 +9,6 @@ export interface PbcDocument {
   size_bytes: number
   version: number
   state: string
-  scan_status: string
   created_at: string
 }
 

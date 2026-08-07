@@ -162,8 +162,6 @@ class PbcDocument(Base):
     checksum_sha256 = Column(String(64), nullable=True)
     version = Column(Integer, nullable=False)
     state = Column(String(20), nullable=False, server_default="initiated")
-    scan_status = Column(String(20), nullable=False, server_default="pending")
-    scan_detail = Column(Text, nullable=True)
     uploaded_by_kind = Column(String(16), nullable=False)
     uploaded_by_id = Column(String(128), nullable=True)
     ai_metadata = Column(MutableDict.as_mutable(JSONB), nullable=True)
@@ -174,7 +172,6 @@ class PbcDocument(Base):
     __table_args__ = (
         CheckConstraint("size_bytes >= 0 AND size_bytes <= 104857600", name="ck_pbc_document_size"),
         CheckConstraint("state IN ('initiated','quarantined','available','rejected','deleted','abandoned')", name="ck_pbc_document_state"),
-        CheckConstraint("scan_status IN ('pending','clean','infected','failed','skipped')", name="ck_pbc_document_scan_status"),
         CheckConstraint("uploaded_by_kind IN ('firm','client')", name="ck_pbc_document_actor_kind"),
         UniqueConstraint("request_id", "version", name="uq_pbc_document_request_version"),
         Index("ix_pbc_documents_request_state", "request_id", "state"),
@@ -294,4 +291,3 @@ class PbcNotificationOutbox(Base):
         CheckConstraint("status IN ('pending','sending','sent','failed')", name="ck_pbc_notification_status"),
         Index("ix_pbc_notification_due", "status", "next_attempt_at"),
     )
-

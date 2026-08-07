@@ -16,7 +16,7 @@ from fastapi import HTTPException
 
 from models.pbc import PbcAccessToken, PbcContact, PbcEngagement, PbcRequest
 from routes import pbc as pbc_routes
-from routes.pbc import _raise_for_failed_scan, _request_assignment_ids
+from routes.pbc import _complete_upload, _request_assignment_ids
 from models.pbc_schemas import PbcPortalExchange
 from starlette.requests import Request
 from services.pbc_service import actor_role, exchange_access_token, serialize_contact, token_hash, transition_request, utcnow
@@ -209,16 +209,54 @@ def test_request_assignment_ids_reject_requests_from_another_engagement():
     assert invalid.value.status_code == 422
 
 
-def test_completed_upload_only_succeeds_for_available_document():
-    _raise_for_failed_scan(SimpleNamespace(state="available", scan_status="clean"))
+@pytest.mark.asyncio
+async def test_completed_upload_becomes_available_without_a_scan(monkeypatch):
+    async def verify_object(_document):
+        return None
 
-    with pytest.raises(HTTPException) as unavailable:
-        _raise_for_failed_scan(SimpleNamespace(state="quarantined", scan_status="failed"))
-    assert unavailable.value.status_code == 503
+    async def document_checksum(_document):
+        return "a" * 64
 
-    with pytest.raises(HTTPException) as infected:
-        _raise_for_failed_scan(SimpleNamespace(state="rejected", scan_status="infected"))
-    assert infected.value.status_code == 422
+    monkeypatch.setattr(pbc_routes, "_verify_object", verify_object)
+    monkeypatch.setattr(pbc_routes, "_document_checksum", document_checksum)
+    db = FakeDb()
+    engagement = SimpleNamespace(id=uuid.uuid4(), firm_id=uuid.uuid4())
+    document = SimpleNamespace(
+        id=uuid.uuid4(), request_id=uuid.uuid4(), object_name="pbc/example.pdf",
+        filename="example.pdf", version=1, state="initiated", checksum_sha256=None,
+        completed_at=None,
+    )
+
+    await _complete_upload(db, document, "A" * 64, engagement, "firm", "user-1")
+
+    assert document.state == "available"
+    assert document.checksum_sha256 == "a" * 64
+    assert document.completed_at is not None
+    assert db.added[0].details == {
+        "document_id": str(document.id), "filename": "example.pdf", "version": 1,
+    }
+
+
+@pytest.mark.asyncio
+async def test_completed_upload_rejects_a_checksum_mismatch(monkeypatch):
+    async def verify_object(_document):
+        return None
+
+    async def document_checksum(_document):
+        return "a" * 64
+
+    monkeypatch.setattr(pbc_routes, "_verify_object", verify_object)
+    monkeypatch.setattr(pbc_routes, "_document_checksum", document_checksum)
+    document = SimpleNamespace(state="initiated")
+
+    with pytest.raises(HTTPException) as mismatch:
+        await _complete_upload(
+            FakeDb(), document, "b" * 64,
+            SimpleNamespace(id=uuid.uuid4(), firm_id=uuid.uuid4()), "client", "contact-1",
+        )
+
+    assert mismatch.value.status_code == 409
+    assert document.state == "initiated"
 
 
 def test_portal_exchange_json_encodes_datetime_payloads(monkeypatch):

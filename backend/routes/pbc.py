@@ -5,12 +5,8 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import io
-import logging
-import os
 import re
 import secrets
-import shutil
-import subprocess
 import tempfile
 import uuid
 from datetime import date, timedelta
@@ -104,7 +100,6 @@ COOKIE_NAME = "pbc_portal_session"
 MAX_UPLOAD = 100 * 1024 * 1024
 BLOCKED_EXTENSIONS = {".app", ".bat", ".cmd", ".com", ".dll", ".dmg", ".exe", ".jar", ".js", ".lnk", ".msi", ".ps1", ".reg", ".scr", ".sh", ".vbs"}
 SAFE_MIME_PREFIXES = ("application/pdf", "application/zip", "application/vnd.", "text/", "image/")
-logger = logging.getLogger(__name__)
 
 
 def _commit(db: Session) -> None:
@@ -166,47 +161,17 @@ async def _verify_object(document: PbcDocument) -> None:
         raise HTTPException(status_code=409, detail="Uploaded object has an unexpected content type")
 
 
-async def _scan_document(document: PbcDocument) -> tuple[str, str | None, str]:
-    """Run ClamAV when available; production fails closed when it is unavailable."""
+async def _document_checksum(document: PbcDocument) -> str:
+    """Calculate the uploaded object's checksum without loading it all into memory."""
     storage = get_storage_service()
-    clamscan = shutil.which(os.getenv("PBC_CLAMSCAN_BINARY", "clamscan"))
-    with tempfile.NamedTemporaryFile(prefix="pbc-scan-", delete=True) as handle:
+    with tempfile.NamedTemporaryFile(prefix="pbc-checksum-", delete=True) as handle:
         await asyncio.to_thread(storage.bucket.blob(document.object_name).download_to_filename, handle.name)
+
         def _checksum() -> str:
             with open(handle.name, "rb") as source:
                 return hashlib.file_digest(source, "sha256").hexdigest()
-        actual_checksum = await asyncio.to_thread(_checksum)
-        if not clamscan:
-            if is_local():
-                return "skipped", "Malware scanner unavailable in local development", actual_checksum
-            logger.error("PBC malware scanner binary is unavailable for document %s", document.id)
-            return "failed", "Malware scanner unavailable", actual_checksum
-        try:
-            result = await asyncio.to_thread(
-                subprocess.run, [clamscan, "--no-summary", handle.name], capture_output=True, text=True, timeout=180
-            )
-        except subprocess.TimeoutExpired:
-            logger.error("PBC malware scan timed out for document %s", document.id)
-            return "failed", "Malware scan timed out", actual_checksum
-    detail = (result.stdout or result.stderr or "").strip()[-2000:]
-    if result.returncode == 0:
-        return "clean", detail or None, actual_checksum
-    if result.returncode == 1:
-        return "infected", detail or "Malware detected", actual_checksum
-    logger.error("PBC malware scan failed for document %s: %s", document.id, detail or f"exit code {result.returncode}")
-    return "failed", detail or "Malware scan failed", actual_checksum
 
-
-def _raise_for_failed_scan(document: PbcDocument) -> None:
-    """Do not tell clients a quarantined or infected upload succeeded."""
-    if document.state == "available":
-        return
-    if document.scan_status == "infected":
-        raise HTTPException(status_code=422, detail="The uploaded file was rejected because malware was detected")
-    raise HTTPException(
-        status_code=503,
-        detail="The file was uploaded, but its security scan could not be completed. Please try again shortly.",
-    )
+        return await asyncio.to_thread(_checksum)
 
 
 def _rate_limit(request: Request, key: str, limit: int = 30) -> None:
@@ -818,18 +783,14 @@ async def _complete_upload(db: Session, document: PbcDocument, checksum: str | N
     if document.state != "initiated":
         raise HTTPException(status_code=409, detail="Upload is already completed or unavailable")
     await _verify_object(document)
-    document.state = "quarantined"
-    document.checksum_sha256 = checksum.lower() if checksum else None
-    scan_status, detail, actual_checksum = await _scan_document(document)
+    actual_checksum = await _document_checksum(document)
     if checksum and not secrets.compare_digest(checksum.lower(), actual_checksum):
-        scan_status, detail = "failed", "Uploaded file checksum does not match the declared checksum"
-    document.scan_status, document.scan_detail = scan_status, detail
+        raise HTTPException(status_code=409, detail="Uploaded file checksum does not match the declared checksum")
     document.checksum_sha256 = actual_checksum
-    document.state = "available" if scan_status in {"clean", "skipped"} else "rejected" if scan_status == "infected" else "quarantined"
+    document.state = "available"
     document.completed_at = utcnow()
     audit(db, engagement, "document_uploaded", actor_kind=actor_kind, actor_id=actor_id, request_id=document.request_id,
-          details={"document_id": str(document.id), "filename": document.filename, "version": document.version,
-                   "scan_status": scan_status})
+          details={"document_id": str(document.id), "filename": document.filename, "version": document.version})
     return document
 
 
@@ -852,7 +813,6 @@ async def complete_firm_upload(payload: PbcUploadComplete, actor: User = Depends
     engagement = get_engagement(db, document.firm_id, str(request_row.engagement_id))
     await _complete_upload(db, document, payload.checksum_sha256, engagement, "firm", actor.id)
     _commit(db)
-    _raise_for_failed_scan(document)
     return {"document": serialize_document(document)}
 
 
@@ -995,7 +955,6 @@ async def portal_upload_complete(payload: PbcUploadComplete, request: Request,
         raise HTTPException(status_code=403, detail="This upload belongs to another contributor")
     await _complete_upload(db, document, payload.checksum_sha256, engagement, "client", str(contact.id))
     _commit(db)
-    _raise_for_failed_scan(document)
     return {"document": serialize_document(document)}
 
 

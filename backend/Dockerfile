@@ -8,14 +8,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     HOME=/tmp
 
 # The API converts E-Signature Word uploads to canonical PDFs synchronously.
-# PBC uploads fail closed, so the image must contain a usable ClamAV signature
-# database as well as the scanner binary. Debian installs freshclam but does not
-# populate /var/lib/clamav during a non-interactive image build.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ libpq-dev libreoffice-writer libreoffice-core libreoffice-common clamav \
- && freshclam --stdout \
- && test -s /var/lib/clamav/main.cvd \
- && test -s /var/lib/clamav/daily.cvd \
+    gcc g++ libpq-dev libreoffice-writer libreoffice-core libreoffice-common \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
