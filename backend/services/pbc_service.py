@@ -372,6 +372,8 @@ def exchange_access_token(db: Session, raw: str) -> tuple[PbcPortalSession, str,
         raise HTTPException(status_code=401, detail="This PBC access link is invalid or expired")
     contact = db.get(PbcContact, row.contact_id)
     engagement = db.get(PbcEngagement, row.engagement_id)
+    if contact is not None and contact.active and engagement is not None and engagement.status == "draft":
+        raise HTTPException(status_code=403, detail="This engagement has not been published yet")
     if contact is None or engagement is None or not contact.active or engagement.status not in {"active", "completed"}:
         raise HTTPException(status_code=403, detail="PBC portal access is unavailable")
     raw_session = secrets.token_urlsafe(48)

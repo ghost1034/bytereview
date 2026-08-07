@@ -107,7 +107,10 @@ function Portal() {
   }
 
   if (loading) return <PortalShell><div className="flex min-h-[500px] items-center justify-center text-sm text-slate-500">Opening your secure workspace…</div></PortalShell>
-  if (!workspace) return <PortalShell><div className="mx-auto max-w-lg py-24 text-center"><AlertCircle className="mx-auto size-10 text-rose-500" /><h1 className="mt-4 text-xl font-semibold">This secure link is unavailable</h1><p className="mt-2 text-sm leading-6 text-slate-600">{error}</p><p className="mt-4 text-xs text-slate-500">Ask your accounting contact to send a new PBC portal link.</p></div></PortalShell>
+  if (!workspace) {
+    const unpublished = error === 'This engagement has not been published yet'
+    return <PortalShell><div className="mx-auto max-w-lg py-24 text-center"><AlertCircle className="mx-auto size-10 text-rose-500" /><h1 className="mt-4 text-xl font-semibold">{unpublished ? error : 'This secure link is unavailable'}</h1><p className="mt-2 text-sm leading-6 text-slate-600">{unpublished ? 'Your accounting contact needs to publish it before this portal link can be used.' : error}</p><p className="mt-4 text-xs text-slate-500">{unpublished ? 'Please try this link again after the engagement is published.' : 'Ask your accounting contact to send a new PBC portal link.'}</p></div></PortalShell>
+  }
 
   const completed = workspace.requests.filter((item) => ['submitted', 'accepted', 'waived'].includes(item.status)).length
   const progress = workspace.requests.length ? Math.round(completed / workspace.requests.length * 100) : 0

@@ -3,7 +3,9 @@ from __future__ import annotations
 import os
 import sys
 import uuid
+from datetime import timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("ENVIRONMENT", "test")
@@ -12,9 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import pytest
 from fastapi import HTTPException
 
-from models.pbc import PbcEngagement, PbcRequest
+from models.pbc import PbcAccessToken, PbcContact, PbcEngagement, PbcRequest
 from routes.pbc import _request_assignment_ids
-from services.pbc_service import actor_role, token_hash, transition_request
+from services.pbc_service import actor_role, exchange_access_token, token_hash, transition_request, utcnow
 
 
 class CountQuery:
@@ -53,6 +55,38 @@ class RequestIdDb:
 
     def query(self, *_args):
         return RequestIdQuery(self.request_ids)
+
+
+class AccessTokenQuery:
+    def __init__(self, access_token):
+        self.access_token = access_token
+
+    def filter(self, *_args, **_kwargs):
+        return self
+
+    def with_for_update(self):
+        return self
+
+    def first(self):
+        return self.access_token
+
+
+class AccessTokenDb:
+    def __init__(self, access_token, contact, engagement):
+        self.access_token = access_token
+        self.contact = contact
+        self.engagement = engagement
+
+    def query(self, model):
+        assert model is PbcAccessToken
+        return AccessTokenQuery(self.access_token)
+
+    def get(self, model, _identifier):
+        if model is PbcContact:
+            return self.contact
+        if model is PbcEngagement:
+            return self.engagement
+        raise AssertionError(f"Unexpected model: {model}")
 
 
 def engagement_and_request(status="open", revision=1):
@@ -109,6 +143,27 @@ def test_access_secrets_are_one_way_hashes():
     assert token_hash(raw) != raw
     assert token_hash(raw) == token_hash(raw)
     assert len(token_hash(raw)) == 64
+
+
+def test_draft_engagement_access_link_reports_that_it_is_not_published():
+    contact_id = uuid.uuid4()
+    engagement_id = uuid.uuid4()
+    access_token = SimpleNamespace(
+        revoked_at=None,
+        expires_at=utcnow() + timedelta(days=1),
+        one_time=True,
+        used_at=None,
+        contact_id=contact_id,
+        engagement_id=engagement_id,
+    )
+    contact = SimpleNamespace(id=contact_id, active=True)
+    engagement = SimpleNamespace(id=engagement_id, status="draft")
+
+    with pytest.raises(HTTPException) as unpublished:
+        exchange_access_token(AccessTokenDb(access_token, contact, engagement), "valid-link-token")
+
+    assert unpublished.value.status_code == 403
+    assert unpublished.value.detail == "This engagement has not been published yet"
 
 
 def test_request_assignment_ids_preserve_database_uuid_types_and_deduplicate():
