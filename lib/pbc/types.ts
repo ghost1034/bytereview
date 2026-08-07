@@ -113,6 +113,14 @@ export interface PbcEngagement {
   updated_at: string
 }
 
+export interface PbcClientEngagement extends PbcEngagement {
+  contact: PbcContact
+  portal_brand: {
+    portal_name: string
+    logo_url?: string | null
+  }
+}
+
 export interface PbcDashboard {
   active_engagements: number
   total_requests: number

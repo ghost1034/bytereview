@@ -1,7 +1,7 @@
 'use client'
 
 import { getCurrentAuthToken } from '@/lib/firebase'
-import type { PbcContact, PbcDashboard, PbcDocument, PbcEngagement, PbcRequestItem, PbcTemplate } from './types'
+import type { PbcClientEngagement, PbcContact, PbcDashboard, PbcDocument, PbcEngagement, PbcRequestItem, PbcTemplate } from './types'
 
 async function firmRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getCurrentAuthToken()
@@ -24,6 +24,8 @@ async function firmRequest<T>(path: string, options: RequestInit = {}): Promise<
 
 export const pbcApi = {
   dashboard: () => firmRequest<PbcDashboard>('/dashboard'),
+  clientEngagements: () => firmRequest<{ engagements: PbcClientEngagement[] }>('/client/engagements'),
+  openClientEngagement: (id: string) => firmRequest<{ csrf_token: string; engagement_id: string }>(`/client/engagements/${id}/session`, { method: 'POST' }),
   projectLinks: () => firmRequest<{ projects: Array<{ workspace_id: string; project_id: string; name: string }> }>('/project-links'),
   engagements: () => firmRequest<{ engagements: PbcEngagement[] }>('/engagements'),
   engagement: (id: string) => firmRequest<PbcEngagement>(`/engagements/${id}`),

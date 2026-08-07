@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Requ
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, StreamingResponse
 from openpyxl import load_workbook
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -117,6 +118,32 @@ def _firm_id(db: Session, actor: User):
 
 def _actor_name(actor: User) -> str:
     return actor.display_name or actor.email
+
+
+def _verified_client_email(identity: dict) -> str:
+    """Return the verified sign-in email used to match a PBC contact."""
+    email = str(identity.get("email") or "").strip().lower()
+    if not email or identity.get("email_verified") is not True:
+        raise HTTPException(status_code=403, detail="Verify your email address to access shared PBC engagements")
+    return email
+
+
+def _client_engagement_rows(db: Session, identity: dict, engagement_id: str | None = None):
+    """Find published engagements explicitly shared with the signed-in email."""
+    email = _verified_client_email(identity)
+    query = (
+        db.query(PbcEngagement, PbcContact)
+        .join(PbcEngagementContact, PbcEngagementContact.engagement_id == PbcEngagement.id)
+        .join(PbcContact, PbcContact.id == PbcEngagementContact.contact_id)
+        .filter(
+            func.lower(PbcContact.email) == email,
+            PbcContact.active.is_(True),
+            PbcEngagement.status.in_(["active", "completed"]),
+        )
+    )
+    if engagement_id:
+        query = query.filter(PbcEngagement.id == engagement_id)
+    return query.order_by(PbcEngagement.updated_at.desc()).all()
 
 
 def _serialize_template(row: PbcTemplate) -> dict:
@@ -263,6 +290,67 @@ def dashboard(actor: User = Depends(require_role(*READER_ROLES)), db: Session = 
         "due_soon": sum(bool(item.due_date and 0 <= (item.due_date - today).days <= 7 and item.status not in {"accepted", "waived"}) for item in requests),
         "engagements": [serialize_engagement(db, item) for item in sorted(engagements, key=lambda value: value.updated_at, reverse=True)[:10]],
     }
+
+
+@router.get("/client/engagements")
+def list_client_engagements(identity: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+    """List engagements shared with the authenticated user's verified email."""
+    engagements = []
+    for engagement, contact in _client_engagement_rows(db, identity):
+        item = serialize_engagement(db, engagement)
+        item["contact"] = serialize_contact(contact)
+        settings = get_settings(db, engagement.firm_id)
+        item["portal_brand"] = {
+            "portal_name": settings.portal_name or "Client Portal",
+            "logo_url": settings.logo_url,
+        }
+        engagements.append(item)
+    _commit(db)
+    return {"engagements": engagements}
+
+
+@router.post("/client/engagements/{engagement_id}/session")
+def create_client_portal_session(
+    engagement_id: str,
+    identity: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    """Create a fresh, engagement-scoped portal session for a signed-in contact."""
+    rows = _client_engagement_rows(db, identity, engagement_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Shared PBC engagement not found")
+    engagement, contact = rows[0]
+    raw_session = secrets.token_urlsafe(48)
+    raw_csrf = secrets.token_urlsafe(32)
+    session = PbcPortalSession(
+        engagement_id=engagement.id,
+        contact_id=contact.id,
+        session_hash=token_hash(raw_session),
+        csrf_hash=token_hash(raw_csrf),
+        request_ids=[],
+        expires_at=utcnow() + timedelta(hours=12),
+    )
+    db.add(session)
+    audit(
+        db,
+        engagement,
+        "portal_session_created",
+        actor_kind="client",
+        actor_id=str(contact.id),
+        details={"purpose": "authenticated_pbc_page", "user_id": identity.get("uid")},
+    )
+    _commit(db)
+    response = JSONResponse({"csrf_token": raw_csrf, "engagement_id": str(engagement.id)})
+    response.set_cookie(
+        COOKIE_NAME,
+        raw_session,
+        max_age=12 * 60 * 60,
+        httponly=True,
+        secure=not is_local(),
+        samesite="lax",
+        path="/api/pbc/portal",
+    )
+    return response
 
 
 @router.get("/project-links")

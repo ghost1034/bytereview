@@ -9,6 +9,11 @@ export function usePbcDashboard() {
   return useQuery({ queryKey: ['pbc', 'dashboard', user?.uid], queryFn: pbcApi.dashboard, enabled: !!user })
 }
 
+export function usePbcClientEngagements() {
+  const { user } = useAuth()
+  return useQuery({ queryKey: ['pbc', 'client-engagements', user?.uid], queryFn: pbcApi.clientEngagements, enabled: !!user })
+}
+
 export function usePbcEngagements() {
   const { user } = useAuth()
   return useQuery({ queryKey: ['pbc', 'engagements', user?.uid], queryFn: pbcApi.engagements, enabled: !!user })
@@ -28,4 +33,3 @@ export function useCreatePbcEngagement() {
   const invalidate = useInvalidatePbc()
   return useMutation({ mutationFn: pbcApi.createEngagement, onSuccess: invalidate })
 }
-

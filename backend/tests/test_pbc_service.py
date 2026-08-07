@@ -390,3 +390,39 @@ def test_portal_exchange_json_encodes_datetime_payloads(monkeypatch):
     assert response.status_code == 200
     assert b'"created_at":"2026-08-07T12:00:00+00:00"' in response.body
     assert "pbc_portal_session=raw-session" in response.headers["set-cookie"]
+
+
+def test_client_engagement_access_requires_and_normalizes_verified_email():
+    assert pbc_routes._verified_client_email({
+        "email": "  Client@Example.COM ",
+        "email_verified": True,
+    }) == "client@example.com"
+
+    with pytest.raises(HTTPException) as unverified:
+        pbc_routes._verified_client_email({"email": "client@example.com", "email_verified": False})
+
+    assert unverified.value.status_code == 403
+
+
+def test_signed_in_client_can_create_a_fresh_portal_session(monkeypatch):
+    engagement = SimpleNamespace(id=uuid.uuid4(), firm_id=uuid.uuid4())
+    contact = SimpleNamespace(id=uuid.uuid4())
+    db = FakeDb()
+
+    monkeypatch.setattr(pbc_routes, "_client_engagement_rows", lambda *_args, **_kwargs: [(engagement, contact)])
+    monkeypatch.setattr(pbc_routes, "_commit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pbc_routes, "is_local", lambda: True)
+
+    response = pbc_routes.create_client_portal_session(
+        str(engagement.id),
+        {"uid": "client-user", "email": "client@example.com", "email_verified": True},
+        db,
+    )
+
+    assert response.status_code == 200
+    assert b'"engagement_id"' in response.body
+    assert "pbc_portal_session=" in response.headers["set-cookie"]
+    assert len(db.added) == 2
+    assert db.added[0].engagement_id == engagement.id
+    assert db.added[0].contact_id == contact.id
+    assert db.added[1].details == {"purpose": "authenticated_pbc_page", "user_id": "client-user"}

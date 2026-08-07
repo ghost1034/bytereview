@@ -4,10 +4,10 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, FileCheck2, Library, Plus, Search, Settings } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, FileCheck2, Library, LockKeyhole, Plus, Search, Settings } from 'lucide-react'
 
 import { useAnalyticsClients } from '@/hooks/useAnalyticsClients'
-import { useCreatePbcEngagement, usePbcDashboard, usePbcEngagements } from '@/hooks/usePbc'
+import { useCreatePbcEngagement, usePbcClientEngagements, usePbcDashboard, usePbcEngagements } from '@/hooks/usePbc'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -18,15 +18,16 @@ import { Badge } from '@/components/ui/badge'
 import { pbcApi } from '@/lib/pbc/api'
 
 const statusTone: Record<string, string> = {
-  draft: 'bg-slate-100 text-slate-700',
-  active: 'bg-blue-50 text-blue-700',
-  completed: 'bg-emerald-50 text-emerald-700',
-  archived: 'bg-slate-100 text-slate-500',
+  draft: 'bg-surface-muted text-foreground-muted',
+  active: 'bg-primary-soft text-primary',
+  completed: 'bg-success-soft text-success',
+  archived: 'bg-surface-muted text-foreground-subtle',
 }
 
 export default function PbcDashboardPage() {
   const router = useRouter()
   const dashboard = usePbcDashboard()
+  const clientEngagements = usePbcClientEngagements()
   const engagements = usePbcEngagements()
   const clients = useAnalyticsClients()
   const create = useCreatePbcEngagement()
@@ -34,6 +35,8 @@ export default function PbcDashboardPage() {
   const projectLinks = useQuery({ queryKey: ['pbc', 'project-links'], queryFn: pbcApi.projectLinks })
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
+  const [openingClientId, setOpeningClientId] = React.useState<string | null>(null)
+  const [clientAccessError, setClientAccessError] = React.useState<string | null>(null)
   const [form, setForm] = React.useState({ name: '', client_id: '', period_end: '', due_date: '', template_id: '', project_link: '' })
 
   const rows = (engagements.data?.engagements || []).filter((item) =>
@@ -57,11 +60,24 @@ export default function PbcDashboardPage() {
     router.push(`/dashboard/pbc/engagements/${result.id}`)
   }
 
+  const openClientEngagement = async (engagementId: string) => {
+    setOpeningClientId(engagementId)
+    setClientAccessError(null)
+    try {
+      const session = await pbcApi.openClientEngagement(engagementId)
+      sessionStorage.setItem('pbc_portal_csrf', session.csrf_token)
+      window.location.assign('/pbc/access')
+    } catch (error) {
+      setClientAccessError(error instanceof Error ? error.message : 'The client portal could not be opened.')
+      setOpeningClientId(null)
+    }
+  }
+
   const stats = [
-    { label: 'Active engagements', value: dashboard.data?.active_engagements || 0, icon: FileCheck2, tone: 'text-blue-600 bg-blue-50' },
-    { label: 'Awaiting review', value: dashboard.data?.awaiting_review || 0, icon: Clock3, tone: 'text-amber-600 bg-amber-50' },
-    { label: 'Overdue requests', value: dashboard.data?.overdue || 0, icon: AlertTriangle, tone: 'text-rose-600 bg-rose-50' },
-    { label: 'Accepted evidence', value: dashboard.data?.accepted_requests || 0, icon: CheckCircle2, tone: 'text-emerald-600 bg-emerald-50' },
+    { label: 'Active engagements', value: dashboard.data?.active_engagements || 0, icon: FileCheck2, tone: 'text-primary bg-primary-soft' },
+    { label: 'Awaiting review', value: dashboard.data?.awaiting_review || 0, icon: Clock3, tone: 'text-warning bg-warning-soft' },
+    { label: 'Overdue requests', value: dashboard.data?.overdue || 0, icon: AlertTriangle, tone: 'text-destructive bg-destructive/10' },
+    { label: 'Accepted evidence', value: dashboard.data?.accepted_requests || 0, icon: CheckCircle2, tone: 'text-success bg-success-soft' },
   ]
 
   return (
@@ -94,6 +110,25 @@ export default function PbcDashboardPage() {
           </DialogContent>
         </Dialog></div>
       </div>
+
+      {(clientEngagements.data?.engagements.length || 0) > 0 && (
+        <section className="rounded-xl border border-primary/20 bg-primary-soft/40 shadow-sm">
+          <div className="flex items-start gap-3 border-b border-primary/20 p-5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary"><LockKeyhole className="size-4" /></span>
+            <div><h2 className="font-semibold">Engagements shared with you</h2><p className="text-sm text-foreground-muted">Open these client workspaces with your signed-in email. You do not need another email link.</p></div>
+          </div>
+          {clientAccessError && <p className="border-b border-primary/20 px-5 py-3 text-sm text-destructive">{clientAccessError}</p>}
+          <div className="divide-y divide-border">
+            {clientEngagements.data?.engagements.map((item) => (
+              <div key={item.id} className="grid gap-4 p-5 sm:grid-cols-[minmax(0,1fr)_130px_160px] sm:items-center">
+                <div><div className="flex items-center gap-2"><p className="font-medium">{item.name}</p><Badge variant="secondary" className={statusTone[item.status]}>{item.status}</Badge></div><p className="mt-1 text-sm text-foreground-muted">{item.portal_brand.portal_name}{item.period_end ? ` · Period ended ${item.period_end}` : ''}</p></div>
+                <div className="text-sm"><p className="font-medium tabular-nums">{item.progress}%</p><p className="text-foreground-muted">complete</p></div>
+                <Button onClick={() => void openClientEngagement(item.id)} disabled={openingClientId === item.id}>{openingClientId === item.id ? 'Opening…' : 'View engagement'}<ArrowRight className="ml-2 size-4" /></Button>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="PBC summary">
         {stats.map(({ label, value, icon: Icon, tone }) => <div key={label} className="rounded-xl border bg-card p-5 shadow-sm"><div className={`mb-4 inline-flex size-9 items-center justify-center rounded-lg ${tone}`}><Icon className="size-4" /></div><p className="text-3xl font-semibold tabular-nums">{value}</p><p className="mt-1 text-sm text-foreground-muted">{label}</p></div>)}

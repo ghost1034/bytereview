@@ -22711,6 +22711,77 @@
         ]
       }
     },
+    "/api/pbc/client/engagements": {
+      "get": {
+        "tags": [
+          "pbc"
+        ],
+        "summary": "List Client Engagements",
+        "description": "List engagements shared with the authenticated user's verified email.",
+        "operationId": "list_client_engagements_api_pbc_client_engagements_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/pbc/client/engagements/{engagement_id}/session": {
+      "post": {
+        "tags": [
+          "pbc"
+        ],
+        "summary": "Create Client Portal Session",
+        "description": "Create a fresh, engagement-scoped portal session for a signed-in contact.",
+        "operationId": "create_client_portal_session_api_pbc_client_engagements__engagement_id__session_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "engagement_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Engagement Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/pbc/project-links": {
       "get": {
         "tags": [
