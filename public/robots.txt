@@ -6,6 +6,7 @@ Disallow: /admin
 Disallow: /api
 Disallow: /integrations
 Disallow: /subscribe
+Disallow: /pbc/access
 
 # Host
 Host: https://cpaautomation.ai

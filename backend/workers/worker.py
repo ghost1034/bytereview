@@ -1994,5 +1994,13 @@ async def run_tasklytic_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
     return await run()
 
 
+async def run_pbc_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """Queue and deliver due PBC reminders and expire transient access."""
+    from services.pbc_maintenance import run_pbc_maintenance as run
+
+    logger.info("Running PBC maintenance")
+    return await run()
+
+
 if __name__ == "__main__":
     asyncio.run(main())

@@ -9,7 +9,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # The API converts E-Signature Word uploads to canonical PDFs synchronously.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc g++ libpq-dev libreoffice-writer libreoffice-core libreoffice-common \
+    gcc g++ libpq-dev libreoffice-writer libreoffice-core libreoffice-common clamav \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

@@ -28,6 +28,8 @@ from models.db_models import (
     Project,
     Reconciliation,
 )
+from models.pbc import PbcContact, PbcDocument, PbcEngagement, PbcFirmSettings, PbcTemplate
+from services.gcs_service import get_storage_service
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,19 @@ def purge_firm(db: Session, firm_id) -> None:
         raise HTTPException(status_code=404, detail="Firm not found")
 
     try:
+        storage = get_storage_service()
+        for (object_name,) in db.query(PbcDocument.object_name).filter(PbcDocument.firm_id == firm_id).all():
+            try:
+                storage.bucket.blob(object_name).delete()
+            except Exception:
+                logger.exception("Failed deleting PBC object %s during firm purge", object_name)
+                raise
+        # Engagement deletion cascades requests, documents, comments, portal access,
+        # notifications, and audit events before clients are removed below.
+        db.query(PbcEngagement).filter(PbcEngagement.firm_id == firm_id).delete(synchronize_session=False)
+        db.query(PbcContact).filter(PbcContact.firm_id == firm_id).delete(synchronize_session=False)
+        db.query(PbcTemplate).filter(PbcTemplate.firm_id == firm_id).delete(synchronize_session=False)
+        db.query(PbcFirmSettings).filter(PbcFirmSettings.firm_id == firm_id).delete(synchronize_session=False)
         for model in _PURGE_MODELS:
             db.query(model).filter(model.firm_id == firm_id).delete(synchronize_session=False)
 

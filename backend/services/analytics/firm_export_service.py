@@ -24,6 +24,7 @@ from models.db_models import (
     Reconciliation,
     User,
 )
+from models.pbc import PbcAuditEvent, PbcComment, PbcContact, PbcDocument, PbcEngagement, PbcRequest, PbcTemplate
 
 
 def _to_jsonable(value: Any) -> Any:
@@ -119,5 +120,14 @@ def build_firm_export(db: Session, firm: Firm) -> Dict[str, Any]:
         "chat_sessions": _scoped(ChatSession, _CHAT_COLS),
         "journal_entries": _scoped(JournalEntry, _JOURNAL_COLS),
         "audit_logs": _scoped(AnalyticsAuditLog, _AUDIT_COLS),
+        "pbc": {
+            "engagements": _scoped(PbcEngagement, tuple(column.name for column in PbcEngagement.__table__.columns)),
+            "requests": _scoped(PbcRequest, tuple(column.name for column in PbcRequest.__table__.columns)),
+            "contacts": _scoped(PbcContact, tuple(column.name for column in PbcContact.__table__.columns)),
+            "documents": _scoped(PbcDocument, tuple(column.name for column in PbcDocument.__table__.columns)),
+            "comments": _scoped(PbcComment, tuple(column.name for column in PbcComment.__table__.columns)),
+            "templates": _scoped(PbcTemplate, tuple(column.name for column in PbcTemplate.__table__.columns)),
+            "audit_events": _scoped(PbcAuditEvent, tuple(column.name for column in PbcAuditEvent.__table__.columns)),
+        },
         "exported_at": datetime.utcnow(),
     }

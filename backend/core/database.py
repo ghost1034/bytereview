@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 from models.db_models import Base
 from models import inkwise_models  # noqa: F401
 from models import tasklytic  # noqa: F401
+from models import pbc  # noqa: F401
 import logging
 
 from core.runtime import is_local

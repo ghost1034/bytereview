@@ -24,6 +24,7 @@ from workers.worker import (
     run_gmail_watch_renewal,
     run_esign_maintenance,
     run_tasklytic_maintenance,
+    run_pbc_maintenance,
 )
 
 logger = logging.getLogger(__name__)
@@ -91,6 +92,10 @@ async def execute_task(request: Request):
         elif task_type == "run_tasklytic_maintenance":
             logger.info("Executing Tasklytic digest and upload maintenance")
             result = await run_tasklytic_maintenance(ctx)
+
+        elif task_type == "run_pbc_maintenance":
+            logger.info("Executing PBC reminders and cleanup")
+            result = await run_pbc_maintenance(ctx)
 
         else:
             raise HTTPException(status_code=400, detail=f"Unknown task type: {task_type}")

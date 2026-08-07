@@ -103,6 +103,13 @@ class CloudSchedulerService:
                 "schedule": "*/30 * * * *",
                 "timezone": "UTC",
                 "task_type": "run_tasklytic_maintenance"
+            },
+            {
+                "name": "pbc-maintenance",
+                "description": "Deliver PBC reminders and clean expired portal sessions",
+                "schedule": "0 * * * *",
+                "timezone": "UTC",
+                "task_type": "run_pbc_maintenance"
             }
         ]
         

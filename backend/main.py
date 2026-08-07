@@ -148,6 +148,7 @@ from routes import (
     chrona_devices, chrona_sync, chrona_dashboard, connector, local_storage,
     tasklytic,
     hosted_claw,
+    pbc,
 )
 from inkwise.router import router as inkwise_router
 
@@ -187,6 +188,8 @@ app.include_router(hosted_claw.user_router)
 app.include_router(hosted_claw.slack_router)
 app.include_router(hosted_claw.internal_router)
 app.include_router(hosted_claw.admin_router)
+app.include_router(pbc.router)
+app.include_router(pbc.portal_router)
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
 if __name__ == "__main__":

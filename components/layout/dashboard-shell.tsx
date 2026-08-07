@@ -12,6 +12,7 @@ import {
   Zap,
   GraduationCap,
   Files,
+  ClipboardCheck,
   FileSignature,
   PenTool,
 } from 'lucide-react'
@@ -62,6 +63,7 @@ const QUICK_ACTIONS: Array<{
     items: [
       { label: 'CPE Tracker', href: '/dashboard/cpe-tracker', icon: GraduationCap },
       { label: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
+      { label: 'PBC', href: '/dashboard/pbc', icon: ClipboardCheck },
       { label: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
       {
         label: 'AI Project Management',
@@ -81,7 +83,8 @@ export function DashboardShell({
   const pathname = usePathname() ?? ''
   const isWideRoute =
     pathname.startsWith('/dashboard/cpe-tracker') ||
-    pathname.startsWith('/dashboard/inkwise')
+    pathname.startsWith('/dashboard/inkwise') ||
+    pathname.startsWith('/dashboard/pbc')
   const isImmersiveEsign =
     pathname.startsWith('/dashboard/esign/sign/') ||
     /\/dashboard\/esign\/[^/]+\/(prepare|fields|review|documents|recipients)$/.test(pathname) ||

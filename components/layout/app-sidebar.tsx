@@ -11,6 +11,7 @@ import {
   Briefcase,
   Calculator,
   Clock,
+  ClipboardCheck,
   Droplet,
   Files,
   FileSignature,
@@ -87,6 +88,7 @@ const PRODUCTS_GROUP: NavGroup = {
       badgeTone: 'success',
     },
     { name: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
+    { name: 'PBC', href: '/dashboard/pbc', icon: ClipboardCheck },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
     {
       name: 'AI Project Management',

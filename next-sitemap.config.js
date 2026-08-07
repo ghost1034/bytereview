@@ -46,7 +46,8 @@ module.exports = {
     '/404',
     '/500',
     '/integrations*',
-    '/subscribe*'
+    '/subscribe*',
+    '/pbc/access'
   ],
   additionalPaths: async (config) => {
     const staticPaths = [
@@ -89,7 +90,7 @@ module.exports = {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/dashboard', '/admin', '/api', '/integrations', '/subscribe'],
+        disallow: ['/dashboard', '/admin', '/api', '/integrations', '/subscribe', '/pbc/access'],
       },
     ],
   },
