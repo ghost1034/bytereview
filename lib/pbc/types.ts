@@ -39,14 +39,19 @@ export interface PbcRequestItem {
   category?: string | null
   title: string
   description?: string | null
+  period_end?: string | null
   priority: 'low' | 'normal' | 'high' | 'urgent'
   due_date?: string | null
   owner_user_id?: string | null
   owner_name?: string | null
   expected_filename?: string | null
   expected_formats: string[]
+  gl_account?: string | null
+  gl_balance?: string | null
   sensitive: boolean
   requires_redaction: boolean
+  dependency_ids: string[]
+  external_source_id?: string | null
   status: PbcRequestStatus
   status_reason?: string | null
   revision: number
@@ -76,6 +81,7 @@ export interface PbcEngagement {
   request_count: number
   status_counts: Record<string, number>
   contacts?: PbcContact[]
+  firm_members?: Array<{ id: string; name: string; email: string }>
   requests?: PbcRequestItem[]
   activity?: Array<Record<string, unknown>>
   updated_at: string

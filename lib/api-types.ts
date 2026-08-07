@@ -13783,6 +13783,8 @@ export interface components {
             request_number?: string | null;
             /** Title */
             title: string;
+            /** Description */
+            description?: string | null;
             /** Category */
             category?: string | null;
             /** Owner */
@@ -13804,6 +13806,16 @@ export interface components {
             gl_account?: string | null;
             /** Gl Balance */
             gl_balance?: string | null;
+            /**
+             * Sensitive
+             * @default false
+             */
+            sensitive: boolean;
+            /**
+             * Requires Redaction
+             * @default false
+             */
+            requires_redaction: boolean;
             /** External Source Id */
             external_source_id?: string | null;
         };
@@ -13816,6 +13828,8 @@ export interface components {
         PbcRequestCreate: {
             /** Request Number */
             request_number?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
             /** Category */
             category?: string | null;
             /** Title */
@@ -13859,6 +13873,10 @@ export interface components {
         };
         /** PbcRequestUpdate */
         PbcRequestUpdate: {
+            /** Request Number */
+            request_number?: string | null;
+            /** Sort Order */
+            sort_order?: number | null;
             /** Category */
             category?: string | null;
             /** Title */
@@ -13887,6 +13905,8 @@ export interface components {
             requires_redaction?: boolean | null;
             /** Dependency Ids */
             dependency_ids?: string[] | null;
+            /** External Source Id */
+            external_source_id?: string | null;
             /** Expected Revision */
             expected_revision: number;
         };

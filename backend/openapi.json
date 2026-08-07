@@ -42267,6 +42267,17 @@
             "type": "string",
             "title": "Title"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
           "category": {
             "anyOf": [
               {
@@ -42358,6 +42369,16 @@
             ],
             "title": "Gl Balance"
           },
+          "sensitive": {
+            "type": "boolean",
+            "title": "Sensitive",
+            "default": false
+          },
+          "requires_redaction": {
+            "type": "boolean",
+            "title": "Requires Redaction",
+            "default": false
+          },
           "external_source_id": {
             "anyOf": [
               {
@@ -42404,6 +42425,19 @@
               }
             ],
             "title": "Request Number"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
           },
           "category": {
             "anyOf": [
@@ -42564,6 +42598,32 @@
       },
       "PbcRequestUpdate": {
         "properties": {
+          "request_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Number"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          },
           "category": {
             "anyOf": [
               {
@@ -42740,6 +42800,18 @@
               }
             ],
             "title": "Dependency Ids"
+          },
+          "external_source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Source Id"
           },
           "expected_revision": {
             "type": "integer",

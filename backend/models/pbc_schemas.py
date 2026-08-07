@@ -36,6 +36,7 @@ class PbcEngagementUpdate(BaseModel):
 
 class PbcRequestCreate(BaseModel):
     request_number: str | None = Field(default=None, max_length=64)
+    sort_order: int | None = Field(default=None, ge=0, le=1_000_000)
     category: str | None = Field(default=None, max_length=128)
     title: str = Field(min_length=1, max_length=500)
     description: str | None = Field(default=None, max_length=20_000)
@@ -54,6 +55,8 @@ class PbcRequestCreate(BaseModel):
 
 
 class PbcRequestUpdate(BaseModel):
+    request_number: str | None = Field(default=None, min_length=1, max_length=64)
+    sort_order: int | None = Field(default=None, ge=0, le=1_000_000)
     category: str | None = Field(default=None, max_length=128)
     title: str | None = Field(default=None, min_length=1, max_length=500)
     description: str | None = Field(default=None, max_length=20_000)
@@ -68,6 +71,7 @@ class PbcRequestUpdate(BaseModel):
     sensitive: bool | None = None
     requires_redaction: bool | None = None
     dependency_ids: list[str] | None = Field(default=None, max_length=100)
+    external_source_id: str | None = Field(default=None, max_length=255)
     expected_revision: int
 
 
@@ -135,6 +139,7 @@ class PbcAiMatchRequest(BaseModel):
 class PbcImportPreviewRow(BaseModel):
     request_number: str | None = None
     title: str
+    description: str | None = None
     category: str | None = None
     owner: str | None = None
     due_date: date | None = None
@@ -144,6 +149,8 @@ class PbcImportPreviewRow(BaseModel):
     expected_formats: list[str] = Field(default_factory=list)
     gl_account: str | None = None
     gl_balance: str | None = None
+    sensitive: bool = False
+    requires_redaction: bool = False
     external_source_id: str | None = None
 
 
@@ -157,4 +164,3 @@ class PbcSettingsUpdate(BaseModel):
     logo_url: str | None = Field(default=None, max_length=2000)
     reminder_days_before: int = Field(default=3, ge=0, le=30)
     overdue_interval_days: int = Field(default=3, ge=1, le=30)
-

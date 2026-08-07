@@ -234,6 +234,7 @@ def serialize_request(db: Session, row: PbcRequest, *, include_internal: bool = 
         "expected_filename": row.expected_filename, "expected_formats": row.expected_formats or [],
         "gl_account": row.gl_account, "gl_balance": row.gl_balance, "sensitive": row.sensitive,
         "requires_redaction": row.requires_redaction, "dependency_ids": row.dependency_ids or [],
+        "external_source_id": row.external_source_id,
         "status": row.status, "status_reason": row.status_reason, "revision": row.revision,
         "submitted_at": row.submitted_at, "accepted_at": row.accepted_at,
         "assignments": [serialize_contact(item) for item in assignments],
@@ -287,6 +288,13 @@ def serialize_engagement(db: Session, row: PbcEngagement, *, detail: bool = Fals
     }
     if detail:
         result["contacts"] = contacts
+        result["firm_members"] = [{
+            "id": user.id,
+            "name": _user_label(user) or user.id,
+            "email": user.email,
+        } for user in db.query(User).filter(User.firm_id == row.firm_id).order_by(
+            func.lower(func.coalesce(User.display_name, User.email))
+        ).all()]
         result["requests"] = [serialize_request(db, item, include_internal=include_internal) for item in requests]
         result["activity"] = [{
             "id": str(event.id), "event_type": event.event_type, "actor_kind": event.actor_kind,
@@ -606,20 +614,31 @@ def build_tracker_xlsx(db: Session, engagement: PbcEngagement) -> bytes:
     summary.append(["Accepted / Waived", counts["accepted"] + counts["waived"]])
     summary.append(["Completion %", round(((counts["accepted"] + counts["waived"]) / len(requests)) * 100, 1) if requests else 0])
     status = wb.create_sheet("Status")
-    headers = ["Request ID", "Number", "Category", "Description", "Owner", "Due Date", "Priority", "Status", "Files", "Last Updated"]
+    headers = [
+        "Request ID", "Number", "Category", "Title", "Description", "Owner", "Due Date", "Period End",
+        "Priority", "Expected Filename", "Expected Formats", "GL Account", "GL Balance", "Sensitive",
+        "Requires Redaction", "Dependencies", "External Source ID", "Status", "Files", "Last Updated",
+    ]
     status.append(headers)
     for row in requests:
         owner = db.get(User, row.owner_user_id) if row.owner_user_id else None
         file_count = db.query(PbcDocument).filter(PbcDocument.request_id == row.id, PbcDocument.state == "available").count()
-        status.append([str(row.id), _spreadsheet_safe(row.request_number), _spreadsheet_safe(row.category or ""),
-                       _spreadsheet_safe(row.title), _spreadsheet_safe(_user_label(owner) or ""),
-                       row.due_date.isoformat() if row.due_date else "", row.priority, row.status, file_count,
-                       row.updated_at.isoformat() if row.updated_at else ""])
+        status.append([
+            str(row.id), _spreadsheet_safe(row.request_number), _spreadsheet_safe(row.category or ""),
+            _spreadsheet_safe(row.title), _spreadsheet_safe(row.description or ""),
+            _spreadsheet_safe(_user_label(owner) or ""), row.due_date.isoformat() if row.due_date else "",
+            row.period_end.isoformat() if row.period_end else "", row.priority,
+            _spreadsheet_safe(row.expected_filename or ""), ", ".join(row.expected_formats or []),
+            _spreadsheet_safe(row.gl_account or ""), _spreadsheet_safe(row.gl_balance or ""),
+            "Yes" if row.sensitive else "No", "Yes" if row.requires_redaction else "No",
+            ", ".join(row.dependency_ids or []), _spreadsheet_safe(row.external_source_id or ""),
+            row.status, file_count, row.updated_at.isoformat() if row.updated_at else "",
+        ])
     overdue = wb.create_sheet("Overdue")
     overdue.append(headers)
     for values in status.iter_rows(min_row=2, values_only=True):
-        due = values[5]
-        if due and date.fromisoformat(due) < utcnow().date() and values[7] not in {"accepted", "waived"}:
+        due = values[6]
+        if due and date.fromisoformat(due) < utcnow().date() and values[17] not in {"accepted", "waived"}:
             overdue.append(list(values))
     audit_ws = wb.create_sheet("Audit Trail")
     audit_ws.append(["Timestamp", "Event", "Actor Type", "Actor ID", "Request ID", "Details"])

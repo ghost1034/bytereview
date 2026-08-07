@@ -16,8 +16,8 @@ from fastapi import HTTPException
 
 from models.pbc import PbcAccessToken, PbcContact, PbcEngagement, PbcRequest
 from routes import pbc as pbc_routes
-from routes.pbc import _complete_upload, _request_assignment_ids
-from models.pbc_schemas import PbcPortalExchange
+from routes.pbc import _cell_bool, _complete_upload, _request_assignment_ids
+from models.pbc_schemas import PbcPortalExchange, PbcRequestCreate, PbcRequestUpdate
 from starlette.requests import Request
 from services.pbc_service import actor_role, exchange_access_token, serialize_contact, token_hash, transition_request, utcnow
 
@@ -207,6 +207,45 @@ def test_request_assignment_ids_reject_requests_from_another_engagement():
         _request_assignment_ids(RequestIdDb([uuid.uuid4()]), uuid.uuid4(), [str(uuid.uuid4())])
 
     assert invalid.value.status_code == 422
+
+
+def test_request_contract_accepts_every_configurable_detail():
+    create = PbcRequestCreate(
+        request_number="AUD-42",
+        sort_order=3,
+        category="Cash",
+        title="Bank reconciliation",
+        description="Include the outstanding check detail.",
+        period_end="2026-12-31",
+        priority="urgent",
+        due_date="2027-01-10",
+        owner_user_id="owner-1",
+        expected_filename="bank-reconciliation.xlsx",
+        expected_formats=["xlsx", "csv"],
+        gl_account="1000",
+        gl_balance="125000.00",
+        sensitive=True,
+        requires_redaction=True,
+        dependency_ids=[str(uuid.uuid4())],
+        external_source_id="auditor-42",
+    )
+    update = PbcRequestUpdate(
+        request_number="AUD-43",
+        sort_order=2,
+        external_source_id="auditor-43",
+        expected_revision=4,
+    )
+
+    assert create.expected_formats == ["xlsx", "csv"]
+    assert create.requires_redaction is True
+    assert update.request_number == "AUD-43"
+    assert update.sort_order == 2
+    assert update.external_source_id == "auditor-43"
+
+
+@pytest.mark.parametrize(("value", "expected"), [("Yes", True), ("1", True), ("no", False), (None, False)])
+def test_import_boolean_details(value, expected):
+    assert _cell_bool(value) is expected
 
 
 @pytest.mark.asyncio

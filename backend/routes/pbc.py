@@ -137,6 +137,30 @@ def _request_assignment_ids(db: Session, engagement_id, request_ids: list[str]) 
     return [known[request_id] for request_id in dict.fromkeys(request_ids)]
 
 
+def _request_dependency_ids(
+    db: Session,
+    engagement_id,
+    request_ids: list[str],
+    *,
+    current_request_id: str | None = None,
+) -> list[str]:
+    """Validate dependencies and store their canonical string UUIDs."""
+    resolved = _request_assignment_ids(db, engagement_id, request_ids)
+    values = [str(request_id) for request_id in resolved]
+    if current_request_id and current_request_id in values:
+        raise HTTPException(status_code=422, detail="A request cannot depend on itself")
+    return values
+
+
+def _owner_user_id(db: Session, firm_id, owner_user_id: str | None) -> str | None:
+    if owner_user_id is None:
+        return None
+    owner = db.query(User.id).filter(User.id == owner_user_id, User.firm_id == firm_id).first()
+    if owner is None:
+        raise HTTPException(status_code=422, detail="Request owner is not a member of this firm")
+    return owner_user_id
+
+
 def _safe_upload(payload: PbcUploadInitiate) -> tuple[str, str, int]:
     filename = PurePath(payload.filename.replace("\\", "/")).name
     suffix = PurePath(filename.lower()).suffix
@@ -296,20 +320,23 @@ def create_engagement(payload: PbcEngagementCreate, actor: User = Depends(requir
         source = get_engagement(db, firm_id, payload.rollover_from_id)
         source_items = [{
             "request_number": item.request_number, "category": item.category, "title": item.title,
-            "description": item.description, "priority": item.priority, "owner_user_id": item.owner_user_id,
+            "description": item.description, "period_end": item.period_end, "priority": item.priority,
+            "owner_user_id": item.owner_user_id,
             "expected_filename": item.expected_filename, "expected_formats": item.expected_formats or [],
             "gl_account": item.gl_account, "gl_balance": item.gl_balance, "sensitive": item.sensitive,
-            "requires_redaction": item.requires_redaction,
+            "requires_redaction": item.requires_redaction, "external_source_id": item.external_source_id,
         } for item in db.query(PbcRequest).filter(PbcRequest.engagement_id == source.id).order_by(PbcRequest.sort_order)]
     for index, item in enumerate(source_items):
         db.add(PbcRequest(
             engagement_id=row.id, firm_id=firm_id, request_number=str(item.get("request_number") or f"PBC-{index + 1:03d}"),
             sort_order=index, category=item.get("category"), title=str(item.get("title") or "Untitled request")[:500],
-            description=item.get("description"), priority=item.get("priority") if item.get("priority") in {"low","normal","high","urgent"} else "normal",
+            description=item.get("description"), period_end=item.get("period_end") or payload.period_end,
+            priority=item.get("priority") if item.get("priority") in {"low","normal","high","urgent"} else "normal",
             due_date=payload.due_date, owner_user_id=item.get("owner_user_id") or actor.id,
             expected_filename=item.get("expected_filename"), expected_formats=item.get("expected_formats") or [],
             gl_account=item.get("gl_account"), gl_balance=str(item.get("gl_balance")) if item.get("gl_balance") is not None else None,
-            sensitive=bool(item.get("sensitive")), requires_redaction=bool(item.get("requires_redaction")), created_by_user_id=actor.id,
+            sensitive=bool(item.get("sensitive")), requires_redaction=bool(item.get("requires_redaction")),
+            external_source_id=item.get("external_source_id"), created_by_user_id=actor.id,
         ))
     audit(db, row, "engagement_created", actor_kind="firm", actor_id=actor.id,
           details={"source": "template" if payload.template_id else "rollover" if payload.rollover_from_id else "blank"})
@@ -400,15 +427,27 @@ def create_request(engagement_id: str, payload: PbcRequestCreate, actor: User = 
     if engagement.status in {"completed", "archived"}:
         raise HTTPException(status_code=409, detail="This engagement is locked")
     count = db.query(PbcRequest).filter(PbcRequest.engagement_id == engagement.id).count()
+    sort_order = min(payload.sort_order if payload.sort_order is not None else count, count)
+    request_number = payload.request_number or _request_number(db, engagement.id)
+    duplicate_number = db.query(PbcRequest.id).filter(
+        PbcRequest.engagement_id == engagement.id, PbcRequest.request_number == request_number
+    ).first()
+    if duplicate_number:
+        raise HTTPException(status_code=409, detail=f"Duplicate request number: {request_number}")
+    if sort_order < count:
+        db.query(PbcRequest).filter(
+            PbcRequest.engagement_id == engagement.id, PbcRequest.sort_order >= sort_order
+        ).update({PbcRequest.sort_order: PbcRequest.sort_order + 1}, synchronize_session=False)
+    dependencies = _request_dependency_ids(db, engagement.id, payload.dependency_ids)
     row = PbcRequest(
         engagement_id=engagement.id, firm_id=engagement.firm_id,
-        request_number=payload.request_number or _request_number(db, engagement.id), sort_order=count,
+        request_number=request_number, sort_order=sort_order,
         category=payload.category, title=payload.title, description=payload.description, period_end=payload.period_end,
         priority=payload.priority, due_date=payload.due_date or engagement.due_date,
-        owner_user_id=payload.owner_user_id or actor.id, expected_filename=payload.expected_filename,
+        owner_user_id=_owner_user_id(db, engagement.firm_id, payload.owner_user_id) or actor.id, expected_filename=payload.expected_filename,
         expected_formats=[value.lower().lstrip(".") for value in payload.expected_formats], gl_account=payload.gl_account,
         gl_balance=payload.gl_balance, sensitive=payload.sensitive, requires_redaction=payload.requires_redaction,
-        dependency_ids=payload.dependency_ids, external_source_id=payload.external_source_id,
+        dependency_ids=dependencies, external_source_id=payload.external_source_id,
         status="open" if engagement.status == "active" else "draft", created_by_user_id=actor.id,
     )
     db.add(row)
@@ -427,11 +466,45 @@ def update_request(request_id: str, payload: PbcRequestUpdate, actor: User = Dep
         raise HTTPException(status_code=409, detail="This PBC request is locked")
     if row.revision != payload.expected_revision:
         raise HTTPException(status_code=409, detail="Request changed; refresh and try again")
+    if "request_number" in payload.model_fields_set:
+        if not payload.request_number:
+            raise HTTPException(status_code=422, detail="Request number cannot be blank")
+        duplicate_number = db.query(PbcRequest.id).filter(
+            PbcRequest.engagement_id == row.engagement_id,
+            PbcRequest.request_number == payload.request_number,
+            PbcRequest.id != row.id,
+        ).first()
+        if duplicate_number:
+            raise HTTPException(status_code=409, detail=f"Duplicate request number: {payload.request_number}")
+    new_sort_order = payload.sort_order if "sort_order" in payload.model_fields_set else None
+    if new_sort_order is not None:
+        max_order = max(db.query(PbcRequest).filter(PbcRequest.engagement_id == row.engagement_id).count() - 1, 0)
+        new_sort_order = min(new_sort_order, max_order)
+        if new_sort_order < row.sort_order:
+            db.query(PbcRequest).filter(
+                PbcRequest.engagement_id == row.engagement_id,
+                PbcRequest.id != row.id,
+                PbcRequest.sort_order >= new_sort_order,
+                PbcRequest.sort_order < row.sort_order,
+            ).update({PbcRequest.sort_order: PbcRequest.sort_order + 1}, synchronize_session=False)
+        elif new_sort_order > row.sort_order:
+            db.query(PbcRequest).filter(
+                PbcRequest.engagement_id == row.engagement_id,
+                PbcRequest.id != row.id,
+                PbcRequest.sort_order > row.sort_order,
+                PbcRequest.sort_order <= new_sort_order,
+            ).update({PbcRequest.sort_order: PbcRequest.sort_order - 1}, synchronize_session=False)
     changes = {}
     for key in payload.model_fields_set - {"expected_revision"}:
         new = getattr(payload, key)
         if key == "expected_formats" and new is not None:
             new = [value.lower().lstrip(".") for value in new]
+        elif key == "dependency_ids" and new is not None:
+            new = _request_dependency_ids(db, row.engagement_id, new, current_request_id=str(row.id))
+        elif key == "owner_user_id":
+            new = _owner_user_id(db, row.firm_id, new)
+        elif key == "sort_order" and new is not None:
+            new = new_sort_order
         old = getattr(row, key)
         if old != new:
             changes[key] = {"from": str(old) if old is not None else None, "to": str(new) if new is not None else None}
@@ -641,6 +714,19 @@ def _cell_date(value):
         raise HTTPException(status_code=422, detail=f"Invalid import date: {value}")
 
 
+def _cell_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (None, ""):
+        return False
+    normalized = str(value).strip().lower()
+    if normalized in {"true", "yes", "y", "1"}:
+        return True
+    if normalized in {"false", "no", "n", "0"}:
+        return False
+    raise HTTPException(status_code=422, detail=f"Invalid yes/no value: {value}")
+
+
 @router.post("/imports/preview")
 async def preview_import(file: UploadFile = File(...), actor: User = Depends(require_role(*READER_ROLES)), db: Session = Depends(get_db)):
     require_actor_role(actor, FIRM_WRITE_ROLES)
@@ -665,6 +751,8 @@ async def preview_import(file: UploadFile = File(...), actor: User = Depends(req
         "request_id": "request_number", "number": "request_number", "description": "title",
         "request": "title", "owner": "owner", "due": "due_date", "format": "expected_formats",
         "expected_format": "expected_formats", "source_id": "external_source_id",
+        "request_description": "description", "details": "description", "instructions": "description",
+        "redaction_required": "requires_redaction",
     }
     for index, raw in enumerate(source[:5000]):
         normalized = {aliases.get(str(key).strip().lower().replace(" ", "_"), str(key).strip().lower().replace(" ", "_")): value for key, value in raw.items()}
@@ -674,7 +762,8 @@ async def preview_import(file: UploadFile = File(...), actor: User = Depends(req
         formats = normalized.get("expected_formats") or ""
         rows.append({
             "request_number": str(normalized.get("request_number") or "").strip() or None,
-            "title": title, "category": str(normalized.get("category") or "").strip() or None,
+            "title": title, "description": str(normalized.get("description") or "").strip() or None,
+            "category": str(normalized.get("category") or "").strip() or None,
             "owner": str(normalized.get("owner") or "").strip() or None,
             "due_date": _cell_date(normalized.get("due_date")), "priority": str(normalized.get("priority") or "normal").lower(),
             "period_end": _cell_date(normalized.get("period_end")),
@@ -682,6 +771,8 @@ async def preview_import(file: UploadFile = File(...), actor: User = Depends(req
             "expected_formats": [part.strip().lower().lstrip(".") for part in re.split(r"[,;/]", str(formats)) if part.strip()],
             "gl_account": str(normalized.get("gl_account") or "").strip() or None,
             "gl_balance": str(normalized.get("gl_balance") or "").strip() or None,
+            "sensitive": _cell_bool(normalized.get("sensitive")),
+            "requires_redaction": _cell_bool(normalized.get("requires_redaction")),
             "external_source_id": str(normalized.get("external_source_id") or "").strip() or None,
         })
     return {"filename": file.filename, "rows": rows, "row_count": len(rows)}
@@ -698,6 +789,7 @@ def commit_import(engagement_id: str, payload: PbcImportCommit, actor: User = De
         PbcRequest.engagement_id == engagement.id, PbcRequest.external_source_id.isnot(None))}
     users = db.query(User).filter(User.firm_id == engagement.firm_id).all()
     users_by_label = {(user.display_name or user.email).strip().lower(): user.id for user in users}
+    starting_order = db.query(PbcRequest).filter(PbcRequest.engagement_id == engagement.id).count()
     created = skipped = 0
     for index, item in enumerate(payload.rows):
         if item.external_source_id and item.external_source_id in existing_sources:
@@ -709,12 +801,13 @@ def commit_import(engagement_id: str, payload: PbcImportCommit, actor: User = De
         priority = item.priority if item.priority in {"low", "normal", "high", "urgent"} else "normal"
         db.add(PbcRequest(
             engagement_id=engagement.id, firm_id=engagement.firm_id, request_number=number,
-            sort_order=db.query(PbcRequest).filter(PbcRequest.engagement_id == engagement.id).count() + index,
-            category=item.category, title=item.title, period_end=item.period_end, priority=priority,
+            sort_order=starting_order + index,
+            category=item.category, title=item.title, description=item.description, period_end=item.period_end, priority=priority,
             due_date=item.due_date or engagement.due_date,
             owner_user_id=users_by_label.get((item.owner or "").lower(), actor.id),
             expected_filename=item.expected_filename, expected_formats=item.expected_formats,
-            gl_account=item.gl_account, gl_balance=item.gl_balance, external_source_id=item.external_source_id,
+            gl_account=item.gl_account, gl_balance=item.gl_balance, sensitive=item.sensitive,
+            requires_redaction=item.requires_redaction, external_source_id=item.external_source_id,
             created_by_user_id=actor.id,
         ))
         existing_numbers.add(number)

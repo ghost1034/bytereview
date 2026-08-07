@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle, ArrowLeft, Bot, Check, ChevronRight, Download, File, FileSpreadsheet,
-  MessageSquare, Plus, Send, Upload, X,
+  MessageSquare, Pencil, Plus, Send, Upload, X,
 } from 'lucide-react'
 
 import { usePbcEngagement, useInvalidatePbc } from '@/hooks/usePbc'
@@ -31,15 +31,52 @@ const formatBytes = (value: number) => value < 1024 * 1024 ? `${Math.ceil(value 
 
 type CompletenessFlag = { request_id: string; request_number: string; warnings: string[] }
 
+type RequestFormValues = {
+  request_number: string
+  position: string
+  category: string
+  title: string
+  description: string
+  period_end: string
+  priority: PbcRequestItem['priority']
+  due_date: string
+  owner_user_id: string
+  expected_filename: string
+  expected_formats: string
+  gl_account: string
+  gl_balance: string
+  sensitive: boolean
+  requires_redaction: boolean
+  dependency_ids: string[]
+  external_source_id: string
+}
+
+const emptyRequestForm = (requestCount: number, ownerUserId?: string | null): RequestFormValues => ({
+  request_number: '', position: String(requestCount + 1), category: 'Other', title: '', description: '',
+  period_end: '', priority: 'normal', due_date: '', owner_user_id: ownerUserId || '', expected_filename: '',
+  expected_formats: '', gl_account: '', gl_balance: '', sensitive: false, requires_redaction: false,
+  dependency_ids: [], external_source_id: '',
+})
+
+const requestFormFrom = (request: PbcRequestItem): RequestFormValues => ({
+  request_number: request.request_number, position: String(request.sort_order + 1), category: request.category || '',
+  title: request.title, description: request.description || '', period_end: request.period_end || '',
+  priority: request.priority, due_date: request.due_date || '', owner_user_id: request.owner_user_id || '',
+  expected_filename: request.expected_filename || '', expected_formats: request.expected_formats.join(', '),
+  gl_account: request.gl_account || '', gl_balance: request.gl_balance || '', sensitive: request.sensitive,
+  requires_redaction: request.requires_redaction, dependency_ids: request.dependency_ids || [],
+  external_source_id: request.external_source_id || '',
+})
+
 export function PbcEngagementWorkspace({ engagementId }: { engagementId: string }) {
   const engagement = usePbcEngagement(engagementId)
   const invalidate = useInvalidatePbc()
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
-  const [createOpen, setCreateOpen] = React.useState(false)
+  const [editingRequest, setEditingRequest] = React.useState<PbcRequestItem | 'new' | null>(null)
+  const [requestForm, setRequestForm] = React.useState<RequestFormValues>(() => emptyRequestForm(0))
   const [aiOpen, setAiOpen] = React.useState(false)
   const [busy, setBusy] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
-  const [newRequest, setNewRequest] = React.useState({ title: '', category: 'Other', due_date: '' })
   const [comment, setComment] = React.useState('')
   const [commentVisibility, setCommentVisibility] = React.useState<'client' | 'internal'>('client')
   const [ai, setAi] = React.useState<{ summary: string; proposals: Array<Record<string, unknown>> } | null>(null)
@@ -63,11 +100,44 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
     finally { setBusy(null) }
   }
 
-  const addRequest = async (event: React.FormEvent) => {
+  const openNewRequest = () => {
+    setRequestForm(emptyRequestForm(requests.length, data?.owner_user_id))
+    setEditingRequest('new')
+  }
+
+  const openEditRequest = (request: PbcRequestItem) => {
+    setRequestForm(requestFormFrom(request))
+    setEditingRequest(request)
+  }
+
+  const saveRequest = async (event: React.FormEvent) => {
     event.preventDefault()
-    await run('create', async () => {
-      const result = await pbcApi.createRequest(engagementId, { ...newRequest, due_date: newRequest.due_date || data?.due_date || null })
-      setCreateOpen(false); setNewRequest({ title: '', category: 'Other', due_date: '' }); setSelectedId(result.id)
+    const formats = Array.from(new Set(requestForm.expected_formats.split(/[,;]+/).map((value) => value.trim().toLowerCase().replace(/^\./, '')).filter(Boolean)))
+    const payload = {
+      ...(requestForm.request_number.trim() ? { request_number: requestForm.request_number.trim() } : {}),
+      sort_order: Math.max(0, Number(requestForm.position || 1) - 1),
+      category: requestForm.category.trim() || null,
+      title: requestForm.title.trim(),
+      description: requestForm.description.trim() || null,
+      period_end: requestForm.period_end || null,
+      priority: requestForm.priority,
+      due_date: requestForm.due_date || data?.due_date || null,
+      owner_user_id: requestForm.owner_user_id || null,
+      expected_filename: requestForm.expected_filename.trim() || null,
+      expected_formats: formats,
+      gl_account: requestForm.gl_account.trim() || null,
+      gl_balance: requestForm.gl_balance.trim() || null,
+      sensitive: requestForm.sensitive,
+      requires_redaction: requestForm.requires_redaction,
+      dependency_ids: requestForm.dependency_ids,
+      external_source_id: requestForm.external_source_id.trim() || null,
+    }
+    await run(editingRequest === 'new' ? 'create' : 'edit', async () => {
+      const result = editingRequest === 'new'
+        ? await pbcApi.createRequest(engagementId, payload)
+        : await pbcApi.updateRequest(editingRequest!.id, { ...payload, expected_revision: editingRequest!.revision })
+      setEditingRequest(null)
+      setSelectedId(result.id)
     })
   }
 
@@ -152,7 +222,7 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
             <div className="flex gap-2">
               <input ref={importRef} className="hidden" type="file" accept=".xlsx,.csv" onChange={(e) => importList(e.target.files?.[0])} />
               <Button size="sm" variant="outline" disabled={data.status !== 'draft' || !!busy} onClick={() => importRef.current?.click()}><FileSpreadsheet className="mr-2 size-4" />Import</Button>
-              <Button size="sm" disabled={data.status === 'completed' || data.status === 'archived'} onClick={() => setCreateOpen(true)}><Plus className="mr-2 size-4" />Request</Button>
+              <Button size="sm" disabled={data.status === 'completed' || data.status === 'archived'} onClick={openNewRequest}><Plus className="mr-2 size-4" />Request</Button>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -175,23 +245,104 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
 
         <aside className="min-w-0 bg-surface/50">
           {!selected && <div className="flex h-full min-h-[400px] items-center justify-center p-8 text-center text-sm text-foreground-muted">Select a request to review its evidence and conversation.</div>}
-          {selected && <RequestDetail request={selected} busy={busy} onRun={run} onUpload={() => fileRef.current?.click()} onComment={addComment} comment={comment} setComment={setComment} visibility={commentVisibility} setVisibility={setCommentVisibility} />}
+          {selected && <RequestDetail request={selected} requests={requests} busy={busy} onRun={run} onEdit={() => openEditRequest(selected)} onUpload={() => fileRef.current?.click()} onComment={addComment} comment={comment} setComment={setComment} visibility={commentVisibility} setVisibility={setCommentVisibility} />}
           <input ref={fileRef} className="hidden" type="file" onChange={(e) => uploadFile(e.target.files?.[0])} />
         </aside>
       </div>
 
       <PbcClientAccess engagement={data} requests={requests} busy={busy} onRun={run} />
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogContent><DialogHeader><DialogTitle>Add PBC request</DialogTitle><DialogDescription>Create one trackable evidence request for the client.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={addRequest}><div className="space-y-2"><Label>Request title</Label><Input required value={newRequest.title} onChange={(e) => setNewRequest({ ...newRequest, title: e.target.value })} /></div><div className="grid grid-cols-2 gap-3"><div className="space-y-2"><Label>Category</Label><Input value={newRequest.category} onChange={(e) => setNewRequest({ ...newRequest, category: e.target.value })} /></div><div className="space-y-2"><Label>Due date</Label><Input type="date" value={newRequest.due_date} onChange={(e) => setNewRequest({ ...newRequest, due_date: e.target.value })} /></div></div><Button className="w-full" disabled={busy === 'create'}>{busy === 'create' ? 'Adding…' : 'Add request'}</Button></form></DialogContent></Dialog>
+      <RequestEditorDialog
+        open={editingRequest !== null}
+        editing={editingRequest !== 'new'}
+        form={requestForm}
+        setForm={setRequestForm}
+        requests={requests}
+        currentRequestId={editingRequest === 'new' ? null : editingRequest?.id || null}
+        members={data.firm_members || []}
+        busy={busy}
+        onOpenChange={(open) => { if (!open) setEditingRequest(null) }}
+        onSubmit={saveRequest}
+      />
       <Dialog open={aiOpen} onOpenChange={setAiOpen}><DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>AI request-list proposal</DialogTitle><DialogDescription>Review every suggestion before adding it. AI cannot publish or contact the client.</DialogDescription></DialogHeader>{busy === 'ai' && <p className="py-12 text-center text-sm text-foreground-muted">Drafting a request list from engagement metadata and firm templates…</p>}{ai && <div className="space-y-4"><p className="rounded-lg bg-surface-muted p-3 text-sm">{ai.summary}</p><div className="divide-y rounded-lg border">{ai.proposals.map((proposal, index) => <div key={index} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{String(proposal.title)}</p><p className="mt-1 text-sm text-foreground-muted">{String(proposal.description || '')}</p></div><Badge variant="outline">{String(proposal.category || 'Other')}</Badge></div><p className="mt-2 text-xs text-foreground-muted">Why suggested: {String(proposal.rationale || 'Engagement context')}</p></div>)}</div><Button className="w-full" onClick={applyAi} disabled={busy === 'ai-apply'}>{busy === 'ai-apply' ? 'Adding requests…' : `Confirm and add ${ai.proposals.length} requests`}</Button></div>}</DialogContent></Dialog>
     </div>
   )
 }
 
-function RequestDetail({ request, busy, onRun, onUpload, onComment, comment, setComment, visibility, setVisibility }: {
+function RequestEditorDialog({ open, editing, form, setForm, requests, currentRequestId, members, busy, onOpenChange, onSubmit }: {
+  open: boolean
+  editing: boolean
+  form: RequestFormValues
+  setForm: React.Dispatch<React.SetStateAction<RequestFormValues>>
+  requests: PbcRequestItem[]
+  currentRequestId: string | null
+  members: Array<{ id: string; name: string; email: string }>
+  busy: string | null
+  onOpenChange: (open: boolean) => void
+  onSubmit: (event: React.FormEvent) => void
+}) {
+  const candidates = requests.filter((request) => request.id !== currentRequestId)
+  const set = <K extends keyof RequestFormValues>(key: K, value: RequestFormValues[K]) => setForm((current) => ({ ...current, [key]: value }))
+  const toggleDependency = (id: string, checked: boolean) => set('dependency_ids', checked
+    ? [...form.dependency_ids, id]
+    : form.dependency_ids.filter((value) => value !== id))
+
+  return <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogHeader>
+        <DialogTitle>{editing ? 'Edit PBC request' : 'Add PBC request'}</DialogTitle>
+        <DialogDescription>Configure the request, evidence expectations, ownership, and internal tracking details.</DialogDescription>
+      </DialogHeader>
+      <form className="space-y-6" onSubmit={onSubmit}>
+        <section className="space-y-4">
+          <h3 className="text-sm font-semibold">Request details</h3>
+          <div className="grid gap-4 sm:grid-cols-[1fr_140px]">
+            <div className="space-y-2"><Label htmlFor="pbc-request-number">Request number</Label><Input id="pbc-request-number" required={editing} value={form.request_number} onChange={(event) => set('request_number', event.target.value)} placeholder="Auto-generated" /></div>
+            <div className="space-y-2"><Label htmlFor="pbc-request-position">List position</Label><Input id="pbc-request-position" required type="number" min={1} max={Math.max(1, requests.length + (editing ? 0 : 1))} value={form.position} onChange={(event) => set('position', event.target.value)} /></div>
+          </div>
+          <div className="space-y-2"><Label htmlFor="pbc-request-title">Title</Label><Input id="pbc-request-title" required maxLength={500} value={form.title} onChange={(event) => set('title', event.target.value)} /></div>
+          <div className="space-y-2"><Label htmlFor="pbc-request-description">Description / client instructions</Label><Textarea id="pbc-request-description" rows={4} maxLength={20000} value={form.description} onChange={(event) => set('description', event.target.value)} placeholder="Explain what to provide, scope, cut-off, and any preparation instructions." /></div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="pbc-request-category">Category</Label><Input id="pbc-request-category" maxLength={128} value={form.category} onChange={(event) => set('category', event.target.value)} /></div>
+            <div className="space-y-2"><Label>Priority</Label><Select value={form.priority} onValueChange={(value) => set('priority', value as PbcRequestItem['priority'])}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="low">Low</SelectItem><SelectItem value="normal">Normal</SelectItem><SelectItem value="high">High</SelectItem><SelectItem value="urgent">Urgent</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label htmlFor="pbc-request-due">Due date</Label><Input id="pbc-request-due" type="date" value={form.due_date} onChange={(event) => set('due_date', event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="pbc-request-period">Period end</Label><Input id="pbc-request-period" type="date" value={form.period_end} onChange={(event) => set('period_end', event.target.value)} /></div>
+            <div className="space-y-2 sm:col-span-2"><Label>Internal owner</Label><Select value={form.owner_user_id || '__unassigned'} onValueChange={(value) => set('owner_user_id', value === '__unassigned' ? '' : value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__unassigned">{editing ? 'Unassigned' : 'Current user (default)'}</SelectItem>{members.map((member) => <SelectItem key={member.id} value={member.id}>{member.name}{member.name !== member.email ? ` · ${member.email}` : ''}</SelectItem>)}</SelectContent></Select></div>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t pt-5">
+          <div><h3 className="text-sm font-semibold">Evidence expectations</h3><p className="mt-1 text-xs text-foreground-muted">These instructions are shown to the client before upload.</p></div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2"><Label htmlFor="pbc-expected-filename">Expected filename</Label><Input id="pbc-expected-filename" maxLength={500} value={form.expected_filename} onChange={(event) => set('expected_filename', event.target.value)} placeholder="bank_reconciliation_2026.xlsx" /></div>
+            <div className="space-y-2"><Label htmlFor="pbc-expected-formats">Expected formats</Label><Input id="pbc-expected-formats" value={form.expected_formats} onChange={(event) => set('expected_formats', event.target.value)} placeholder="xlsx, csv, pdf" /><p className="text-xs text-foreground-muted">Separate multiple extensions with commas.</p></div>
+            <div className="space-y-2"><Label htmlFor="pbc-gl-account">GL account</Label><Input id="pbc-gl-account" maxLength={128} value={form.gl_account} onChange={(event) => set('gl_account', event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="pbc-gl-balance">Expected GL balance</Label><Input id="pbc-gl-balance" maxLength={64} value={form.gl_balance} onChange={(event) => set('gl_balance', event.target.value)} placeholder="125000.00" /></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex items-start gap-3 rounded-lg border p-3 text-sm"><input className="mt-0.5 size-4" type="checkbox" checked={form.sensitive} onChange={(event) => set('sensitive', event.target.checked)} /><span><span className="block font-medium">Sensitive evidence</span><span className="text-xs text-foreground-muted">Flag the request for heightened handling.</span></span></label>
+            <label className="flex items-start gap-3 rounded-lg border p-3 text-sm"><input className="mt-0.5 size-4" type="checkbox" checked={form.requires_redaction} onChange={(event) => set('requires_redaction', event.target.checked)} /><span><span className="block font-medium">Redaction required</span><span className="text-xs text-foreground-muted">Tell the client to remove protected information.</span></span></label>
+          </div>
+        </section>
+
+        <section className="space-y-4 border-t pt-5">
+          <h3 className="text-sm font-semibold">Dependencies and source tracking</h3>
+          <div className="space-y-2"><Label htmlFor="pbc-external-source">External source ID</Label><Input id="pbc-external-source" maxLength={255} value={form.external_source_id} onChange={(event) => set('external_source_id', event.target.value)} placeholder="Optional auditor or source-system identifier" /></div>
+          <div className="space-y-2"><Label>Depends on</Label>{candidates.length === 0 ? <p className="rounded-lg border border-dashed p-3 text-xs text-foreground-muted">No other requests are available.</p> : <div className="max-h-40 space-y-1 overflow-y-auto rounded-lg border p-2">{candidates.map((request) => <label key={request.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-surface-muted"><input type="checkbox" checked={form.dependency_ids.includes(request.id)} onChange={(event) => toggleDependency(request.id, event.target.checked)} /><span className="font-mono text-xs text-foreground-muted">{request.request_number}</span><span className="truncate">{request.title}</span></label>)}</div>}</div>
+        </section>
+
+        <div className="flex justify-end gap-2 border-t pt-4"><Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button><Button disabled={!form.title.trim() || busy === 'create' || busy === 'edit'}>{busy === 'create' || busy === 'edit' ? 'Saving…' : editing ? 'Save changes' : 'Add request'}</Button></div>
+      </form>
+    </DialogContent>
+  </Dialog>
+}
+
+function RequestDetail({ request, requests, busy, onRun, onEdit, onUpload, onComment, comment, setComment, visibility, setVisibility }: {
   request: PbcRequestItem
+  requests: PbcRequestItem[]
   busy: string | null
   onRun: (key: string, action: () => Promise<unknown>) => Promise<void>
+  onEdit: () => void
   onUpload: () => void
   onComment: (event: React.FormEvent) => void
   comment: string
@@ -200,13 +351,15 @@ function RequestDetail({ request, busy, onRun, onUpload, onComment, comment, set
   setVisibility: (value: 'client' | 'internal') => void
 }) {
   const canUpload = ['open', 'needs_changes'].includes(request.status)
+  const dependencies = request.dependency_ids.map((id) => requests.find((item) => item.id === id)).filter(Boolean) as PbcRequestItem[]
   return <div className="flex h-full flex-col">
-    <div className="border-b p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs text-foreground-muted">{request.request_number}</p><h2 className="mt-1 font-semibold leading-snug">{request.title}</h2></div><Badge className={statusStyle[request.status]}>{formatStatus(request.status)}</Badge></div>{request.description && <p className="mt-3 text-sm leading-6 text-foreground-muted">{request.description}</p>}<dl className="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-xs text-foreground-muted">Owner</dt><dd className="mt-0.5">{request.owner_name || 'Unassigned'}</dd></div><div><dt className="text-xs text-foreground-muted">Due</dt><dd className="mt-0.5">{request.due_date || 'No date'}</dd></div></dl></div>
+    <div className="border-b p-5"><div className="flex items-start justify-between gap-3"><div><p className="font-mono text-xs text-foreground-muted">{request.request_number}</p><h2 className="mt-1 font-semibold leading-snug">{request.title}</h2></div><Badge className={statusStyle[request.status]}>{formatStatus(request.status)}</Badge></div>{request.description && <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-foreground-muted">{request.description}</p>}<dl className="mt-4 grid grid-cols-2 gap-3 text-sm"><div><dt className="text-xs text-foreground-muted">Owner</dt><dd className="mt-0.5">{request.owner_name || 'Unassigned'}</dd></div><div><dt className="text-xs text-foreground-muted">Due</dt><dd className="mt-0.5">{request.due_date || 'No date'}</dd></div><div><dt className="text-xs text-foreground-muted">Priority</dt><dd className="mt-0.5">{formatStatus(request.priority)}</dd></div><div><dt className="text-xs text-foreground-muted">Period end</dt><dd className="mt-0.5">{request.period_end || 'Not specified'}</dd></div></dl></div>
     <div className="space-y-5 overflow-y-auto p-5">
       {request.status_reason && <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800"><strong>Reviewer note:</strong> {request.status_reason}</div>}
+      <section><h3 className="mb-2 text-sm font-medium">Configured expectations</h3><dl className="space-y-2 rounded-lg bg-surface-muted p-3 text-sm"><div><dt className="text-xs text-foreground-muted">Filename</dt><dd>{request.expected_filename || 'Any filename'}</dd></div><div><dt className="text-xs text-foreground-muted">Formats</dt><dd>{request.expected_formats.length ? request.expected_formats.map((format) => `.${format}`).join(', ') : 'Any permitted format'}</dd></div>{request.gl_account && <div><dt className="text-xs text-foreground-muted">GL account</dt><dd>{request.gl_account}{request.gl_balance ? ` · ${request.gl_balance}` : ''}</dd></div>}{dependencies.length > 0 && <div><dt className="text-xs text-foreground-muted">Depends on</dt><dd>{dependencies.map((item) => item.request_number).join(', ')}</dd></div>}<div className="flex flex-wrap gap-2">{request.sensitive && <Badge variant="outline">Sensitive</Badge>}{request.requires_redaction && <Badge variant="outline">Redaction required</Badge>}{request.external_source_id && <Badge variant="outline">Source: {request.external_source_id}</Badge>}</div></dl></section>
       <section><div className="mb-2 flex items-center justify-between"><h3 className="text-sm font-medium">Evidence</h3>{canUpload && <Button size="sm" variant="outline" onClick={onUpload} disabled={busy === 'upload'}><Upload className="mr-2 size-3.5" />{busy === 'upload' ? 'Uploading…' : 'Upload'}</Button>}</div><div className="space-y-2">{request.documents.length === 0 && <p className="rounded-lg border border-dashed p-4 text-center text-xs text-foreground-muted">No evidence uploaded yet.</p>}{request.documents.map((document) => <button key={document.id} onClick={() => pbcApi.download(document.id)} className="flex w-full items-center gap-3 rounded-lg border p-3 text-left hover:bg-surface-muted"><File className="size-4 shrink-0 text-primary" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{document.filename}</span><span className="block text-xs text-foreground-muted">v{document.version} · {formatBytes(document.size_bytes)}</span></span><Download className="size-3.5 text-foreground-muted" /></button>)}</div></section>
       <section><h3 className="mb-2 text-sm font-medium">Conversation</h3><div className="space-y-2">{request.comments.length === 0 && <p className="text-xs text-foreground-muted">No comments yet.</p>}{request.comments.map((item) => <div key={item.id} className={cn('rounded-lg p-3 text-sm', item.visibility === 'internal' ? 'bg-amber-50' : 'bg-surface-muted')}><div className="flex items-center gap-2 text-xs text-foreground-muted"><span className="font-medium text-foreground">{item.actor_name}</span><span>{item.visibility === 'internal' ? 'Internal note' : 'Client-visible'}</span></div><p className="mt-1 whitespace-pre-wrap">{item.body}</p></div>)}</div><form className="mt-3 space-y-2" onSubmit={onComment}><Textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Write a comment or internal note…" rows={3} /><div className="flex items-center gap-2"><Select value={visibility} onValueChange={(value) => setVisibility(value as 'client' | 'internal')}><SelectTrigger className="h-8 w-36 text-xs"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="client">Client-visible</SelectItem><SelectItem value="internal">Internal note</SelectItem></SelectContent></Select><Button size="sm" className="ml-auto" disabled={!comment.trim() || busy === 'comment'}><MessageSquare className="mr-2 size-3.5" />Comment</Button></div></form></section>
-      <section className="flex flex-wrap gap-2 border-t pt-4">{['draft', 'open', 'needs_changes'].includes(request.status) && <Button size="sm" variant="outline" onClick={() => { const title = window.prompt('Request title', request.title); if (!title) return; const due = window.prompt('Due date (YYYY-MM-DD)', request.due_date || '') ?? request.due_date; onRun('edit', () => pbcApi.updateRequest(request.id, { title, due_date: due || null, expected_revision: request.revision })) }}>Edit request</Button>}{request.status === 'submitted' && <><Button size="sm" onClick={() => onRun('accept', () => pbcApi.transition(request.id, 'accept', request.revision))}><Check className="mr-2 size-3.5" />Accept</Button><Button size="sm" variant="outline" onClick={() => { const reason = window.prompt('What should the client change?'); if (reason) onRun('return', () => pbcApi.transition(request.id, 'return', request.revision, reason)) }}>Return</Button></>}{['open', 'needs_changes'].includes(request.status) && <Button size="sm" variant="ghost" onClick={() => onRun('waive', () => pbcApi.transition(request.id, 'waive', request.revision, 'Waived by firm'))}>Waive request</Button>}{['accepted', 'waived'].includes(request.status) && <Button size="sm" variant="ghost" onClick={() => onRun('reopen', () => pbcApi.transition(request.id, 'reopen', request.revision, 'Reopened by firm'))}>Reopen</Button>}</section>
+      <section className="flex flex-wrap gap-2 border-t pt-4">{['draft', 'open', 'needs_changes'].includes(request.status) && <Button size="sm" variant="outline" onClick={onEdit}><Pencil className="mr-2 size-3.5" />Edit all details</Button>}{request.status === 'submitted' && <><Button size="sm" onClick={() => onRun('accept', () => pbcApi.transition(request.id, 'accept', request.revision))}><Check className="mr-2 size-3.5" />Accept</Button><Button size="sm" variant="outline" onClick={() => { const reason = window.prompt('What should the client change?'); if (reason) onRun('return', () => pbcApi.transition(request.id, 'return', request.revision, reason)) }}>Return</Button></>}{['open', 'needs_changes'].includes(request.status) && <Button size="sm" variant="ghost" onClick={() => onRun('waive', () => pbcApi.transition(request.id, 'waive', request.revision, 'Waived by firm'))}>Waive request</Button>}{['accepted', 'waived'].includes(request.status) && <Button size="sm" variant="ghost" onClick={() => onRun('reopen', () => pbcApi.transition(request.id, 'reopen', request.revision, 'Reopened by firm'))}>Reopen</Button>}</section>
       {request.status === 'draft' && <section className="border-t pt-4"><Button size="sm" variant="ghost" className="text-destructive" onClick={() => { if (window.confirm(`Delete ${request.request_number}?`)) onRun('delete', () => pbcApi.deleteRequest(request.id)) }}>Delete draft request</Button></section>}
     </div>
   </div>
