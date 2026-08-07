@@ -15,16 +15,11 @@ from services.billing_service import BillingService
 
 
 logger = logging.getLogger(__name__)
-MODEL = "gemini-2.5-flash"
+MODEL = "gemini-3.6-flash"
 
 
 def _draft_response_schema() -> types.Schema:
-    """Constrain Gemini to the shape validated below.
-
-    Gemini 2.5 models count internal thinking against ``max_output_tokens``.
-    Without a schema and an explicit zero thinking budget, longer request lists
-    can be truncated or returned with a shape that fails JSON validation.
-    """
+    """Constrain Gemini to the shape validated below."""
     proposal = types.Schema(
         type="OBJECT",
         properties={
@@ -106,8 +101,7 @@ FIRM INSTRUCTIONS:
             response_mime_type="application/json",
             response_schema=_draft_response_schema(),
             temperature=0.2,
-            max_output_tokens=8192,
-            thinking_config=types.ThinkingConfig(thinking_budget=0),
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL),
         ),
     )
     response_text = _get_resp_text(response)
@@ -164,7 +158,11 @@ AUTHORIZED REQUESTS: {json.dumps(context)}
     response = await get_client().aio.models.generate_content(
         model=MODEL,
         contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0, max_output_tokens=2048),
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0,
+            thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL),
+        ),
     )
     parsed = json.loads(_get_resp_text(response) or "{}")
     known = {item["id"] for item in context}
