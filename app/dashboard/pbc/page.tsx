@@ -46,7 +46,7 @@ export default function PbcDashboardPage() {
     const result = await create.mutateAsync({
       name: form.name,
       client_id: form.client_id,
-      engagement_type: 'audit',
+      engagement_type: templates.data?.templates.find((template) => String(template.id) === form.template_id)?.engagement_type || 'audit',
       period_end: form.period_end || null,
       due_date: form.due_date || null,
       template_id: form.template_id || null,

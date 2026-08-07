@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import copy
 import hashlib
 import io
 import secrets
@@ -37,6 +38,7 @@ from models.pbc import (
 )
 from models.tasklytic import TasklyticEntityRecord, TasklyticWorkspaceMember
 from services.email_service import email_service
+from services.pbc_template_library import PBC_TEMPLATE_LIBRARY, PBC_TEMPLATE_NAMES
 from services.tasklytic_service import authorize_record
 
 
@@ -94,21 +96,46 @@ def get_settings(db: Session, firm_id) -> PbcFirmSettings:
 
 
 def ensure_default_template(db: Session, firm_id, actor_user_id: str | None = None) -> PbcTemplate:
-    row = db.query(PbcTemplate).filter(
-        PbcTemplate.firm_id == firm_id, PbcTemplate.name == "Annual financial statement audit"
-    ).first()
-    if row is None:
-        row = PbcTemplate(
-            firm_id=firm_id,
-            name="Annual financial statement audit",
-            description="Audit-first starter request list. Review and tailor before publishing.",
-            engagement_type="audit",
-            items=DEFAULT_AUDIT_TEMPLATE_ITEMS,
-            created_by_user_id=actor_user_id,
-        )
-        db.add(row)
-        db.flush()
-    return row
+    """Ensure the full canonical library and return the original audit template."""
+    rows = ensure_template_library(db, firm_id, actor_user_id)
+    return next(row for row in rows if row.name == "Annual financial statement audit")
+
+
+def ensure_template_library(db: Session, firm_id, actor_user_id: str | None = None) -> list[PbcTemplate]:
+    """Add missing canonical templates without changing firm-created content.
+
+    The sole exception is the exact six-item audit starter shipped by the PBC
+    MVP. That known system-generated row is upgraded to the comprehensive audit
+    definition. Any edited or independently created row is left as-is.
+    """
+    existing_rows = db.query(PbcTemplate).filter(
+        PbcTemplate.firm_id == firm_id, PbcTemplate.name.in_(PBC_TEMPLATE_NAMES)
+    ).all()
+    existing_by_name = {row.name: row for row in existing_rows}
+    result: list[PbcTemplate] = []
+
+    for definition in PBC_TEMPLATE_LIBRARY:
+        row = existing_by_name.get(definition.name)
+        definition_items = copy.deepcopy(list(definition.items))
+        if row is None:
+            row = PbcTemplate(
+                firm_id=firm_id,
+                name=definition.name,
+                description=definition.description,
+                engagement_type=definition.engagement_type,
+                items=definition_items,
+                created_by_user_id=actor_user_id,
+            )
+            db.add(row)
+            existing_by_name[definition.name] = row
+        elif definition.name == "Annual financial statement audit" and row.items == DEFAULT_AUDIT_TEMPLATE_ITEMS:
+            row.description = definition.description
+            row.engagement_type = definition.engagement_type
+            row.items = definition_items
+        result.append(row)
+
+    db.flush()
+    return result
 
 
 def get_engagement(db: Session, firm_id, engagement_id: str, *, lock: bool = False) -> PbcEngagement:
