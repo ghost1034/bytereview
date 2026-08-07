@@ -23676,6 +23676,61 @@
         ]
       }
     },
+    "/api/pbc/templates/{template_id}": {
+      "put": {
+        "tags": [
+          "pbc"
+        ],
+        "summary": "Update Template",
+        "operationId": "update_template_api_pbc_templates__template_id__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "template_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Template Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PbcTemplateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/pbc/imports/preview": {
       "post": {
         "tags": [
@@ -42911,8 +42966,7 @@
           },
           "items": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/PbcTemplateItem"
             },
             "type": "array",
             "maxItems": 1000,
@@ -42924,6 +42978,182 @@
           "name"
         ],
         "title": "PbcTemplateCreate"
+      },
+      "PbcTemplateItem": {
+        "properties": {
+          "request_number": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Number"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ],
+            "title": "Priority",
+            "default": "normal"
+          },
+          "expected_filename": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Filename"
+          },
+          "expected_formats": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Expected Formats"
+          },
+          "gl_account": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gl Account"
+          },
+          "gl_balance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gl Balance"
+          },
+          "sensitive": {
+            "type": "boolean",
+            "title": "Sensitive",
+            "default": false
+          },
+          "requires_redaction": {
+            "type": "boolean",
+            "title": "Requires Redaction",
+            "default": false
+          },
+          "external_source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Source Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "PbcTemplateItem",
+        "description": "A reusable request definition stored inside a PBC template."
+      },
+      "PbcTemplateUpdate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "engagement_type": {
+            "type": "string",
+            "enum": [
+              "audit",
+              "tax",
+              "bookkeeping",
+              "advisory",
+              "other"
+            ],
+            "title": "Engagement Type",
+            "default": "audit"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PbcTemplateItem"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "PbcTemplateUpdate"
       },
       "PbcTransitionRequest": {
         "properties": {

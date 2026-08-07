@@ -7220,6 +7220,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pbc/templates/{template_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Template */
+        put: operations["update_template_api_pbc_templates__template_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pbc/imports/preview": {
         parameters: {
             query?: never;
@@ -13942,9 +13959,62 @@ export interface components {
              */
             engagement_type: "audit" | "tax" | "bookkeeping" | "advisory" | "other";
             /** Items */
-            items?: {
-                [key: string]: unknown;
-            }[];
+            items?: components["schemas"]["PbcTemplateItem"][];
+        };
+        /**
+         * PbcTemplateItem
+         * @description A reusable request definition stored inside a PBC template.
+         */
+        PbcTemplateItem: {
+            /** Request Number */
+            request_number?: string | null;
+            /** Category */
+            category?: string | null;
+            /** Title */
+            title: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Priority
+             * @default normal
+             * @enum {string}
+             */
+            priority: "low" | "normal" | "high" | "urgent";
+            /** Expected Filename */
+            expected_filename?: string | null;
+            /** Expected Formats */
+            expected_formats?: string[];
+            /** Gl Account */
+            gl_account?: string | null;
+            /** Gl Balance */
+            gl_balance?: string | null;
+            /**
+             * Sensitive
+             * @default false
+             */
+            sensitive: boolean;
+            /**
+             * Requires Redaction
+             * @default false
+             */
+            requires_redaction: boolean;
+            /** External Source Id */
+            external_source_id?: string | null;
+        };
+        /** PbcTemplateUpdate */
+        PbcTemplateUpdate: {
+            /** Name */
+            name: string;
+            /** Description */
+            description?: string | null;
+            /**
+             * Engagement Type
+             * @default audit
+             * @enum {string}
+             */
+            engagement_type: "audit" | "tax" | "bookkeeping" | "advisory" | "other";
+            /** Items */
+            items?: components["schemas"]["PbcTemplateItem"][];
         };
         /** PbcTransitionRequest */
         PbcTransitionRequest: {
@@ -29942,6 +30012,41 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_template_api_pbc_templates__template_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                template_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PbcTemplateUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

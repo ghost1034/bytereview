@@ -1,7 +1,7 @@
 'use client'
 
 import { getCurrentAuthToken } from '@/lib/firebase'
-import type { PbcContact, PbcDashboard, PbcDocument, PbcEngagement, PbcRequestItem } from './types'
+import type { PbcContact, PbcDashboard, PbcDocument, PbcEngagement, PbcRequestItem, PbcTemplate } from './types'
 
 async function firmRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getCurrentAuthToken()
@@ -41,8 +41,9 @@ export const pbcApi = {
   assignContact: (engagementId: string, contactId: string, payload: Record<string, unknown>) => firmRequest<PbcEngagement>(`/engagements/${engagementId}/contacts/${contactId}`, { method: 'PUT', body: JSON.stringify({ contact_id: contactId, ...payload }) }),
   removeContact: (engagementId: string, contactId: string) => firmRequest<void>(`/engagements/${engagementId}/contacts/${contactId}`, { method: 'DELETE' }),
   accessLink: (engagementId: string, payload: Record<string, unknown>) => firmRequest<{ url: string; email_delivered?: boolean }>(`/engagements/${engagementId}/access-links`, { method: 'POST', body: JSON.stringify(payload) }),
-  templates: () => firmRequest<{ templates: Array<Record<string, unknown>> }>('/templates'),
-  createTemplate: (payload: Record<string, unknown>) => firmRequest('/templates', { method: 'POST', body: JSON.stringify(payload) }),
+  templates: () => firmRequest<{ templates: PbcTemplate[] }>('/templates'),
+  createTemplate: (payload: Omit<PbcTemplate, 'id' | 'created_at' | 'updated_at'>) => firmRequest<PbcTemplate>('/templates', { method: 'POST', body: JSON.stringify(payload) }),
+  updateTemplate: (id: string, payload: Omit<PbcTemplate, 'id' | 'created_at' | 'updated_at'>) => firmRequest<PbcTemplate>(`/templates/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   settings: () => firmRequest<{ timezone: string; portal_name?: string | null; logo_url?: string | null; reminder_days_before: number; overdue_interval_days: number }>('/settings'),
   updateSettings: (payload: Record<string, unknown>) => firmRequest('/settings', { method: 'PUT', body: JSON.stringify(payload) }),
   aiDraft: (engagementId: string, instructions?: string) => firmRequest<{ summary: string; proposals: Array<Record<string, unknown>> }>(`/engagements/${engagementId}/ai/draft`, { method: 'POST', body: JSON.stringify({ instructions }) }),

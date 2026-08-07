@@ -55,6 +55,7 @@ from models.pbc_schemas import (
     PbcRequestUpdate,
     PbcSettingsUpdate,
     PbcTemplateCreate,
+    PbcTemplateUpdate,
     PbcTransitionRequest,
     PbcUploadComplete,
     PbcUploadInitiate,
@@ -116,6 +117,28 @@ def _firm_id(db: Session, actor: User):
 
 def _actor_name(actor: User) -> str:
     return actor.display_name or actor.email
+
+
+def _serialize_template(row: PbcTemplate) -> dict:
+    return {
+        "id": str(row.id),
+        "name": row.name,
+        "description": row.description,
+        "engagement_type": row.engagement_type,
+        "items": row.items or [],
+        "created_at": row.created_at,
+        "updated_at": row.updated_at,
+    }
+
+
+def _template_or_404(db: Session, firm_id, template_id: str, *, lock: bool = False) -> PbcTemplate:
+    query = db.query(PbcTemplate).filter(PbcTemplate.id == template_id, PbcTemplate.firm_id == firm_id)
+    if lock:
+        query = query.with_for_update()
+    row = query.first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="PBC template not found")
+    return row
 
 
 def _request_number(db: Session, engagement_id) -> str:
@@ -689,18 +712,33 @@ def list_templates(actor: User = Depends(require_role(*READER_ROLES)), db: Sessi
     ensure_default_template(db, firm_id, actor.id)
     _commit(db)
     rows = db.query(PbcTemplate).filter(PbcTemplate.firm_id == firm_id).order_by(PbcTemplate.name).all()
-    return {"templates": [{"id": str(row.id), "name": row.name, "description": row.description,
-                            "engagement_type": row.engagement_type, "items": row.items or [], "updated_at": row.updated_at} for row in rows]}
+    return {"templates": [_serialize_template(row) for row in rows]}
 
 
 @router.post("/templates", status_code=201)
 def create_template(payload: PbcTemplateCreate, actor: User = Depends(require_role(*READER_ROLES)), db: Session = Depends(get_db)):
     require_actor_role(actor, FIRM_MANAGE_ROLES)
     row = PbcTemplate(firm_id=_firm_id(db, actor), name=payload.name, description=payload.description,
-                      engagement_type=payload.engagement_type, items=payload.items, created_by_user_id=actor.id)
+                      engagement_type=payload.engagement_type,
+                      items=[item.model_dump(mode="json") for item in payload.items], created_by_user_id=actor.id)
     db.add(row)
     _commit(db)
-    return {"id": str(row.id), **payload.model_dump()}
+    db.refresh(row)
+    return _serialize_template(row)
+
+
+@router.put("/templates/{template_id}")
+def update_template(template_id: str, payload: PbcTemplateUpdate,
+                    actor: User = Depends(require_role(*READER_ROLES)), db: Session = Depends(get_db)):
+    require_actor_role(actor, FIRM_MANAGE_ROLES)
+    row = _template_or_404(db, _firm_id(db, actor), template_id, lock=True)
+    row.name = payload.name
+    row.description = payload.description
+    row.engagement_type = payload.engagement_type
+    row.items = [item.model_dump(mode="json") for item in payload.items]
+    _commit(db)
+    db.refresh(row)
+    return _serialize_template(row)
 
 
 def _cell_date(value):

@@ -17,7 +17,7 @@ from fastapi import HTTPException
 from models.pbc import PbcAccessToken, PbcContact, PbcEngagement, PbcRequest
 from routes import pbc as pbc_routes
 from routes.pbc import _cell_bool, _complete_upload, _request_assignment_ids
-from models.pbc_schemas import PbcPortalExchange, PbcRequestCreate, PbcRequestUpdate
+from models.pbc_schemas import PbcPortalExchange, PbcRequestCreate, PbcRequestUpdate, PbcTemplateCreate, PbcTemplateUpdate
 from starlette.requests import Request
 from services.pbc_service import actor_role, exchange_access_token, serialize_contact, token_hash, transition_request, utcnow
 
@@ -241,6 +241,76 @@ def test_request_contract_accepts_every_configurable_detail():
     assert update.request_number == "AUD-43"
     assert update.sort_order == 2
     assert update.external_source_id == "auditor-43"
+
+
+def test_template_contract_validates_and_normalizes_reusable_requests():
+    template = PbcTemplateCreate(
+        name="  Cash audit  ",
+        engagement_type="audit",
+        items=[{
+            "request_number": "CASH-01",
+            "category": " Cash ",
+            "title": " Bank reconciliations ",
+            "priority": "high",
+            "expected_formats": [".XLSX", "xlsx", " PDF "],
+            "sensitive": True,
+        }],
+    )
+
+    assert template.name == "Cash audit"
+    assert template.items[0].title == "Bank reconciliations"
+    assert template.items[0].expected_formats == ["xlsx", "pdf"]
+
+    with pytest.raises(ValueError, match="request numbers must be unique"):
+        PbcTemplateCreate(
+            name="Duplicate numbers",
+            items=[
+                {"request_number": "PBC-01", "title": "First"},
+                {"request_number": "pbc-01", "title": "Second"},
+            ],
+        )
+
+
+def test_update_template_replaces_metadata_and_request_configuration(monkeypatch):
+    now = utcnow()
+    row = SimpleNamespace(
+        id=uuid.uuid4(), name="Old", description=None, engagement_type="other", items=[],
+        created_at=now, updated_at=now,
+    )
+    db = SimpleNamespace(refresh=lambda _row: None)
+    actor = SimpleNamespace(id="admin-1", role="admin")
+    monkeypatch.setattr(pbc_routes, "_firm_id", lambda *_args: uuid.uuid4())
+    monkeypatch.setattr(pbc_routes, "_template_or_404", lambda *_args, **_kwargs: row)
+    monkeypatch.setattr(pbc_routes, "_commit", lambda *_args: None)
+
+    result = pbc_routes.update_template(
+        str(row.id),
+        PbcTemplateUpdate(
+            name="Configured audit",
+            description="Reusable cash requests",
+            engagement_type="audit",
+            items=[{"title": "Bank reconciliation", "expected_formats": [".XLSX"]}],
+        ),
+        actor,
+        db,
+    )
+
+    assert result["name"] == "Configured audit"
+    assert row.engagement_type == "audit"
+    assert row.items == [{
+        "request_number": None,
+        "category": None,
+        "title": "Bank reconciliation",
+        "description": None,
+        "priority": "normal",
+        "expected_filename": None,
+        "expected_formats": ["xlsx"],
+        "gl_account": None,
+        "gl_balance": None,
+        "sensitive": False,
+        "requires_redaction": False,
+        "external_source_id": None,
+    }]
 
 
 @pytest.mark.parametrize(("value", "expected"), [("Yes", True), ("1", True), ("no", False), (None, False)])

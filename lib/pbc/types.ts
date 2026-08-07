@@ -1,5 +1,31 @@
 export type PbcRequestStatus = 'draft' | 'open' | 'submitted' | 'needs_changes' | 'accepted' | 'waived'
 export type PbcEngagementStatus = 'draft' | 'active' | 'completed' | 'archived'
+export type PbcEngagementType = 'audit' | 'tax' | 'bookkeeping' | 'advisory' | 'other'
+
+export interface PbcTemplateItem {
+  request_number?: string | null
+  category?: string | null
+  title: string
+  description?: string | null
+  priority: PbcRequestItem['priority']
+  expected_filename?: string | null
+  expected_formats: string[]
+  gl_account?: string | null
+  gl_balance?: string | null
+  sensitive: boolean
+  requires_redaction: boolean
+  external_source_id?: string | null
+}
+
+export interface PbcTemplate {
+  id: string
+  name: string
+  description?: string | null
+  engagement_type: PbcEngagementType
+  items: PbcTemplateItem[]
+  created_at: string
+  updated_at: string
+}
 
 export interface PbcDocument {
   id: string
@@ -67,7 +93,7 @@ export interface PbcEngagement {
   client_id?: string | null
   name: string
   client_name: string
-  engagement_type: string
+  engagement_type: PbcEngagementType
   period_start?: string | null
   period_end?: string | null
   due_date?: string | null

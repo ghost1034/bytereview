@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from typing import Any, Literal
+from datetime import date
+from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 
 class PbcEngagementCreate(BaseModel):
@@ -98,11 +98,53 @@ class PbcCommentCreate(BaseModel):
     visibility: Literal["client", "internal"] = "client"
 
 
+class PbcTemplateItem(BaseModel):
+    """A reusable request definition stored inside a PBC template."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    request_number: str | None = Field(default=None, max_length=64)
+    category: str | None = Field(default=None, max_length=128)
+    title: str = Field(min_length=1, max_length=500)
+    description: str | None = Field(default=None, max_length=20_000)
+    priority: Literal["low", "normal", "high", "urgent"] = "normal"
+    expected_filename: str | None = Field(default=None, max_length=500)
+    expected_formats: list[str] = Field(default_factory=list, max_length=20)
+    gl_account: str | None = Field(default=None, max_length=128)
+    gl_balance: str | None = Field(default=None, max_length=64)
+    sensitive: bool = False
+    requires_redaction: bool = False
+    external_source_id: str | None = Field(default=None, max_length=255)
+
+    @field_validator("expected_formats")
+    @classmethod
+    def normalize_expected_formats(cls, values: list[str]) -> list[str]:
+        normalized = []
+        for value in values:
+            item = value.strip().lower().lstrip(".")
+            if item and item not in normalized:
+                normalized.append(item)
+        return normalized
+
+
 class PbcTemplateCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(default=None, max_length=4000)
     engagement_type: Literal["audit", "tax", "bookkeeping", "advisory", "other"] = "audit"
-    items: list[dict[str, Any]] = Field(default_factory=list, max_length=1000)
+    items: list[PbcTemplateItem] = Field(default_factory=list, max_length=1000)
+
+    @model_validator(mode="after")
+    def request_numbers_are_unique(self):
+        numbers = [item.request_number.lower() for item in self.items if item.request_number]
+        if len(numbers) != len(set(numbers)):
+            raise ValueError("Template request numbers must be unique")
+        return self
+
+
+class PbcTemplateUpdate(PbcTemplateCreate):
+    pass
 
 
 class PbcAccessLinkCreate(BaseModel):
