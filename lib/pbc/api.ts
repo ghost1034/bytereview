@@ -83,6 +83,7 @@ export async function portalRequest<T>(path: string, options: RequestInit = {}, 
   const response = await fetch(`/api/pbc/portal${path}`, {
     ...options,
     credentials: 'same-origin',
+    referrerPolicy: 'no-referrer',
     headers: {
       ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(csrf ? { 'X-PBC-CSRF': csrf } : {}),

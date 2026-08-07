@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,7 +15,10 @@ import pytest
 from fastapi import HTTPException
 
 from models.pbc import PbcAccessToken, PbcContact, PbcEngagement, PbcRequest
+from routes import pbc as pbc_routes
 from routes.pbc import _request_assignment_ids
+from models.pbc_schemas import PbcPortalExchange
+from starlette.requests import Request
 from services.pbc_service import actor_role, exchange_access_token, token_hash, transition_request, utcnow
 
 
@@ -185,3 +188,27 @@ def test_request_assignment_ids_reject_requests_from_another_engagement():
         _request_assignment_ids(RequestIdDb([uuid.uuid4()]), uuid.uuid4(), [str(uuid.uuid4())])
 
     assert invalid.value.status_code == 422
+
+
+def test_portal_exchange_json_encodes_datetime_payloads(monkeypatch):
+    session = SimpleNamespace(csrf_hash=None)
+    contact = SimpleNamespace(id=uuid.uuid4())
+    engagement = SimpleNamespace(id=uuid.uuid4())
+    created_at = datetime(2026, 8, 7, 12, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(pbc_routes, "_rate_limit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        pbc_routes,
+        "exchange_access_token",
+        lambda *_args, **_kwargs: (session, "raw-session", contact, engagement),
+    )
+    monkeypatch.setattr(pbc_routes, "_commit", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pbc_routes, "serialize_contact", lambda *_args: {"created_at": created_at})
+    monkeypatch.setattr(pbc_routes, "serialize_engagement", lambda *_args: {"created_at": created_at})
+
+    request = Request({"type": "http", "method": "POST", "path": "/api/pbc/portal/exchange", "headers": []})
+    response = pbc_routes.portal_exchange(PbcPortalExchange(token="v" * 32), request, object())
+
+    assert response.status_code == 200
+    assert b'"created_at":"2026-08-07T12:00:00+00:00"' in response.body
+    assert "pbc_portal_session=raw-session" in response.headers["set-cookie"]

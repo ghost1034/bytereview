@@ -18,6 +18,7 @@ from urllib.parse import quote
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, Response, UploadFile
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, StreamingResponse
 from openpyxl import load_workbook
 from sqlalchemy.exc import IntegrityError
@@ -844,9 +845,13 @@ def portal_exchange(payload: PbcPortalExchange, request: Request, db: Session = 
     session, raw_session, contact, engagement = exchange_access_token(db, payload.token)
     raw_csrf = secrets.token_urlsafe(32)
     session.csrf_hash = token_hash(raw_csrf)
+    content = jsonable_encoder({
+        "csrf_token": raw_csrf,
+        "contact": serialize_contact(contact),
+        "engagement": serialize_engagement(db, engagement),
+    })
     _commit(db)
-    response = JSONResponse({"csrf_token": raw_csrf, "contact": serialize_contact(contact),
-                             "engagement": serialize_engagement(db, engagement)})
+    response = JSONResponse(content)
     response.set_cookie(COOKIE_NAME, raw_session, max_age=12 * 60 * 60, httponly=True, secure=not is_local(),
                         samesite="lax", path="/api/pbc/portal")
     return response
