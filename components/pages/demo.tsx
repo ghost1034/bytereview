@@ -2,7 +2,16 @@
 
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowRight, Check, FileText, PenTool, Sparkles } from 'lucide-react'
+import {
+  ArrowRight,
+  Check,
+  Clock3,
+  FilePenLine,
+  FileText,
+  PenTool,
+  Signature,
+  Sparkles,
+} from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -53,9 +62,38 @@ const WRITING_VIDEOS = [
     title: 'Write a Robust Academic Article with 70+ References Using AI',
     src: 'https://www.youtube-nocookie.com/embed/qmFBxibcals?si=-Sq1Lr-AgZDPg5pC',
   },
+  {
+    title: 'Generate Accurate Academic & Legal Citations with AI',
+    src: 'https://www.youtube-nocookie.com/embed/zloKYPE0Vjw?si=-d18M7b5fcLCNIpn',
+  },
+  {
+    title: 'How Inkwise Prevents AI Hallucinations with RAG',
+    src: 'https://www.youtube-nocookie.com/embed/e5rytCGzzec?si=mKhaxCQx47ZkqvVE',
+  },
 ]
 
-const UPCOMING_VIDEOS = [
+const FORM_FILL_VIDEOS = [
+  {
+    title: 'Automatically Fill Any PDF or Word Document with AI',
+    src: 'https://www.youtube-nocookie.com/embed/Jgv9cP-vT1Y?si=KwxAjrizEe8H95Ab',
+  },
+]
+
+const E_SIGNATURE_VIDEOS = [
+  {
+    title: 'Send & Sign PDFs for Free with CPAAutomation eSign',
+    src: 'https://www.youtube-nocookie.com/embed/QnpKCSrOGB8?si=xJb4z11uPwQjk-we',
+  },
+]
+
+const CHRONA_VIDEOS = [
+  {
+    title: 'Track Billable Hours Automatically with AI',
+    src: 'https://www.youtube-nocookie.com/embed/QNCVh1SKS9A?si=75hUo0Zm1r4p3vh5',
+  },
+]
+
+const CLAW_SERIES_VIDEOS = [
   {
     title: 'AccountingClaw Preview',
     src: 'https://www.youtube-nocookie.com/embed/976yIJsO1cA?si=82I14R9fUPznZX1E',
@@ -73,6 +111,18 @@ const UPCOMING_VIDEOS = [
     src: 'https://www.youtube-nocookie.com/embed/939uCq5jxN0?si=77c9Gr7DVJiHKlnx',
     description:
       'Automatically download a NetSuite report with SOX- and audit-compliant screenshots.',
+  },
+  {
+    title: 'Automate Universal Document Analysis with AccountingClaw',
+    src: 'https://www.youtube-nocookie.com/embed/w4HB7m8XEUQ?si=uRfMqGNsH4QB0NfC',
+    description:
+      'Use AccountingClaw to analyze documents and automate downstream accounting work.',
+  },
+  {
+    title: 'Get Your AI Digital Workers on Slack',
+    src: 'https://www.youtube-nocookie.com/embed/bnB6fy3KaA4?si=ohJRMwlzhhYspOSz',
+    description:
+      'Bring AI digital workers into Slack so your team can delegate work where it already collaborates.',
   },
 ]
 
@@ -136,10 +186,21 @@ export default function Demo() {
         </motion.div>
       </SectionShell>
 
-      {/* AI writing videos */}
+      {/* Form Fill videos */}
       <SectionShell
         surface="background"
-        eyebrow="AI writing"
+        eyebrow="Form Fill"
+        eyebrowIcon={FilePenLine}
+        eyebrowTone="emerald"
+        title="Automatically complete PDFs and Word documents"
+      >
+        <VideoGrid videos={FORM_FILL_VIDEOS} />
+      </SectionShell>
+
+      {/* AI writing videos */}
+      <SectionShell
+        surface="surface"
+        eyebrow="Inkwise"
         eyebrowIcon={PenTool}
         eyebrowTone="violet"
         title="Draft polished documents with Inkwise"
@@ -171,14 +232,36 @@ export default function Demo() {
         </motion.div>
       </SectionShell>
 
-      {/* Upcoming products */}
+      {/* E-Signature videos */}
+      <SectionShell
+        surface="background"
+        eyebrow="E-Signature"
+        eyebrowIcon={Signature}
+        eyebrowTone="blue"
+        title="Send and sign PDFs online"
+      >
+        <VideoGrid videos={E_SIGNATURE_VIDEOS} />
+      </SectionShell>
+
+      {/* Chrona videos */}
       <SectionShell
         surface="surface"
-        eyebrow="Products to come"
+        eyebrow="Chrona"
+        eyebrowIcon={Clock3}
+        eyebrowTone="violet"
+        title="Track billable hours automatically"
+      >
+        <VideoGrid videos={CHRONA_VIDEOS} />
+      </SectionShell>
+
+      {/* Claw Series */}
+      <SectionShell
+        surface="background"
+        eyebrow="AI digital workers"
         eyebrowIcon={Sparkles}
         eyebrowTone="emerald"
-        title="What we're building next"
-        description="Preview the next generation of tools coming to the CPAAutomation platform."
+        title="Claw Series"
+        description="See how the Claw Series brings autonomous AI workflows to accounting and business operations."
       >
         <motion.div
           className="flex flex-wrap justify-center gap-6"
@@ -187,7 +270,7 @@ export default function Demo() {
           whileInView="visible"
           viewport={viewportOnce}
         >
-          {UPCOMING_VIDEOS.map((v) => (
+          {CLAW_SERIES_VIDEOS.map((v) => (
             <motion.div
               key={v.title}
               variants={staggerChild}
@@ -280,5 +363,42 @@ export default function Demo() {
         defaultTab="signup"
       />
     </div>
+  )
+}
+
+interface VideoGridProps {
+  videos: Array<{
+    title: string
+    src: string
+  }>
+}
+
+function VideoGrid({ videos }: VideoGridProps) {
+  return (
+    <motion.div
+      className="flex flex-wrap justify-center gap-6"
+      variants={staggerContainer}
+      initial="hidden"
+      whileInView="visible"
+      viewport={viewportOnce}
+    >
+      {videos.map((video) => (
+        <motion.div
+          key={video.title}
+          variants={staggerChild}
+          className="w-full md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)]"
+        >
+          <VideoCard
+            src={video.src}
+            title={video.title}
+            description={
+              <span className="text-center font-semibold text-foreground">
+                {video.title}
+              </span>
+            }
+          />
+        </motion.div>
+      ))}
+    </motion.div>
   )
 }
