@@ -18,6 +18,45 @@ logger = logging.getLogger(__name__)
 MODEL = "gemini-2.5-flash"
 
 
+def _draft_response_schema() -> types.Schema:
+    """Constrain Gemini to the shape validated below.
+
+    Gemini 2.5 models count internal thinking against ``max_output_tokens``.
+    Without a schema and an explicit zero thinking budget, longer request lists
+    can be truncated or returned with a shape that fails JSON validation.
+    """
+    proposal = types.Schema(
+        type="OBJECT",
+        properties={
+            "title": types.Schema(type="STRING"),
+            "category": types.Schema(type="STRING"),
+            "description": types.Schema(type="STRING"),
+            "priority": types.Schema(type="STRING", enum=["low", "normal", "high", "urgent"]),
+            "expected_formats": types.Schema(
+                type="ARRAY",
+                items=types.Schema(type="STRING"),
+            ),
+            "rationale": types.Schema(type="STRING"),
+        },
+        required=[
+            "title",
+            "category",
+            "description",
+            "priority",
+            "expected_formats",
+            "rationale",
+        ],
+    )
+    return types.Schema(
+        type="OBJECT",
+        properties={
+            "summary": types.Schema(type="STRING"),
+            "proposals": types.Schema(type="ARRAY", items=proposal),
+        },
+        required=["summary", "proposals"],
+    )
+
+
 def _meter(db: Session, user_id: str, response, note: str) -> None:
     usage = _get_usage_counts(response)
     BillingService(db).record_analytics_usage(
@@ -63,9 +102,24 @@ FIRM INSTRUCTIONS:
     response = await get_client().aio.models.generate_content(
         model=MODEL,
         contents=prompt,
-        config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2, max_output_tokens=8192),
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=_draft_response_schema(),
+            temperature=0.2,
+            max_output_tokens=8192,
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
+        ),
     )
-    parsed = json.loads(_get_resp_text(response) or "{}")
+    response_text = _get_resp_text(response)
+    try:
+        parsed = json.loads(response_text or "{}")
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "Gemini returned invalid JSON for PBC request-list draft (engagement=%s, output_chars=%d)",
+            engagement.id,
+            len(response_text or ""),
+        )
+        raise ValueError("AI returned an invalid PBC request-list proposal") from exc
     proposals = parsed.get("proposals")
     if not isinstance(parsed.get("summary"), str) or not isinstance(proposals, list) or len(proposals) > 40:
         raise ValueError("AI returned an invalid PBC request-list proposal")
@@ -153,4 +207,3 @@ def completeness_flags(db: Session, engagement: PbcEngagement) -> dict[str, Any]
         if warnings:
             flags.append({"request_id": str(row.id), "request_number": row.request_number, "warnings": warnings})
     return {"flags": flags, "requires_confirmation": True, "generated_at": __import__("datetime").datetime.now(__import__("datetime").timezone.utc)}
-
