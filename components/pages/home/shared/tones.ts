@@ -9,12 +9,13 @@
  *
  * All values are written as complete literal class strings (never interpolated) so
  * Tailwind's content scanner keeps them. Hues use Tailwind's built-in palettes
- * (cyan/violet/rose/emerald/amber/sky); `blue` reuses the existing brand `accent-blue` ramp.
+ * (cyan/teal/violet/rose/emerald/amber/sky); `blue` reuses the existing brand `accent-blue` ramp.
  * The 300/400 shades are light pastels that clear WCAG AA on the navy `#0F1729` surface.
  */
 export type Accent =
   | 'blue'
   | 'cyan'
+  | 'teal'
   | 'violet'
   | 'indigo'
   | 'rose'
@@ -53,6 +54,14 @@ export const ACCENTS: Record<Accent, AccentStyle> = {
     hoverBorder: 'hover:border-cyan-400/40',
     gradient: 'from-cyan-300 to-cyan-500',
     dot: 'bg-cyan-400',
+  },
+  teal: {
+    chip: 'bg-teal-400/10 text-teal-300 ring-1 ring-teal-400/20',
+    text: 'text-teal-300',
+    pill: 'border-teal-400/30 bg-teal-400/10 text-teal-300',
+    hoverBorder: 'hover:border-teal-400/40',
+    gradient: 'from-teal-300 to-teal-500',
+    dot: 'bg-teal-400',
   },
   violet: {
     chip: 'bg-violet-400/10 text-violet-300 ring-1 ring-violet-400/20',

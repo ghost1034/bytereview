@@ -6,6 +6,7 @@ import {
   ArrowUpRight,
   BarChart3,
   Bot,
+  ClipboardCheck,
   Clock,
   FileSignature,
   FileText,
@@ -76,6 +77,15 @@ const PRODUCTS: Product[] = [
     tone: 'indigo',
     status: 'Available now',
     href: '#productivity-suite-showcase',
+  },
+  {
+    name: 'Prepared by Client (PBC)',
+    description:
+      'Build request lists, collect files securely, review submissions, and package client evidence.',
+    icon: ClipboardCheck,
+    tone: 'teal',
+    status: 'Available now',
+    href: '#pbc-showcase',
   },
   {
     name: 'E-Signature',
@@ -156,7 +166,7 @@ export default function ProductSuite() {
       description="Purpose-built for accounting, finance, and legal teams — from document processing to autonomous AI agents."
     >
       <motion.div
-        className="grid auto-rows-fr grid-cols-1 gap-5 md:grid-cols-4 lg:grid-cols-8"
+        className="grid auto-rows-fr grid-cols-1 gap-5 md:grid-cols-6"
         variants={staggerContainerSlow}
         initial="hidden"
         whileInView="visible"
@@ -172,7 +182,7 @@ export default function ProductSuite() {
               variants={staggerChild}
               {...hoverLift}
               className={cn(
-                'h-full md:col-span-2 lg:col-span-2',
+                'h-full md:col-span-3 lg:col-span-2',
               )}
             >
               <a

@@ -8,6 +8,7 @@ import {
   BarChart3,
   Bot,
   ChevronDown,
+  ClipboardCheck,
   Clock,
   FileSignature,
   FileText,
@@ -107,6 +108,12 @@ const PRODUCT_LINKS: ProductLink[] = [
     href: '/#productivity-suite-showcase',
     description: 'Projects, tasks, forms, time, reporting & AI',
     icon: FolderKanban,
+  },
+  {
+    label: 'Prepared by Client (PBC)',
+    href: '/#pbc-showcase',
+    description: 'Secure client evidence collection and review',
+    icon: ClipboardCheck,
   },
 ]
 
