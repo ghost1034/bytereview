@@ -7,7 +7,7 @@
     "dev:frontend": "next dev",
     "build": "next build && next-sitemap",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "sitemap": "next-sitemap",
     "postbuild": "next-sitemap",
     "postinstall": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});const s='node_modules/pdfjs-dist/build/pdf.worker.min.mjs';if(fs.existsSync(s)){fs.copyFileSync(s,'public/pdf-worker.min.mjs')}else{console.warn('postinstall: pdf worker not found at '+s+'; using committed copy')}\"",
@@ -114,6 +114,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/typography": "^0.5.16",
     "@types/file-saver": "^2.0.7",
     "@types/jszip": "^3.4.1",

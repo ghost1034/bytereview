@@ -1,0 +1,57 @@
+import { FlatCompat } from '@eslint/eslintrc'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const compat = new FlatCompat({ baseDirectory: __dirname })
+
+const semanticColorRules = [
+  'error',
+  {
+    selector:
+      'Literal[value=/(bg|text|border|ring|from|to|via|placeholder|divide|outline|caret)-(slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-[0-9]{2,3}/]',
+    message:
+      'Use semantic design tokens (bg-surface, bg-surface-muted, text-foreground, text-foreground-muted, bg-primary-soft, bg-success-soft, etc.) instead of raw Tailwind color classes.',
+  },
+  {
+    selector: 'Literal[value=/lido-(blue|green)(-dark)?/]',
+    message:
+      'lido-blue / lido-green are deprecated. Use bg-primary, bg-primary-soft, or bg-success / bg-success-soft.',
+  },
+]
+
+const eslintConfig = [
+  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  {
+    ignores: ['.next/**', 'out/**', 'build/**', 'next-env.d.ts'],
+  },
+  {
+    files: [
+      'app/dashboard/**/*.{ts,tsx}',
+      'app/(general)/**/*.{ts,tsx}',
+      'components/layout/**/*.{ts,tsx}',
+      'components/marketing/**/*.{ts,tsx}',
+      'components/workflow/**/*.{ts,tsx}',
+      'components/jobs/**/*.{ts,tsx}',
+      'components/extraction/**/*.{ts,tsx}',
+      'components/results/**/*.{ts,tsx}',
+      'components/templates/**/*.{ts,tsx}',
+      'components/automations/**/*.{ts,tsx}',
+      'components/integrations/**/*.{ts,tsx}',
+      'components/billing/**/*.{ts,tsx}',
+      'components/subscription/**/*.{ts,tsx}',
+      'components/cpe/**/*.{ts,tsx}',
+      'components/pages/**/*.{ts,tsx}',
+    ],
+    ignores: [
+      'app/dashboard/inkwise/**/*.{ts,tsx}',
+      'components/pages/inkwise/**/*.{ts,tsx}',
+      'components/inkwise/**/*.{ts,tsx}',
+    ],
+    rules: {
+      'no-restricted-syntax': semanticColorRules,
+    },
+  },
+]
+
+export default eslintConfig
