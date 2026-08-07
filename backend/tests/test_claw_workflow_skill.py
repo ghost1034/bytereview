@@ -31,8 +31,8 @@ def test_both_shipped_claws_include_the_one_prompt_workflow_skill() -> None:
         content = _skill(product)
         assert "name: universal-document-analysis" in content
         assert "from one natural-language request" in content
-        assert "initial prompt is explicit approval" in content
-        assert "without asking the user to repeat approval" in content
+        assert "without asking for a separate approval or confirmation" in content
+        assert "continue in the same run without pausing for approval" in content
         for tool_name in REQUIRED_MCP_TOOLS:
             assert f"`{tool_name}`" in content
 
