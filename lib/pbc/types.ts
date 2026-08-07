@@ -29,6 +29,7 @@ export interface PbcContact {
   email: string
   active: boolean
   role?: 'coordinator' | 'contributor' | null
+  request_ids?: string[]
 }
 
 export interface PbcRequestItem {
@@ -97,4 +98,3 @@ export interface AnalyticsClientSummary {
   contact_name?: string | null
   contact_email?: string | null
 }
-

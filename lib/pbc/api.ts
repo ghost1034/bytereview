@@ -39,6 +39,7 @@ export const pbcApi = {
   contacts: (clientId?: string) => firmRequest<{ contacts: PbcContact[] }>(`/contacts${clientId ? `?client_id=${encodeURIComponent(clientId)}` : ''}`),
   createContact: (payload: Record<string, unknown>) => firmRequest<PbcContact>('/contacts', { method: 'POST', body: JSON.stringify(payload) }),
   assignContact: (engagementId: string, contactId: string, payload: Record<string, unknown>) => firmRequest<PbcEngagement>(`/engagements/${engagementId}/contacts/${contactId}`, { method: 'PUT', body: JSON.stringify({ contact_id: contactId, ...payload }) }),
+  removeContact: (engagementId: string, contactId: string) => firmRequest<void>(`/engagements/${engagementId}/contacts/${contactId}`, { method: 'DELETE' }),
   accessLink: (engagementId: string, payload: Record<string, unknown>) => firmRequest<{ url: string; email_delivered?: boolean }>(`/engagements/${engagementId}/access-links`, { method: 'POST', body: JSON.stringify(payload) }),
   templates: () => firmRequest<{ templates: Array<Record<string, unknown>> }>('/templates'),
   createTemplate: (payload: Record<string, unknown>) => firmRequest('/templates', { method: 'POST', body: JSON.stringify(payload) }),

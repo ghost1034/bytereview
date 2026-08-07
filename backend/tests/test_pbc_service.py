@@ -19,7 +19,7 @@ from routes import pbc as pbc_routes
 from routes.pbc import _request_assignment_ids
 from models.pbc_schemas import PbcPortalExchange
 from starlette.requests import Request
-from services.pbc_service import actor_role, exchange_access_token, token_hash, transition_request, utcnow
+from services.pbc_service import actor_role, exchange_access_token, serialize_contact, token_hash, transition_request, utcnow
 
 
 class CountQuery:
@@ -146,6 +146,25 @@ def test_access_secrets_are_one_way_hashes():
     assert token_hash(raw) != raw
     assert token_hash(raw) == token_hash(raw)
     assert len(token_hash(raw)) == 64
+
+
+def test_engagement_contact_serialization_includes_request_scope():
+    contact_id = uuid.uuid4()
+    request_ids = [str(uuid.uuid4()), str(uuid.uuid4())]
+    contact = SimpleNamespace(
+        id=contact_id,
+        client_id=None,
+        name="Jordan Client",
+        email="jordan@example.com",
+        active=True,
+        created_at=utcnow(),
+    )
+
+    serialized = serialize_contact(contact, "contributor", request_ids)
+
+    assert serialized["id"] == str(contact_id)
+    assert serialized["role"] == "contributor"
+    assert serialized["request_ids"] == request_ids
 
 
 def test_draft_engagement_access_link_reports_that_it_is_not_published():

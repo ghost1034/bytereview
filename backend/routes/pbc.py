@@ -37,6 +37,7 @@ from models.pbc import (
     PbcEngagement,
     PbcEngagementContact,
     PbcFirmSettings,
+    PbcNotificationOutbox,
     PbcPortalSession,
     PbcRequest,
     PbcRequestAssignment,
@@ -560,6 +561,47 @@ def assign_contact(engagement_id: str, contact_id: str, payload: PbcContactAssig
           details={"contact_id": contact_id, "role": payload.role, "request_ids": [str(value) for value in request_ids]})
     _commit(db)
     return serialize_engagement(db, engagement, detail=True)
+
+
+@router.delete("/engagements/{engagement_id}/contacts/{contact_id}", status_code=204)
+def remove_contact(engagement_id: str, contact_id: str,
+                   actor: User = Depends(require_role(*READER_ROLES)), db: Session = Depends(get_db)):
+    require_actor_role(actor, FIRM_MANAGE_ROLES)
+    engagement = get_engagement(db, _firm_id(db, actor), engagement_id)
+    contact = db.query(PbcContact).filter(
+        PbcContact.id == contact_id, PbcContact.firm_id == engagement.firm_id
+    ).first()
+    membership = db.get(PbcEngagementContact, (engagement.id, contact.id)) if contact else None
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Contact is not assigned to this engagement")
+
+    now = utcnow()
+    db.query(PbcAccessToken).filter(
+        PbcAccessToken.engagement_id == engagement.id,
+        PbcAccessToken.contact_id == contact.id,
+        PbcAccessToken.revoked_at.is_(None),
+    ).update({PbcAccessToken.revoked_at: now}, synchronize_session=False)
+    db.query(PbcPortalSession).filter(
+        PbcPortalSession.engagement_id == engagement.id,
+        PbcPortalSession.contact_id == contact.id,
+        PbcPortalSession.revoked_at.is_(None),
+    ).update({PbcPortalSession.revoked_at: now}, synchronize_session=False)
+    db.query(PbcNotificationOutbox).filter(
+        PbcNotificationOutbox.engagement_id == engagement.id,
+        PbcNotificationOutbox.contact_id == contact.id,
+        PbcNotificationOutbox.status.in_(["pending", "failed"]),
+    ).delete(synchronize_session=False)
+    db.query(PbcRequestAssignment).filter(
+        PbcRequestAssignment.contact_id == contact.id,
+        PbcRequestAssignment.request_id.in_(
+            db.query(PbcRequest.id).filter(PbcRequest.engagement_id == engagement.id)
+        ),
+    ).delete(synchronize_session=False)
+    db.delete(membership)
+    audit(db, engagement, "contact_removed", actor_kind="firm", actor_id=actor.id,
+          details={"contact_id": str(contact.id)})
+    _commit(db)
+    return Response(status_code=204)
 
 
 @router.post("/engagements/{engagement_id}/access-links")

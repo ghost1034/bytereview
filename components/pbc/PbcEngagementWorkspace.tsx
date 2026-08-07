@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import {
   AlertTriangle, ArrowLeft, Bot, Check, ChevronRight, Download, File, FileSpreadsheet,
-  Link2, MessageSquare, Plus, Send, Upload, UserPlus, X,
+  MessageSquare, Plus, Send, Upload, X,
 } from 'lucide-react'
 
 import { usePbcEngagement, useInvalidatePbc } from '@/hooks/usePbc'
@@ -19,6 +19,7 @@ import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { PbcClientAccess } from '@/components/pbc/PbcClientAccess'
 
 const statusStyle: Record<string, string> = {
   draft: 'bg-slate-100 text-slate-700', open: 'bg-blue-50 text-blue-700', submitted: 'bg-amber-50 text-amber-700',
@@ -35,12 +36,10 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
   const invalidate = useInvalidatePbc()
   const [selectedId, setSelectedId] = React.useState<string | null>(null)
   const [createOpen, setCreateOpen] = React.useState(false)
-  const [contactOpen, setContactOpen] = React.useState(false)
   const [aiOpen, setAiOpen] = React.useState(false)
   const [busy, setBusy] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [newRequest, setNewRequest] = React.useState({ title: '', category: 'Other', due_date: '' })
-  const [contact, setContact] = React.useState({ name: '', email: '' })
   const [comment, setComment] = React.useState('')
   const [commentVisibility, setCommentVisibility] = React.useState<'client' | 'internal'>('client')
   const [ai, setAi] = React.useState<{ summary: string; proposals: Array<Record<string, unknown>> } | null>(null)
@@ -49,7 +48,7 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
   const importRef = React.useRef<HTMLInputElement>(null)
 
   const data = engagement.data
-  const requests = data?.requests || []
+  const requests = React.useMemo(() => data?.requests || [], [data?.requests])
   const selected = requests.find((item) => item.id === selectedId) || null
 
   React.useEffect(() => {
@@ -69,17 +68,6 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
     await run('create', async () => {
       const result = await pbcApi.createRequest(engagementId, { ...newRequest, due_date: newRequest.due_date || data?.due_date || null })
       setCreateOpen(false); setNewRequest({ title: '', category: 'Other', due_date: '' }); setSelectedId(result.id)
-    })
-  }
-
-  const inviteContact = async (event: React.FormEvent) => {
-    event.preventDefault()
-    if (!data?.client_id) return
-    await run('contact', async () => {
-      const created = await pbcApi.createContact({ ...contact, client_id: data.client_id })
-      await pbcApi.assignContact(engagementId, created.id, { role: 'coordinator', request_ids: requests.map((item) => item.id) })
-      await pbcApi.accessLink(engagementId, { contact_id: created.id, purpose: 'portal_login', request_ids: [], expires_in_days: 7, send_email: true })
-      setContactOpen(false); setContact({ name: '', email: '' })
     })
   }
 
@@ -192,14 +180,9 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
         </aside>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border bg-card p-4 text-sm">
-        <UserPlus className="size-4 text-foreground-muted" /><span><strong>{data.contacts?.length || 0}</strong> client contact{data.contacts?.length === 1 ? '' : 's'} can access this engagement.</span>
-        <Button className="ml-auto" size="sm" variant="outline" onClick={() => setContactOpen(true)}><UserPlus className="mr-2 size-4" />Invite contact</Button>
-        {data.tasklytic_workspace_id && data.tasklytic_project_id && <Button size="sm" variant="ghost" asChild><Link href={`/dashboard/project-management/w/${data.tasklytic_workspace_id}/projects/${data.tasklytic_project_id}`}><Link2 className="mr-2 size-4" />Open linked project</Link></Button>}
-      </div>
+      <PbcClientAccess engagement={data} requests={requests} busy={busy} onRun={run} />
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}><DialogContent><DialogHeader><DialogTitle>Add PBC request</DialogTitle><DialogDescription>Create one trackable evidence request for the client.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={addRequest}><div className="space-y-2"><Label>Request title</Label><Input required value={newRequest.title} onChange={(e) => setNewRequest({ ...newRequest, title: e.target.value })} /></div><div className="grid grid-cols-2 gap-3"><div className="space-y-2"><Label>Category</Label><Input value={newRequest.category} onChange={(e) => setNewRequest({ ...newRequest, category: e.target.value })} /></div><div className="space-y-2"><Label>Due date</Label><Input type="date" value={newRequest.due_date} onChange={(e) => setNewRequest({ ...newRequest, due_date: e.target.value })} /></div></div><Button className="w-full" disabled={busy === 'create'}>{busy === 'create' ? 'Adding…' : 'Add request'}</Button></form></DialogContent></Dialog>
-      <Dialog open={contactOpen} onOpenChange={setContactOpen}><DialogContent><DialogHeader><DialogTitle>Invite client coordinator</DialogTitle><DialogDescription>The contact receives a secure, one-time portal link and can see every request in this engagement.</DialogDescription></DialogHeader><form className="space-y-4" onSubmit={inviteContact}><div className="space-y-2"><Label>Name</Label><Input required value={contact.name} onChange={(e) => setContact({ ...contact, name: e.target.value })} /></div><div className="space-y-2"><Label>Email</Label><Input required type="email" value={contact.email} onChange={(e) => setContact({ ...contact, email: e.target.value })} /></div><Button className="w-full" disabled={busy === 'contact'}>{busy === 'contact' ? 'Sending…' : 'Create contact and send link'}</Button></form></DialogContent></Dialog>
       <Dialog open={aiOpen} onOpenChange={setAiOpen}><DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>AI request-list proposal</DialogTitle><DialogDescription>Review every suggestion before adding it. AI cannot publish or contact the client.</DialogDescription></DialogHeader>{busy === 'ai' && <p className="py-12 text-center text-sm text-foreground-muted">Drafting a request list from engagement metadata and firm templates…</p>}{ai && <div className="space-y-4"><p className="rounded-lg bg-surface-muted p-3 text-sm">{ai.summary}</p><div className="divide-y rounded-lg border">{ai.proposals.map((proposal, index) => <div key={index} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{String(proposal.title)}</p><p className="mt-1 text-sm text-foreground-muted">{String(proposal.description || '')}</p></div><Badge variant="outline">{String(proposal.category || 'Other')}</Badge></div><p className="mt-2 text-xs text-foreground-muted">Why suggested: {String(proposal.rationale || 'Engagement context')}</p></div>)}</div><Button className="w-full" onClick={applyAi} disabled={busy === 'ai-apply'}>{busy === 'ai-apply' ? 'Adding requests…' : `Confirm and add ${ai.proposals.length} requests`}</Button></div>}</DialogContent></Dialog>
     </div>
   )

@@ -185,12 +185,19 @@ def _user_label(user: User | None) -> str | None:
     return user.display_name or user.email
 
 
-def serialize_contact(contact: PbcContact, role: str | None = None) -> dict[str, Any]:
-    return {
+def serialize_contact(
+    contact: PbcContact,
+    role: str | None = None,
+    request_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    result = {
         "id": str(contact.id), "client_id": str(contact.client_id) if contact.client_id else None,
         "name": contact.name, "email": contact.email, "active": contact.active, "role": role,
         "created_at": contact.created_at,
     }
+    if request_ids is not None:
+        result["request_ids"] = request_ids
+    return result
 
 
 def serialize_document(row: PbcDocument) -> dict[str, Any]:
@@ -256,7 +263,19 @@ def serialize_engagement(db: Session, row: PbcEngagement, *, detail: bool = Fals
             .order_by(PbcContact.name)
             .all()
         )
-        contacts = [serialize_contact(contact, role) for contact, role in contact_rows]
+        assignment_rows = (
+            db.query(PbcRequestAssignment.contact_id, PbcRequestAssignment.request_id)
+            .join(PbcRequest, PbcRequest.id == PbcRequestAssignment.request_id)
+            .filter(PbcRequest.engagement_id == row.id)
+            .all()
+        )
+        request_ids_by_contact: dict[str, list[str]] = {}
+        for contact_id, request_id in assignment_rows:
+            request_ids_by_contact.setdefault(str(contact_id), []).append(str(request_id))
+        contacts = [
+            serialize_contact(contact, role, request_ids_by_contact.get(str(contact.id), []))
+            for contact, role in contact_rows
+        ]
     result = {
         "id": str(row.id), "firm_id": str(row.firm_id), "client_id": str(row.client_id) if row.client_id else None,
         "name": row.name, "client_name": row.client_name_snapshot, "engagement_type": row.engagement_type,
