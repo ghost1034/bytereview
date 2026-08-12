@@ -3757,7 +3757,11 @@ Instructions:
                 fallback_slots[page_number] = fallback_index + 1
 
                 placement_hint = str(item.get("placement_hint") or "near_blank").strip().lower()
-                cover_anchor = bool(item.get("cover_anchor")) or placement_hint == "replace_anchor"
+                anchor_text = str(item.get("anchor_text") or "").strip()
+                anchor_is_blank = bool(anchor_text) and not anchor_text.strip("_")
+                cover_anchor = (
+                    bool(item.get("cover_anchor")) or placement_hint == "replace_anchor"
+                ) and not anchor_is_blank
                 if cover_anchor and anchor_rect is not None:
                     page.draw_rect(
                         fitz.Rect(

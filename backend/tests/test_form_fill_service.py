@@ -2641,7 +2641,7 @@ class FormFillPdfOverlayReplaceAnchorPlacementTests(unittest.TestCase):
         doc.save(self.path)
         doc.close()
 
-    def test_x_on_short_blank_stays_on_blank_and_baseline(self) -> None:
+    def test_x_on_short_blank_preserves_blank_and_baseline(self) -> None:
         base = fitz.open(self.path)
         no_label = base[0].search_for("No")[0]
         no_blank = [rect for rect in base[0].search_for("____") if rect.x0 > no_label.x1][0]
@@ -2681,12 +2681,7 @@ class FormFillPdfOverlayReplaceAnchorPlacementTests(unittest.TestCase):
             white_fills = [
                 drawing["rect"] for drawing in doc[0].get_drawings() if drawing.get("fill") == (1.0, 1.0, 1.0)
             ]
-            self.assertTrue(white_fills, "cover_anchor white-out was not drawn")
-            self.assertGreaterEqual(
-                min(rect.x0 for rect in white_fills),
-                no_blank.x0 - 2.0,
-                "white-out extends onto the 'No' label",
-            )
+            self.assertEqual(white_fills, [], "underscore blank was covered by a white-out")
         finally:
             doc.close()
 
