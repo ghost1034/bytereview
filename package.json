@@ -15,7 +15,8 @@
     "generate-types": "cd backend && npm run generate-types",
     "check:openapi": "cd backend && npm run check-openapi",
     "dev:with-types": "npm run generate-types && npm run dev",
-    "test:unit": "vitest run"
+    "test:unit": "vitest run",
+    "tasklytic:phases": "node scripts/run-tasklytic-phases.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
