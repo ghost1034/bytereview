@@ -18,13 +18,18 @@ from models.tasklytic import (
     TasklyticFileUpload,
     TasklyticInvitation,
     TasklyticWorkspace,
+    TasklyticWorkspaceEvent,
     TasklyticWorkspaceMember,
 )
 from services.tasklytic_service import (
     ENTITY_POLICIES,
     bootstrap,
+    capabilities_for_user,
+    list_workspace_events,
     list_records,
+    parse_revision_etag,
     provision_bundle,
+    require_capability,
     replace_collection,
     upsert_record,
     upsert_workspace,
@@ -32,7 +37,7 @@ from services.tasklytic_service import (
 )
 from core.database import get_db
 from dependencies.auth import verify_firebase_token
-from routes.tasklytic import router as tasklytic_router
+from routes.tasklytic import _event_cursor, router as tasklytic_router
 from services.tasklytic_ai_service import build_authorized_context, validate_proposals
 
 
@@ -58,6 +63,7 @@ def db():
             TasklyticWorkspace.__table__,
             TasklyticWorkspaceMember.__table__,
             TasklyticEntityRecord.__table__,
+            TasklyticWorkspaceEvent.__table__,
             TasklyticInvitation.__table__,
             TasklyticFileUpload.__table__,
         ],
@@ -115,6 +121,7 @@ def test_authenticated_routes_reject_missing_firebase_identity(db):
     client = TestClient(app)
 
     assert client.get("/api/tasklytic/bootstrap").status_code == 401
+    assert client.get("/api/tasklytic/workspaces/w1/events").status_code == 401
     assert client.get("/api/tasklytic/public/forms/not-published").status_code == 404
 
 
@@ -324,3 +331,168 @@ def test_file_lifecycle_checks_type_owner_scope_and_completion(db, api, monkeypa
     assert client.post("/api/tasklytic/files:complete", json={"object_name": object_name}).status_code == 200
     identity.update({"uid": "guest", "email": "guest@example.com"})
     assert client.get("/api/tasklytic/files:download-url", params={"object_name": object_name}).status_code == 403
+
+
+def test_revisions_are_exposed_and_conditional_writes_return_current_record(db, api):
+    client, identity = api
+    provision_bundle(db, starter_bundle(), identity)
+    db.commit()
+
+    snapshot = client.get("/api/tasklytic/bootstrap", params={"workspace_id": "w1"}).json()
+    task = snapshot["collections"]["tasks"][0]
+    assert task["revision"] == 1
+    assert snapshot["collections"]["workspaces"][0]["revision"] == 1
+    assert all(snapshot["capabilities"].values())
+
+    updated = {**task, "name": "Server edit"}
+    missing = client.put(
+        "/api/tasklytic/tasks/task1",
+        params={"workspace_id": "w1"},
+        json=updated,
+    )
+    assert missing.status_code == 428
+
+    saved = client.put(
+        "/api/tasklytic/tasks/task1",
+        params={"workspace_id": "w1"},
+        headers={"If-Match": '"1"'},
+        json=updated,
+    )
+    assert saved.status_code == 200
+    assert saved.headers["etag"] == '"2"'
+    assert saved.json()["revision"] == 2
+
+    stale = client.put(
+        "/api/tasklytic/tasks/task1",
+        params={"workspace_id": "w1"},
+        headers={"If-Match": 'W/"1"'},
+        json={**task, "name": "Stale edit"},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["detail"] == {
+        "code": "revision_conflict",
+        "current": saved.json(),
+    }
+    assert client.delete(
+        "/api/tasklytic/tasks/task1",
+        params={"workspace_id": "w1"},
+    ).status_code == 428
+    assert client.delete(
+        "/api/tasklytic/tasks/task1",
+        params={"workspace_id": "w1"},
+        headers={"If-Match": '"1"'},
+    ).status_code == 409
+    assert client.delete(
+        "/api/tasklytic/tasks/task1",
+        params={"workspace_id": "w1"},
+        headers={"If-Match": '"2"'},
+    ).status_code == 204
+
+
+def test_workspace_events_are_durable_cursor_ordered_and_tenant_isolated(db):
+    provision_bundle(db, starter_bundle(), {"uid": "owner", "email": "owner@example.com"})
+    upsert_workspace(db, {"id": "w2", "name": "Other"}, "other")
+    db.commit()
+    initial = list_workspace_events(db, "w1", "owner", 0)
+    cursor = initial[-1].id
+
+    task = list_records(db, "tasks", "owner", "w1")[0]
+    saved = upsert_record(
+        db,
+        "tasks",
+        {**task, "name": "Live edit"},
+        "owner",
+        "w1",
+        task["revision"],
+    )
+    db.commit()
+    events = list_workspace_events(db, "w1", "owner", cursor)
+    assert [(event.entity_kind, event.record_id, event.operation) for event in events] == [
+        ("tasks", "task1", "updated")
+    ]
+    assert events[0].revision == saved["revision"]
+    other_events = list_workspace_events(db, "w2", "other", cursor)
+    assert all(event.workspace_id == "w2" for event in other_events)
+    assert not any(event.record_id == "task1" for event in other_events)
+    with pytest.raises(HTTPException) as exc:
+        list_workspace_events(db, "w1", "other", 0)
+    assert exc.value.status_code == 403
+
+
+def test_sse_cursor_prefers_explicit_cursor_and_validates_reconnect_values():
+    assert _event_cursor(None, None) == 0
+    assert _event_cursor(None, "17") == 17
+    assert _event_cursor(23, "17") == 23
+    with pytest.raises(HTTPException) as exc:
+        _event_cursor(None, "not-an-id")
+    assert exc.value.status_code == 422
+
+
+def test_every_action_capability_is_centralized_and_enforced(db):
+    provision_bundle(db, starter_bundle(), {"uid": "owner", "email": "owner@example.com"})
+    db.add_all([
+        TasklyticWorkspaceMember(workspace_id="w1", user_id="member", role="member"),
+        TasklyticWorkspaceMember(workspace_id="w1", user_id="guest", role="guest"),
+    ])
+    db.flush()
+    upsert_record(db, "users", {
+        "id": "member", "name": "Member", "email": "member@example.com", "role": "member",
+        "roleFlags": {
+            "canApprove": True,
+            "canBill": True,
+            "canRecordPayments": True,
+            "canManageTrust": True,
+            "canManageRates": True,
+        },
+    }, "owner", "w1")
+    upsert_record(db, "users", {
+        "id": "guest", "name": "Guest", "email": "guest@example.com", "role": "guest",
+    }, "owner", "w1")
+
+    admin = capabilities_for_user(db, "w1", "owner")
+    assert set(admin) == {
+        "view", "edit", "submit", "approve", "bill", "payment", "trust", "rate",
+        "workspace-administration",
+    }
+    assert all(admin.values())
+    assert capabilities_for_user(db, "w1", "member") == {
+        "view": True,
+        "edit": True,
+        "submit": True,
+        "approve": True,
+        "bill": True,
+        "payment": True,
+        "trust": True,
+        "rate": True,
+        "workspace-administration": False,
+    }
+    guest = capabilities_for_user(db, "w1", "guest")
+    assert guest == {
+        "view": True,
+        "edit": False,
+        "submit": False,
+        "approve": False,
+        "bill": False,
+        "payment": False,
+        "trust": False,
+        "rate": False,
+        "workspace-administration": False,
+    }
+    for capability, allowed in guest.items():
+        if allowed:
+            require_capability(db, "w1", "guest", capability)
+        else:
+            with pytest.raises(HTTPException) as exc:
+                require_capability(db, "w1", "guest", capability)
+            assert exc.value.status_code == 403
+
+
+def test_revision_etag_parser_rejects_missing_or_malformed_values():
+    assert parse_revision_etag('"4"') == 4
+    assert parse_revision_etag('W/"5"') == 5
+    with pytest.raises(HTTPException) as exc:
+        parse_revision_etag(None)
+    assert exc.value.status_code == 428
+    with pytest.raises(HTTPException) as exc:
+        parse_revision_etag("*")
+    assert exc.value.status_code == 400

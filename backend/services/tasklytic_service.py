@@ -19,6 +19,7 @@ from models.tasklytic import (
     TasklyticEntityRecord,
     TasklyticInvitation,
     TasklyticWorkspace,
+    TasklyticWorkspaceEvent,
     TasklyticWorkspaceMember,
 )
 
@@ -87,12 +88,20 @@ ENTITY_POLICIES: dict[str, EntityPolicy] = {
     "teamJoinRequests": EntityPolicy("workspace"),
 }
 
-PSA_BILLING_KINDS = frozenset(
-    {"invoices", "billingRates", "rateCards", "payments", "trustTransactions", "reimbursementBatches"}
-)
 PRIVILEGE_USER_FIELDS = frozenset({"role", "roleFlags", "defaultHourlyRate", "timekeeperRole", "timekeeperId"})
 MEMBERSHIP_PAYLOAD_FIELDS = frozenset({"memberIds", "adminIds", "guestIds"})
 USER_ROLES = frozenset({"admin", "member", "guest"})
+TASKLYTIC_CAPABILITIES = (
+    "view",
+    "edit",
+    "submit",
+    "approve",
+    "bill",
+    "payment",
+    "trust",
+    "rate",
+    "workspace-administration",
+)
 
 
 def utcnow() -> datetime:
@@ -128,6 +137,83 @@ def validate_payload(payload: Any, *, require_id: bool = True) -> dict[str, Any]
     return copy.deepcopy(payload)
 
 
+def format_revision_etag(revision: int) -> str:
+    return f'"{revision}"'
+
+
+def parse_revision_etag(value: str | None) -> int:
+    if value is None:
+        raise HTTPException(
+            status_code=428,
+            detail={"code": "if_match_required", "message": "If-Match is required"},
+        )
+    candidate = value.strip()
+    if candidate.startswith("W/"):
+        candidate = candidate[2:].strip()
+    if len(candidate) >= 2 and candidate[0] == candidate[-1] == '"':
+        candidate = candidate[1:-1]
+    if not candidate.isdigit() or int(candidate) < 1:
+        raise HTTPException(status_code=400, detail={"code": "invalid_if_match", "message": "If-Match must contain an integer revision"})
+    return int(candidate)
+
+
+def capabilities_for_user(db: Session, workspace_id: str, user_id: str) -> dict[str, bool]:
+    member = get_membership(db, workspace_id, user_id)
+    flags = _user_flags(db, workspace_id, user_id)
+    is_admin = member.role == "admin"
+    is_member = member.role == "member"
+    return {
+        "view": True,
+        "edit": is_admin or is_member,
+        "submit": is_admin or is_member or bool(flags.get("canSubmit")),
+        "approve": is_admin or bool(flags.get("canApprove")),
+        "bill": is_admin or bool(flags.get("canBill")),
+        "payment": is_admin or bool(flags.get("canRecordPayments")),
+        "trust": is_admin or bool(flags.get("canManageTrust")),
+        "rate": is_admin or bool(flags.get("canManageRates")),
+        "workspace-administration": is_admin,
+    }
+
+
+def require_capability(db: Session, workspace_id: str, user_id: str, capability: str) -> None:
+    if capability not in TASKLYTIC_CAPABILITIES:
+        raise ValueError(f"Unknown Tasklytic capability: {capability}")
+    if not capabilities_for_user(db, workspace_id, user_id)[capability]:
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "capability_denied", "capability": capability},
+        )
+
+
+def required_mutation_capability(
+    kind: str,
+    payload: dict[str, Any],
+    previous: dict[str, Any] | None = None,
+) -> str:
+    if kind == "workspaces":
+        return "workspace-administration"
+    if kind == "workspaceInvitations":
+        return "workspace-administration"
+    if kind == "users" and previous is not None:
+        if any(payload.get(field) != previous.get(field) for field in PRIVILEGE_USER_FIELDS):
+            return "workspace-administration"
+    if kind in {"billingRates", "rateCards"}:
+        return "rate"
+    if kind in {"invoices", "reimbursementBatches"}:
+        return "bill"
+    if kind == "payments":
+        return "payment"
+    if kind == "trustTransactions":
+        return "trust"
+    before_status = (previous or {}).get("status")
+    after_status = payload.get("status")
+    if after_status in {"approved", "rejected"} and after_status != before_status:
+        return "approve"
+    if after_status == "submitted" and after_status != before_status:
+        return "submit"
+    return "edit"
+
+
 def get_membership(db: Session, workspace_id: str, user_id: str, *, required: bool = True) -> TasklyticWorkspaceMember | None:
     row = db.get(TasklyticWorkspaceMember, (workspace_id, user_id))
     if row is None and required:
@@ -137,8 +223,7 @@ def get_membership(db: Session, workspace_id: str, user_id: str, *, required: bo
 
 def require_admin(db: Session, workspace_id: str, user_id: str) -> TasklyticWorkspaceMember:
     member = get_membership(db, workspace_id, user_id)
-    if member.role != "admin":
-        raise HTTPException(status_code=403, detail="Workspace administrator permission required")
+    require_capability(db, workspace_id, user_id, "workspace-administration")
     return member
 
 
@@ -149,7 +234,44 @@ def workspace_payload(db: Session, row: TasklyticWorkspace) -> dict[str, Any]:
     result["memberIds"] = [m.user_id for m in members]
     result["adminIds"] = [m.user_id for m in members if m.role == "admin"]
     result["guestIds"] = [m.user_id for m in members if m.role == "guest"]
+    result["revision"] = row.revision
     return result
+
+
+def record_payload(row: TasklyticEntityRecord) -> dict[str, Any]:
+    result = copy.deepcopy(row.payload or {})
+    result["revision"] = row.revision
+    return result
+
+
+def _revision_conflict(current: dict[str, Any]) -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail={"code": "revision_conflict", "current": current},
+    )
+
+
+def append_workspace_event(
+    db: Session,
+    workspace_id: str | None,
+    actor_id: str,
+    kind: str,
+    record_id: str,
+    operation: str,
+    revision: int,
+    payload: dict[str, Any] | None,
+) -> None:
+    if not workspace_id:
+        return
+    db.add(TasklyticWorkspaceEvent(
+        workspace_id=workspace_id,
+        actor_id=actor_id,
+        entity_kind=kind,
+        record_id=record_id,
+        operation=operation,
+        revision=revision,
+        payload=copy.deepcopy(payload) if payload is not None else None,
+    ))
 
 
 def list_workspaces(db: Session, user_id: str) -> list[dict[str, Any]]:
@@ -163,10 +285,19 @@ def list_workspaces(db: Session, user_id: str) -> list[dict[str, Any]]:
     return [workspace_payload(db, row) for row in rows]
 
 
-def _find_record(db: Session, kind: str, record_id: str, workspace_id: str | None = None) -> TasklyticEntityRecord | None:
+def _find_record(
+    db: Session,
+    kind: str,
+    record_id: str,
+    workspace_id: str | None = None,
+    *,
+    lock: bool = False,
+) -> TasklyticEntityRecord | None:
     query = db.query(TasklyticEntityRecord).filter_by(entity_kind=kind, record_id=record_id)
     if workspace_id:
         query = query.filter_by(workspace_id=workspace_id)
+    if lock:
+        query = query.with_for_update()
     rows = query.limit(2).all()
     if len(rows) > 1 and workspace_id is None:
         raise HTTPException(status_code=409, detail=f"Ambiguous {kind} reference")
@@ -284,6 +415,7 @@ def _project_anchors(db: Session, kind: str, payload: dict[str, Any], workspace_
 
 def authorize_record(db: Session, kind: str, payload: dict[str, Any], workspace_id: str, user_id: str) -> None:
     member = get_membership(db, workspace_id, user_id)
+    require_capability(db, workspace_id, user_id, "view")
     if kind == "teams" and not _team_access(db, workspace_id, str(payload.get("id")), user_id):
         raise HTTPException(status_code=403, detail="Team access denied")
     projects = _project_anchors(db, kind, payload, workspace_id)
@@ -296,11 +428,6 @@ def authorize_record(db: Session, kind: str, payload: dict[str, Any], workspace_
             raise HTTPException(status_code=403, detail="Time-entry access denied")
     if kind in {"expenses", "expenseReports", "billingInquiries"} and member.role == "guest" and payload.get("userId") != user_id:
         raise HTTPException(status_code=403, detail="PSA record access denied")
-    if kind in PSA_BILLING_KINDS and member.role != "admin":
-        flags = _user_flags(db, workspace_id, user_id)
-        required = "canRecordPayments" if kind in {"payments", "trustTransactions"} else "canBill"
-        if not flags.get(required):
-            raise HTTPException(status_code=403, detail="PSA billing access denied")
     if member.role == "guest" and kind == "goals":
         if payload.get("privacy") != "public" and payload.get("ownerId") != user_id:
             raise HTTPException(status_code=403, detail="Goal access denied")
@@ -383,6 +510,12 @@ def authorize_mutation(
 ) -> None:
     member = get_membership(db, workspace_id, user_id)
     authorize_record(db, kind, previous or payload, workspace_id, user_id)
+    require_capability(
+        db,
+        workspace_id,
+        user_id,
+        required_mutation_capability(kind, payload, previous),
+    )
     mutation_projects = _project_anchors(db, kind, previous or payload, workspace_id)
     if member.role != "admin" and mutation_projects:
         for project in mutation_projects:
@@ -408,11 +541,6 @@ def authorize_mutation(
         team_admins = previous.get("adminIds") or []
         if member.role != "admin" and user_id not in team_admins:
             raise HTTPException(status_code=403, detail="Team membership may only be changed by an administrator")
-    if kind in PSA_BILLING_KINDS and member.role != "admin":
-        flags = _user_flags(db, workspace_id, user_id)
-        required = "canRecordPayments" if kind in {"payments", "trustTransactions"} else "canBill"
-        if not flags.get(required):
-            raise HTTPException(status_code=403, detail="PSA billing permission required")
     if kind in {"timeEntries", "timesheets"} and member.role != "admin":
         owner_id = payload.get("userId")
         if owner_id != user_id and not _user_flags(db, workspace_id, user_id).get("canViewAllTime"):
@@ -461,6 +589,7 @@ def invitation_payload(row: TasklyticInvitation) -> dict[str, Any]:
         "note": row.note,
         "status": row.status,
         "deliveryState": row.delivery_state,
+        "revision": row.revision,
         "expiresAt": row.expires_at.isoformat(),
         "createdAt": row.created_at.isoformat() if row.created_at else utcnow().isoformat(),
     }
@@ -489,12 +618,19 @@ def list_records(db: Session, kind: str, user_id: str, workspace_id: str | None 
                 if exc.status_code == 403:
                     continue
                 raise
-        result.append(payload)
+        result.append(record_payload(row))
     return result
 
 
-def upsert_workspace(db: Session, payload: dict[str, Any], user_id: str) -> dict[str, Any]:
+def upsert_workspace(
+    db: Session,
+    payload: dict[str, Any],
+    user_id: str,
+    expected_revision: int | None = None,
+    enforce_precondition: bool = False,
+) -> dict[str, Any]:
     data = validate_payload(payload)
+    data.pop("revision", None)
     workspace_id = data["id"]
     row = db.get(TasklyticWorkspace, workspace_id)
     if row is None:
@@ -506,6 +642,10 @@ def upsert_workspace(db: Session, payload: dict[str, Any], user_id: str) -> dict
         db.add(TasklyticWorkspaceMember(workspace_id=workspace_id, user_id=user_id, role="admin"))
     else:
         require_admin(db, workspace_id, user_id)
+        if enforce_precondition and expected_revision is None:
+            parse_revision_etag(None)
+        if expected_revision is not None and row.revision != expected_revision:
+            raise _revision_conflict(workspace_payload(db, row))
         if any(field in data for field in MEMBERSHIP_PAYLOAD_FIELDS):
             member_ids = data.get("memberIds")
             admin_ids = data.get("adminIds")
@@ -533,7 +673,12 @@ def upsert_workspace(db: Session, payload: dict[str, Any], user_id: str) -> dict
         row.payload = data
         row.revision += 1
     db.flush()
-    return workspace_payload(db, row)
+    result = workspace_payload(db, row)
+    append_workspace_event(
+        db, workspace_id, user_id, "workspaces", workspace_id,
+        "created" if row.revision == 1 else "updated", row.revision, result,
+    )
+    return result
 
 
 def upsert_record(
@@ -542,13 +687,18 @@ def upsert_record(
     payload: dict[str, Any],
     user_id: str,
     workspace_id: str | None,
+    expected_revision: int | None = None,
+    enforce_precondition: bool = False,
 ) -> dict[str, Any]:
     validate_kind(kind)
     if kind in {"workspaces", "workspaceInvitations"}:
         if kind == "workspaces":
-            return upsert_workspace(db, payload, user_id)
+            return upsert_workspace(
+                db, payload, user_id, expected_revision, enforce_precondition
+            )
         raise HTTPException(status_code=405, detail="Use the invitation endpoints")
     data = validate_payload(payload, require_id=kind != "session")
+    data.pop("revision", None)
     record_id = validate_id(data.get("id") or "session")
     if kind == "users" and data.get("role") not in USER_ROLES:
         raise HTTPException(status_code=422, detail="User role must be admin, member, or guest")
@@ -560,7 +710,7 @@ def upsert_record(
     owner_id = _private_owner(kind, data, user_id) if kind in PRIVATE_KINDS else None
     if resolved_workspace_id:
         actor_membership = get_membership(db, resolved_workspace_id, user_id)
-        existing = _find_record(db, kind, record_id, resolved_workspace_id)
+        existing = _find_record(db, kind, record_id, resolved_workspace_id, lock=True)
         if kind == "users" and existing is None and record_id == user_id and actor_membership.role != "admin":
             for field in PRIVILEGE_USER_FIELDS:
                 data.pop(field, None)
@@ -585,11 +735,22 @@ def upsert_record(
             payload=data,
         )
         db.add(existing)
+        operation = "created"
     else:
+        if enforce_precondition and expected_revision is None:
+            parse_revision_etag(None)
+        if expected_revision is not None and existing.revision != expected_revision:
+            raise _revision_conflict(record_payload(existing))
         existing.payload = data
         existing.revision += 1
+        operation = "updated"
     db.flush()
-    return copy.deepcopy(data)
+    result = record_payload(existing)
+    append_workspace_event(
+        db, resolved_workspace_id, user_id, kind, record_id,
+        operation, existing.revision, result,
+    )
+    return result
 
 
 def replace_collection(
@@ -642,7 +803,14 @@ def replace_collection(
     return rows
 
 
-def delete_record(db: Session, kind: str, record_id: str, user_id: str, workspace_id: str | None) -> None:
+def delete_record(
+    db: Session,
+    kind: str,
+    record_id: str,
+    user_id: str,
+    workspace_id: str | None,
+    expected_revision: int | None = None,
+) -> None:
     validate_kind(kind)
     record_id = validate_id(record_id)
     if kind == "workspaces":
@@ -650,6 +818,8 @@ def delete_record(db: Session, kind: str, record_id: str, user_id: str, workspac
         if row is None:
             return
         require_admin(db, record_id, user_id)
+        if expected_revision is not None and row.revision != expected_revision:
+            raise _revision_conflict(workspace_payload(db, row))
         db.delete(row)
         db.flush()
         return
@@ -660,12 +830,57 @@ def delete_record(db: Session, kind: str, record_id: str, user_id: str, workspac
     else:
         workspace_id = validate_id(workspace_id, "workspace_id")
         get_membership(db, workspace_id, user_id)
-        row = _find_record(db, kind, record_id, workspace_id)
+        row = _find_record(db, kind, record_id, workspace_id, lock=True)
         if row:
             authorize_mutation(db, kind, row.payload or {}, workspace_id, user_id, row.payload or {})
     if row:
+        if expected_revision is not None and row.revision != expected_revision:
+            raise _revision_conflict(record_payload(row))
+        current = record_payload(row)
+        append_workspace_event(
+            db, row.workspace_id, user_id, kind, record_id,
+            "deleted", row.revision, current,
+        )
         db.delete(row)
         db.flush()
+
+
+def list_workspace_events(
+    db: Session,
+    workspace_id: str,
+    user_id: str,
+    after_id: int,
+    *,
+    limit: int = 100,
+) -> list[TasklyticWorkspaceEvent]:
+    workspace_id = validate_id(workspace_id, "workspace_id")
+    require_capability(db, workspace_id, user_id, "view")
+    if after_id < 0:
+        raise HTTPException(status_code=422, detail="Event cursor must be non-negative")
+    return (
+        db.query(TasklyticWorkspaceEvent)
+        .filter(
+            TasklyticWorkspaceEvent.workspace_id == workspace_id,
+            TasklyticWorkspaceEvent.id > after_id,
+        )
+        .order_by(TasklyticWorkspaceEvent.id)
+        .limit(max(1, min(limit, 500)))
+        .all()
+    )
+
+
+def workspace_event_payload(row: TasklyticWorkspaceEvent) -> dict[str, Any]:
+    return {
+        "id": row.id,
+        "workspaceId": row.workspace_id,
+        "actorId": row.actor_id,
+        "entity": row.entity_kind,
+        "recordId": row.record_id,
+        "operation": row.operation,
+        "revision": row.revision,
+        "record": copy.deepcopy(row.payload),
+        "createdAt": row.created_at.isoformat() if row.created_at else utcnow().isoformat(),
+    }
 
 
 def bootstrap(db: Session, user_id: str, workspace_id: str | None) -> dict[str, Any]:
@@ -684,7 +899,13 @@ def bootstrap(db: Session, user_id: str, workspace_id: str | None) -> dict[str, 
                     collections[kind] = []
                     continue
                 collections[kind] = list_records(db, kind, user_id, workspace_id)
-    return {"workspaceId": workspace_id, "collections": collections, "generatedAt": utcnow().isoformat()}
+    capabilities = capabilities_for_user(db, workspace_id, user_id) if workspace_id else None
+    return {
+        "workspaceId": workspace_id,
+        "collections": collections,
+        "capabilities": capabilities,
+        "generatedAt": utcnow().isoformat(),
+    }
 
 
 def provision_bundle(db: Session, bundle: Any, token: dict[str, Any]) -> dict[str, Any]:

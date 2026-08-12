@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import html
+import json
 import os
 import re
 import secrets
@@ -13,7 +14,8 @@ from pathlib import PurePath
 from typing import Any
 from urllib.parse import quote
 
-from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request, Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -29,14 +31,18 @@ from services.rate_limit import rate_limiter
 from services.tasklytic_ai_service import generate_tasklytic_response
 from services.tasklytic_service import (
     ENTITY_POLICIES,
+    append_workspace_event,
     bootstrap,
+    capabilities_for_user,
     clear_user_data,
     delete_record,
     get_membership,
     invitation_payload,
+    format_revision_etag,
+    list_workspace_events,
     list_records,
     provision_bundle,
-    replace_collection,
+    parse_revision_etag,
     require_admin,
     resolve_workspace_id,
     token_hash,
@@ -46,6 +52,7 @@ from services.tasklytic_service import (
     validate_kind,
     validate_payload,
     workspace_payload,
+    workspace_event_payload,
     _find_record,
     authorize_record,
     authorize_mutation,
@@ -448,6 +455,71 @@ def get_bootstrap(
     return bootstrap(db, token["uid"], workspace_id)
 
 
+@router.get("/capabilities")
+def get_capabilities(
+    workspace_id: str = Query(...),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(workspace_id, "workspace_id")
+    return {"workspaceId": workspace_id, "capabilities": capabilities_for_user(db, workspace_id, token["uid"])}
+
+
+def _event_cursor(cursor: int | None, last_event_id: str | None) -> int:
+    raw: int | str | None = cursor if cursor is not None else last_event_id
+    if raw in (None, ""):
+        return 0
+    try:
+        parsed = int(raw)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="Event cursor must be a non-negative integer")
+    if parsed < 0:
+        raise HTTPException(status_code=422, detail="Event cursor must be a non-negative integer")
+    return parsed
+
+
+@router.get("/workspaces/{workspace_id}/events")
+async def stream_workspace_events(
+    workspace_id: str,
+    request: Request,
+    cursor: int | None = Query(default=None),
+    last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(workspace_id, "workspace_id")
+    next_cursor = _event_cursor(cursor, last_event_id)
+    get_membership(db, workspace_id, token["uid"])
+
+    async def events():
+        nonlocal next_cursor
+        idle_ticks = 0
+        while not await request.is_disconnected():
+            rows = list_workspace_events(db, workspace_id, token["uid"], next_cursor)
+            if rows:
+                idle_ticks = 0
+                for row in rows:
+                    next_cursor = row.id
+                    data = json.dumps(workspace_event_payload(row), separators=(",", ":"))
+                    yield f"id: {row.id}\nevent: workspace-change\ndata: {data}\n\n"
+                continue
+            idle_ticks += 1
+            if idle_ticks >= 15:
+                idle_ticks = 0
+                yield f": keep-alive {next_cursor}\n\n"
+            await asyncio.sleep(1)
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @router.post("/provision")
 def provision(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
     result = provision_bundle(db, body.get("bundle", body), token)
@@ -495,6 +567,10 @@ def send_invitations(body: dict[str, Any] = Body(...), token: dict = Depends(ver
         invite.delivery_state = "sent" if sent else "failed"
         invite.delivery_error = None if sent else "Email delivery failed"
         results.append({"email": email, "ok": sent, "emailSent": sent, "error": None if sent else "Email delivery failed", "invitation": invitation_payload(invite)})
+        append_workspace_event(
+            db, workspace_id, token["uid"], "workspaceInvitations",
+            str(invite.id), "created", invite.revision, invitation_payload(invite),
+        )
     _commit(db)
     return {"results": results}
 
@@ -509,6 +585,11 @@ def accept_invitation(body: dict[str, Any] = Body(...), token: dict = Depends(ve
         raise HTTPException(status_code=409, detail="This invitation is invalid or is no longer available")
     if _expired(invite.expires_at):
         invite.status = "expired"
+        invite.revision += 1
+        append_workspace_event(
+            db, invite.workspace_id, token["uid"], "workspaceInvitations",
+            str(invite.id), "updated", invite.revision, invitation_payload(invite),
+        )
         _commit(db)
         raise HTTPException(status_code=410, detail="This invitation has expired")
     email = str(token.get("email") or "").strip().lower()
@@ -532,6 +613,11 @@ def accept_invitation(body: dict[str, Any] = Body(...), token: dict = Depends(ve
     invite.status = "accepted"
     invite.accepted_by_id = token["uid"]
     invite.accepted_at = utcnow()
+    invite.revision += 1
+    append_workspace_event(
+        db, invite.workspace_id, token["uid"], "workspaceInvitations",
+        str(invite.id), "updated", invite.revision, invitation_payload(invite),
+    )
     _commit(db)
     return {"workspaceId": invite.workspace_id, "role": invite.role}
 
@@ -544,6 +630,11 @@ def revoke_invitation(invitation_id: uuid.UUID, token: dict = Depends(verify_fir
     require_admin(db, invite.workspace_id, token["uid"])
     if invite.status == "pending":
         invite.status = "revoked"
+        invite.revision += 1
+        append_workspace_event(
+            db, invite.workspace_id, token["uid"], "workspaceInvitations",
+            str(invite.id), "updated", invite.revision, invitation_payload(invite),
+        )
     _commit(db)
     return invitation_payload(invite)
 
@@ -697,30 +788,58 @@ def put_collection(
     entity: str, items: list[Any] = Body(...), workspace_id: str | None = Query(default=None),
     token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
 ):
-    result = replace_collection(db, entity, items, token["uid"], workspace_id)
-    _commit(db)
-    return result
+    validate_kind(entity)
+    raise HTTPException(
+        status_code=405,
+        detail="Collection replacement is disabled; use revision-checked record endpoints",
+    )
 
 
 @router.put("/{entity}/{record_id}")
 def put_record(
-    entity: str, record_id: str, body: dict[str, Any] = Body(...), workspace_id: str | None = Query(default=None),
+    entity: str, record_id: str, response: Response,
+    body: dict[str, Any] = Body(...), workspace_id: str | None = Query(default=None),
+    if_match: str | None = Header(default=None, alias="If-Match"),
     token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
 ):
     validate_id(record_id)
     expected = body.get("id") or ("session" if entity == "session" else None)
     if expected != record_id:
         raise HTTPException(status_code=422, detail="Path id does not match payload id")
-    result = upsert_record(db, entity, body, token["uid"], workspace_id)
+    validate_kind(entity)
+    existing = None
+    if entity == "workspaces":
+        existing = db.get(TasklyticWorkspace, record_id)
+    elif entity in {"session", "notifications", "pendingEmails"}:
+        owner_id = token["uid"] if entity != "notifications" else body.get("userId")
+        existing = db.query(TasklyticEntityRecord).filter_by(
+            entity_kind=entity, record_id=record_id, user_id=owner_id,
+        ).one_or_none()
+    elif workspace_id:
+        get_membership(db, workspace_id, token["uid"])
+        existing = _find_record(db, entity, record_id, workspace_id)
+    expected_revision = parse_revision_etag(if_match) if existing is not None else None
+    result = upsert_record(
+        db,
+        entity,
+        body,
+        token["uid"],
+        workspace_id,
+        expected_revision,
+        enforce_precondition=True,
+    )
     _commit(db)
+    response.headers["ETag"] = format_revision_etag(result["revision"])
     return result
 
 
 @router.delete("/{entity}/{record_id}", status_code=204)
 def remove_record(
     entity: str, record_id: str, workspace_id: str | None = Query(default=None),
+    if_match: str | None = Header(default=None, alias="If-Match"),
     token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
 ):
-    delete_record(db, entity, record_id, token["uid"], workspace_id)
+    expected_revision = parse_revision_etag(if_match)
+    delete_record(db, entity, record_id, token["uid"], workspace_id, expected_revision)
     _commit(db)
     return None

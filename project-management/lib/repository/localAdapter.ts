@@ -57,16 +57,18 @@ export const localRepositoryAdapter: RepositoryAdapter = {
     return readRaw(entity) as T[]
   },
 
-  async saveAll<T>(entity: EntityKind, items: T[]): Promise<void> {
+  async saveAll<T extends { id?: ID }>(entity: EntityKind, items: T[]): Promise<T[]> {
     writeRaw(entity, items)
+    return items
   },
 
-  async upsertOne<T extends { id: ID }>(entity: EntityKind, item: T): Promise<void> {
+  async upsertOne<T extends { id: ID }>(entity: EntityKind, item: T): Promise<T> {
     const items = readRaw(entity) as T[]
     const idx = items.findIndex((i) => i.id === item.id)
     if (idx >= 0) items[idx] = item
     else items.push(item)
     writeRaw(entity, items)
+    return item
   },
 
   async removeOne(entity: EntityKind, id: ID): Promise<void> {

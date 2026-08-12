@@ -13,12 +13,20 @@ import { ensureRecommendedFields } from './lib/customFields/seedRecommendedField
 import { buildStarterContent } from './lib/provision'
 import { hydrateTasklytic, rehydrateGlobalStores, rehydrateWorkspaceStores } from './stores/hydrate'
 import { getRepository } from './lib/repository'
+import {
+  registerConflictHandler,
+  type RevisionConflict,
+} from './lib/concurrency'
 import { setActiveRepositoryWorkspaceId } from './lib/repository/workspaceScope'
 import { OnboardingWizard } from './features/onboarding/OnboardingWizard'
 import { ProductTour } from './features/onboarding/ProductTour'
 import { registerOnboardingWizardStarter } from './features/onboarding/startOnboardingWizard'
 import { TasklyticErrorBoundary } from './features/ui/TasklyticErrorBoundary'
 import { TasklyticServiceUnavailable } from './features/ui/TasklyticServiceUnavailable'
+import {
+  TasklyticConflictState,
+  TasklyticLoadingState,
+} from './features/ui/TasklyticDataStates'
 import { useActivityHeartbeat } from './hooks/useActivityHeartbeat'
 import { useAuthStore, useUiStore } from './stores/auth'
 import {
@@ -57,6 +65,7 @@ export function TasklyticProvider({ children }: Props) {
   const [bootError, setBootError] = useState<string | null>(null)
   const [authWaitExpired, setAuthWaitExpired] = useState(false)
   const [bootAttempt, setBootAttempt] = useState(0)
+  const [revisionConflict, setRevisionConflict] = useState<RevisionConflict | null>(null)
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const activeWorkspaceId = useUiStore((s) => s.activeWorkspaceId)
   const firstWorkspaceId = useWorkspacesStore((s) => {
@@ -95,6 +104,11 @@ export function TasklyticProvider({ children }: Props) {
       setOnboardingOpen(true)
     })
     return () => registerOnboardingWizardStarter(null)
+  }, [])
+
+  useEffect(() => {
+    registerConflictHandler(setRevisionConflict)
+    return () => registerConflictHandler(null)
   }, [])
 
   useActivityHeartbeat()
@@ -281,20 +295,25 @@ export function TasklyticProvider({ children }: Props) {
     }
   }, [bootReady])
 
+  useEffect(() => {
+    if (!bootReady || !usesTasklyticBackend() || !effectiveWorkspaceId) return
+    return getRepository().connectWorkspaceEvents?.(effectiveWorkspaceId)
+  }, [bootReady, effectiveWorkspaceId])
+
   const waitingOnAuth = authLoading && !authWaitExpired
 
   if (waitingOnAuth) {
     return (
-      <div className="tasklytic-root flex min-h-[320px] items-center justify-center">
-        <p className="text-sm text-[var(--ink-muted)]">Loading project management…</p>
+      <div className="tasklytic-root min-h-[320px] px-6 py-8">
+        <TasklyticLoadingState label="Loading project management…" />
       </div>
     )
   }
 
   if (!bootReady) {
     return (
-      <div className="tasklytic-root flex min-h-[320px] items-center justify-center">
-        <p className="text-sm text-[var(--ink-muted)]">Loading your workspace…</p>
+      <div className="tasklytic-root min-h-[320px] px-6 py-8">
+        <TasklyticLoadingState label="Loading your workspace…" />
       </div>
     )
   }
@@ -310,6 +329,24 @@ export function TasklyticProvider({ children }: Props) {
   return (
     <TasklyticErrorBoundary>
       {children}
+      {revisionConflict ? (
+        <div
+          className="fixed inset-x-4 bottom-4 z-[120] mx-auto max-w-lg"
+          aria-live="assertive"
+        >
+          <TasklyticConflictState
+            description={`${revisionConflict.entity} “${revisionConflict.current.id}” changed after you loaded it.`}
+            onReload={() => {
+              const workspaceId = useUiStore.getState().activeWorkspaceId
+              void (async () => {
+                await rehydrateGlobalStores()
+                if (workspaceId) await rehydrateWorkspaceStores(workspaceId)
+                setRevisionConflict(null)
+              })()
+            }}
+          />
+        </div>
+      ) : null}
       <OnboardingWizard
         open={onboardingOpen}
         onOpenChange={(open) => {

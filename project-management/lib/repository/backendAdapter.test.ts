@@ -1,46 +1,135 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const apiJson = vi.fn()
-const apiFetch = vi.fn()
 
-vi.mock('../tasklyticApi', () => ({
-  tasklyticApiJson: apiJson,
-  tasklyticApiFetch: apiFetch,
+vi.mock('../tasklyticApi', () => {
+  class TasklyticApiError extends Error {
+    constructor(
+      message: string,
+      readonly status: number,
+      readonly detail?: unknown,
+    ) {
+      super(message)
+    }
+  }
+  return { tasklyticApiJson: apiJson, TasklyticApiError }
+})
+
+vi.mock('../workspaceEvents', () => ({
+  connectWorkspaceEventStream: vi.fn(() => vi.fn()),
 }))
+
+const allCapabilities = {
+  view: true,
+  edit: true,
+  submit: true,
+  approve: true,
+  bill: true,
+  payment: true,
+  trust: true,
+  rate: true,
+  'workspace-administration': true,
+}
 
 describe('backendRepositoryAdapter', () => {
   beforeEach(async () => {
     vi.resetModules()
     apiJson.mockReset()
-    apiFetch.mockReset()
     const scope = await import('./workspaceScope')
     scope.setActiveRepositoryWorkspaceId('w1')
   })
 
-  it('shares one bootstrap request across concurrent store hydration', async () => {
+  it('shares one bootstrap request and retains exposed revisions', async () => {
     apiJson.mockResolvedValue({
       workspaceId: 'w1',
       generatedAt: new Date().toISOString(),
-      collections: { tasks: [{ id: 't1' }], projects: [{ id: 'p1' }] },
+      capabilities: allCapabilities,
+      collections: {
+        tasks: [{ id: 't1', revision: 3 }],
+        projects: [{ id: 'p1', revision: 2 }],
+      },
     })
     const { backendRepositoryAdapter } = await import('./backendAdapter')
     const [tasks, projects] = await Promise.all([
-      backendRepositoryAdapter.loadAll<{ id: string }>('tasks'),
-      backendRepositoryAdapter.loadAll<{ id: string }>('projects'),
+      backendRepositoryAdapter.loadAll<{ id: string; revision: number }>('tasks'),
+      backendRepositoryAdapter.loadAll<{ id: string; revision: number }>('projects'),
     ])
     expect(apiJson).toHaveBeenCalledTimes(1)
-    expect(tasks).toEqual([{ id: 't1' }])
-    expect(projects).toEqual([{ id: 'p1' }])
+    expect(tasks[0].revision).toBe(3)
+    expect(projects[0].revision).toBe(2)
   })
 
-  it('does not update its cache after a failed delete', async () => {
-    apiJson.mockResolvedValue({
-      workspaceId: 'w1', generatedAt: new Date().toISOString(), collections: { tasks: [{ id: 't1' }] },
+  it('sends If-Match and caches the server revision after an update', async () => {
+    apiJson
+      .mockResolvedValueOnce({
+        workspaceId: 'w1',
+        generatedAt: new Date().toISOString(),
+        capabilities: allCapabilities,
+        collections: { tasks: [{ id: 't1', name: 'Before', revision: 7 }] },
+      })
+      .mockResolvedValueOnce({ id: 't1', name: 'After', revision: 8 })
+    const { backendRepositoryAdapter } = await import('./backendAdapter')
+    const [task] = await backendRepositoryAdapter.loadAll<{
+      id: string
+      name: string
+      revision: number
+    }>('tasks')
+    const saved = await backendRepositoryAdapter.upsertOne('tasks', {
+      ...task,
+      name: 'After',
     })
-    apiFetch.mockResolvedValue({ ok: false, status: 403, json: async () => ({ detail: 'denied' }) })
+    expect(apiJson).toHaveBeenLastCalledWith(
+      '/tasks/t1?workspace_id=w1',
+      expect.objectContaining({ headers: { 'If-Match': '"7"' } }),
+    )
+    expect(saved.revision).toBe(8)
+  })
+
+  it('reports a revision conflict without replacing the loaded record', async () => {
+    const { registerConflictHandler } = await import('../concurrency')
+    const conflicts: unknown[] = []
+    registerConflictHandler((conflict) => conflicts.push(conflict))
+    apiJson.mockResolvedValueOnce({
+      workspaceId: 'w1',
+      generatedAt: new Date().toISOString(),
+      capabilities: allCapabilities,
+      collections: { tasks: [{ id: 't1', name: 'Loaded', revision: 1 }] },
+    })
+    const { TasklyticApiError } = await import('../tasklyticApi')
+    apiJson.mockRejectedValueOnce(new TasklyticApiError(
+      'conflict',
+      409,
+      {
+        code: 'revision_conflict',
+        current: { id: 't1', name: 'Current', revision: 2 },
+      },
+    ))
     const { backendRepositoryAdapter } = await import('./backendAdapter')
     await backendRepositoryAdapter.loadAll('tasks')
-    await expect(backendRepositoryAdapter.removeOne('tasks', 't1')).rejects.toThrow('denied')
-    expect(await backendRepositoryAdapter.loadAll('tasks')).toEqual([{ id: 't1' }])
+    await expect(backendRepositoryAdapter.upsertOne('tasks', {
+      id: 't1',
+      name: 'Attempt',
+      revision: 1,
+    })).rejects.toMatchObject({ name: 'RevisionConflictError' })
+    expect(conflicts).toHaveLength(1)
+    expect(await backendRepositoryAdapter.loadAll('tasks')).toEqual([
+      { id: 't1', name: 'Loaded', revision: 1 },
+    ])
+  })
+
+  it('enforces frontend capabilities before issuing a mutation', async () => {
+    apiJson.mockResolvedValueOnce({
+      workspaceId: 'w1',
+      generatedAt: new Date().toISOString(),
+      capabilities: { ...allCapabilities, payment: false },
+      collections: { payments: [{ id: 'pay1', revision: 1 }] },
+    })
+    const { backendRepositoryAdapter } = await import('./backendAdapter')
+    await backendRepositoryAdapter.loadAll('payments')
+    await expect(backendRepositoryAdapter.upsertOne('payments', {
+      id: 'pay1',
+      revision: 1,
+    })).rejects.toMatchObject({ name: 'TasklyticForbiddenError', capability: 'payment' })
+    expect(apiJson).toHaveBeenCalledTimes(1)
   })
 })

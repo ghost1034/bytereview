@@ -5945,6 +5945,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tasklytic/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Capabilities */
+        get: operations["get_capabilities_api_tasklytic_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tasklytic/workspaces/{workspace_id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stream Workspace Events */
+        get: operations["stream_workspace_events_api_tasklytic_workspaces__workspace_id__events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tasklytic/provision": {
         parameters: {
             query?: never;
@@ -27565,6 +27599,72 @@ export interface operations {
             };
         };
     };
+    get_capabilities_api_tasklytic_capabilities_get: {
+        parameters: {
+            query: {
+                workspace_id: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    stream_workspace_events_api_tasklytic_workspaces__workspace_id__events_get: {
+        parameters: {
+            query?: {
+                cursor?: number | null;
+            };
+            header?: {
+                "Last-Event-ID"?: string | null;
+            };
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     provision_api_tasklytic_provision_post: {
         parameters: {
             query?: never;
@@ -28035,7 +28135,9 @@ export interface operations {
             query?: {
                 workspace_id?: string | null;
             };
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 entity: string;
                 record_id: string;
@@ -28075,7 +28177,9 @@ export interface operations {
             query?: {
                 workspace_id?: string | null;
             };
-            header?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
             path: {
                 entity: string;
                 record_id: string;

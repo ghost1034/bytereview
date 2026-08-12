@@ -37,7 +37,15 @@ export type User = {
   timekeeperRole?: string
   defaultActivityCode?: string
   timekeeperId?: string
-  roleFlags?: { canViewAllTime?: boolean; canBill?: boolean; canRecordPayments?: boolean }
+  roleFlags?: {
+    canViewAllTime?: boolean
+    canSubmit?: boolean
+    canApprove?: boolean
+    canBill?: boolean
+    canRecordPayments?: boolean
+    canManageTrust?: boolean
+    canManageRates?: boolean
+  }
   createdAt: ISODateTime
 }
 
@@ -537,12 +545,15 @@ export type ProjectTemplate = {
 }
 
 export type Session = {
+  id?: ID
+  revision?: number
   currentUserId: ID | null
   partition?: 'default' | `eval:${string}`
 }
 
 export type WorkspaceInvitation = {
   id: ID
+  revision?: number
   workspaceId: ID
   email: string
   role: 'admin' | 'member' | 'guest'

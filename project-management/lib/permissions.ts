@@ -1,9 +1,42 @@
 import type { Team, User, Workspace } from '../types'
+import type {
+  TasklyticCapabilities,
+  TasklyticCapability,
+} from './repository/types'
+
+/** UI capability projection matching the authoritative backend policy. */
+export function workspaceCapabilitiesForUser(
+  user: User | null | undefined,
+  workspace: Workspace | undefined,
+): TasklyticCapabilities {
+  const role = user && workspace ? workspaceRoleForUser(user.id, workspace) : null
+  const flags = user?.roleFlags
+  const isAdmin = role === 'admin'
+  const isMember = role === 'member'
+  return {
+    view: role !== null,
+    edit: isAdmin || isMember,
+    submit: isAdmin || isMember || flags?.canSubmit === true,
+    approve: isAdmin || flags?.canApprove === true,
+    bill: isAdmin || flags?.canBill === true,
+    payment: isAdmin || flags?.canRecordPayments === true,
+    trust: isAdmin || flags?.canManageTrust === true,
+    rate: isAdmin || flags?.canManageRates === true,
+    'workspace-administration': isAdmin,
+  }
+}
+
+export function canPerformWorkspaceAction(
+  user: User | null | undefined,
+  workspace: Workspace | undefined,
+  capability: TasklyticCapability,
+): boolean {
+  return workspaceCapabilitiesForUser(user, workspace)[capability]
+}
 
 /** True when the user is a workspace admin. */
 export function isWorkspaceAdmin(user: User | null | undefined, workspace: Workspace | undefined): boolean {
-  if (!user || !workspace) return false
-  return workspace.adminIds.includes(user.id)
+  return canPerformWorkspaceAction(user, workspace, 'workspace-administration')
 }
 
 /** True when the user is a team admin or workspace admin. */

@@ -51,9 +51,9 @@ export function createEntityStore<T extends { id: ID }>(entity: EntityKind) {
 
     async add(item) {
       const repo = getRepository()
-      await repo.upsertOne(entity, item)
+      const saved = await repo.upsertOne(entity, item)
       logMutation({ entity, action: 'add', id: item.id })
-      set((s) => ({ items: { ...s.items, [item.id]: item } }))
+      set((s) => ({ items: { ...s.items, [item.id]: saved as T } }))
     },
 
     async update(id, patch) {
@@ -61,9 +61,9 @@ export function createEntityStore<T extends { id: ID }>(entity: EntityKind) {
       if (!current) return
       const next = { ...current, ...patch } as T
       const repo = getRepository()
-      await repo.upsertOne(entity, next)
+      const saved = await repo.upsertOne(entity, next)
       logMutation({ entity, action: 'update', id })
-      set((s) => ({ items: { ...s.items, [id]: next } }))
+      set((s) => ({ items: { ...s.items, [id]: saved as T } }))
     },
 
     async remove(id) {
@@ -79,10 +79,10 @@ export function createEntityStore<T extends { id: ID }>(entity: EntityKind) {
 
     async bulkSet(rows) {
       const repo = getRepository()
-      await repo.saveAll(entity, rows)
+      const saved = await repo.saveAll(entity, rows)
       logMutation({ entity, action: 'bulkSet' })
       const items: Record<ID, T> = {}
-      rows.forEach((row) => {
+      saved.forEach((row) => {
         items[row.id] = row
       })
       set({ items })

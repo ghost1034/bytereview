@@ -91,6 +91,32 @@ class TasklyticEntityRecord(Base):
     )
 
 
+class TasklyticWorkspaceEvent(Base):
+    __tablename__ = "tasklytic_workspace_events"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    workspace_id = Column(
+        String(128),
+        ForeignKey("tasklytic_workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    actor_id = Column(String(128), nullable=False)
+    entity_kind = Column(String(64), nullable=False)
+    record_id = Column(String(128), nullable=False)
+    operation = Column(String(16), nullable=False)
+    revision = Column(Integer, nullable=False)
+    payload = Column(JSON_PAYLOAD, nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (
+        CheckConstraint(
+            "operation IN ('created', 'updated', 'deleted')",
+            name="ck_tasklytic_workspace_event_operation",
+        ),
+        Index("ix_tasklytic_workspace_events_workspace_id_id", "workspace_id", "id"),
+    )
+
+
 class TasklyticInvitation(Base):
     __tablename__ = "tasklytic_invitations"
 
@@ -109,6 +135,7 @@ class TasklyticInvitation(Base):
     status = Column(String(16), nullable=False, default="pending", server_default="pending")
     delivery_state = Column(String(16), nullable=False, default="pending", server_default="pending")
     delivery_error = Column(Text, nullable=True)
+    revision = Column(Integer, nullable=False, default=1, server_default="1")
     expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
     accepted_by_id = Column(String(128), nullable=True)
     accepted_at = Column(TIMESTAMP(timezone=True), nullable=True)

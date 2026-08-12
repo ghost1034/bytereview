@@ -6,6 +6,17 @@ import { getCurrentAuthToken } from '@/lib/firebase'
 export const TASKLYTIC_API_BASE = '/api/tasklytic'
 const FETCH_TIMEOUT_MS = 20_000
 
+export class TasklyticApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly detail?: unknown,
+  ) {
+    super(message)
+    this.name = 'TasklyticApiError'
+  }
+}
+
 export async function tasklyticAuthHeaders(): Promise<Record<string, string>> {
   const token = await getCurrentAuthToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
@@ -34,13 +45,15 @@ export async function tasklyticApiJson<T>(path: string, init: RequestInit = {}):
   })
   if (!res.ok) {
     let message = `Tasklytic API ${path}: ${res.status}`
+    let detail: unknown
     try {
       const body = await res.json()
-      message = body?.detail || body?.message || message
+      detail = body?.detail
+      message = typeof body?.detail === 'string' ? body.detail : body?.detail?.message || body?.message || message
     } catch {
       /* ignore non-JSON error bodies */
     }
-    throw new Error(message)
+    throw new TasklyticApiError(message, res.status, detail)
   }
   if (res.status === 204) return undefined as T
   return res.json() as Promise<T>
@@ -51,5 +64,15 @@ export async function tasklyticApiFetch(path: string, init: RequestInit = {}): P
   return fetchWithTimeout(`${TASKLYTIC_API_BASE}${path}`, {
     ...init,
     headers: { 'Content-Type': 'application/json', ...headers, ...(init.headers ?? {}) },
+  })
+}
+
+/** Authenticated streaming fetch without the normal request timeout. */
+export async function tasklyticEventFetch(path: string, signal: AbortSignal): Promise<Response> {
+  const headers = await tasklyticAuthHeaders()
+  return fetch(`${TASKLYTIC_API_BASE}${path}`, {
+    headers: { Accept: 'text/event-stream', ...headers },
+    cache: 'no-store',
+    signal,
   })
 }
