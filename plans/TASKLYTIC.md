@@ -129,4 +129,4 @@ Milestone C: production launch after migration rehearsal, capability enablement,
 
 - Every phase begins from the predecessor and is delivered as a separately reviewable change set.
 - Every phase runs targeted tests first, followed by Tasklytic lint, TypeScript, frontend unit tests, `backend/tests/test_tasklytic_service.py`, relevant new backend tests, and OpenAPI freshness checks.
-- A green Next.js build alone is not accepted as type or lint evidence.
+- Create a git commit after each phase, but do not push.

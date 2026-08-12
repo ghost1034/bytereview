@@ -126,32 +126,11 @@ function initialState(planHash) {
 function phasePrompt(phase) {
   return `Implement exactly Phase ${phase.number} of plans/TASKLYTIC.md: ${phase.title}.
 
-Read and follow AGENTS.md and the complete plans/TASKLYTIC.md before changing
-anything. Start from the current working tree, which includes the work from all
-predecessor phases and may contain unrelated user changes. Preserve those
-changes. Inspect the real implementation before deciding what to edit. Treat
-plans/TASKLYTIC.md as the runner's immutable input; do not edit that file.
-
-Complete every requirement in this phase and satisfy its exit gate end to end.
-Run focused checks first, followed by every verification required by this phase
-and by the plan's Verification Rules. Fix failures caused by this phase. Do not
-start a later phase.
-
-Do not deploy to production or any shared environment. Do not push, create a
-pull request, create a commit, reset, revert, or discard existing changes. Do
-not weaken tests or quality gates to make verification pass. Make reasonable,
-safe implementation decisions without waiting for interactive input. If a real
-external dependency makes the exit gate impossible, preserve useful in-scope
-work and report the phase as blocked.
-
 The exact phase section is reproduced below:
 
 ${phase.section}
 
-Your final response must match the supplied JSON schema. Use status "completed"
-only if every phase requirement and the exit gate are genuinely complete.
-Otherwise use "blocked" and list the concrete blockers. Include the important
-verification commands/results and changed files.`;
+Your final response must match the supplied JSON schema. Use status "completed" if every phase requirement and the exit gate are complete. Otherwise use "blocked" and list the concrete blockers. Only use "blocked" if human action is genuinely required before the next phase can begin.`;
 }
 
 function runCodex(args, prompt) {
@@ -257,7 +236,7 @@ if (selectedPhases.length === 0) {
 
 console.log(`Tasklytic plan: ${planPath}`);
 console.log(`Sessions: Phase ${selectedPhases[0].number} through Phase ${selectedPhases.at(-1).number}`);
-console.log(`Codex: ${codexBin} exec --sandbox workspace-write --approve-for-me`);
+console.log(`Codex: ${codexBin} exec --dangerously-bypass-approvals-and-sandbox`);
 
 if (options.dryRun) {
   for (const phase of selectedPhases) {
@@ -351,9 +330,7 @@ for (const phase of selectedPhases) {
         'exec',
         '--cd',
         repoRoot,
-        '--sandbox',
-        'workspace-write',
-        '--approve-for-me',
+        '--dangerously-bypass-approvals-and-sandbox',
         '--output-schema',
         schemaPath,
         '--output-last-message',
@@ -430,4 +407,4 @@ for (const phase of selectedPhases) {
 releaseLock();
 console.log(`\nCompleted Tasklytic Phases ${selectedPhases[0].number}-${selectedPhases.at(-1).number}.`);
 console.log(`Results and resumable state: ${stateDir}`);
-console.log('No deployment, commit, push, or pull request was performed by the runner.');
+console.log('No deployment, push, or pull request was performed by the runner.');
