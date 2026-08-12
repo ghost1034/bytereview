@@ -172,7 +172,7 @@ export class WorkspaceSearchIndex {
   }
 }
 
-let sharedIndex = new WorkspaceSearchIndex()
+    const sharedIndex = new WorkspaceSearchIndex()
 
 export function getSearchIndex(tasks: Task[], projects: Project[], comments: Comment[] = []): WorkspaceSearchIndex {
   const lookup = new Map(tasks.map((t) => [t.id, t.workspaceId]))

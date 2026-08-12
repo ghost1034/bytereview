@@ -1,7 +1,7 @@
 import type { Invoice } from '../../types'
 import type { AccountingAdapter } from './types'
 
-/** V1 stub — JSON export only; bind real ERP in Settings → Integrations. */
+/** Local JSON export; unsupported ERP connections remain hidden. */
 export const stubAccountingAdapter: AccountingAdapter = {
   provider: 'stub',
   async exportInvoice(invoice) {

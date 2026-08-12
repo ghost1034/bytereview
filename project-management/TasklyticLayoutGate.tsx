@@ -6,7 +6,7 @@ import { TasklyticChrome } from '@/project-management/TasklyticChrome'
 import { TasklyticProvider } from '@/project-management/TasklyticProvider'
 
 /**
- * Skips chrome for public form pages. ByteReview's dashboard already gates
+ * Skips chrome for public form pages. CPAAutomation's dashboard already gates
  * access behind Firebase auth, so the authenticated app simply bridges that
  * session through TasklyticProvider — Tasklytic owns no auth/profile screens.
  */

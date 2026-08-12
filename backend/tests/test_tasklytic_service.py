@@ -104,6 +104,20 @@ def test_policy_registry_covers_locked_frontend_entity_union():
     assert set(ENTITY_POLICIES) == EXPECTED_KINDS
 
 
+def test_authenticated_routes_reject_missing_firebase_identity(db):
+    app = FastAPI()
+    app.include_router(tasklytic_router)
+
+    def override_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+
+    assert client.get("/api/tasklytic/bootstrap").status_code == 401
+    assert client.get("/api/tasklytic/public/forms/not-published").status_code == 404
+
+
 def test_provision_is_atomic_shape_and_idempotent(db):
     token = {"uid": "owner", "email": "owner@example.com"}
     first = provision_bundle(db, starter_bundle(), token)
@@ -159,6 +173,12 @@ def test_cross_workspace_parent_reference_and_privilege_escalation_are_rejected(
     with pytest.raises(HTTPException) as exc:
         upsert_record(db, "users", {"id": "member", "name": "M", "email": "m@example.com", "role": "admin"}, "member", "w1")
     assert exc.value.status_code == 403
+
+    with pytest.raises(HTTPException) as exc:
+        upsert_record(db, "users", {
+            "id": "member", "name": "M", "email": "m@example.com", "role": "trial"
+        }, "owner", "w1")
+    assert exc.value.status_code == 422
 
 
 def test_collection_replace_removes_omitted_records_and_rejects_unknown_kind(db):

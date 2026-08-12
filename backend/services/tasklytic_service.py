@@ -92,6 +92,7 @@ PSA_BILLING_KINDS = frozenset(
 )
 PRIVILEGE_USER_FIELDS = frozenset({"role", "roleFlags", "defaultHourlyRate", "timekeeperRole", "timekeeperId"})
 MEMBERSHIP_PAYLOAD_FIELDS = frozenset({"memberIds", "adminIds", "guestIds"})
+USER_ROLES = frozenset({"admin", "member", "guest"})
 
 
 def utcnow() -> datetime:
@@ -549,6 +550,8 @@ def upsert_record(
         raise HTTPException(status_code=405, detail="Use the invitation endpoints")
     data = validate_payload(payload, require_id=kind != "session")
     record_id = validate_id(data.get("id") or "session")
+    if kind == "users" and data.get("role") not in USER_ROLES:
+        raise HTTPException(status_code=422, detail="User role must be admin, member, or guest")
     if kind == "session":
         data["currentUserId"] = user_id
     if kind == "notifications":

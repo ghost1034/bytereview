@@ -15,7 +15,7 @@ export type User = {
   name: string
   email: string
   avatarColor: string
-  role: 'admin' | 'member' | 'guest' | 'trial'
+  role: 'admin' | 'member' | 'guest'
   jobTitle?: string
   timezone?: string
   lastActiveAt?: ISODateTime
@@ -538,7 +538,7 @@ export type ProjectTemplate = {
 
 export type Session = {
   currentUserId: ID | null
-  partition?: 'default' | 'trial' | `eval:${string}`
+  partition?: 'default' | `eval:${string}`
 }
 
 export type WorkspaceInvitation = {

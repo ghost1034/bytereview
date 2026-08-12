@@ -1,15 +1,15 @@
-# Tasklytic — Design Log
+# AI Project Management — Design Log
 
-Production-grade, multi-tenant work-management module built incrementally from build-plan docs `00`–`30`, integrated into the ByteReview Next.js app. Mounts at `/dashboard/tasklytic`, bridges ByteReview Firebase auth, and persists through a swappable repository adapter.
+Production-grade, multi-tenant work-management module built incrementally from build-plan docs `00`–`30`, integrated into the CPAAutomation Next.js app. `Tasklytic` remains the internal code name; the customer-facing name is **AI Project Management**. It mounts at the canonical authenticated route `/dashboard/project-management`, bridges CPAAutomation Firebase auth, and persists through FastAPI/PostgreSQL. See `plans/TASKLYTIC-TRACEABILITY.md` for accepted and superseded requirements.
 
-> Integration note: the build-plan docs target Vite + React Router. This module adapts every step to **Next.js App Router** + ByteReview's **shadcn/ui** while preserving the locked data model and adapter architecture. The standalone public marketing site from `01b §7` is intentionally **out of scope** (it conflicts with ByteReview's own marketing site/routing); all in-app aesthetics from `01b` are implemented.
+> Integration note: the build-plan docs target Vite + React Router. This module adapts every step to **Next.js App Router** + CPAAutomation's **shadcn/ui** while preserving the locked data model and adapter architecture. The standalone public marketing site from `01b §7` is intentionally **out of scope** because CPAAutomation owns marketing and routing; all in-app aesthetics from `01b` are implemented.
 
 ## Tech stack
 
 - Next.js App Router (client components), React + TypeScript (strict, no `any`)
 - shadcn/ui primitives (`@/components/ui/*`), Tailwind CSS
 - Zustand stores (one per entity domain), `@dnd-kit` for drag-and-drop, recharts via `@/components/ui/chart`
-- Feature code persists only through `RepositoryAdapter`; localStorage is an inactive, namespace-isolated fallback and production uses the FastAPI/PostgreSQL adapter.
+- Feature code persists only through `RepositoryAdapter`; authenticated customer use requires FastAPI/PostgreSQL. localStorage is limited to tests and explicitly gated internal evaluation tooling, and legacy browser keys are left untouched.
 - Warm, editorial Anthropic-inspired theme scoped under `.tasklytic-root` (`styles/tasklytic.css`)
 
 ## Design tokens (01 / 01b)
@@ -23,14 +23,14 @@ Additive extensions added during rebuild: workspace invitations/plans, billing i
 
 ## Adapter seams (production swap-out points)
 
-- **RepositoryAdapter** (`lib/repository`) — the original frontend seam remains. `NEXT_PUBLIC_TASKLYTIC_BACKEND=1` selects the implemented REST adapter, which hydrates from one `/api/tasklytic/bootstrap` snapshot and persists JSON payloads behind authoritative PostgreSQL tenancy and membership columns. The partitioned localStorage adapter remains only as a flag-disabled fallback; existing browser records are neither imported nor erased.
-- **Authentication & user profiles** — delegated entirely to the host ByteReview platform (Firebase `useAuth`). Tasklytic owns no sign-in/up, password, OAuth, or profile-editing screens; the dashboard gates access and `TasklyticProvider` bridges the Firebase session into a linked Tasklytic `User`. Sign-out routes through ByteReview's `useAuth().signOut()`.
-- **EmailAdapter** (`lib/email`) — backend mode delivers through the authenticated Gmail-backed API; fallback mode queues private `PendingEmail` records locally.
-- **FileStorageAdapter** (`lib/fileStorage`) — backend mode uses signed direct uploads through the configured local/GCS object store; fallback mode retains inline data URLs.
-- **FileStorageAdapter** (`lib/fileStorage`) — selected by `NEXT_PUBLIC_FILE_STORAGE_ADAPTER=gcs`. Signed-URL uploads (100 MB cap) to the shared private GCS bucket via `/api/tasklytic/files:*`; metadata tracked in `tasklytic_file_uploads` for workspace-scoped access.
-- **CloudDriveAdapter** (`lib/cloudDrive`) — V1 connect stub; production Drive/OneDrive/Dropbox OAuth.
+- **RepositoryAdapter** (`lib/repository`) — customer use always selects the REST adapter, which hydrates from `/api/tasklytic/bootstrap` and persists JSON payloads behind authoritative PostgreSQL tenancy and membership columns. The local adapter is test/evaluation-only; existing browser records are neither imported nor erased.
+- **Authentication & user profiles** — delegated entirely to the host CPAAutomation platform (Firebase `useAuth`). AI Project Management owns no sign-in/up, password, OAuth, profile-editing, guest-continuation, or trial screens; the dashboard gates access and `TasklyticProvider` bridges the Firebase session into a linked user.
+- **EmailAdapter** (`lib/email`) — customer mode delivers through the authenticated Gmail-backed API; local queuing is test/evaluation-only.
+- **FileStorageAdapter** (`lib/fileStorage`) — customer mode uses signed direct uploads through the configured local/GCS object store; inline data URLs are test/evaluation-only.
+- **FileStorageAdapter** (`lib/fileStorage`) — customer mode uses signed-URL uploads (100 MB cap) to the configured private local/GCS object store via `/api/tasklytic/files:*`; metadata is tracked in `tasklytic_file_uploads` for workspace-scoped access.
+- **CloudDriveAdapter** (`lib/cloudDrive`) — unsupported providers are hidden; Google Drive may be exposed only after the Phase 10 adapter reports it available.
 - **AIAdapter** (`lib/ai`) — backend mode sends only prompt/history/model/scope IDs; FastAPI reconstructs authorized PostgreSQL context and calls Vertex AI. In-browser Gemini and the deterministic adapter remain fallback implementations.
-- **AnalyticsAdapter** (`lib/analytics`) — V1 console; production Segment/Mixpanel/Amplitude/PostHog.
+- **AnalyticsAdapter** (`lib/analytics`) — noop outside local debugging; first-party usage/audit events replace advertised third-party choices in Phase 10.
 - **PaymentAdapter** (`lib/billing`, `lib/payment`) — V1 manual/inquiry; production Stripe/Adyen.
 - **AccountingAdapter** (`lib/accounting`) — V1 JSON export; production QuickBooks/Xero/NetSuite.
 - **OcrAdapter** (`lib/ocr`) — V1 manual entry; production Veryfi/Mindee/Textract.
@@ -41,7 +41,7 @@ Additive extensions added during rebuild: workspace invitations/plans, billing i
 | Step | Paths | Feature | Date |
 |------|-------|---------|------|
 | 01/01b/02 | `styles`, `types`, `lib/repository`, `stores`, `lib` | Foundation, warm design system, locked data model + repository + stores | 2026-06-27 |
-| 03 | `TasklyticProvider.tsx`, `hooks/useCurrentUser.ts`, `hooks/usePresence.ts`, `hooks/useActivityHeartbeat.ts`, `features/profile/{AccountMenu,UserAvatar}` | Identity bridged from ByteReview Firebase; presence + activity heartbeat; account menu. (Tasklytic-owned auth pages, password rules, OAuth, trial mode, and profile editor removed — platform handles auth/profiles.) | 2026-06-27 |
+| 03 | `TasklyticProvider.tsx`, `hooks/useCurrentUser.ts`, `hooks/usePresence.ts`, `hooks/useActivityHeartbeat.ts`, `features/profile/{AccountMenu,UserAvatar}` | Identity bridged from CPAAutomation Firebase; presence + activity heartbeat; account menu. (Module-owned auth pages, password rules, OAuth, customer trial mode, and profile editor are superseded by platform auth.) | 2026-06-27 |
 | 04 | `features/shell`, `TasklyticChrome.tsx`, `hooks` | App shell: sidebar, topbar, command-K, hotkeys, mobile drawer | 2026-06-27 |
 | 05 | `features/workspaces`, `features/teams`, `features/members`, `lib/email`, `lib/payment` | Workspaces, teams, members, invitations, billing | 2026-06-27 |
 | 06 | `features/projects`, `lib/projectActions.ts` | Project CRUD, Overview, settings, templates | 2026-06-27 |
@@ -84,9 +84,13 @@ Additive extensions added during rebuild: workspace invitations/plans, billing i
 
 ## Onboarding & first-run (30)
 
-One **provisioning engine** (`lib/provisioning/provision.ts` → `provisionPlan`) powers three flows: new-tenant onboarding (5-step wizard), browser-local Trial mode, and the 7-vertical internal Evaluation suite (`/dashboard/tasklytic/internal/eval`, gated by `NEXT_PUBLIC_INTERNAL_EVAL=true`). Analytics events fire on onboarding/trial/provisioning milestones.
+One **provisioning engine** (`lib/provisioning/provision.ts` → `provisionPlan`) powers authenticated new-tenant onboarding and the 7-vertical internal Evaluation suite (`/dashboard/project-management/w/{workspaceId}/internal/eval`, registered only when `NEXT_PUBLIC_INTERNAL_EVAL=true`). Customer trial behavior and trial analytics are removed; legacy browser keys are not deleted.
 
 ## Verification
 
 - `npx tsc --noEmit` — clean across the module after every wave.
-- `npm run build` — production build compiles successfully; all 45+ Tasklytic routes emit.
+- `npm run lint:tasklytic` — the flat ESLint configuration checks the module and canonical routes.
+- `npm run test:tasklytic` — Tasklytic frontend units pass.
+- `npm run test:tasklytic:backend` — Tasklytic backend regression suite passes.
+- `npm run check:openapi` — generated contracts are current.
+- `npm run build` — production build compiles with TypeScript errors enforced.

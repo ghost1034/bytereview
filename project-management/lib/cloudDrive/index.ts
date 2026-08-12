@@ -1,9 +1,16 @@
 import { stubCloudDriveAdapter } from './stubAdapter'
-import type { CloudDriveAdapter } from './types'
+import type { CloudDriveAdapter, CloudDriveProvider } from './types'
 
 /** Returns the configured cloud drive adapter (V1: stub). */
 export function getCloudDriveAdapter(): CloudDriveAdapter {
   return stubCloudDriveAdapter
+}
+
+/** Providers are offered in the UI only after an adapter reports support. */
+export function getAvailableCloudDriveProviders(
+  adapter: CloudDriveAdapter = getCloudDriveAdapter(),
+): CloudDriveProvider[] {
+  return adapter.providers.filter((provider) => adapter.isAvailable(provider))
 }
 
 export type {

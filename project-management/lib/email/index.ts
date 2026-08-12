@@ -1,10 +1,11 @@
 import { localEmailAdapter } from './localAdapter'
 import { serverEmailAdapter } from './serverAdapter'
+import { usesTasklyticBackend } from '../runtimeMode'
 import type { EmailAdapter } from './types'
 
-/** Returns the configured email adapter (V1: local pending queue). */
+/** Customer email is server-backed; local queues are test/evaluation-only. */
 export function getEmailAdapter(): EmailAdapter {
-  return process.env.NEXT_PUBLIC_TASKLYTIC_BACKEND === '1'
+  return usesTasklyticBackend()
     ? serverEmailAdapter
     : localEmailAdapter
 }

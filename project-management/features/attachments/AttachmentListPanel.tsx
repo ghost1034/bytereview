@@ -92,7 +92,7 @@ export function AttachmentListPanel({
                 <Link2 className="mr-1 inline h-3 w-3" /> Add from link
               </button>
             ) : null}
-            {allowCloudDrive ? (
+            {allowCloudDrive && scope.cloudProviders.length > 0 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <button type="button" className="text-xs" style={{ color: 'var(--primary)' }}>

@@ -15,8 +15,6 @@ export type AnalyticsEvent =
   | 'onboarding_completed'
   | 'project_created'
   | 'template_used'
-  | 'trial_started'
-  | 'trial_converted_to_account'
   | 'product_tour_started'
   | 'product_tour_completed'
 

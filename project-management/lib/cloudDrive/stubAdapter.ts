@@ -24,7 +24,7 @@ export const stubCloudDriveAdapter: CloudDriveAdapter = {
     return {
       ok: false as const,
       reason: 'not_configured' as const,
-      message: `${CLOUD_DRIVE_LABELS[provider]} is not configured. Set up OAuth in Settings → Integrations → Cloud Drives.`,
+      message: `${CLOUD_DRIVE_LABELS[provider]} is unavailable.`,
     }
   },
 }

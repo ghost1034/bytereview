@@ -18,6 +18,7 @@ import { OnboardingWizard } from './features/onboarding/OnboardingWizard'
 import { ProductTour } from './features/onboarding/ProductTour'
 import { registerOnboardingWizardStarter } from './features/onboarding/startOnboardingWizard'
 import { TasklyticErrorBoundary } from './features/ui/TasklyticErrorBoundary'
+import { TasklyticServiceUnavailable } from './features/ui/TasklyticServiceUnavailable'
 import { useActivityHeartbeat } from './hooks/useActivityHeartbeat'
 import { useAuthStore, useUiStore } from './stores/auth'
 import {
@@ -185,7 +186,7 @@ export function TasklyticProvider({ children }: Props) {
           await rehydrateWorkspaceStores(workspaceId)
         }
 
-        await useAuthStore.getState().setCurrentUser(userId, { partition: 'default' })
+        await useAuthStore.getState().setCurrentUser(userId)
 
         const users = useUsersStore.getState()
         const existingUser = users.getById(userId)
@@ -298,23 +299,12 @@ export function TasklyticProvider({ children }: Props) {
     )
   }
 
+  if (bootError) {
+    return <TasklyticServiceUnavailable detail={bootError} onRetry={retryBoot} />
+  }
+
   if (bootReady && !resolvedWorkspaceId) {
-    return (
-      <div className="tasklytic-root flex min-h-[320px] flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="text-sm text-destructive">
-          {bootError ??
-            'Tasklytic could not load a workspace. Confirm the backend is running on port 8000 (only one instance).'}
-        </p>
-        <button
-          type="button"
-          className="rounded-lg px-4 py-2 text-sm font-medium text-white"
-          style={{ background: 'var(--primary)' }}
-          onClick={retryBoot}
-        >
-          Retry
-        </button>
-      </div>
-    )
+    return <TasklyticServiceUnavailable onRetry={retryBoot} />
   }
 
   return (

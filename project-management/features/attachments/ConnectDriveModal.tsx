@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Cloud drive connect modal — V1 explains OAuth configuration.
+ * Cloud drive connection failure details for configured providers.
  */
 import {
   Dialog,
@@ -21,7 +21,7 @@ type Props = {
   onOpenChange: (open: boolean) => void
 }
 
-/** Shown when a cloud drive provider is not configured in V1. */
+/** Shown when an otherwise supported cloud drive connection fails. */
 export function ConnectDriveModal({ provider, message, open, onOpenChange }: Props) {
   const label = provider ? CLOUD_DRIVE_LABELS[provider] : 'Cloud drive'
 
@@ -31,8 +31,7 @@ export function ConnectDriveModal({ provider, message, open, onOpenChange }: Pro
         <DialogHeader>
           <DialogTitle>Connect {label}</DialogTitle>
           <DialogDescription style={{ color: 'var(--ink-muted)' }}>
-            {message ??
-              `${label} is not configured yet. Add OAuth credentials under Settings → Integrations → Cloud Drives.`}
+            {message ?? `${label} is temporarily unavailable. Try again later.`}
           </DialogDescription>
         </DialogHeader>
         <Button className="tl-btn-primary w-full border-0" onClick={() => onOpenChange(false)}>

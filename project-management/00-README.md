@@ -2,7 +2,7 @@
 
 A complete, ordered set of prompts to build **Tasklytic** — a production-grade, multi-tenant work management platform that competes head-to-head with Asana, Monday, ClickUp, and the like — in Google AI Studio's **Build mode**. Each `.md` file is a self-contained prompt — open `aistudio.google.com → Build`, paste the contents of the next file into the chat box, hit Enter, wait for the live preview to refresh, then move on to the next.
 
-This is **not a demo or a prototype**. It's the build plan for a launch-ready SaaS product. Every architectural decision — the storage layer, the auth layer, the file-storage layer, the email-delivery layer, the analytics layer, the AI layer — is structured as a swappable adapter with a V1 in-app implementation and a clearly marked production swap-out point.
+This directory preserves the original numbered build specifications. The authoritative implementation and supersession status is maintained in `plans/TASKLYTIC-TRACEABILITY.md`; CPAAutomation authentication, backend persistence, canonical routes, and supported-integration boundaries take precedence over historical standalone/Vite assumptions.
 
 ---
 
@@ -80,7 +80,7 @@ This is **not a demo or a prototype**. It's the build plan for a launch-ready Sa
 | # | File | What it builds |
 |---|------|----------------|
 | 29 | `29-polish-mobile-and-accessibility.md` | Empty states, loading states, animations, mobile responsive, WCAG AA accessibility |
-| 30 | `30-onboarding-and-starter-content.md` | Production new-tenant onboarding wizard, Trial mode for the marketing site, internal Evaluation tenant suite (7 verticals) for Sales / CS / Support, provisioning engine, analytics adapter, product tour |
+| 30 | `30-onboarding-and-starter-content.md` | Authenticated new-tenant onboarding, internal Evaluation tenant suite (7 verticals), provisioning engine, analytics adapter, product tour. Customer trial mode is superseded. |
 
 ---
 
@@ -144,7 +144,7 @@ A launch-ready, multi-tenant work management platform with an editorial Anthropi
 - Templates engine + a **27-template industry library** spanning General Business, Accounting/CPA, Law, Finance, Procurement, HR, and **Corporate Transactions** (M&A buy-side end-to-end + Spin-off / Divestiture with TSA child project)
 - **Full PSA layer**: time tracking (timer + manual + UTBMS activity codes), expense tracking (receipts, pass-through, mileage, reimbursements), billing rates with cascade resolution, clients, matters, timesheets, approvals, invoicing, payments, trust accounting, and PSA reporting (WIP, Realization, Utilization, Effective Rate, AR Aging)
 - Gemini-powered AI assistant with proposal-based actions
-- Production new-tenant onboarding (5-step wizard, industry-aware template recommendations), browser-local Trial mode that converts to a real account in one click, and a separately-flagged internal Evaluation tenant suite (7 verticals) for Sales / CS / Support
+- Production new-tenant onboarding (5-step wizard and industry-aware template recommendations) plus a separately gated internal Evaluation tenant suite (7 verticals) for Sales / CS / Support. Customer trial behavior is intentionally removed.
 - Full public marketing site (Home, Features, Solutions, Pricing, Customers, About, Changelog, Blog, Security, Legal) with SEO-ready editorial layouts
 - Mobile-responsive, WCAG AA accessible, dark mode (warm)
 - Every external dependency structured as a swappable adapter with a clear production swap-out point

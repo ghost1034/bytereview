@@ -188,7 +188,7 @@ export function buildStarterContent(input: ProvisionInput): ProvisionResult {
   return { workspace, team, project, sections, tasks, user, notification, goal, portfolio }
 }
 
-/** Async enrich via provisioning engine (onboarding finish, trial, evaluation). */
+/** Async enrich via provisioning engine (onboarding and internal evaluation). */
 export async function enrichWorkspaceFromPlan(
   ...args: Parameters<typeof provisionPlan>
 ): ReturnType<typeof provisionPlan> {

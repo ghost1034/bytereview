@@ -38,6 +38,11 @@ import { TaskDetailPane } from './features/tasks/TaskDetailPane'
 import { TemplatesPage } from './features/templates/TemplatesPage'
 import { WorkloadPage } from './features/workload/WorkloadPage'
 import { WorkspaceSettingsPage } from './features/workspaces/WorkspaceSettingsPage'
+import { isInternalEvalEnabled } from './lib/evaluation/isInternalEvalEnabled'
+import {
+  canAccessInternalEvaluationRoute,
+  isRemovedCustomerTrialRoute,
+} from './lib/routePolicy'
 
 type Props = {
   workspaceId: string
@@ -48,6 +53,8 @@ type Props = {
 export function ProjectManagementWorkspaceRouter({ workspaceId, segments = [] }: Props) {
   const [section = 'home', id, detail] = segments
   const basePath = `/dashboard/project-management/w/${workspaceId}`
+
+  if (isRemovedCustomerTrialRoute(segments)) return <UnavailableRoute basePath={basePath} />
 
   if (section === 'home') return <TasklyticHome />
   if (section === 'my-tasks') return <MyTasksPage />
@@ -110,8 +117,14 @@ export function ProjectManagementWorkspaceRouter({ workspaceId, segments = [] }:
     if (id === 'reports') return <ReportsPage />
   }
 
-  if (section === 'internal' && id === 'eval') return <EvalTenantsPage />
+  if (canAccessInternalEvaluationRoute(segments, isInternalEvalEnabled())) {
+    return <EvalTenantsPage />
+  }
 
+  return <UnavailableRoute basePath={basePath} />
+}
+
+function UnavailableRoute({ basePath }: { basePath: string }) {
   return (
     <div className="tl-card mx-auto max-w-lg p-8 text-center shadow-paper-sm">
       <h1 className="font-serif text-2xl">Page not found</h1>

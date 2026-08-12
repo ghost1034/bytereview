@@ -1,27 +1,16 @@
 import { gcsFileStorageAdapter } from './gcsAdapter'
 import { localFileStorageAdapter } from './localAdapter'
+import { usesTasklyticBackend } from '../runtimeMode'
 import type { FileStorageAdapter } from './types'
 
 /**
  * Returns the configured file storage adapter.
  *
- * Selected via `NEXT_PUBLIC_FILE_STORAGE_ADAPTER`:
- * - `gcs` (or `object_store`) -> `gcsFileStorageAdapter`: signed-URL uploads to
- *   the shared private GCS bucket (same setup as Document Analysis), brokered by
- *   the backend `/api/tasklytic/files:*` routes. Required for large files.
- * - anything else (default)   -> `localFileStorageAdapter`: inline data URLs in
- *   localStorage (V1 fallback; only suitable for small files).
+ * Customer use always selects signed backend uploads. Inline browser data is
+ * limited to tests and explicitly gated internal evaluation tooling.
  */
 export function getFileStorageAdapter(): FileStorageAdapter {
-  const configured = process.env.NEXT_PUBLIC_FILE_STORAGE_ADAPTER
-  if (
-    process.env.NEXT_PUBLIC_TASKLYTIC_BACKEND === '1' ||
-    configured === 'gcs' ||
-    configured === 'object_store'
-  ) {
-    return gcsFileStorageAdapter
-  }
-  return localFileStorageAdapter
+  return usesTasklyticBackend() ? gcsFileStorageAdapter : localFileStorageAdapter
 }
 
 export type {

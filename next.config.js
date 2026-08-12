@@ -72,14 +72,6 @@ const nextConfig = {
     ]
   },
   output: 'standalone',
-  // Disable type checking during build for now
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  // Disable ESLint during build for now
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
 }
 
 module.exports = nextConfig

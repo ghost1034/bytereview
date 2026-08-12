@@ -8,6 +8,8 @@
     "build": "next build && next-sitemap",
     "start": "next start",
     "lint": "eslint .",
+    "lint:tasklytic": "eslint project-management app/dashboard/project-management app/project-management --max-warnings=101",
+    "type-check": "tsc --noEmit",
     "sitemap": "next-sitemap",
     "postbuild": "next-sitemap",
     "postinstall": "node -e \"const fs=require('fs');fs.mkdirSync('public',{recursive:true});const s='node_modules/pdfjs-dist/build/pdf.worker.min.mjs';if(fs.existsSync(s)){fs.copyFileSync(s,'public/pdf-worker.min.mjs')}else{console.warn('postinstall: pdf worker not found at '+s+'; using committed copy')}\"",
@@ -16,6 +18,8 @@
     "check:openapi": "cd backend && npm run check-openapi",
     "dev:with-types": "npm run generate-types && npm run dev",
     "test:unit": "vitest run",
+    "test:tasklytic": "vitest run project-management",
+    "test:tasklytic:backend": "backend/.venv/bin/python -m pytest backend/tests/test_tasklytic_service.py -q",
     "tasklytic:phases": "node scripts/run-tasklytic-phases.mjs"
   },
   "dependencies": {

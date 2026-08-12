@@ -1,16 +1,23 @@
 import { backendRepositoryAdapter } from './backendAdapter'
 import { localRepositoryAdapter } from './localAdapter'
+import {
+  resolveTasklyticPersistenceMode,
+  type TasklyticPersistenceMode,
+} from '../runtimeMode'
 import type { RepositoryAdapter } from './types'
 
 let cached: RepositoryAdapter | null = null
 
-/** Returns the configured repository adapter (V1: localStorage; production: REST). */
+export function selectTasklyticRepository(
+  mode: TasklyticPersistenceMode,
+): RepositoryAdapter {
+  return mode === 'backend' ? backendRepositoryAdapter : localRepositoryAdapter
+}
+
+/** Returns REST for customer use; localStorage is test/evaluation-only. */
 export function getRepository(): RepositoryAdapter {
   if (cached) return cached
-  const useBackend =
-    typeof process !== 'undefined' &&
-    process.env.NEXT_PUBLIC_TASKLYTIC_BACKEND === '1'
-  cached = useBackend ? backendRepositoryAdapter : localRepositoryAdapter
+  cached = selectTasklyticRepository(resolveTasklyticPersistenceMode())
   return cached
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-/** Account dropdown — workspace settings, theme cycle, and sign out (delegated to ByteReview). */
+/** Account dropdown — workspace settings, theme cycle, and sign out (delegated to CPAAutomation). */
 import Link from 'next/link'
 import { LogOut, Moon, Settings, Sun } from 'lucide-react'
 import {

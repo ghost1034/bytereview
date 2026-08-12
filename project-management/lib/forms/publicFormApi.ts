@@ -2,6 +2,7 @@
  * Public form API — load and submit without authentication (backend mode).
  */
 import type { Form } from '../../types'
+export { usesTasklyticBackend } from '../runtimeMode'
 
 const BASE = '/api/tasklytic/public'
 
@@ -49,7 +50,6 @@ export async function submitPublicFormApi(
   }
   return res.json() as Promise<{ taskId: string; submissionId: string }>
 }
-
 type PendingAttachment = {
   file?: File
   name: string
@@ -114,8 +114,4 @@ async function uploadPublicAttachments(
     }))
   }
   return output
-}
-
-export function usesTasklyticBackend(): boolean {
-  return process.env.NEXT_PUBLIC_TASKLYTIC_BACKEND === '1'
 }

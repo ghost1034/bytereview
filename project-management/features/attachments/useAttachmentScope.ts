@@ -6,7 +6,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { tasklyticToast } from '../ui/tasklyticToast'
 import { emitActivity } from '../../lib/activity'
-import { getCloudDriveAdapter, type CloudDriveProvider } from '../../lib/cloudDrive'
+import {
+  getAvailableCloudDriveProviders,
+  getCloudDriveAdapter,
+  type CloudDriveProvider,
+} from '../../lib/cloudDrive'
 import { getFileStorageAdapter } from '../../lib/fileStorage'
 import { newId } from '../../lib/ids'
 import { now } from '../../lib/time'
@@ -213,7 +217,7 @@ export function useAttachmentScope(scope: AttachmentScope) {
     setDriveProvider,
     driveMessage,
     maxMb: storage.capabilities.maxFileSize / (1024 * 1024),
-    cloudProviders: cloudDrive.providers,
+    cloudProviders: getAvailableCloudDriveProviders(cloudDrive),
     cloudLabel: cloudDrive.label.bind(cloudDrive),
   }
 }

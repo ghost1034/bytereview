@@ -1,5 +1,5 @@
 /**
- * Declarative provisioning plan types — shared by onboarding, trial, and evaluation flows.
+ * Declarative provisioning plan types — shared by onboarding and evaluation flows.
  */
 import type { ID, ISODateTime, ProjectStatus, ProjectView } from '../../types'
 

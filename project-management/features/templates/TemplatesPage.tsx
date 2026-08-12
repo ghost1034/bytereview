@@ -30,7 +30,7 @@ export function TemplatesPage() {
   const { workspaceId } = useWorkspaceContext()
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const teamId = useTeamsStore((s) => s.list().find((t) => t.workspaceId === workspaceId)?.id)
-  const { useTemplate, loadingId } = useTemplateInstantiate(workspaceId ?? '')
+  const { useTemplate: instantiateTemplate, loadingId } = useTemplateInstantiate(workspaceId ?? '')
 
   const [previewId, setPreviewId] = useState<string | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<TemplateCategory | 'all'>('all')
@@ -56,7 +56,7 @@ export function TemplatesPage() {
   const instantiate = async (templateId: string) => {
     if (!workspaceId || !currentUserId || !teamId) return
     const tpl = getCuratedTemplateById(templateId)
-    await useTemplate(templateId, {
+    await instantiateTemplate(templateId, {
       teamId,
       ownerId: currentUserId,
       color: tpl?.color ?? 'primary',
