@@ -18,6 +18,7 @@ import {
   Sheet,
   Trash2,
 } from 'lucide-react'
+import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -42,6 +43,8 @@ type Props = {
   onDownload: () => void
   onRename: () => void
   onDelete: () => void
+  isCover?: boolean
+  onSetCover?: () => void
 }
 
 function CategoryIcon({ attachment }: { attachment: Attachment }) {
@@ -65,6 +68,8 @@ export function AttachmentChip({
   onDownload,
   onRename,
   onDelete,
+  isCover,
+  onSetCover,
 }: Props) {
   const thumb = previewUrl && isImageAttachment(attachment)
 
@@ -75,7 +80,7 @@ export function AttachmentChip({
     >
       {thumb ? (
         <button type="button" onClick={onPreview} className="shrink-0 overflow-hidden rounded">
-          <img src={previewUrl} alt="" className="h-8 w-8 object-cover" />
+          <Image unoptimized src={previewUrl} alt="" width={32} height={32} className="h-8 w-8 object-cover" />
         </button>
       ) : (
         <span style={{ color: 'var(--ink-muted)' }}>
@@ -118,6 +123,11 @@ export function AttachmentChip({
           <DropdownMenuItem onClick={onRename}>
             <Pencil className="mr-2 h-4 w-4" /> Rename
           </DropdownMenuItem>
+          {isImageAttachment(attachment) && onSetCover ? (
+            <DropdownMenuItem onClick={onSetCover}>
+              <ImageIcon className="mr-2 h-4 w-4" /> {isCover ? 'Remove cover' : 'Set as cover'}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDelete}>
             <Trash2 className="mr-2 h-4 w-4" /> Delete

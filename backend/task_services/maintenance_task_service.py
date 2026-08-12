@@ -90,7 +90,7 @@ async def execute_task(request: Request):
             result = await run_esign_maintenance(ctx)
 
         elif task_type == "run_tasklytic_maintenance":
-            logger.info("Executing Tasklytic digest and upload maintenance")
+            logger.info("Executing Tasklytic automation and reporting maintenance")
             result = await run_tasklytic_maintenance(ctx)
 
         elif task_type == "run_pbc_maintenance":

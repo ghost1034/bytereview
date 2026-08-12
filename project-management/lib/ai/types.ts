@@ -8,6 +8,7 @@ export type AiContextScope =
   | { type: 'task'; taskId: string }
   | { type: 'goal'; goalId: string }
   | { type: 'portfolio'; portfolioId: string }
+  | { type: 'dashboard'; dashboardId: string }
 
 /** Structured workspace snapshot passed to the model (not raw HTML). */
 export type AiContextBundle = {
@@ -24,6 +25,11 @@ export type AiProposalType =
   | 'update_description'
   | 'smart_fields'
   | 'create_task'
+  | 'add_custom_field'
+  | 'create_rule'
+  | 'add_chart_to_dashboard'
+  | 'summarize'
+  | 'propose_assignees'
 
 export type DraftStatusUpdatePayload = {
   projectId: string
@@ -69,6 +75,7 @@ export type AiProposalPayload =
   | UpdateDescriptionPayload
   | SmartFieldsPayload
   | CreateTaskPayload
+  | Record<string, unknown>
 
 /** User-confirmed mutation suggested by the assistant. */
 export type AiProposal = {
@@ -78,12 +85,15 @@ export type AiProposal = {
   preview: string
   reasoning?: string
   payload: AiProposalPayload
+  status?: 'pending' | 'accepted' | 'discarded'
+  revision?: number
 }
 
 export type AiGenerateInput = {
   prompt: string
   context: AiContextBundle
   history?: { role: AiChatRole; content: string }[]
+  threadId?: string
 }
 
 export type AiGenerateResult = {
@@ -101,10 +111,5 @@ export interface AiAdapter {
   }
 }
 
-export const GEMINI_MODEL_OPTIONS = [
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-] as const
-
-export type GeminiModelId = (typeof GEMINI_MODEL_OPTIONS)[number]['id']
+export type GeminiModelId = string
+export type VertexModelOption = { id: string; label: string; default?: boolean }

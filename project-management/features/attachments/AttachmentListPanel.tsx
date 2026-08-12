@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Attachment } from '../../types'
-import type { CloudDriveProvider } from '../../lib/cloudDrive'
+import type { CloudDriveFile, CloudDriveProvider } from '../../lib/cloudDrive'
 import { AttachmentChip } from './AttachmentChip'
 import { AttachmentPreviewModal } from './AttachmentPreviewModal'
 import { ConnectDriveModal } from './ConnectDriveModal'
@@ -37,9 +37,14 @@ type ScopeApi = {
   driveProvider: CloudDriveProvider | null
   setDriveProvider: (p: CloudDriveProvider | null) => void
   driveMessage?: string
+  driveFiles: CloudDriveFile[]
+  driveLoading: boolean
+  importDriveFiles: (fileIds: string[]) => Promise<void>
   maxMb: number
   cloudProviders: readonly CloudDriveProvider[]
   cloudLabel: (provider: CloudDriveProvider) => string
+  coverAttachmentId?: string
+  setCoverAttachment?: (attachment: Attachment) => Promise<void>
 }
 
 type Props = {
@@ -64,6 +69,7 @@ export function AttachmentListPanel({
   const [linkUrl, setLinkUrl] = useState('')
   const [linkName, setLinkName] = useState('')
   const preview = scope.previewAttachment
+  const uploadFiles = scope.uploadFiles
   const rootRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -73,11 +79,11 @@ export function AttachmentListPanel({
       const files = event.clipboardData?.files
       if (!files?.length) return
       event.preventDefault()
-      void scope.uploadFiles(Array.from(files))
+      void uploadFiles(Array.from(files))
     }
     root.addEventListener('paste', onPaste)
     return () => root.removeEventListener('paste', onPaste)
-  }, [scope.uploadFiles])
+  }, [uploadFiles])
 
   return (
     <div ref={rootRef} tabIndex={-1} className={compact ? 'space-y-2 outline-none' : 'mt-4 outline-none'}>
@@ -160,6 +166,8 @@ export function AttachmentListPanel({
               onDownload={() => void scope.downloadOne(attachment)}
               onRename={() => void scope.renameOne(attachment)}
               onDelete={() => void scope.removeOne(attachment)}
+              isCover={scope.coverAttachmentId === attachment.id}
+              onSetCover={scope.setCoverAttachment ? () => void scope.setCoverAttachment?.(attachment) : undefined}
             />
           </li>
         ))}
@@ -175,6 +183,9 @@ export function AttachmentListPanel({
       <ConnectDriveModal
         provider={scope.driveProvider}
         message={scope.driveMessage}
+        files={scope.driveFiles}
+        loading={scope.driveLoading}
+        onImport={scope.importDriveFiles}
         open={Boolean(scope.driveProvider)}
         onOpenChange={(open) => {
           if (!open) scope.setDriveProvider(null)

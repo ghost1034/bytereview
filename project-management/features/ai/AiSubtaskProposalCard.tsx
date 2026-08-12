@@ -8,6 +8,8 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Checkbox } from '@/components/ui/checkbox'
 import type { CreateSubtasksPayload } from '../../lib/ai/types'
 import { createSubtask } from '../../lib/taskActions'
+import { usesTasklyticBackend } from '../../lib/forms/publicFormApi'
+import { acceptServerProposal, discardServerProposal, editServerProposal } from '../../lib/ai/serverState'
 
 type Props = {
   proposalId: string
@@ -34,6 +36,19 @@ export function AiSubtaskProposalCard({ proposalId, title, payload, actorId, onA
     const names = payload.names.filter((_, i) => selected[i])
     if (!names.length) return
     setStatus('applying')
+    if (usesTasklyticBackend()) {
+      try {
+        await editServerProposal(proposalId, { ...payload, names })
+        await acceptServerProposal(proposalId)
+        setFeedback(`Created ${names.length} subtask${names.length === 1 ? '' : 's'}.`)
+        setStatus('done')
+        onApplied?.()
+      } catch (reason) {
+        setFeedback(reason instanceof Error ? reason.message : 'Subtasks could not be created.')
+        setStatus('idle')
+      }
+      return
+    }
     let created = 0
     for (const name of names) {
       const res = await createSubtask(payload.parentTaskId, name, actorId)
@@ -68,7 +83,11 @@ export function AiSubtaskProposalCard({ proposalId, title, payload, actorId, onA
             <Check className="h-3.5 w-3.5" />
             Add selected
           </Button>
-          <Button size="sm" variant="outline" className="gap-1" onClick={() => { setStatus('dismissed'); onDismiss?.() }}>
+          <Button size="sm" variant="outline" className="gap-1" onClick={() => {
+            setStatus('dismissed')
+            if (usesTasklyticBackend()) void discardServerProposal(proposalId)
+            onDismiss?.()
+          }}>
             <X className="h-3.5 w-3.5" />
             Dismiss
           </Button>

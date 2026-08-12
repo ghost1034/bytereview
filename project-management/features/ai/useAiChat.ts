@@ -47,7 +47,7 @@ export function useAiChat(workspaceId: string | null, contextScope: AiContextSco
 
       try {
         const adapter = getAiAdapter()
-        const result = await adapter.generate({ prompt: prompt.trim(), context, history })
+        const result = await adapter.generate({ prompt: prompt.trim(), context, history, threadId })
         appendMessage(threadId, {
           id: newId(),
           role: 'assistant',

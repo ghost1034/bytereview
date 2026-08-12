@@ -94,11 +94,11 @@ Every external integration in Tasklytic is structured as a **swappable adapter**
 | Auth | Client-side credential store with deterministic password hashing (step 03) | OAuth2 (Google, Microsoft, Okta), SAML SSO, passwordless magic links via Auth0 / Clerk / WorkOS / your own service |
 | Email delivery (invites, digests, notifications, password recovery) | Pending-invite queue surfaced in the UI (steps 05, 17, 21) | SES / SendGrid / Postmark / Resend bound through the `EmailAdapter` interface |
 | File storage (attachments, receipts) | Data URLs capped at 5 MB (step 19, 28b) | S3 / GCS / Azure Blob with signed upload URLs through the `FileStorageAdapter` interface |
-| Cloud-drive integrations (Drive, OneDrive, Dropbox) | OAuth surface ready (step 19) | Real OAuth handshake + provider SDK adapters |
+| Cloud-drive integrations | Capability-gated Google Drive selection/import | OneDrive and Dropbox are unsupported and hidden |
 | AI | Gemini in-browser key (step 28) | Server-side Gemini / Claude / OpenAI / Bedrock proxy with key rotation and rate limits |
-| Analytics | Console-logging adapter (step 30) | Segment / Mixpanel / Amplitude / PostHog through the `AnalyticsAdapter` interface |
+| Analytics | First-party usage and audit events | No advertised third-party analytics adapter |
 | Real-time collaboration | Local Zustand store with optimistic mutations | WebSocket / Liveblocks / Yjs / Replicache on top of the same store |
-| Accounting integrations (QuickBooks, Xero, NetSuite) | Invoice JSON export (step 28b) | Provider SDKs through the `AccountingAdapter` interface |
+| Accounting integrations | Invoice JSON export (step 28b) | QuickBooks, Xero, and NetSuite are unsupported and hidden |
 | OCR (receipt scanning) | Manual entry surface (step 28b) | Veryfi / Mindee / Textract through the `OcrAdapter` interface |
 | Payments | Manual payment recording (step 28b) | Stripe / Adyen for invoice payment links through the `PaymentAdapter` interface |
 | Search | In-memory inverted index (step 15) | Elasticsearch / Typesense / Meilisearch through the `SearchAdapter` interface |

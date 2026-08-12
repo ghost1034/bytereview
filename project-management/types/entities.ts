@@ -15,7 +15,7 @@ export type User = {
   name: string
   email: string
   avatarColor: string
-  role: 'admin' | 'member' | 'guest'
+  role: 'admin' | 'member' | 'guest' | 'ai'
   jobTitle?: string
   timezone?: string
   lastActiveAt?: ISODateTime
@@ -68,6 +68,7 @@ export type Workspace = {
   plan?: WorkspacePlan
   settings?: {
     autoApprovePrivateTeamJoinRequests?: boolean
+    allowPublicForms?: boolean
   }
   profile?: {
     teamSize?: string
@@ -88,9 +89,27 @@ export type Workspace = {
   requireTimeApproval?: boolean
   requireExpenseApproval?: boolean
   expenseReceiptRequiredAbove?: number
+  approvalSettings?: {
+    timeApproverIds?: ID[]
+    expenseApproverIds?: ID[]
+    invoiceApproverIds?: ID[]
+    allowSelfApproval?: boolean
+    requireSubmissionNotes?: boolean
+  }
   mileageRate?: number
   invoicePrefix?: string
   invoiceStartNumber?: number
+  invoiceNextNumber?: number
+  billingSettings?: {
+    defaultPaymentTerms?: Client['paymentTerms']
+    defaultFooter?: string
+    brandedHeader?: string
+    invoiceApprovalRequired?: boolean
+    invoiceApproverIds?: ID[]
+    budgetWarningPercent?: number
+    trustLowBalanceThreshold?: number
+  }
+  fxOverrides?: Record<string, { rate: number; effectiveOn: ISODate; note?: string }>
   psaMode?: 'legal' | 'accounting' | 'generic' | 'advisory'
   createdAt: ISODateTime
 }
@@ -124,6 +143,12 @@ export type Project = {
   teamId: ID
   name: string
   description?: string
+  notificationSettings?: {
+    taskActivity: boolean
+    statusUpdates: boolean
+    newFiles: boolean
+    mentions: boolean
+  }
   iconEmoji?: string
   color: string
   privacy: 'public_to_team' | 'private_to_members' | 'public_to_workspace'
@@ -211,6 +236,7 @@ export type Task = {
   dependencyIds: ID[]
   dependentIds: ID[]
   attachmentIds: ID[]
+  coverAttachmentId?: ID
   likedByIds: ID[]
   createdAt: ISODateTime
   modifiedAt: ISODateTime
@@ -302,7 +328,9 @@ export type Tag = {
   color: string
 }
 
-export type FormField =
+export type FormVisibilityRule = { fieldId: ID; op: 'eq' | 'neq' | 'is_set' | 'is_not_set'; value?: unknown }
+
+export type FormField = (
   | { id: ID; type: 'short_text'; label: string; required: boolean; placeholder?: string }
   | { id: ID; type: 'long_text'; label: string; required: boolean; placeholder?: string }
   | { id: ID; type: 'number'; label: string; required: boolean }
@@ -310,6 +338,7 @@ export type FormField =
   | { id: ID; type: 'dropdown'; label: string; required: boolean; options: EnumOption[] }
   | { id: ID; type: 'multi_select'; label: string; required: boolean; options: EnumOption[] }
   | { id: ID; type: 'attachment'; label: string; required: boolean }
+) & { visibleIf?: FormVisibilityRule }
 
 export type Form = {
   id: ID
@@ -322,6 +351,7 @@ export type Form = {
   taskTitleFieldId?: ID
   copyAnswersToDescription: boolean
   isPublic: boolean
+  accessMode?: 'public' | 'workspace'
   publicSlug?: string
   confirmationMessage: string
   branding?: { coverImageDataUrl?: string; logoDataUrl?: string }
@@ -354,6 +384,7 @@ export type RuleAction =
   | { type: 'add_collaborator'; userId: ID }
   | { type: 'send_notification'; userId: ID; message: string }
   | { type: 'create_subtask'; templateName: string }
+  | { type: 'send_email'; recipient: ID | 'assignee'; subject: string; body: string }
 
 export type Rule = {
   id: ID
@@ -367,6 +398,8 @@ export type Rule = {
   lastRunAt?: ISODateTime
   createdBy: ID
   createdAt: ISODateTime
+  /** Tracks bundle-owned rules so unapply can remove configuration without deleting work. */
+  sourceBundleId?: ID
 }
 
 export type Goal = {
@@ -385,6 +418,11 @@ export type Goal = {
   status: 'on_track' | 'at_risk' | 'off_track' | 'achieved' | 'missed' | 'dropped'
   supportingProjectIds: ID[]
   supportingGoalIds: ID[]
+  /** Weight used when this goal rolls into a parent; defaults to 1. */
+  rollupWeight?: number
+  /** Optional weights for explicitly linked supporting goals/projects. */
+  supportingGoalWeights?: Record<ID, number>
+  supportingProjectWeights?: Record<ID, number>
   privacy: 'public' | 'members_only'
   createdAt: ISODateTime
 }
@@ -492,10 +530,15 @@ export type BillingInquiry = {
 
 export type SavedView = {
   id: ID
-  ownerScope: { type: 'project' | 'portfolio'; id: ID }
+  ownerScope: { type: 'project' | 'portfolio' | 'search'; id: ID }
   name: string
-  viewType: ProjectView
+  viewType: ProjectView | 'chart'
   filters: Array<{ field: string; op: string; value: unknown }>
+  filterExpression?: import('../lib/query/types').FilterGroup
+  query?: import('../lib/query/types').ViewQuery
+  scope?: { type: 'workspace' | 'team' | 'portfolio' | 'project'; id?: ID }
+  ownership?: 'personal' | 'workspace'
+  pinned?: boolean
   groupBy?: string
   sortBy?: { field: string; direction: 'asc' | 'desc' }
   hiddenFields: string[]
@@ -508,12 +551,15 @@ export type Chart = {
   id: ID
   title: string
   type: ChartType
-  source: 'tasks' | 'projects' | 'portfolios' | 'goals'
+  source: 'tasks' | 'projects' | 'portfolios' | 'goals' | 'time' | 'expenses' | 'utilization' | 'wip' | 'invoices' | 'payments' | 'realization' | 'effective_rate' | 'ar_aging'
   filters: SavedView['filters']
   xAxis?: string
   yAxis?: string
   measure: 'count' | 'sum' | 'avg'
   measureField?: string
+  dateField?: string
+  granularity?: 'day' | 'week' | 'month' | 'quarter'
+  topN?: 5 | 10 | 25 | 50
 }
 
 export type Dashboard = {
@@ -524,6 +570,9 @@ export type Dashboard = {
   charts: Chart[]
   layout: Array<{ chartId: ID; x: number; y: number; w: number; h: number }>
   sharedWith: ID[]
+  viewerIds?: ID[]
+  editorIds?: ID[]
+  visibility?: 'private' | 'people' | 'workspace'
   createdAt: ISODateTime
 }
 
@@ -542,6 +591,25 @@ export type ProjectTemplate = {
   sectionNames: string[]
   taskTemplates: TaskTemplate[]
   customFieldIds: ID[]
+  iconEmoji?: string
+  workspaceId?: ID
+  createdBy?: ID
+  ruleTemplates?: Array<Omit<Rule, 'id' | 'projectId' | 'createdBy' | 'createdAt'>>
+}
+
+export type Bundle = {
+  id: ID
+  workspaceId: ID
+  name: string
+  description?: string
+  iconEmoji?: string
+  customFieldIds: ID[]
+  sectionNames: string[]
+  taskTemplates: TaskTemplate[]
+  ruleTemplates: Array<Omit<Rule, 'id' | 'projectId' | 'createdBy' | 'createdAt'>>
+  appliedToProjectIds: ID[]
+  createdBy: ID
+  createdAt: ISODateTime
 }
 
 export type Session = {
@@ -683,6 +751,17 @@ export type Expense = {
   currency?: string
   paymentMethod?: 'corporate_card' | 'personal' | 'cash' | 'wire' | 'check' | 'ach'
   receiptAttachmentId?: ID
+  manualReceipt?: {
+    vendor?: string
+    date?: ISODate
+    subtotal?: number
+    tax?: number
+    total?: number
+    currency?: string
+    notes?: string
+    enteredById?: ID
+    enteredAt?: ISODateTime
+  }
   passThrough?: boolean
   markupPercent?: number
   billableAmount?: number
@@ -739,6 +818,30 @@ export type RateCard = {
   effectiveTo?: ISODate
 }
 
+export type ActivityCode = {
+  id: ID
+  workspaceId: ID
+  code: string
+  name: string
+  category?: string
+  active: boolean
+  createdAt: ISODateTime
+}
+
+export type BillingBudget = {
+  id: ID
+  workspaceId: ID
+  scope: 'client' | 'matter' | 'project'
+  scopeId: ID
+  currency: string
+  amount?: number
+  hours?: number
+  warningPercent?: number
+  effectiveFrom: ISODate
+  effectiveTo?: ISODate
+  createdAt: ISODateTime
+}
+
 export type Client = {
   id: ID
   workspaceId: ID
@@ -788,7 +891,7 @@ export type Timesheet = {
   userId: ID
   periodStart: ISODate
   periodEnd: ISODate
-  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'locked'
+  status: 'draft' | 'submitted' | 'approved' | 'partially_approved' | 'rejected' | 'locked'
   totalHours: number
   billableHours: number
   nonBillableHours: number
@@ -808,7 +911,7 @@ export type ExpenseReport = {
   userId: ID
   name: string
   expenseIds: ID[]
-  status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'reimbursed'
+  status: 'draft' | 'submitted' | 'approved' | 'partially_approved' | 'rejected' | 'reimbursed'
   totalAmount: number
   reimbursableAmount: number
   currency: string
@@ -819,18 +922,28 @@ export type ExpenseReport = {
   reimbursedAt?: ISODateTime
   reimbursementMethod?: 'payroll' | 'ach' | 'check'
   reimbursementReference?: string
+  partialApproval?: { approvedIds: ID[]; rejectedIds: ID[]; reason: string }
 }
 
 export type InvoiceLineItem = {
+  id?: ID
   description: string
   quantity: number
   rate: number
+  amount?: number
+  currency?: string
   type?: 'time' | 'expense' | 'fee'
   sourceId?: ID
+  sourceCurrency?: string
+  fxQuoteId?: ID
+  writtenOff?: boolean
+  writeOffReason?: string
 }
 
 export type InvoiceStatus =
   | 'draft'
+  | 'pending_approval'
+  | 'approved'
   | 'sent'
   | 'paid'
   | 'partial'
@@ -866,12 +979,35 @@ export type Invoice = {
   trustApplied?: number
   currency?: string
   notes?: string
+  footer?: string
+  narrative?: string
   lineItems: InvoiceLineItem[]
+  deliveryHistory?: Array<{
+    id: ID
+    method: 'email' | 'mail' | 'pdf' | 'manual'
+    recipient?: string
+    status: 'recorded' | 'queued' | 'sent' | 'failed'
+    sentAt: ISODateTime
+    sentById: ID
+    resendOfId?: ID
+  }>
+  pdfSha256?: string
+  pdfGeneratedAt?: ISODateTime
+  submittedAt?: ISODateTime
+  approvedAt?: ISODateTime
+  approvedById?: ID
+  writtenOffAt?: ISODateTime
+  writtenOffReason?: string
+  fxQuoteId?: ID
+  fxQuoteIds?: ID[]
+  baseCurrency?: string
+  baseCurrencyTotal?: number
   sentAt?: ISODateTime
   paidAt?: ISODateTime
   voidedAt?: ISODateTime
   voidedReason?: string
   createdAt: ISODateTime
+  createdById?: ID
 }
 
 export type Payment = {
@@ -887,6 +1023,13 @@ export type Payment = {
   paidAt: ISODate
   recordedById: ID
   createdAt: ISODateTime
+  status?: 'posted' | 'reversed' | 'reversal'
+  reversedAt?: ISODateTime
+  reversedById?: ID
+  reversalPaymentId?: ID
+  originalPaymentId?: ID
+  reversalReason?: string
+  trustTransactionId?: ID
 }
 
 export type TrustTransaction = {
@@ -894,15 +1037,55 @@ export type TrustTransaction = {
   workspaceId: ID
   clientId: ID
   matterId?: ID
-  type: 'deposit' | 'withdrawal' | 'application'
+  type: 'deposit' | 'withdrawal' | 'application' | 'reversal'
   amount: number
   currency: string
   balanceAfter: number
+  signedAmount?: number
   invoiceId?: ID
   reference?: string
   notes?: string
   recordedById: ID
   createdAt: ISODateTime
+  originalTransactionId?: ID
+  reversedAt?: ISODateTime
+  reversedById?: ID
+  reversalTransactionId?: ID
+  reversalReason?: string
+}
+
+export type FxQuote = {
+  id: ID
+  workspaceId: ID
+  baseCurrency: string
+  quoteCurrency: string
+  rate: number
+  rateDate: ISODate
+  requestedRateDate?: ISODate
+  source: 'ecb' | 'workspace_override'
+  createdAt: ISODateTime
+}
+
+export type BillingAuditRecord = {
+  id: ID
+  workspaceId: ID
+  resourceType: 'invoice' | 'payment' | 'trust' | 'fx' | 'rate' | 'budget'
+  resourceId: ID
+  action: string
+  actorId: ID
+  at: ISODateTime
+  details?: Record<string, unknown>
+}
+
+export type BillingLock = {
+  id: ID
+  workspaceId: ID
+  sourceKind: 'timeEntries' | 'expenses'
+  sourceId: ID
+  invoiceId: ID
+  status: 'active' | 'released'
+  createdAt: ISODateTime
+  releasedAt?: ISODateTime
 }
 
 export type ReimbursementBatch = {
@@ -913,4 +1096,30 @@ export type ReimbursementBatch = {
   method: 'payroll' | 'ach' | 'check'
   reference?: string
   paidAt: ISODate
+}
+
+export type IntegrationProvider = 'google_drive' | 'vertex_receipts' | 'gmail' | 'gcs' | 'stripe_connect'
+
+export type IntegrationCapability = {
+  provider: IntegrationProvider
+  status: 'active' | 'degraded' | 'revoked' | 'disabled'
+  available: boolean
+  capability: Record<string, unknown>
+  revision: number
+  lastError?: { code: string; detail?: string } | null
+}
+
+export type ExternalReference = {
+  id: ID
+  workspaceId: ID
+  provider: IntegrationProvider
+  resourceType: string
+  externalId: string
+  localKind: string
+  localId: ID
+  syncStatus: 'pending' | 'synchronized' | 'partial' | 'failed' | 'conflict'
+  externalVersion?: string
+  revision: number
+  createdAt: ISODateTime
+  updatedAt: ISODateTime
 }

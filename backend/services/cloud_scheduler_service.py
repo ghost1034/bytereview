@@ -99,8 +99,8 @@ class CloudSchedulerService:
             },
             {
                 "name": "tasklytic-maintenance",
-                "description": "Deliver Tasklytic digests and clean abandoned direct uploads",
-                "schedule": "*/30 * * * *",
+                "description": "Run Tasklytic rules, due-date events, dashboard digests, and maintenance",
+                "schedule": "* * * * *",
                 "timezone": "UTC",
                 "task_type": "run_tasklytic_maintenance"
             },

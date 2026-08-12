@@ -25,22 +25,25 @@ export function usePsaContext(workspaceId: ID, userId: ID, projectId?: ID, matte
   const matters = useMattersStore((s) => s.list().filter((m) => m.workspaceId === workspaceId))
 
   const resolvedClientId = clientId ?? matter?.clientId ?? project?.clientId
+  const client = clients.find((candidate) => candidate.id === resolvedClientId)
 
   const rate = useMemo(
     () =>
       resolveRate({
+        workspaceId,
         userId,
         user,
         matterId,
         projectId,
         clientId: resolvedClientId,
+        client,
         matter,
         project,
         billingRates,
         rateCards,
         defaultCurrency: workspace?.defaultCurrency,
       }),
-    [userId, user, matterId, projectId, resolvedClientId, matter, project, billingRates, rateCards, workspace]
+    [workspaceId, userId, user, matterId, projectId, resolvedClientId, client, matter, project, billingRates, rateCards, workspace]
   )
 
   return { user, workspace, project, matter, clients, matters, rate, resolvedClientId }

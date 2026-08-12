@@ -18,6 +18,7 @@ export function TeamSettingsPage({ teamId }: { teamId?: string | null } = {}) {
 
   usePageMeta({
     breadcrumbs: [
+      { label: 'AI Project Management', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/home` : undefined },
       { label: 'Teams', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/teams` : undefined },
       { label: team?.name ?? 'Team', href: teamId && workspaceId ? `/dashboard/project-management/w/${workspaceId}/teams/${teamId}` : undefined },
       { label: 'Settings' },

@@ -12,17 +12,12 @@ import { useAuthStore } from '../../stores/auth'
 import { useProjectsStore, useTasksStore, useUsersStore } from '../../stores/entities'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import { buildTourSteps } from './tourSteps'
+import { registerProductTourStarter } from './productTourLauncher'
+export { startProductTour } from './productTourLauncher'
 
 type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
-}
-
-let externalStart: (() => void) | null = null
-
-/** Register a tour launcher from the shell (Help menu, onboarding finish). */
-export function startProductTour(): void {
-  externalStart?.()
 }
 
 export function ProductTour({ open, onOpenChange }: Props) {
@@ -67,12 +62,12 @@ export function ProductTour({ open, onOpenChange }: Props) {
   }, [currentUserId, updateUser, user])
 
   useEffect(() => {
-    externalStart = () => {
+    registerProductTourStarter(() => {
       onOpenChange(true)
       track('product_tour_started', {})
-    }
+    })
     return () => {
-      externalStart = null
+      registerProductTourStarter(null)
     }
   }, [onOpenChange])
 

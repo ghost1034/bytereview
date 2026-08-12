@@ -8,6 +8,8 @@ import logging
 from typing import Optional
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
@@ -82,6 +84,7 @@ class EmailService:
         html_body: str,
         text_body: str,
         reply_to: Optional[str] = None,
+        inline_images: Optional[list[tuple[str, bytes, str, str]]] = None,
     ) -> bool:
         """Send a multipart/alternative email (HTML with plain-text fallback)."""
         if is_local():
@@ -92,15 +95,26 @@ class EmailService:
             if not service:
                 raise RuntimeError("Gmail service is unavailable")
 
-            message = MIMEMultipart("alternative")
+            message = MIMEMultipart("related") if inline_images else MIMEMultipart("alternative")
             message["to"] = to_email
             message["from"] = self.FROM_ALIAS
             message["subject"] = subject
             if reply_to:
                 message["reply-to"] = reply_to
-            # Order matters: last part is preferred by capable clients.
-            message.attach(MIMEText(text_body, "plain"))
-            message.attach(MIMEText(html_body, "html"))
+            alternative = MIMEMultipart("alternative") if inline_images else message
+            # Order matters: last alternative is preferred by capable clients.
+            alternative.attach(MIMEText(text_body, "plain"))
+            alternative.attach(MIMEText(html_body, "html"))
+            if inline_images:
+                message.attach(alternative)
+                for content_id, content, mime_type, filename in inline_images:
+                    major, _, subtype = mime_type.partition("/")
+                    image = MIMEBase(major or "application", subtype or "octet-stream")
+                    image.set_payload(content)
+                    encoders.encode_base64(image)
+                    image.add_header("Content-ID", f"<{content_id}>")
+                    image.add_header("Content-Disposition", "inline", filename=filename)
+                    message.attach(image)
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
             result = service.users().messages().send(userId="me", body={"raw": raw}).execute()
             logger.info(f"HTML email sent to {to_email}: messageId={result.get('id')}")

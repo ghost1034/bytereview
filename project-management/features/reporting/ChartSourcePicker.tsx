@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { ChartBuilderDraft } from '../../lib/reporting/types'
+import { reportingSources } from '../../lib/reporting/sourceRegistry'
 import type { Portfolio, Project, SavedView, Team } from '../../types'
 
 type Props = {
@@ -32,10 +33,9 @@ export function ChartSourcePicker({ draft, onChange, projects, portfolios, teams
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="tl-popover-surface z-[100]">
-            <SelectItem value="tasks">Tasks</SelectItem>
-            <SelectItem value="projects">Projects</SelectItem>
-            <SelectItem value="portfolios">Portfolios</SelectItem>
-            <SelectItem value="goals">Goals</SelectItem>
+            {reportingSources().map((source) => (
+              <SelectItem key={source.id} value={source.id}>{source.label}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

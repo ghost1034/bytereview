@@ -33,7 +33,7 @@ export async function submitForm(
 ): Promise<SubmitFormResult> {
   const form = useFormsStore.getState().getById(formId)
   if (!form) return { ok: false, error: 'Form not found' }
-  if (!form.isPublic && !submittedBy) {
+  if ((!form.isPublic || form.accessMode === 'workspace') && !submittedBy) {
     return { ok: false, error: 'Sign in required to submit this form' }
   }
 

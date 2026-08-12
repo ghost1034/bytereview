@@ -13,12 +13,13 @@ import { WorkspaceGeneralTab } from './WorkspaceGeneralTab'
 import { WorkspaceResetPanel } from '../onboarding/WorkspaceResetPanel'
 import { useAuthStore } from '../../stores/auth'
 import {
-  useTeamsStore,
   useUsersStore,
   useWorkspaceInvitationsStore,
   useWorkspacesStore,
 } from '../../stores/entities'
 import { revokeWorkspaceInvite } from '../../lib/invites'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 export function WorkspaceSettingsPage() {
   const { workspaceId, workspace, teams } = useWorkspaceContext()
@@ -31,6 +32,7 @@ export function WorkspaceSettingsPage() {
 
   usePageMeta({
     breadcrumbs: [
+      { label: 'AI Project Management', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/home` : undefined },
       { label: 'Settings', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/settings` : undefined },
       { label: 'Workspace' },
     ],
@@ -74,6 +76,7 @@ export function WorkspaceSettingsPage() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
         <TabsContent value="general" className="mt-4">
           <WorkspaceGeneralTab workspace={workspace} currentUser={currentUser} />
@@ -93,6 +96,9 @@ export function WorkspaceSettingsPage() {
         </TabsContent>
         <TabsContent value="billing" className="mt-4">
           <WorkspaceBillingTab workspace={workspace} currentUser={currentUser} />
+        </TabsContent>
+        <TabsContent value="security" className="mt-4">
+          <div className="tl-card flex items-center justify-between p-4"><div><Label htmlFor="public-forms">Allow public form sharing</Label><p className="text-sm" style={{ color: 'var(--ink-muted)' }}>When disabled, published forms require workspace authentication.</p></div><Switch id="public-forms" checked={workspace.settings?.allowPublicForms !== false} disabled={!workspace.adminIds.includes(currentUserId ?? '')} onCheckedChange={(checked) => void useWorkspacesStore.getState().update(workspace.id, { settings: { ...workspace.settings, allowPublicForms: checked } })} /></div>
         </TabsContent>
       </Tabs>
 

@@ -2,7 +2,7 @@ import { addDays, addWeeks, format } from 'date-fns'
 import { eachDayInRange, isWeekday, monthBucketKey, weekBucketKey } from './dateRanges'
 import type { ISODate } from '../../types'
 
-export type TimeScale = 'day' | 'week' | 'month'
+export type TimeScale = 'day' | 'week' | 'month' | 'quarter'
 
 export type TimeBucket = {
   key: string
@@ -45,15 +45,24 @@ export function buildTimeBuckets(start: ISODate, end: ISODate, scale: TimeScale)
   }
   const seen = new Map<string, TimeBucket>()
   eachDayInRange(start, end).forEach((day) => {
-    const key = monthBucketKey(day)
+    const monthKey = monthBucketKey(day)
+    const month = new Date(monthKey).getMonth()
+    const year = new Date(monthKey).getFullYear()
+    const quarterStartMonth = Math.floor(month / 3) * 3
+    const key = scale === 'quarter'
+      ? toIso(new Date(year, quarterStartMonth, 1))
+      : monthKey
     if (seen.has(key)) return
     const monthStart = new Date(key)
+    const bucketEnd = scale === 'quarter'
+      ? new Date(year, quarterStartMonth + 3, 0)
+      : new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
     seen.set(key, {
       key,
-      label: format(monthStart, 'MMM yyyy'),
+      label: scale === 'quarter' ? `Q${quarterStartMonth / 3 + 1} ${year}` : format(monthStart, 'MMM yyyy'),
       start: key,
-      end: toIso(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)),
-      workdays: eachDayInRange(key, toIso(new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)))
+      end: toIso(bucketEnd),
+      workdays: eachDayInRange(key, toIso(bucketEnd))
         .filter((d) => d >= start && d <= end && isWeekday(d)).length,
     })
   })
@@ -68,7 +77,9 @@ function toIso(d: Date): ISODate {
 export function bucketKeyForDay(day: ISODate, scale: TimeScale): string {
   if (scale === 'day') return day
   if (scale === 'week') return weekBucketKey(day)
-  return monthBucketKey(day)
+  if (scale === 'month') return monthBucketKey(day)
+  const date = new Date(day)
+  return toIso(new Date(date.getFullYear(), Math.floor(date.getMonth() / 3) * 3, 1))
 }
 
 /** Representative due date when dropping a task onto a bucket (reschedule). */

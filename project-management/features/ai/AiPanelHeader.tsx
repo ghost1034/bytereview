@@ -4,7 +4,9 @@
 import { Pause, Play, Settings2, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { resolveGeminiApiKey, useAiSettingsStore } from '../../lib/ai'
+import { useAiSettingsStore } from '../../lib/ai'
+import { saveAiSettings } from '../../lib/ai/serverState'
+import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 
 type Props = {
   onClose: () => void
@@ -14,10 +16,9 @@ type Props = {
 export function AiPanelHeader({ onClose, onOpenSettings }: Props) {
   const paused = useAiSettingsStore((s) => s.paused)
   const setPaused = useAiSettingsStore((s) => s.setPaused)
-  const apiKey = useAiSettingsStore((s) => s.apiKey)
   const enabled = useAiSettingsStore((s) => s.enabled)
-  const hasKey = Boolean(resolveGeminiApiKey(apiKey))
-  const providerLabel = paused || !enabled ? 'Paused' : hasKey ? 'Gemini' : 'Local assistant'
+  const { workspaceId } = useWorkspaceContext()
+  const providerLabel = paused || !enabled ? 'Paused' : 'Vertex AI'
 
   return (
     <header
@@ -36,7 +37,11 @@ export function AiPanelHeader({ onClose, onOpenSettings }: Props) {
       <div className="flex items-center gap-1">
         <label className="flex items-center gap-1.5 pr-1 text-[10px]" title="Pause AI">
           {paused ? <Play className="h-3 w-3" /> : <Pause className="h-3 w-3" />}
-          <Switch checked={!paused} onCheckedChange={(v) => setPaused(!v)} aria-label="Pause AI" />
+          <Switch checked={!paused} onCheckedChange={(v) => {
+            const nextPaused = !v
+            setPaused(nextPaused)
+            if (workspaceId) void saveAiSettings(workspaceId, { paused: nextPaused }).catch(() => setPaused(!nextPaused))
+          }} aria-label="Pause AI" />
         </label>
         <Button type="button" variant="ghost" size="icon" className="h-8 w-8" onClick={onOpenSettings} aria-label="AI settings">
           <Settings2 className="h-4 w-4" />

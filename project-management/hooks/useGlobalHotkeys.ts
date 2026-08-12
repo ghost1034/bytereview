@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Global keyboard shortcuts for Tasklytic (⌘K, c, g+h, g+m, g+i, [, ], t, ?).
+ * Global keyboard shortcuts for Tasklytic (⌘K, c, g+h, g+m, g+i, [, ], T, Shift+T, ?).
  */
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -12,6 +12,7 @@ type Options = {
   onCollapseSidebar?: () => void
   onExpandSidebar?: () => void
   onToggleTheme?: () => void
+  onToggleTimer?: () => void
   onShowShortcuts?: () => void
   onOpenCommand?: () => void
 }
@@ -24,6 +25,7 @@ export function useGlobalHotkeys(options: Options = {}) {
     onCollapseSidebar,
     onExpandSidebar,
     onToggleTheme,
+    onToggleTimer,
     onShowShortcuts,
     onOpenCommand,
   } = options
@@ -61,7 +63,13 @@ export function useGlobalHotkeys(options: Options = {}) {
         return
       }
 
-      if (e.key === 't' && !e.metaKey && !e.ctrlKey) {
+      if (e.key.toLowerCase() === 't' && e.shiftKey && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        onToggleTimer?.()
+        return
+      }
+
+      if (e.key.toLowerCase() === 't' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
         e.preventDefault()
         onToggleTheme?.()
         return
@@ -93,5 +101,5 @@ export function useGlobalHotkeys(options: Options = {}) {
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onCollapseSidebar, onExpandSidebar, onOpenCommand, onQuickAdd, onShowShortcuts, onToggleTheme, router, workspaceId])
+  }, [onCollapseSidebar, onExpandSidebar, onOpenCommand, onQuickAdd, onShowShortcuts, onToggleTheme, onToggleTimer, router, workspaceId])
 }

@@ -20,12 +20,12 @@ export type AnalyticsEvent =
 
 export type AnalyticsProperties = Record<string, string | number | boolean | string[] | null | undefined>
 
-/** Swappable analytics seam — V1 console logs; production binds Segment/Mixpanel/Amplitude/PostHog. */
+/** First-party usage-event seam. */
 export interface AnalyticsAdapter {
   track(event: AnalyticsEvent | string, properties?: AnalyticsProperties): void
   identify(userId: string, traits?: AnalyticsProperties): void
   page(name: string, properties?: AnalyticsProperties): void
   readonly capabilities: {
-    provider: 'noop' | 'console' | 'segment' | 'mixpanel' | 'amplitude' | 'posthog'
+    provider: 'noop' | 'first_party'
   }
 }

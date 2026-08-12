@@ -13,6 +13,7 @@ const PROJECT_RE = /\/projects\/([^/?]+)/
 const TASK_RE = /\/tasks\/([^/?]+)/
 const GOAL_RE = /\/goals\/([^/?]+)/
 const PORTFOLIO_RE = /\/portfolios\/([^/?]+)/
+const DASHBOARD_RE = /\/reporting\/([^/?]+)/
 
 /** Derive the best AI context scope from the current route. */
 export function useAiContextScope(): AiContextScope | null {
@@ -36,6 +37,9 @@ export function useAiContextScope(): AiContextScope | null {
 
     const portfolioMatch = pathname?.match(PORTFOLIO_RE)
     if (portfolioMatch?.[1]) return { type: 'portfolio', portfolioId: portfolioMatch[1] }
+
+    const dashboardMatch = pathname?.match(DASHBOARD_RE)
+    if (dashboardMatch?.[1]) return { type: 'dashboard', dashboardId: dashboardMatch[1] }
 
     return { type: 'workspace', workspaceId }
   }, [pathname, searchParams, taskDetailId, workspaceId])

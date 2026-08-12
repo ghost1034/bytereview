@@ -2,7 +2,8 @@
  * Filter clause evaluation against tasks.
  */
 import type { CustomField, Task } from '../../types'
-import type { ApplyQueryContext, FilterClause, FilterOp } from './types'
+import type { ApplyQueryContext, FilterClause, FilterGroup, FilterOp } from './types'
+import { matchFilterExpression } from './filterExpression'
 import { dueBucket } from './dueBuckets'
 
 function stripHtml(html: string | undefined): string {
@@ -207,4 +208,12 @@ export function matchClause(task: Task, clause: FilterClause, ctx: ApplyQueryCon
 export function applyFilters(tasks: Task[], filters: FilterClause[], ctx: ApplyQueryContext): Task[] {
   if (!filters.length) return tasks
   return tasks.filter((task) => filters.every((clause) => matchClause(task, clause, ctx)))
+}
+
+/** Apply a recursive AND/OR filter expression. */
+export function applyFilterExpression(tasks: Task[], expression: FilterGroup, ctx: ApplyQueryContext): Task[] {
+  if (!expression.children.length) return tasks
+  return tasks.filter((task) =>
+    matchFilterExpression(expression, (clause) => matchClause(task, clause, ctx))
+  )
 }

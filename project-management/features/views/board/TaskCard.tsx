@@ -1,12 +1,15 @@
 'use client'
 
 /** TaskCard — Kanban card with cover strip, metadata, and drag handle. */
+import { useEffect, useState } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
+import Image from 'next/image'
 import { CSS } from '@dnd-kit/utilities'
 import { CheckSquare, GitBranch, MessageSquare, Paperclip, ThumbsUp } from 'lucide-react'
 import type { CustomField, Tag, Task, User } from '../../../types'
-import { useCommentsStore } from '../../../stores/entities'
+import { useAttachmentsStore, useCommentsStore } from '../../../stores/entities'
 import { formatDate } from '../../../lib/time'
+import { getFileStorageAdapter } from '../../../lib/fileStorage'
 import { FieldValueCell } from '../../custom-fields/FieldValueCell'
 import { getSubtaskProgress } from '../../tasks'
 import { UserAvatar } from '../../profile/UserAvatar'
@@ -36,6 +39,27 @@ export function TaskCard({
   const commentCount = useCommentsStore(
     (s) => s.list().filter((c) => c.taskId === task.id).length
   )
+  const coverAttachment = useAttachmentsStore((s) =>
+    task.coverAttachmentId ? s.getById(task.coverAttachmentId) : undefined
+  )
+  const [coverUrl, setCoverUrl] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    if (!coverAttachment || !coverAttachment.mime.startsWith('image/')) {
+      setCoverUrl(null)
+      return
+    }
+    if (coverAttachment.dataUrl) {
+      setCoverUrl(coverAttachment.dataUrl)
+      return
+    }
+    void getFileStorageAdapter().getUrl(coverAttachment).then((url) => {
+      if (!cancelled) setCoverUrl(url)
+    }).catch(() => {
+      if (!cancelled) setCoverUrl(null)
+    })
+    return () => { cancelled = true }
+  }, [coverAttachment])
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: task.id,
   })
@@ -55,7 +79,16 @@ export function TaskCard({
       {...attributes}
       {...listeners}
     >
-      {cover ? (
+      {coverUrl ? (
+        <Image
+          unoptimized
+          src={coverUrl}
+          alt=""
+          width={288}
+          height={96}
+          className="-mx-3 -mt-3 mb-2 h-24 w-[calc(100%+1.5rem)] rounded-t-xl object-cover"
+        />
+      ) : cover ? (
         <div className="-mx-3 -mt-3 mb-2 h-1 rounded-t-xl" style={{ background: cover }} />
       ) : null}
       <button type="button" className="w-full text-left" onClick={onOpen}>

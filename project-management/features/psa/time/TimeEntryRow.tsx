@@ -14,9 +14,12 @@ type Props = {
   entry: TimeEntry
   onSubmit?: (id: string) => void
   onDelete?: (id: string) => void
+  onEdit?: (entry: TimeEntry) => void
+  onDuplicate?: (entry: TimeEntry) => void
+  onWriteOff?: (entry: TimeEntry) => void
 }
 
-export function TimeEntryRow({ entry, onSubmit, onDelete }: Props) {
+export function TimeEntryRow({ entry, onSubmit, onDelete, onEdit, onDuplicate, onWriteOff }: Props) {
   const status = entry.status ?? 'draft'
   return (
     <tr className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -31,8 +34,11 @@ export function TimeEntryRow({ entry, onSubmit, onDelete }: Props) {
         <DropdownMenu>
           <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent className="tl-popover-surface" align="end">
+            {(status === 'draft' || status === 'rejected') && onEdit && <DropdownMenuItem onClick={() => onEdit(entry)}>Edit</DropdownMenuItem>}
             {status === 'draft' && onSubmit && <DropdownMenuItem onClick={() => onSubmit(entry.id)}>Submit</DropdownMenuItem>}
-            {onDelete && <DropdownMenuItem onClick={() => onDelete(entry.id)}>Delete</DropdownMenuItem>}
+            {onDuplicate && <DropdownMenuItem onClick={() => onDuplicate(entry)}>Duplicate</DropdownMenuItem>}
+            {status === 'approved' && onWriteOff && <DropdownMenuItem onClick={() => onWriteOff(entry)}>Write off</DropdownMenuItem>}
+            {status === 'draft' && onDelete && <DropdownMenuItem onClick={() => onDelete(entry.id)}>Delete</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
       </td>

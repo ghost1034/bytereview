@@ -10,12 +10,6 @@ import { emitActivity } from './activity'
 
 import { newId } from './ids'
 
-import {
-  isRuleEngineActive,
-  runRulesAfterTaskUpdate,
-  runRulesForTask,
-} from './rulesEngine'
-
 import { canReparent as validateReparent } from './subtasks'
 
 import { notifyTaskAssigned } from './notifications'
@@ -240,14 +234,6 @@ export async function createSubtask(
 
   })
 
-  if (!isRuleEngineActive() && parent.projectIds[0]) {
-    await runRulesForTask(
-      { type: 'task_added_to_project', projectId: parent.projectIds[0] },
-      subtask,
-      actorId
-    )
-  }
-
   return { task: subtask }
 
 }
@@ -329,14 +315,6 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     workspaceId: input.workspaceId,
 
   })
-
-  if (!isRuleEngineActive() && input.projectId) {
-    await runRulesForTask(
-      { type: 'task_added_to_project', projectId: input.projectId },
-      task,
-      input.actorId
-    )
-  }
 
   return task
 
@@ -457,12 +435,6 @@ export async function updateTask(
   }
 
 
-
-  const next = useTasksStore.getState().getById(taskId)
-
-  if (next && !isRuleEngineActive()) {
-    await runRulesAfterTaskUpdate(next, prev, actorId)
-  }
 
 }
 

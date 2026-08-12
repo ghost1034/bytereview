@@ -7,8 +7,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { useEffect, useState } from 'react'
 import { formatRelative } from '../../lib/time'
 import { getRuleHistory } from '../../lib/rulesEngine'
+import { fetchRuleRuns, retryRuleRun, type DurableRuleRun } from '../../lib/ruleRuns'
+import { usesTasklyticBackend } from '../../lib/runtimeMode'
+import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import type { Rule } from '../../types'
 
 type Props = {
@@ -18,8 +23,21 @@ type Props = {
 }
 
 export function RuleHistoryModal({ rule, open, onOpenChange }: Props) {
+  const { workspaceId } = useWorkspaceContext()
+  const [remoteEntries, setRemoteEntries] = useState<DurableRuleRun[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open || !rule || !workspaceId || !usesTasklyticBackend()) return
+    setLoading(true)
+    void fetchRuleRuns(workspaceId, rule.id)
+      .then(setRemoteEntries)
+      .finally(() => setLoading(false))
+  }, [open, rule, workspaceId])
+
   if (!rule) return null
-  const entries = getRuleHistory(rule.id)
+  const localEntries = getRuleHistory(rule.id)
+  const entries = usesTasklyticBackend() ? remoteEntries : localEntries
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -27,7 +45,9 @@ export function RuleHistoryModal({ rule, open, onOpenChange }: Props) {
         <DialogHeader>
           <DialogTitle className="font-serif text-lg">History — {rule.name}</DialogTitle>
         </DialogHeader>
-        {entries.length === 0 ? (
+        {loading ? (
+          <p className="py-4 text-sm" style={{ color: 'var(--ink-muted)' }}>Loading run history…</p>
+        ) : entries.length === 0 ? (
           <p className="py-4 text-sm" style={{ color: 'var(--ink-muted)' }}>No runs recorded yet.</p>
         ) : (
           <ul className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -40,9 +60,19 @@ export function RuleHistoryModal({ rule, open, onOpenChange }: Props) {
                   </span>
                 </div>
                 <p className="mt-1 text-xs" style={{ color: 'var(--ink-secondary)' }}>
-                  {e.actionsApplied.join(', ') || 'No actions'}
+                  {e.actionsApplied.join(', ') || ('status' in e ? e.status : 'No actions')}
                 </p>
-                {e.error ? (
+                {'failure' in e && e.failure ? (
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <p className="text-xs text-destructive">{e.failure.detail}</p>
+                    {e.status === 'failed' ? (
+                      <Button size="sm" variant="outline" onClick={async () => {
+                        await retryRuleRun(e.id)
+                        if (workspaceId) setRemoteEntries(await fetchRuleRuns(workspaceId, rule.id))
+                      }}>Retry</Button>
+                    ) : null}
+                  </div>
+                ) : 'error' in e && e.error ? (
                   <p className="mt-1 text-xs text-destructive">{e.error}</p>
                 ) : null}
               </li>

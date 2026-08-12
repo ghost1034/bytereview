@@ -23,6 +23,7 @@ import { formatDate } from '../../lib/time'
 import { useAuthStore } from '../../stores/auth'
 import { useActivityStore, useUsersStore } from '../../stores/entities'
 import type { Task } from '../../types'
+import { TaskTemplateMenu } from '../templates/TaskTemplateMenu'
 
 type Props = {
   task: Task
@@ -55,6 +56,10 @@ export function TaskDetailFooter({ task, onClose, onOpenTask }: Props) {
       <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>
         {creator ? `Created by ${creator.name} on ${formatDate(task.createdAt)}` : `Created ${formatDate(task.createdAt)}`}
       </p>
+      <div className="flex items-center gap-1">
+      {currentUserId ? (
+        <TaskTemplateMenu taskId={task.id} taskName={task.name} workspaceId={task.workspaceId} createdBy={currentUserId} />
+      ) : null}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon" aria-label="More actions">
@@ -89,6 +94,7 @@ export function TaskDetailFooter({ task, onClose, onOpenTask }: Props) {
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </footer>
   )
 }

@@ -14,7 +14,9 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { TimeScale, WorkloadPreset, WorkloadScopeMode } from '../../lib/workload'
 import type { ISODate } from '../../types'
-import type { Project, Team } from '../../types'
+import type { CustomField, Project, Team } from '../../types'
+
+export type WorkloadGroupBy = 'person' | 'team' | 'project'
 
 type Props = {
   preset: WorkloadPreset
@@ -36,6 +38,11 @@ type Props = {
   onExport: () => void
   onEditCapacity: () => void
   canEditCapacity: boolean
+  groupBy: WorkloadGroupBy
+  onGroupByChange: (value: WorkloadGroupBy) => void
+  effortFieldId?: string
+  onEffortFieldChange: (value: string | undefined) => void
+  effortFields: CustomField[]
 }
 
 /** Range, scope, scale controls and export action. */
@@ -60,6 +67,11 @@ export function WorkloadToolbar(props: Props) {
     onExport,
     onEditCapacity,
     canEditCapacity,
+    groupBy,
+    onGroupByChange,
+    effortFieldId,
+    onEffortFieldChange,
+    effortFields,
   } = props
 
   return (
@@ -118,7 +130,18 @@ export function WorkloadToolbar(props: Props) {
             <SelectItem value="day">Day</SelectItem>
             <SelectItem value="week">Week</SelectItem>
             <SelectItem value="month">Month</SelectItem>
+            <SelectItem value="quarter">Quarter</SelectItem>
           </SelectContent>
+        </Select>
+
+        <Select value={groupBy} onValueChange={(value) => onGroupByChange(value as WorkloadGroupBy)}>
+          <SelectTrigger className="h-9 w-36" aria-label="Group workload by"><SelectValue /></SelectTrigger>
+          <SelectContent className="tl-popover-surface z-[100]"><SelectItem value="person">Person</SelectItem><SelectItem value="team">Team</SelectItem><SelectItem value="project">Project</SelectItem></SelectContent>
+        </Select>
+
+        <Select value={effortFieldId ?? '__default__'} onValueChange={(value) => onEffortFieldChange(value === '__default__' ? undefined : value)}>
+          <SelectTrigger className="h-9 w-48" aria-label="Effort field"><SelectValue /></SelectTrigger>
+          <SelectContent className="tl-popover-surface z-[100]"><SelectItem value="__default__">Automatic estimate</SelectItem>{effortFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.name}</SelectItem>)}</SelectContent>
         </Select>
 
         <div className="ml-auto flex gap-2">

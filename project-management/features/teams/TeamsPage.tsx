@@ -7,7 +7,7 @@ import { Plus, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
-import { canViewTeam, isTeamMember } from '../../lib/teams/visibility'
+import { canViewTeam } from '../../lib/teams/visibility'
 import { joinPublicTeam, requestTeamJoin } from '../../lib/teams/joinRequests'
 import { useAuthStore } from '../../stores/auth'
 import { useTeamsStore, useUsersStore } from '../../stores/entities'
@@ -17,12 +17,10 @@ import { TeamIcon } from './TeamIcon'
 
 function TeamCard({
   team,
-  workspaceId,
   href,
   onJoin,
 }: {
   team: Team
-  workspaceId: string
   href: string
   onJoin: () => void
 }) {
@@ -57,7 +55,10 @@ export function TeamsPage() {
   const teams = allTeams.filter((t) => canViewTeam(t, currentUserId))
   const [open, setOpen] = useState(false)
 
-  usePageMeta({ breadcrumbs: [{ label: 'Teams' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Teams' },
+  ] : [] })
 
   const handleJoin = async (team: Team) => {
     if (!currentUser || !workspace) return
@@ -94,7 +95,6 @@ export function TeamsPage() {
             <TeamCard
               key={team.id}
               team={team}
-              workspaceId={workspaceId}
               href={`/dashboard/project-management/w/${workspaceId}/teams/${team.id}`}
               onJoin={() => void handleJoin(team)}
             />

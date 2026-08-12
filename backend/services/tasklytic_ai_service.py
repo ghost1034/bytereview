@@ -9,46 +9,25 @@ from typing import Any
 from google.genai import types
 from sqlalchemy.orm import Session
 
-from models.tasklytic import TasklyticEntityRecord
+from models.tasklytic import TasklyticAiMessage, TasklyticAiThread, TasklyticAiUsageEvent, TasklyticEntityRecord
 from services.analytics_ai_service import _get_resp_text, _get_usage_counts, get_client
 from services.billing_service import BillingService
-from services.tasklytic_service import _find_record, authorize_record, get_membership
+from services.tasklytic_ai_contracts import AI_RESPONSE_SCHEMA, PROPOSAL_TYPES, select_vertex_model
+from services.tasklytic_ai_persistence import (
+    authorize_ai_scope,
+    get_or_create_settings,
+    persist_generated_exchange,
+    validate_proposal_for_workspace,
+)
+from services.tasklytic_service import authorize_record
 
 
 logger = logging.getLogger(__name__)
-ALLOWED_MODELS = {"gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-3.1-pro-preview"}
-ALLOWED_PROPOSALS = {
-    "draft_status_update", "create_subtasks", "update_description", "smart_fields", "create_task"
-}
+ALLOWED_PROPOSALS = PROPOSAL_TYPES
 
 
 def build_authorized_context(db: Session, user_id: str, scope: dict[str, Any]) -> tuple[str, dict[str, Any]]:
-    scope_type = scope.get("type")
-    mapping = {
-        "workspace": (None, "workspaceId"),
-        "project": ("projects", "projectId"),
-        "task": ("tasks", "taskId"),
-        "goal": ("goals", "goalId"),
-        "portfolio": ("portfolios", "portfolioId"),
-    }
-    if scope_type not in mapping:
-        raise ValueError("Unsupported AI scope")
-    kind, id_field = mapping[scope_type]
-    scope_id = scope.get(id_field)
-    if not isinstance(scope_id, str):
-        raise ValueError("AI scope id is required")
-    if kind is None:
-        workspace_id = scope_id
-        get_membership(db, workspace_id, user_id)
-        anchor: dict[str, Any] = {"id": workspace_id}
-    else:
-        row = _find_record(db, kind, scope_id)
-        if row is None or not row.workspace_id:
-            raise ValueError("AI scope was not found")
-        workspace_id = row.workspace_id
-        get_membership(db, workspace_id, user_id)
-        authorize_record(db, kind, row.payload or {}, workspace_id, user_id)
-        anchor = row.payload or {}
+    workspace_id, anchor = authorize_ai_scope(db, user_id, scope)
 
     # Keep context bounded and only include records the caller may read.
     context: dict[str, Any] = {"scope": scope, "anchor": anchor, "collections": {}}
@@ -67,38 +46,12 @@ def build_authorized_context(db: Session, user_id: str, scope: dict[str, Any]) -
     return workspace_id, context
 
 
-def _proposal_ref(proposal: dict[str, Any]) -> tuple[str | None, str | None]:
-    payload = proposal.get("payload") or {}
-    proposal_type = proposal.get("type")
-    if proposal_type == "draft_status_update":
-        return "projects", payload.get("projectId")
-    if proposal_type in {"create_subtasks", "update_description", "smart_fields"}:
-        return "tasks", payload.get("parentTaskId") or payload.get("taskId")
-    if proposal_type == "create_task" and payload.get("projectId"):
-        return "projects", payload.get("projectId")
-    return None, None
-
-
 def validate_proposals(db: Session, user_id: str, workspace_id: str, proposals: Any) -> list[dict[str, Any]]:
     if not isinstance(proposals, list) or len(proposals) > 20:
         raise ValueError("Model returned an invalid proposals collection")
     result = []
     for proposal in proposals:
-        if not isinstance(proposal, dict) or proposal.get("type") not in ALLOWED_PROPOSALS:
-            raise ValueError("Model returned an unsupported proposal type")
-        if not isinstance(proposal.get("title"), str) or not isinstance(proposal.get("preview"), str):
-            raise ValueError("Model returned a malformed proposal")
-        kind, ref = _proposal_ref(proposal)
-        if kind and ref:
-            row = _find_record(db, kind, str(ref), workspace_id)
-            if row is None:
-                raise ValueError("Model proposal references an unknown record")
-            authorize_record(db, kind, row.payload or {}, workspace_id, user_id)
-        if proposal["type"] == "create_task":
-            payload = proposal.get("payload") or {}
-            if payload.get("workspaceId") != workspace_id:
-                raise ValueError("Model proposal references another workspace")
-        result.append(proposal)
+        result.append(validate_proposal_for_workspace(db, user_id, workspace_id, proposal))
     return result
 
 
@@ -109,13 +62,25 @@ async def generate_tasklytic_response(
     history: list[dict[str, str]],
     model: str | None,
     scope: dict[str, Any],
+    thread_id: str | None = None,
 ) -> dict[str, Any]:
     workspace_id, context = build_authorized_context(db, user_id, scope)
-    selected_model = model if model in ALLOWED_MODELS else "gemini-2.5-flash"
+    settings = get_or_create_settings(db, workspace_id, user_id)
+    if not settings.enabled or settings.paused:
+        raise ValueError("Tasklytic AI is paused")
+    selected_model = select_vertex_model(model or settings.model)
+    if thread_id:
+        thread = db.get(TasklyticAiThread, thread_id)
+        if thread is None or thread.user_id != user_id or thread.workspace_id != workspace_id:
+            raise ValueError("AI thread does not belong to this scope")
+        stored = db.query(TasklyticAiMessage).filter_by(thread_id=thread_id).order_by(
+            TasklyticAiMessage.created_at.desc()
+        ).limit(20).all()
+        history = [{"role": item.role, "content": item.content} for item in reversed(stored)]
     history_text = "\n".join(f"{row['role']}: {row['content']}" for row in history[-20:])
     instruction = f"""You are Tasklytic's project-management assistant. Use only the authorized JSON context below.
 Return JSON with keys text (string), optional reasoning (string), and proposals (array). Proposal types may only be:
-draft_status_update, create_subtasks, update_description, smart_fields, create_task.
+{', '.join(sorted(PROPOSAL_TYPES))}.
 Never invent record IDs; proposals must reuse IDs from context. A create_task payload must use workspaceId {workspace_id!r}.
 
 AUTHORIZED CONTEXT:
@@ -132,6 +97,7 @@ USER REQUEST:
         contents=instruction,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
+            response_schema=AI_RESPONSE_SCHEMA,
             temperature=0.2,
             max_output_tokens=8192,
         ),
@@ -159,4 +125,24 @@ USER REQUEST:
     except Exception:
         logger.exception("Unable to meter Tasklytic AI usage for %s", user_id)
         raise
+    if thread_id:
+        return persist_generated_exchange(
+            db,
+            thread_id=thread_id,
+            user_id=user_id,
+            prompt=prompt,
+            response=parsed,
+            model=selected_model,
+            usage=usage,
+        )
+    db.add(TasklyticAiUsageEvent(
+        workspace_id=workspace_id,
+        user_id=user_id,
+        event_type="assistant",
+        model=selected_model,
+        prompt_tokens=max(0, int(usage.get("prompt_tokens") or 0)),
+        output_tokens=max(0, int(usage.get("output_tokens") or 0)),
+        total_tokens=max(0, int(usage.get("total_tokens") or 0)),
+    ))
+    db.flush()
     return parsed

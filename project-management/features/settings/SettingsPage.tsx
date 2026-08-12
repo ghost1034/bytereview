@@ -2,13 +2,31 @@
 
 /** Settings hub — links to Tasklytic workspace configuration pages. */
 import Link from 'next/link'
-import { CreditCard, FileText, Gauge, Layers, Mail, Settings2, Users, Zap, Building2 } from 'lucide-react'
+import { Bot, CheckCheck, CreditCard, FileText, Layers, Plug, Settings2, Users, Building2 } from 'lucide-react'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { EvaluationTenantsPanel } from '../onboarding/EvaluationTenantsPanel'
 import { OnboardingSettingsPanel } from '../onboarding/OnboardingSettingsPanel'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 
 const LINKS = [
+  {
+    href: 'settings/integrations', label: 'Integrations',
+    description: 'Drive, receipts, delivery, storage, and client invoice payments.', icon: Plug,
+  },
+  {
+    href: 'settings/billing', label: 'Billing controls',
+    description: 'Rates, rate cards, activity codes, invoicing, budgets, approvals, and FX.', icon: CreditCard,
+  },
+  {
+    href: 'settings/approvals', label: 'Approvals',
+    description: 'Time, expense, partial approval, lock, and reimbursement policy.', icon: CheckCheck,
+  },
+  {
+    href: 'settings/ai-teammates',
+    label: 'AI teammates',
+    description: 'Configure Tria, Summarie, and Statura schedules.',
+    icon: Bot,
+  },
   {
     href: 'settings/workspace',
     label: 'Workspace',
@@ -28,12 +46,6 @@ const LINKS = [
     icon: Users,
   },
   {
-    href: 'settings/pending-emails',
-    label: 'Pending emails',
-    description: 'Review queued invite and notification emails.',
-    icon: Mail,
-  },
-  {
     href: 'settings/billing-inquiries',
     label: 'Billing inquiries',
     description: 'Upgrade and payment contact-sales requests.',
@@ -45,24 +57,15 @@ const LINKS = [
     description: 'Create and manage project intake forms.',
     icon: FileText,
   },
-  {
-    href: 'workload',
-    label: 'Workload',
-    description: 'See open task counts by assignee.',
-    icon: Gauge,
-  },
-  {
-    href: 'rules',
-    label: 'Rules',
-    description: 'Automate actions when tasks change.',
-    icon: Zap,
-  },
 ] as const
 
 export function SettingsPage() {
   const { workspaceId, workspace } = useWorkspaceContext()
 
-  usePageMeta({ breadcrumbs: [{ label: 'Settings' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Settings' },
+  ] : [] })
 
   if (!workspaceId) return null
 

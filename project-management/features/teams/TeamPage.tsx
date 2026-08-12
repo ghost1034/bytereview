@@ -1,6 +1,6 @@
 'use client'
 
-/** Team detail page with Overview, Projects, Messages, Calendar, Settings tabs. */
+/** Team detail page with functional Overview, Projects, and Settings tabs. */
 import Link from 'next/link'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePageMeta } from '../../hooks/usePageMeta'
@@ -24,6 +24,7 @@ export function TeamPage({ teamId }: { teamId?: string | null } = {}) {
 
   usePageMeta({
     breadcrumbs: [
+      { label: 'AI Project Management', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/home` : undefined },
       { label: 'Teams', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/teams` : undefined },
       { label: team?.name ?? 'Team' },
     ],
@@ -59,8 +60,6 @@ export function TeamPage({ teamId }: { teamId?: string | null } = {}) {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="projects">Projects</TabsTrigger>
-          <TabsTrigger value="messages">Messages</TabsTrigger>
-          <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="mt-4">
@@ -68,16 +67,6 @@ export function TeamPage({ teamId }: { teamId?: string | null } = {}) {
         </TabsContent>
         <TabsContent value="projects" className="mt-4">
           <TeamProjectsTab team={team} workspaceId={workspaceId} />
-        </TabsContent>
-        <TabsContent value="messages" className="mt-4">
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
-            Team messages — full implementation in step 22.
-          </p>
-        </TabsContent>
-        <TabsContent value="calendar" className="mt-4">
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
-            Team calendar — full implementation in step 10.
-          </p>
         </TabsContent>
         <TabsContent value="settings" className="mt-4">
           {isTeamMember(team, currentUserId) ? (

@@ -1,5 +1,7 @@
 /** OCR receipt scan seam (Veryfi / Mindee / Textract in production). */
 export type OcrReceiptResult = {
+  status?: 'extracted' | 'manual_required'
+  reason?: string
   vendor?: string
   date?: string
   amount?: number
@@ -9,5 +11,5 @@ export type OcrReceiptResult = {
 
 export interface OcrAdapter {
   readonly configured: boolean
-  scanReceipt(file: File): Promise<OcrReceiptResult>
+  scanReceipt(input: { file?: File; objectName?: string; workspaceId?: string }): Promise<OcrReceiptResult>
 }

@@ -13,7 +13,7 @@ type Props = {
   tab?: string
 }
 
-const VALID_TABS = new Set<PortfolioTab>(['projects', 'progress', 'dashboard', 'workload', 'timeline', 'settings'])
+const VALID_TABS = new Set<PortfolioTab>(['projects', 'progress', 'dashboard', 'timeline', 'settings'])
 
 function parseTab(tab?: string): PortfolioTab {
   if (tab && VALID_TABS.has(tab as PortfolioTab)) return tab as PortfolioTab
@@ -30,6 +30,7 @@ export function PortfolioPage({ portfolioId, tab }: Props) {
     breadcrumbs:
       portfolio && workspaceId
         ? [
+            { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
             { label: 'Portfolios', href: `/dashboard/project-management/w/${workspaceId}/portfolios` },
             { label: portfolio.name },
           ]

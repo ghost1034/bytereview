@@ -6,10 +6,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { useMemo } from 'react'
 import {
   computeArAging,
-  computeEffectiveRate,
-  computeRealization,
+  computeEffectiveRateByCurrency,
+  computeRealizationByCurrency,
   computeUtilization,
-  computeWip,
+  computeWipByCurrency,
   computeWipAging,
   trustBalancesByClient,
   utilizationByUser,
@@ -38,13 +38,13 @@ export function PsaReportsDashboard({ workspaceId }: Props) {
   const users = useUsersStore((s) => s.list())
   const txs = useTrustTransactionsStore((s) => s.list())
   const workspace = useWorkspacesStore((s) => s.getById(workspaceId))
-  const filters: PsaReportFilters = { workspaceId }
+  const filters: PsaReportFilters = useMemo(() => ({ workspaceId }), [workspaceId])
   const targetHours = workspace?.targetWeeklyHours ?? 40
 
-  const wip = useMemo(() => computeWip(entries, expenses, filters), [entries, expenses, filters])
-  const realization = useMemo(() => computeRealization(entries, filters), [entries, filters])
+  const wip = useMemo(() => computeWipByCurrency(entries, expenses, filters), [entries, expenses, filters])
+  const realization = useMemo(() => computeRealizationByCurrency(entries, filters), [entries, filters])
   const utilization = useMemo(() => computeUtilization(entries, filters, targetHours), [entries, filters, targetHours])
-  const effective = useMemo(() => computeEffectiveRate(entries, filters), [entries, filters])
+  const effective = useMemo(() => computeEffectiveRateByCurrency(entries, filters), [entries, filters])
   const arData = useMemo(() => computeArAging(invoices, filters), [invoices, filters])
   const wipAging = useMemo(() => computeWipAging(entries, expenses, filters), [entries, expenses, filters])
   const utilByUser = useMemo(() => utilizationByUser(entries, users, filters, targetHours), [entries, users, filters, targetHours])
@@ -53,10 +53,10 @@ export function PsaReportsDashboard({ workspaceId }: Props) {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="WIP" value={formatMoney(wip.total)} />
-        <MetricCard label="Realization" value={`${(realization * 100).toFixed(1)}%`} />
+        <MetricCard label="WIP" value={Object.entries(wip).map(([currency, value]) => formatMoney(value, currency)).join(' + ') || formatMoney(0, workspace?.defaultCurrency)} />
+        <MetricCard label="Realization" value={Object.entries(realization).map(([currency, value]) => `${currency} ${(value * 100).toFixed(1)}%`).join(' · ') || '—'} />
         <MetricCard label="Utilization" value={`${utilization.toFixed(1)}%`} />
-        <MetricCard label="Effective rate" value={formatMoney(effective)} />
+        <MetricCard label="Effective rate" value={Object.entries(effective).map(([currency, value]) => `${formatMoney(value, currency)}/hr`).join(' · ') || '—'} />
       </div>
       <ChartSection title="WIP aging" data={wipAging} />
       <ChartSection title="AR aging" data={arData} />

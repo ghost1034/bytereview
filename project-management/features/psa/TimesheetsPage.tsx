@@ -4,15 +4,21 @@
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import { useAuthStore } from '../../stores/auth'
-import { useTimesheetsStore, useUsersStore } from '../../stores/entities'
+import { useTimesheetsStore, useUsersStore, useWorkspacesStore } from '../../stores/entities'
 import { formatMoney } from '../../lib/billing/formatMoney'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { canPerformWorkspaceAction } from '../../lib/permissions'
+import { runPsaAction } from '../../lib/psa/actions'
 
 export function TimesheetsPage() {
   const { workspaceId } = useWorkspaceContext()
   const userId = useAuthStore((s) => s.currentUserId)
   const sheets = useTimesheetsStore((s) => s.list().filter((t) => t.workspaceId === workspaceId))
   const users = useUsersStore((s) => s.list())
+  const workspace = useWorkspacesStore((s) => workspaceId ? s.getById(workspaceId) : undefined)
+  const currentUser = users.find((candidate) => candidate.id === userId)
+  const canBill = canPerformWorkspaceAction(currentUser, workspace, 'bill')
 
   usePageMeta({ breadcrumbs: [{ label: 'Timesheets' }] })
 
@@ -27,7 +33,7 @@ export function TimesheetsPage() {
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
             <th className="px-4 py-2">User</th><th className="px-4 py-2">Period</th><th className="px-4 py-2">Status</th>
-            <th className="px-4 py-2 text-right">Hours</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2 text-right">Util %</th>
+            <th className="px-4 py-2 text-right">Hours</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2 text-right">Util %</th><th />
           </tr></thead>
           <tbody>
             {sheets.sort((a, b) => b.periodStart.localeCompare(a.periodStart)).map((s) => {
@@ -40,6 +46,7 @@ export function TimesheetsPage() {
                   <td className="px-4 py-2 text-right font-mono tabular-nums">{s.totalHours.toFixed(2)}</td>
                   <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(s.totalAmount)}</td>
                   <td className="px-4 py-2 text-right font-mono tabular-nums">{s.utilizationPercent.toFixed(0)}%</td>
+                  <td className="px-4 py-2">{canBill && ['approved', 'partially_approved'].includes(s.status) && <Button size="sm" variant="outline" onClick={() => void runPsaAction('timesheets', s.id, 'lock', workspaceId)}>Lock</Button>}</td>
                 </tr>
               )
             })}

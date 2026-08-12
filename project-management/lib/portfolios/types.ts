@@ -25,7 +25,6 @@ export const PORTFOLIO_TABS: { id: PortfolioTab; label: string }[] = [
   { id: 'projects', label: 'Projects' },
   { id: 'progress', label: 'Progress' },
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'workload', label: 'Workload' },
   { id: 'timeline', label: 'Timeline' },
   { id: 'settings', label: 'Settings' },
 ]

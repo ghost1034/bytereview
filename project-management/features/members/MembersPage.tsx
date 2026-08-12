@@ -24,7 +24,10 @@ export function MembersPage() {
     s.list().filter((inv) => inv.workspaceId === workspaceId)
   )
 
-  usePageMeta({ breadcrumbs: [{ label: 'Members' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'Settings', href: `/dashboard/project-management/w/${workspaceId}/settings` },
+    { label: 'Members' },
+  ] : [] })
 
   if (!workspaceId || !workspace) return null
 

@@ -1,18 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { CommandPalette } from './features/shell/CommandPalette'
 import { TasklyticSidebar } from './features/shell/TasklyticSidebar'
 import { TasklyticTopbar } from './features/shell/TasklyticTopbar'
 import { KeyboardShortcutsDialog } from './features/shell/KeyboardShortcutsDialog'
-import { AiAssistantPanel } from './features/ai/AiAssistantPanel'
-import { QuickAddTaskDialog } from './features/tasks/QuickAddTaskDialog'
-import { CreateProjectDialog } from './features/projects/CreateProjectDialog'
-import { CreateGoalDialog } from './features/goals/CreateGoalDialog'
-import { CreatePortfolioDialog } from './features/portfolios/CreatePortfolioDialog'
 import { TasklyticErrorBoundary } from './features/ui/TasklyticErrorBoundary'
-import { startProductTour } from './features/onboarding/ProductTour'
+import { startProductTour } from './features/onboarding/productTourLauncher'
 import { restartOnboardingWizard } from './features/onboarding/restartOnboarding'
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys'
 import { useResolveDefaultWorkspace } from './hooks/useResolveDefaultWorkspace'
@@ -20,6 +16,13 @@ import { useReducedMotion } from './hooks/useReducedMotion'
 import { useTasklyticTheme } from './hooks/useTasklyticTheme'
 import { useAuthStore, useUiStore } from './stores/auth'
 import { useWorkspaceContext } from './hooks/useWorkspaceContext'
+
+const AiAssistantPanel = dynamic(() => import('./features/ai/AiAssistantPanel').then((module) => module.AiAssistantPanel), { ssr: false })
+const QuickAddTaskDialog = dynamic(() => import('./features/tasks/QuickAddTaskDialog').then((module) => module.QuickAddTaskDialog), { ssr: false })
+const CreateProjectDialog = dynamic(() => import('./features/projects/CreateProjectDialog').then((module) => module.CreateProjectDialog), { ssr: false })
+const CreateGoalDialog = dynamic(() => import('./features/goals/CreateGoalDialog').then((module) => module.CreateGoalDialog), { ssr: false })
+const CreatePortfolioDialog = dynamic(() => import('./features/portfolios/CreatePortfolioDialog').then((module) => module.CreatePortfolioDialog), { ssr: false })
+const TimerBanner = dynamic(() => import('./features/psa/time/TimerBanner').then((module) => module.TimerBanner), { ssr: false })
 
 /** Client shell chrome for Tasklytic routes — sidebar + topbar + main. */
 export function TasklyticChrome({ children }: { children: ReactNode }) {
@@ -32,6 +35,7 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const [createGoalOpen, setCreateGoalOpen] = useState(false)
   const [createPortfolioOpen, setCreatePortfolioOpen] = useState(false)
+  const [timerOpen, setTimerOpen] = useState(false)
 
   const { workspaceId } = useWorkspaceContext()
   const currentUserId = useAuthStore((s) => s.currentUserId)
@@ -48,6 +52,7 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
     onCollapseSidebar: () => setCollapsed(true),
     onExpandSidebar: () => setCollapsed(false),
     onToggleTheme: toggleDark,
+    onToggleTimer: () => setTimerOpen((open) => !open),
     onShowShortcuts: () => setShortcutsOpen(true),
     onOpenCommand: () => setCommandOpen(true),
   })
@@ -125,7 +130,10 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
             }
             theme={theme}
             onThemeCycle={cycleTheme}
+            timerOpen={timerOpen}
+            onTimerOpenChange={setTimerOpen}
           />
+          <TimerBanner />
           <main id="tasklytic-main" className="min-w-0 flex-1 overflow-auto p-4 lg:p-6">
             {children}
           </main>

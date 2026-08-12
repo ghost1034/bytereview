@@ -10,7 +10,6 @@ import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import type { ProjectTemplate } from '../../types'
 import { useTemplatesStore } from '../../stores/entities'
 import { newId } from '../../lib/ids'
-import { now } from '../../lib/time'
 
 type Props = {
   open: boolean
@@ -26,6 +25,7 @@ export function CreateTemplateModal({ open, onOpenChange, workspaceId, createdBy
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [sections, setSections] = useState(initial?.sectionNames.join(', ') ?? 'To do, In progress, Done')
+  const [iconEmoji, setIconEmoji] = useState(initial?.iconEmoji ?? initial?.defaults.iconEmoji ?? '📋')
   const [loading, setLoading] = useState(false)
 
   const submit = async () => {
@@ -34,13 +34,16 @@ export function CreateTemplateModal({ open, onOpenChange, workspaceId, createdBy
     try {
       const sectionNames = sections.split(',').map((s) => s.trim()).filter(Boolean)
       if (initial) {
-        await update(initial.id, { name: name.trim(), description, sectionNames })
+        await update(initial.id, { name: name.trim(), description, sectionNames, iconEmoji, defaults: { ...initial.defaults, iconEmoji } })
       } else {
         const template: ProjectTemplate = {
           id: newId(),
           name: name.trim(),
           description,
-          defaults: { iconEmoji: '📋', color: 'primary', defaultView: 'list' },
+          iconEmoji,
+          workspaceId,
+          createdBy,
+          defaults: { iconEmoji, color: 'primary', defaultView: 'list' },
           sectionNames,
           taskTemplates: [],
           customFieldIds: [],
@@ -60,6 +63,10 @@ export function CreateTemplateModal({ open, onOpenChange, workspaceId, createdBy
           <DialogTitle className="font-serif text-xl">{initial ? 'Edit template' : 'Create template'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-2">
+          <div className="grid gap-1">
+            <Label>Icon</Label>
+            <Input aria-label="Template icon" value={iconEmoji} onChange={(e) => setIconEmoji(e.target.value)} className="tl-input" maxLength={8} />
+          </div>
           <div className="grid gap-1">
             <Label>Name</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} className="tl-input" />

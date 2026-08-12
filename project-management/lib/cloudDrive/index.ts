@@ -1,9 +1,11 @@
 import { stubCloudDriveAdapter } from './stubAdapter'
+import { serverCloudDriveAdapter } from './serverAdapter'
+import { usesTasklyticBackend } from '../runtimeMode'
 import type { CloudDriveAdapter, CloudDriveProvider } from './types'
 
-/** Returns the configured cloud drive adapter (V1: stub). */
+/** Returns the server adapter in production and a capability-empty local fallback. */
 export function getCloudDriveAdapter(): CloudDriveAdapter {
-  return stubCloudDriveAdapter
+  return usesTasklyticBackend() ? serverCloudDriveAdapter : stubCloudDriveAdapter
 }
 
 /** Providers are offered in the UI only after an adapter reports support. */
@@ -16,6 +18,8 @@ export function getAvailableCloudDriveProviders(
 export type {
   CloudDriveAdapter,
   CloudDriveConnectResult,
+  CloudDriveFile,
+  CloudDriveImportInput,
   CloudDriveProvider,
 } from './types'
 export { CLOUD_DRIVE_LABELS } from './types'

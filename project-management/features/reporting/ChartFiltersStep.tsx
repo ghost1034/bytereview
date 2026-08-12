@@ -15,6 +15,7 @@ import { dateFieldsForSource, groupFieldsForSource, measureFieldsForSource } fro
 import type { ChartBuilderDraft } from '../../lib/reporting/types'
 import type { CustomField, Section, Tag, User } from '../../types'
 import type { FilterClause } from '../../lib/query/types'
+import { isFilterGroup, migrateLegacyFilters } from '../../lib/query/filterExpression'
 import { FilterBuilderPopover } from '../query/FilterBuilderPopover'
 
 type Props = {
@@ -37,8 +38,8 @@ export function ChartFiltersStep({ draft, onChange, customFields, members, secti
       <div className="space-y-2">
         <Label>Filters</Label>
         <FilterBuilderPopover
-          filters={draft.filters as FilterClause[]}
-          onChange={(filters) => onChange({ filters })}
+          expression={migrateLegacyFilters(draft.filters as FilterClause[])}
+          onChange={(expression) => onChange({ filters: expression.children.filter((node): node is FilterClause => !isFilterGroup(node)) })}
           customFields={customFields}
           members={members}
           sections={sections}
@@ -87,7 +88,7 @@ export function ChartFiltersStep({ draft, onChange, customFields, members, secti
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-2">
             <Label>Date field</Label>
-            <Select value={draft.yAxis ?? 'completedAt'} onValueChange={(v) => onChange({ yAxis: v })}>
+            <Select value={draft.dateField ?? 'completedAt'} onValueChange={(v) => onChange({ dateField: v, yAxis: v })}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -104,7 +105,7 @@ export function ChartFiltersStep({ draft, onChange, customFields, members, secti
             <Label>Granularity</Label>
             <Select
               value={draft.granularity ?? 'week'}
-              onValueChange={(v) => onChange({ granularity: v as ChartBuilderDraft['granularity'], measureField: v })}
+              onValueChange={(v) => onChange({ granularity: v as ChartBuilderDraft['granularity'] })}
             >
               <SelectTrigger>
                 <SelectValue />

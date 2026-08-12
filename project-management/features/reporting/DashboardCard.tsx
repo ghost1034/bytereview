@@ -49,7 +49,7 @@ export function DashboardCard({ dashboard, owner, basePath, dataCtx }: Props) {
           {dashboard.schedule ? (
             <Badge variant="outline" className="shrink-0 gap-1 text-[10px]">
               <CalendarClock className="h-3 w-3" />
-              Scheduled
+              Next {formatRelative(dashboard.schedule.nextRunAt)}
             </Badge>
           ) : null}
         </div>

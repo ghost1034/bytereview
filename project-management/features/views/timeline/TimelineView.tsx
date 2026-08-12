@@ -20,13 +20,13 @@ import { TimelineToolbarExtras } from './TimelineToolbarExtras'
 import { dateToX, defaultRange } from './timelineUtils'
 import { useTimelineState } from './useTimelineState'
 
-type Props = { project: Project; basePath: string }
+type Props = { project: Project; basePath: string; variant?: 'timeline' | 'gantt' }
 
-export function TimelineView({ project, basePath }: Props) {
+export function TimelineView({ project, basePath, variant = 'timeline' }: Props) {
   const currentUserId = useAuthStore((s) => s.currentUserId)
-  const { query, setQuery } = useViewQuery(project.id, 'timeline')
-  const ui = useTimelineState(project.id)
-  const openTask = useOpenProjectTask(basePath, 'timeline')
+  const { query, setQuery } = useViewQuery(project.id, variant)
+  const ui = useTimelineState(project.id, variant)
+  const openTask = useOpenProjectTask(basePath, variant)
   const [linkError, setLinkError] = useState<string | null>(null)
 
   const sections = useSectionsStore((s) =>
@@ -80,7 +80,7 @@ export function TimelineView({ project, basePath }: Props) {
         query={query}
         onChange={setQuery}
         projectId={project.id}
-        viewType="timeline"
+        viewType={variant}
         sections={sections}
         members={users.filter((u) => project.memberIds.includes(u.id))}
         tags={tags.filter((t) => t.workspaceId === project.workspaceId)}
@@ -101,7 +101,8 @@ export function TimelineView({ project, basePath }: Props) {
         highlightCriticalPath={ui.highlightCriticalPath}
         onHighlightCriticalPath={ui.setHighlightCriticalPath}
         linkError={linkError}
-        extra={
+        showRowsBy={variant === 'timeline'}
+        extra={variant === 'gantt' ? (
           <TimelineToolbarExtras
             tasks={tasks}
             showBaseline={ui.showBaseline}
@@ -113,11 +114,12 @@ export function TimelineView({ project, basePath }: Props) {
             railCollapsed={ui.railCollapsed}
             onRailCollapsed={ui.setRailCollapsed}
           />
-        }
+        ) : undefined}
       />
 
       <TimelineRenderer
         project={project}
+        variant={variant}
         tasks={tasks}
         sections={sections}
         users={users}
@@ -128,7 +130,7 @@ export function TimelineView({ project, basePath }: Props) {
         onZoomIn={ui.zoomIn}
         onZoomOut={ui.zoomOut}
         colorBy={ui.colorBy}
-        rowsBy={ui.rowsBy}
+        rowsBy={variant === 'gantt' ? 'section' : ui.rowsBy}
         autoShift={ui.autoShift}
         highlightCriticalPath={ui.highlightCriticalPath}
         showBaseline={ui.showBaseline}

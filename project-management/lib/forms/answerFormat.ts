@@ -70,11 +70,22 @@ function escapeHtml(text: string): string {
 /** Validate required fields; returns first error message or null. */
 export function validateFormAnswers(form: Pick<Form, 'fields'>, answers: Record<string, unknown>): string | null {
   for (const field of form.fields) {
+    if (!isFormFieldVisible(field, answers)) continue
     if (!field.required) continue
     const err = validateField(field, answers[field.id])
     if (err) return err
   }
   return null
+}
+
+export function isFormFieldVisible(field: FormField, answers: Record<string, unknown>): boolean {
+  const rule = field.visibleIf
+  if (!rule) return true
+  const value = answers[rule.fieldId]
+  if (rule.op === 'is_set') return value !== undefined && value !== null && value !== '' && (!Array.isArray(value) || value.length > 0)
+  if (rule.op === 'is_not_set') return value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)
+  if (rule.op === 'eq') return Array.isArray(value) ? value.includes(rule.value) : value === rule.value
+  return Array.isArray(value) ? !value.includes(rule.value) : value !== rule.value
 }
 
 function validateField(field: FormField, value: unknown): string | null {

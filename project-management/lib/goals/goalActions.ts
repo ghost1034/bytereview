@@ -30,6 +30,9 @@ export type SaveGoalInput = {
   privacy: Goal['privacy']
   supportingProjectIds: string[]
   supportingGoalIds: string[]
+  rollupWeight?: number
+  supportingGoalWeights?: Record<string, number>
+  supportingProjectWeights?: Record<string, number>
   status?: Goal['status']
 }
 
@@ -69,6 +72,9 @@ export async function createGoal(input: SaveGoalInput): Promise<Goal> {
     status,
     supportingProjectIds: input.supportingProjectIds,
     supportingGoalIds: input.supportingGoalIds,
+    rollupWeight: input.rollupWeight,
+    supportingGoalWeights: input.supportingGoalWeights,
+    supportingProjectWeights: input.supportingProjectWeights,
     privacy: input.privacy,
     createdAt: now(),
   }

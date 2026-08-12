@@ -32,7 +32,8 @@ Additive extensions added during rebuild: workspace invitations/plans, billing i
 - **AIAdapter** (`lib/ai`) — backend mode sends only prompt/history/model/scope IDs; FastAPI reconstructs authorized PostgreSQL context and calls Vertex AI. In-browser Gemini and the deterministic adapter remain fallback implementations.
 - **AnalyticsAdapter** (`lib/analytics`) — noop outside local debugging; first-party usage/audit events replace advertised third-party choices in Phase 10.
 - **PaymentAdapter** (`lib/billing`, `lib/payment`) — V1 manual/inquiry; production Stripe/Adyen.
-- **AccountingAdapter** (`lib/accounting`) — V1 JSON export; production QuickBooks/Xero/NetSuite.
+- Invoice JSON export is the supported accounting handoff. QuickBooks Online,
+  Xero, NetSuite, and other accounting sync providers are intentionally hidden.
 - **OcrAdapter** (`lib/ocr`) — V1 manual entry; production Veryfi/Mindee/Textract.
 - **SearchAdapter** — V1 in-memory inverted index (`lib/search`); production Elasticsearch/Typesense/Meilisearch.
 

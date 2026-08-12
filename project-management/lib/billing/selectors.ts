@@ -4,6 +4,7 @@
  */
 import type { Expense, Invoice, TimeEntry } from '../../types'
 import { entryHours } from '../psa/timeEntryUtils'
+import { aggregateMoney, type MoneyByCurrency } from './currency'
 
 const WIP_TIME_STATUSES = new Set(['approved', 'submitted'])
 const WIP_EXP_STATUSES = new Set(['approved', 'submitted'])
@@ -79,4 +80,45 @@ export function arAgingBuckets(invoices: Invoice[], asOf = new Date()): Record<s
       else buckets['90+'] += outstanding
     })
   return buckets
+}
+
+/** Outstanding AR separated first by aging bucket and then by ISO currency. */
+export function arAgingByCurrency(
+  invoices: Invoice[],
+  asOf = new Date(),
+): Record<string, MoneyByCurrency> {
+  const result: Record<string, MoneyByCurrency> = {
+    Current: {}, '1-30': {}, '31-60': {}, '61-90': {}, '90+': {},
+  }
+  const today = asOf.toISOString().slice(0, 10)
+  for (const invoice of invoices) {
+    const outstanding = invoice.amountOutstanding ?? invoice.amount - (invoice.amountPaid ?? 0)
+    if (outstanding <= 0 || ['void', 'paid', 'written_off'].includes(invoice.status)) continue
+    const daysPast = Math.floor((new Date(today).getTime() - new Date(invoice.dueOn).getTime()) / 86400000)
+    const bucket = daysPast <= 0 ? 'Current' : daysPast <= 30 ? '1-30' : daysPast <= 60 ? '31-60' : daysPast <= 90 ? '61-90' : '90+'
+    result[bucket] = aggregateMoney([
+      ...Object.entries(result[bucket]).map(([currency, amount]) => ({ currency, amount })),
+      { currency: invoice.currency ?? 'USD', amount: outstanding, fxQuoteId: invoice.fxQuoteId },
+    ])
+  }
+  return result
+}
+
+export function invoiceOutstandingByCurrency(invoices: Invoice[]): MoneyByCurrency {
+  return aggregateMoney(invoices
+    .filter((invoice) => !['void', 'paid', 'written_off'].includes(invoice.status))
+    .map((invoice) => ({
+      currency: invoice.currency ?? 'USD',
+      amount: invoice.amountOutstanding ?? invoice.amount - (invoice.amountPaid ?? 0),
+      fxQuoteId: invoice.fxQuoteId,
+    })))
+}
+
+export function wipByCurrency(entries: TimeEntry[], expenses: Expense[]): MoneyByCurrency {
+  return aggregateMoney([
+    ...entries.filter((entry) => entry.billable && !entry.invoiceId && WIP_TIME_STATUSES.has(entry.status ?? 'draft'))
+      .map((entry) => ({ currency: entry.currency ?? 'USD', amount: entry.amount ?? (entry.rateSnapshot ?? 0) * entryHours(entry) })),
+    ...expenses.filter((expense) => expense.billable && !expense.invoiceId && WIP_EXP_STATUSES.has(expense.status ?? 'draft'))
+      .map((expense) => ({ currency: expense.currency ?? 'USD', amount: expense.billableAmount ?? expense.totalAmount ?? expense.amount })),
+  ])
 }

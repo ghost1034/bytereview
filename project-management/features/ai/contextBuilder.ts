@@ -6,6 +6,7 @@ import {
   useActivityStore,
   useCommentsStore,
   useCustomFieldsStore,
+  useDashboardsStore,
   useGoalsStore,
   usePortfoliosStore,
   useProjectsStore,
@@ -157,6 +158,21 @@ export function buildAiContext(scope: AiContextScope): AiContextBundle {
         goal,
         statusUpdates: statusUpdates(scope),
         supportingProjects: (goal?.supportingProjectIds ?? []).map((id: string) => useProjectsStore.getState().getById(id)?.name).filter(Boolean),
+      },
+    }
+  }
+
+  if (scope.type === 'dashboard') {
+    const dashboard = useDashboardsStore.getState().getById(scope.dashboardId)
+    return {
+      scope,
+      label: dashboard?.name ?? 'Dashboard',
+      json: {
+        workspaceId: dashboard?.workspaceId,
+        dashboard: dashboard ? {
+          id: dashboard.id, name: dashboard.name, charts: dashboard.charts,
+          visibility: dashboard.visibility,
+        } : null,
       },
     }
   }

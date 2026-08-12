@@ -16,6 +16,7 @@ type Props = {
   onCellClick: (userId: string, bucketKey: string) => void
   onDropTaskOnCell?: (userId: string, bucketKey: string, taskId: string) => void
   onDropTaskOnRow?: (userId: string, taskId: string) => void
+  onPersonClick?: (userId: string) => void
 }
 
 /** Person header, utilization bar, and capacity cells. */
@@ -25,6 +26,7 @@ export function WorkloadRow({
   onCellClick,
   onDropTaskOnCell,
   onDropTaskOnRow,
+  onPersonClick,
 }: Props) {
   const weeklyCap = userWeeklyCapacity(row.user)
   const barValue = Math.min(100, row.utilizationPercent)
@@ -53,7 +55,7 @@ export function WorkloadRow({
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{row.label}</p>
+            <button type="button" className="truncate text-left text-sm font-medium hover:underline" onClick={() => onPersonClick?.(row.userId)}>{row.label}</button>
             <p className="text-xs tabular-nums" style={{ color: 'var(--ink-muted)' }}>
               {formatHours(row.weekTotalHours)} / {formatHours(weeklyCap)} · {row.overloadBucketCount} overload
             </p>

@@ -3,14 +3,16 @@
  * Order: matter user/role → matter rate card → project → client/card → team role →
  * workspace role → user default → fallback 0.
  */
-import type { BillingRate, ID, ISODate, Matter, Project, RateCard, RateSource, User } from '../../types'
+import type { BillingRate, Client, ID, ISODate, Matter, Project, RateCard, RateSource, User } from '../../types'
 
 export type ResolveRateArgs = {
+  workspaceId?: ID
   userId: ID
   date?: ISODate
   matterId?: ID
   projectId?: ID
   clientId?: ID
+  client?: Client
   user?: User
   matter?: Matter
   project?: Project
@@ -59,7 +61,7 @@ export function resolveRate(args: ResolveRateArgs): ResolvedRate {
   const date = args.date ?? new Date().toISOString().slice(0, 10)
   const currency = args.defaultCurrency ?? 'USD'
   const user = args.user
-  const rates = args.billingRates.filter((r) => r.workspaceId === (args.matter?.workspaceId ?? args.project?.workspaceId))
+  const rates = args.billingRates.filter((r) => r.workspaceId === (args.workspaceId ?? args.matter?.workspaceId ?? args.project?.workspaceId))
 
   const matterRate =
     pickRate(rates, date, (r) => r.scope === 'matter' && r.scopeId === args.matterId && r.userId === args.userId) ??
@@ -97,7 +99,7 @@ export function resolveRate(args: ResolveRateArgs): ResolvedRate {
     return { hourlyRate: clientRate.hourlyRate, currency: clientRate.currency, rateSource: 'client', label: 'Client override' }
   }
 
-  const clientCardId = args.project?.rateCardId
+  const clientCardId = args.client?.defaultRateCardId ?? args.project?.rateCardId
   const clientCard = args.rateCards.find((c) => c.id === clientCardId)
   const clientCardHit = fromCard(clientCard, user, date)
   if (clientCardHit) {

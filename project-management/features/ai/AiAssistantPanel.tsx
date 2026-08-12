@@ -17,6 +17,9 @@ import { AiThreadList } from './AiThreadList'
 import { AiSettingsSection } from './AiSettingsSection'
 import { useAiContextScope } from './useAiContext'
 import { useAiChat } from './useAiChat'
+import { usePersistentAiState } from './usePersistentAiState'
+import { createServerThread } from '../../lib/ai/serverState'
+import { usesTasklyticBackend } from '../../lib/forms/publicFormApi'
 
 type Props = { open: boolean; onOpenChange: (v: boolean) => void }
 
@@ -27,16 +30,25 @@ export function AiAssistantPanel({ open, onOpenChange }: Props) {
   const activeThreadId = useAiSettingsStore((s) => s.activeThreadId)
   const getThread = useAiSettingsStore((s) => s.getThread)
   const createThread = useAiSettingsStore((s) => s.createThread)
+  const upsertThread = useAiSettingsStore((s) => s.upsertThread)
   const [tab, setTab] = useState<'chat' | 'settings'>('chat')
 
   const { send, typing, disabled } = useAiChat(workspaceId, contextScope)
+  const persistent = usePersistentAiState(workspaceId, currentUserId)
   const thread = activeThreadId ? getThread(activeThreadId) : undefined
 
   useEffect(() => {
-    if (open && workspaceId && !activeThreadId) {
-      createThread(workspaceId, 'New chat', contextScope ?? undefined)
+    if (open && persistent.ready && workspaceId && !activeThreadId) {
+      if (usesTasklyticBackend()) {
+        void createServerThread(workspaceId, contextScope ?? undefined).then((created) => {
+          upsertThread(created)
+          useAiSettingsStore.getState().setActiveThread(created.id)
+        })
+      } else {
+        createThread(workspaceId, 'New chat', contextScope ?? undefined)
+      }
     }
-  }, [open, workspaceId, activeThreadId, createThread, contextScope])
+  }, [open, persistent.ready, workspaceId, activeThreadId, createThread, contextScope, upsertThread])
 
   if (!open) {
     return (
@@ -74,9 +86,10 @@ export function AiAssistantPanel({ open, onOpenChange }: Props) {
           </TabsList>
 
           <TabsContent value="chat" className="mt-0 flex min-h-0 flex-1 flex-col data-[state=inactive]:hidden">
+            {persistent.error ? <p role="alert" className="px-4 py-2 text-xs text-destructive">{persistent.error}</p> : null}
             {workspaceId ? <AiThreadList workspaceId={workspaceId} /> : null}
-            <AiMessageList thread={thread} actorId={currentUserId} typing={typing} />
-            <AiInputArea scope={contextScope} disabled={disabled} onSend={(p) => void send(p)} />
+            <AiMessageList thread={thread} actorId={currentUserId} typing={typing || !persistent.ready} />
+            <AiInputArea scope={contextScope} disabled={disabled || !persistent.ready} onSend={(p) => void send(p)} />
           </TabsContent>
 
           <TabsContent value="settings" className="mt-0 flex-1 overflow-y-auto data-[state=inactive]:hidden">

@@ -19,7 +19,9 @@ import { TimesheetWeekGrid, TimesheetWeekNav } from './time/TimesheetWeekGrid'
 import { TimesheetSubmitDialog } from './time/TimesheetSubmitDialog'
 import { TimeApprovalsTab } from './time/TimeApprovalsTab'
 import { TimeEntryRow } from './time/TimeEntryRow'
-import { TimerBanner } from './time/TimerBanner'
+import { runPsaAction } from '../../lib/psa/actions'
+import { canPerformWorkspaceAction } from '../../lib/permissions'
+import type { TimeEntry } from '../../types'
 import {
   useBillingRatesStore,
   useRateCardsStore,
@@ -32,15 +34,19 @@ export function TimeTrackingPage() {
   const workspace = useWorkspacesStore((s) => (workspaceId ? s.getById(workspaceId) : undefined))
   const entries = useTimeEntriesStore((s) => s.list())
   const tasks = useTasksStore((s) => s.list())
-  const update = useTimeEntriesStore((s) => s.update)
   const remove = useTimeEntriesStore((s) => s.remove)
   const add = useTimeEntriesStore((s) => s.add)
   const sheets = useTimesheetsStore((s) => s.list())
   const [weekAnchor, setWeekAnchor] = useState(new Date())
   const [dialogOpen, setDialogOpen] = useState(false)
   const [submitOpen, setSubmitOpen] = useState(false)
+  const [editing, setEditing] = useState<TimeEntry | null>(null)
+  const [statusFilter, setStatusFilter] = useState('all')
 
-  usePageMeta({ breadcrumbs: [{ label: 'Time tracking' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Time tracking' },
+  ] : [] })
 
   const weekStartPref = workspace?.timesheetWeekStart ?? 'monday'
   const bounds = weekBounds(weekAnchor, weekStartPref)
@@ -58,6 +64,10 @@ export function TimeTrackingPage() {
   const targetHours = workspace?.targetWeeklyHours ?? 40
   const billableH = weekEntries.filter((e) => e.billable).reduce((s, e) => s + entryHours(e), 0)
   const totalH = weekEntries.reduce((s, e) => s + entryHours(e), 0)
+  const filteredEntries = statusFilter === 'all' ? myEntries : myEntries.filter((entry) => (entry.status ?? 'draft') === statusFilter)
+  const currentUser = useUsersStore((s) => userId ? s.getById(userId) : undefined)
+  const canApprove = canPerformWorkspaceAction(currentUser, workspace, 'approve')
+  const canBill = canPerformWorkspaceAction(currentUser, workspace, 'bill')
 
   const onCellSave = async (taskId: string | undefined, projectId: string | undefined, date: string, hours: number) => {
     if (!workspaceId || !userId || hours <= 0) return
@@ -83,7 +93,6 @@ export function TimeTrackingPage() {
 
   return (
     <div className="space-y-4" data-tour-page="time">
-      <TimerBanner />
       {pendingSheet && <Badge className="w-full justify-center py-2">Timesheet submitted — awaiting approval</Badge>}
       {rejectedSheet && <Badge variant="destructive" className="w-full justify-center py-2">Rejected: {rejectedSheet.rejectedReason}</Badge>}
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -99,7 +108,7 @@ export function TimeTrackingPage() {
         </div>
       </div>
       <Tabs defaultValue="week">
-        <TabsList><TabsTrigger value="week">My week</TabsTrigger><TabsTrigger value="entries">All entries</TabsTrigger><TabsTrigger value="approve">To approve</TabsTrigger></TabsList>
+        <TabsList><TabsTrigger value="week">My week</TabsTrigger><TabsTrigger value="entries">All entries</TabsTrigger>{canApprove && <TabsTrigger value="approve">To approve</TabsTrigger>}</TabsList>
         <TabsContent value="week" className="space-y-3">
           <TimesheetWeekNav weekAnchor={weekAnchor} onChange={setWeekAnchor} />
           <TimesheetWeekGrid entries={weekEntries} tasks={tasks} weekAnchor={weekAnchor} weekStart={weekStartPref} readOnly={readOnly} onCellSave={onCellSave} />
@@ -109,6 +118,7 @@ export function TimeTrackingPage() {
           </div>
         </TabsContent>
         <TabsContent value="entries">
+          <select aria-label="Filter time status" className="tl-input mb-3 w-48" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option>{['draft', 'submitted', 'approved', 'rejected', 'written_off', 'billed'].map((status) => <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>)}</select>
           <div className="tl-card overflow-hidden shadow-paper-sm">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-xs" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
@@ -116,16 +126,22 @@ export function TimeTrackingPage() {
                 <th className="px-3 py-2 text-right">Rate</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Bill</th><th className="px-3 py-2">Status</th><th className="px-3 py-2" />
               </tr></thead>
               <tbody>
-                {myEntries.sort((a, b) => b.date.localeCompare(a.date)).map((e) => (
-                  <TimeEntryRow key={e.id} entry={e} onSubmit={(id) => void update(id, { status: 'submitted' })} onDelete={(id) => void remove(id)} />
+                {filteredEntries.sort((a, b) => b.date.localeCompare(a.date)).map((e) => (
+                  <TimeEntryRow key={e.id} entry={e}
+                    onEdit={setEditing}
+                    onSubmit={(id) => void runPsaAction('timeEntries', id, 'submit', workspaceId)}
+                    onDuplicate={(entry) => void runPsaAction('timeEntries', entry.id, 'duplicate', workspaceId)}
+                    onWriteOff={canBill ? (entry) => { const reason = window.prompt('Write-off reason'); if (reason) void runPsaAction('timeEntries', entry.id, 'write-off', workspaceId, { reason }) } : undefined}
+                    onDelete={(id) => void remove(id)} />
                 ))}
               </tbody>
             </table>
           </div>
         </TabsContent>
-        <TabsContent value="approve"><TimeApprovalsTab workspaceId={workspaceId} approverId={userId} /></TabsContent>
+        {canApprove && <TabsContent value="approve"><TimeApprovalsTab workspaceId={workspaceId} approverId={userId} /></TabsContent>}
       </Tabs>
       <ManualTimeEntryDialog open={dialogOpen} onOpenChange={setDialogOpen} workspaceId={workspaceId} userId={userId} />
+      {editing && <ManualTimeEntryDialog key={editing.id} open entry={editing} onOpenChange={(open) => { if (!open) setEditing(null) }} workspaceId={workspaceId} userId={userId} />}
       <TimesheetSubmitDialog open={submitOpen} onOpenChange={setSubmitOpen} workspaceId={workspaceId} userId={userId} periodStart={bounds.start} periodEnd={bounds.end} entries={weekEntries} targetHours={targetHours} />
     </div>
   )

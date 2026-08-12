@@ -8,11 +8,11 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
 import { newId } from '../../../lib/ids'
-import { now } from '../../../lib/time'
 import { entryHours } from '../../../lib/psa/timeEntryUtils'
 import { utilizationPercent } from '../../../lib/billing/selectors'
 import { useTimesheetsStore, useTimeEntriesStore } from '../../../stores/entities'
 import type { TimeEntry, Timesheet } from '../../../types'
+import { runPsaAction } from '../../../lib/psa/actions'
 
 type Props = {
   open: boolean
@@ -44,22 +44,22 @@ export function TimesheetSubmitDialog(props: Props) {
         userId: props.userId,
         periodStart: props.periodStart,
         periodEnd: props.periodEnd,
-        status: 'submitted',
+        status: 'draft',
         totalHours: total,
         billableHours: billable,
         nonBillableHours: total - billable,
         totalAmount: amount,
         utilizationPercent: utilizationPercent(billable, props.targetHours),
         targetHours: props.targetHours,
-        submittedAt: now(),
         notes: notes || undefined,
       }
       await addSheet(sheet)
       await Promise.all(
         props.entries.map((e) =>
-          updateEntry(e.id, { status: 'submitted', submittedAt: now(), timesheetId: sheet.id })
+          updateEntry(e.id, { timesheetId: sheet.id })
         )
       )
+      await runPsaAction('timesheets', sheet.id, 'submit', props.workspaceId)
       props.onOpenChange(false)
     } finally {
       setLoading(false)

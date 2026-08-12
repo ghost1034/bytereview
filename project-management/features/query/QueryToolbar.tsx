@@ -8,7 +8,7 @@ import { Filter, RotateCcw, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { CustomField, ProjectView, Section, Tag, User } from '../../types'
-import { DEFAULT_VIEW_QUERY, isQueryModified, type ViewQuery } from '../../lib/query/applyQuery'
+import { clauseCount, DEFAULT_VIEW_QUERY, isQueryModified, migrateViewQuery, resolveFilterExpression, type ViewQuery } from '../../lib/query/applyQuery'
 import { FilterBuilderPopover } from './FilterBuilderPopover'
 import { SortMenu } from './SortMenu'
 import { GroupByMenu } from './GroupByMenu'
@@ -77,7 +77,7 @@ export function QueryToolbar({
           onKeyDown={(e) => {
             if (e.key === 'Enter') onSearchSubmit?.(query.search)
           }}
-          placeholder="Search tasks and projects… (press / to focus)"
+          placeholder="Search tasks, projects, goals, and people… (press / to focus)"
           className="h-12 pl-10 text-base"
         />
       </div>
@@ -103,8 +103,8 @@ export function QueryToolbar({
 
       <div className="flex flex-wrap items-center gap-2">
         <FilterBuilderPopover
-          filters={query.filters}
-          onChange={(filters) => onChange({ ...query, filters })}
+          expression={resolveFilterExpression(query)}
+          onChange={(filterExpression) => onChange({ ...migrateViewQuery(query), filterExpression })}
           customFields={customFields}
           members={members}
           sections={sections}
@@ -112,7 +112,7 @@ export function QueryToolbar({
           trigger={
             <Button variant="outline" size="sm">
               <Filter className="mr-1 h-4 w-4" />
-              Filter {query.filters.length ? `(${query.filters.length})` : ''}
+              Filter {clauseCount(resolveFilterExpression(query)) ? `(${clauseCount(resolveFilterExpression(query))})` : ''}
             </Button>
           }
         />

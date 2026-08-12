@@ -30,7 +30,7 @@ type Props = {
   dashboard: ReportingDashboard
 }
 
-/** Save digest schedule on dashboard (V1 visual + local email queue). */
+/** Save a digest schedule consumed only by the server maintenance worker. */
 export function ScheduleDigestDialog({ open, onOpenChange, dashboard }: Props) {
   const update = useDashboardsStore((s) => s.update)
   const [frequency, setFrequency] = useState<DashboardSchedule['frequency']>(
@@ -64,7 +64,7 @@ export function ScheduleDigestDialog({ open, onOpenChange, dashboard }: Props) {
           <DialogTitle className="font-serif">Schedule digest</DialogTitle>
         </DialogHeader>
         <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-          Backend mode delivers scheduled summaries from the server; local fallback mode queues them in this browser.
+          The server generates a current PNG snapshot and delivers it at the next scheduled run.
         </p>
         <div className="space-y-4 py-2">
           <div className="space-y-2">

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -64,6 +65,7 @@ export function CreateDashboardDialog({ open, onOpenChange, workspaceId, onCreat
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="font-serif">New dashboard</DialogTitle>
+          <DialogDescription>Create a blank reporting dashboard or start from a template.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">

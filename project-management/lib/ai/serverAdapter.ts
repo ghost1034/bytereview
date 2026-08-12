@@ -1,12 +1,11 @@
 /** Server-side Tasklytic AI adapter — the server rebuilds all authorized context. */
-import { newId } from '../ids'
 import { tasklyticApiJson } from '../tasklyticApi'
 import type { AiAdapter, AiGenerateInput, AiGenerateResult, AiProposal } from './types'
 
 type ServerAiResponse = {
   text: string
   reasoning?: string
-  proposals?: Omit<AiProposal, 'id'>[]
+  proposals?: AiProposal[]
 }
 
 export function createServerAiAdapter(model?: string): AiAdapter {
@@ -21,12 +20,13 @@ export function createServerAiAdapter(model?: string): AiAdapter {
           scope: input.context.scope,
           history: input.history ?? [],
           model,
+          threadId: input.threadId,
         }),
       })
       return {
         text: res.text,
         reasoning: res.reasoning,
-        proposals: (res.proposals ?? []).map((proposal) => ({ ...proposal, id: newId() })),
+        proposals: res.proposals ?? [],
       }
     },
   }

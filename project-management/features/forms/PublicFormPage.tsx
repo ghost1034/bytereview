@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button'
 import { useFormsStore } from '../../stores/entities'
 import { useAuthStore } from '../../stores/auth'
 import { submitForm } from '../../lib/forms/submitForm'
-import { validateFormAnswers } from '../../lib/forms/answerFormat'
+import { isFormFieldVisible, validateFormAnswers } from '../../lib/forms/answerFormat'
 import {
+  fetchAuthenticatedForm,
   fetchPublicForm,
+  submitAuthenticatedFormApi,
   type PublicFormDefinition,
   submitPublicFormApi,
   usesTasklyticBackend,
@@ -24,6 +26,7 @@ type Props = { formId: string }
 export function PublicFormPage({ formId }: Props) {
   const storeForm = useFormsStore((s) => s.getById(formId))
   const [remoteForm, setRemoteForm] = useState<PublicFormDefinition | null | undefined>(undefined)
+  const [authenticatedFlow, setAuthenticatedFlow] = useState(false)
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const [answers, setAnswers] = useState<FormAnswers>({})
   const [error, setError] = useState<string | null>(null)
@@ -36,9 +39,16 @@ export function PublicFormPage({ formId }: Props) {
       return
     }
     let cancelled = false
-    void fetchPublicForm(formId)
-      .then((form) => {
-        if (!cancelled) setRemoteForm(form)
+    void fetchAuthenticatedForm(formId)
+      .then(async (authenticatedForm) => ({
+        form: authenticatedForm ?? await fetchPublicForm(formId),
+        authenticated: Boolean(authenticatedForm),
+      }))
+      .then(({ form, authenticated }) => {
+        if (!cancelled) {
+          setRemoteForm(form)
+          setAuthenticatedFlow(authenticated)
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -87,7 +97,8 @@ export function PublicFormPage({ formId }: Props) {
     setLoading(true)
     try {
       if (usesTasklyticBackend()) {
-        await submitPublicFormApi(formId, answers)
+        if (authenticatedFlow) await submitAuthenticatedFormApi(formId, answers)
+        else await submitPublicFormApi(formId, answers, remoteForm?.submissionToken)
         setSubmitted(true)
         return
       }
@@ -169,7 +180,7 @@ function PublicFormBody({
             <p className="mt-2 text-sm" style={{ color: 'var(--ink-secondary)' }}>{form.description}</p>
           ) : null}
         </div>
-        {form.fields.map((field) => (
+        {form.fields.filter((field) => isFormFieldVisible(field, answers)).map((field) => (
           <FormFieldRenderer
             key={field.id}
             field={field}

@@ -1,11 +1,12 @@
 'use client'
 
 /** CreateFormDialog — quick-create a new form with default fields. */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -41,6 +42,10 @@ export function CreateFormDialog({ open, onOpenChange, workspaceId, onCreated }:
   const [name, setName] = useState('')
   const [projectId, setProjectId] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (open && !projectId && projects[0]) setProjectId(projects[0].id)
+  }, [open, projectId, projects])
 
   const reset = () => {
     setName('')
@@ -82,6 +87,7 @@ export function CreateFormDialog({ open, onOpenChange, workspaceId, onCreated }:
       <DialogContent className="tl-dialog-surface max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-serif text-xl">New form</DialogTitle>
+          <DialogDescription>Create a project intake form with starter title and details fields.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">

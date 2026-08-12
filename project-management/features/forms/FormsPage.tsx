@@ -23,7 +23,10 @@ export function FormsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(forms[0]?.id ?? null)
   const selected = forms.find((f) => f.id === selectedId)
 
-  usePageMeta({ breadcrumbs: [{ label: 'Forms' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Forms' },
+  ] : [] })
 
   if (!workspaceId) return null
 

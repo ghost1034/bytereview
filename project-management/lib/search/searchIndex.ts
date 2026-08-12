@@ -1,7 +1,7 @@
 /**
  * Public search API — thin wrappers over the in-memory index.
  */
-import type { Comment, Project, Task } from '../../types'
+import type { Comment, Goal, Project, Task, User } from '../../types'
 import { getSearchIndex, type SearchHit } from './workspaceIndex'
 
 export type { SearchHit } from './workspaceIndex'
@@ -39,6 +39,23 @@ export function searchWorkspaceProjects(
     const project = projects.find((p) => p.id === h.id)
     return { ...h, label: project?.name ?? h.label }
   })
+}
+
+export function searchWorkspaceGoals(query: string, workspaceId: string, goals: Goal[]): Goal[] {
+  const q = query.trim().toLowerCase()
+  return goals
+    .filter((goal) => goal.workspaceId === workspaceId)
+    .filter((goal) => !q || `${goal.name} ${goal.description ?? ''}`.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export function searchWorkspacePeople(query: string, memberIds: string[], users: User[]): User[] {
+  const members = new Set(memberIds)
+  const q = query.trim().toLowerCase()
+  return users
+    .filter((user) => members.has(user.id))
+    .filter((user) => !q || `${user.name} ${user.email} ${user.jobTitle ?? ''}`.toLowerCase().includes(q))
+    .sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export function searchWorkspace(

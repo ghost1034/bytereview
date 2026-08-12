@@ -18,6 +18,7 @@ import { UNASSIGNED_USER_ID } from '../../lib/workload/constants'
 import { useAuthStore } from '../../stores/auth'
 import {
   useProjectsStore,
+  useCustomFieldsStore,
   useTasksStore,
   useTeamsStore,
   useUsersStore,
@@ -30,7 +31,10 @@ import { WorkloadEmptyState } from './WorkloadEmptyState'
 import { WorkloadGrid } from './WorkloadGrid'
 import { WorkloadSummaryStats } from './WorkloadSummaryStats'
 import { WorkloadToolbar } from './WorkloadToolbar'
+import type { WorkloadGroupBy } from './WorkloadToolbar'
 import { useWorkloadEffort } from './useWorkloadEffort'
+import { isTeamAdmin } from '../../lib/permissions'
+import { PeopleDrilldownDialog } from './PeopleDrilldownDialog'
 
 export type WorkloadViewProps = {
   workspaceId: string
@@ -48,6 +52,7 @@ export function WorkloadView({ workspaceId, portfolioProjectIds, defaultTeamId }
     s.list().filter((p) => p.workspaceId === workspaceId && !p.archived)
   )
   const teams = useTeamsStore((s) => s.list().filter((t) => t.workspaceId === workspaceId))
+  const customFields = useCustomFieldsStore((s) => s.list().filter((field) => field.workspaceId === workspaceId && field.type === 'number'))
 
   const [preset, setPreset] = useState<WorkloadPreset>('this_week')
   const [customStart, setCustomStart] = useState<ISODate>(() => resolveDateRange('this_week').start)
@@ -58,6 +63,9 @@ export function WorkloadView({ workspaceId, portfolioProjectIds, defaultTeamId }
   const [projectId, setProjectId] = useState<string | undefined>()
   const [capacityOpen, setCapacityOpen] = useState(false)
   const [selected, setSelected] = useState<{ userId: string; bucketKey: string } | null>(null)
+  const [personId, setPersonId] = useState<string | null>(null)
+  const [groupBy, setGroupBy] = useState<WorkloadGroupBy>('person')
+  const [effortFieldId, setEffortFieldId] = useState<string | undefined>()
 
   const scope: WorkloadScope = useMemo(
     () => ({
@@ -77,6 +85,7 @@ export function WorkloadView({ workspaceId, portfolioProjectIds, defaultTeamId }
     customStart,
     customEnd,
     scale,
+    effortFieldId,
   })
 
   const scopedTasks = useMemo(
@@ -89,8 +98,11 @@ export function WorkloadView({ workspaceId, portfolioProjectIds, defaultTeamId }
     return users.filter((u) => ids.includes(u.id))
   }, [users, workspace?.memberIds])
 
-  const canEditCapacity =
-    Boolean(workspace?.adminIds.includes(actorId)) || users.find((u) => u.id === actorId)?.role === 'admin'
+  const actor = users.find((u) => u.id === actorId)
+  const selectedTeam = teams.find((team) => team.id === (teamId ?? defaultTeamId))
+  const canEditCapacity = Boolean(workspace && actor && (
+    workspace.adminIds.includes(actorId) || (selectedTeam && isTeamAdmin(actor, selectedTeam, workspace))
+  ))
 
   const selectedRow = matrix.rows.find((r) => r.userId === selected?.userId)
   const selectedBucket = buckets.find((b) => b.key === selected?.bucketKey) ?? null
@@ -142,6 +154,11 @@ export function WorkloadView({ workspaceId, portfolioProjectIds, defaultTeamId }
         onExport={() => exportWorkloadCsv(matrix.rows, buckets)}
         onEditCapacity={() => setCapacityOpen(true)}
         canEditCapacity={canEditCapacity}
+        groupBy={groupBy}
+        onGroupByChange={setGroupBy}
+        effortFieldId={effortFieldId}
+        onEffortFieldChange={setEffortFieldId}
+        effortFields={customFields}
       />
 
       {!matrix.hasEstimateField ? (
@@ -173,6 +190,11 @@ export function WorkloadView({ workspaceId, portfolioProjectIds, defaultTeamId }
           onCellClick={(userId, bucketKey) => setSelected({ userId, bucketKey })}
           onDropTaskOnRow={handleDropOnRow}
           onDropTaskOnCell={handleDropOnCell}
+          onPersonClick={setPersonId}
+          groupBy={groupBy}
+          teams={teams}
+          projects={projects}
+          tasks={scopedTasks}
         />
       )}
 
@@ -187,7 +209,8 @@ export function WorkloadView({ workspaceId, portfolioProjectIds, defaultTeamId }
         actorId={actorId}
       />
 
-      <CapacityEditorDialog open={capacityOpen} onOpenChange={setCapacityOpen} users={memberUsers} />
+      <CapacityEditorDialog open={capacityOpen} onOpenChange={setCapacityOpen} users={memberUsers} canEdit={canEditCapacity} />
+      <PeopleDrilldownDialog open={Boolean(personId)} onOpenChange={(open) => !open && setPersonId(null)} user={users.find((user) => user.id === personId)} tasks={scopedTasks} />
     </div>
   )
 }

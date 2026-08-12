@@ -1,13 +1,7 @@
-/**
- * V1 cloud drive adapter — providers unavailable until OAuth is configured.
- *
- * Production swap-out:
- * - `NEXT_PUBLIC_GDRIVE_CLIENT_ID`, `NEXT_PUBLIC_ONEDRIVE_CLIENT_ID`, `NEXT_PUBLIC_DROPBOX_APP_KEY`
- * - Replace with OAuth-backed adapters that return `storage: 'cloud_drive'` attachment refs.
- */
+/** Local/evaluation fallback. It advertises no provider capabilities. */
 import { CLOUD_DRIVE_LABELS, type CloudDriveAdapter, type CloudDriveProvider } from './types'
 
-const PROVIDERS: CloudDriveProvider[] = ['google_drive', 'onedrive', 'dropbox']
+const PROVIDERS: CloudDriveProvider[] = ['google_drive']
 
 export const stubCloudDriveAdapter: CloudDriveAdapter = {
   providers: PROVIDERS,
@@ -18,6 +12,18 @@ export const stubCloudDriveAdapter: CloudDriveAdapter = {
 
   isAvailable(): boolean {
     return false
+  },
+
+  async availableProviders() {
+    return []
+  },
+
+  async listFiles() {
+    return []
+  },
+
+  async importFiles() {
+    return { status: 'failed' as const, imported: [], failures: [] }
   },
 
   async connect(provider: CloudDriveProvider) {

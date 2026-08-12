@@ -2,6 +2,7 @@
 
 /** Matters / engagements list. */
 import { useState } from 'react'
+import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -12,9 +13,13 @@ import { wipTotal } from '../../lib/billing/selectors'
 import { formatMoney } from '../../lib/billing/formatMoney'
 import { entryHours } from '../../lib/psa/timeEntryUtils'
 import { MatterDialog } from './matters/MatterDialog'
+import { useWorkspacesStore } from '../../stores/entities'
+import { matterTerminology } from '../../lib/psa/terminology'
 
 export function MattersPage() {
   const { workspaceId } = useWorkspaceContext()
+  const workspace = useWorkspacesStore((s) => workspaceId ? s.getById(workspaceId) : undefined)
+  const terms = matterTerminology(workspace)
   const matters = useMattersStore((s) => s.list().filter((m) => m.workspaceId === workspaceId))
   const clients = useClientsStore((s) => s.list())
   const projects = useProjectsStore((s) => s.list())
@@ -22,15 +27,15 @@ export function MattersPage() {
   const entries = useTimeEntriesStore((s) => s.list())
   const [open, setOpen] = useState(false)
 
-  usePageMeta({ breadcrumbs: [{ label: 'Matters' }] })
+  usePageMeta({ breadcrumbs: [{ label: terms.plural }] })
 
   if (!workspaceId) return null
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-serif text-2xl">Matters</h1>
-        <Button className="tl-btn-primary border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New matter</Button>
+        <h1 className="font-serif text-2xl">{terms.plural}</h1>
+        <Button className="tl-btn-primary border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New {terms.singular.toLowerCase()}</Button>
       </div>
       <div className="tl-card overflow-hidden shadow-paper-sm">
         <table className="w-full text-sm">
@@ -50,7 +55,7 @@ export function MattersPage() {
               return (
                 <tr key={m.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
                   <td className="px-4 py-2 font-mono tabular-nums">{m.matterNumber}</td>
-                  <td className="px-4 py-2">{project?.name ?? '—'}</td>
+                  <td className="px-4 py-2"><Link className="hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/${terms.route}/${m.id}`}>{project?.name ?? '—'}</Link></td>
                   <td className="px-4 py-2">{client?.name ?? '—'}</td>
                   <td className="px-4 py-2">{m.practiceArea}</td>
                   <td className="px-4 py-2">{attorney?.name ?? '—'}</td>

@@ -25,6 +25,7 @@ import { TaskProjectsField } from './TaskProjectsField'
 import { TaskTagsField } from './TaskTagsField'
 import { TaskTitleField } from './TaskTitleField'
 import { useTaskDetailUrl } from './useTaskDetailUrl'
+import { TaskTrackTimerButton } from '../psa/time/TaskTrackTimerButton'
 
 type Props = {
   workspaceId: string
@@ -121,6 +122,7 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
       </div>
       <div className="flex-1 overflow-y-auto p-4">
         <SubtaskBreadcrumbs task={task} projectId={task.projectIds[0]} />
+        <div className="mb-3 flex justify-end"><TaskTrackTimerButton task={task} /></div>
         <TaskTitleField task={task} />
         <div className="grid gap-6 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
           <div className="space-y-4 border-b pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4" style={{ borderColor: 'var(--border-subtle)' }}>

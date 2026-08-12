@@ -1,5 +1,7 @@
 # AI Project Management requirement traceability
 
+**Status: CLOSED for Milestone C launch review (Phase 10).**
+
 This matrix is the authoritative reconciliation of the historical numbered
 Tasklytic specifications with the phased completion plan. The implementation
 keeps `Tasklytic` as an internal code name; the customer-facing name is **AI
@@ -63,5 +65,29 @@ Disposition meanings:
 - The internal evaluation route is unregistered by policy unless its explicit
   gate is enabled. Customer trial/guest/sign-up route segments resolve to the
   module's unavailable-route state.
-- Google Drive, OneDrive, and Dropbox remain hidden until an adapter reports
-  them available.
+- Google Drive is capability-gated and appears only after the backend reports
+  an active OAuth connection. OneDrive, Dropbox, QuickBooks Online, Xero,
+  NetSuite, and all other unsupported providers are superseded and absent from
+  customer navigation and provider registries.
+
+## Final rollout disposition
+
+Every numbered requirement is closed by implementation evidence or an explicit
+host-product supersession:
+
+| Specs | Final evidence | Disposition |
+|---|---|---|
+| 00, 01, 01b, 03 | Next.js/FastAPI host boundary, scoped visual system, Firebase authentication, Phase 10 accessibility and bundle gates. | Implemented and tested; standalone marketing/auth superseded. |
+| 02, 05, 07, 13 | PostgreSQL repository, integer revisions/ETags, conditional mutation, SSE cursors, authorization, commands/jobs, recursive filters. | Implemented and tested in Phases 1–5. |
+| 04, 06, 08–12, 14, 16, 18, 22, 24 | Complete route shell, project/entity details, distinct list/board/calendar/timeline/gantt/files/dashboard views, mobile and keyboard flows. | Implemented and browser-tested in Phases 4 and 10. |
+| 15, 20, 23, 25, 27, 27b, 27c | Four-domain saved search, hardened forms, goal rollups, workload permissions, template bundles and validation. | Implemented and tested in Phase 5. |
+| 17, 21, 26 | Durable notification/delivery jobs, event automation with replay protection, and server reporting/digests. | Implemented and tested in Phases 3 and 6. |
+| 19 | Private GCS uploads plus capability-gated Google Drive selection/import with partial-sync, revoked-credential, retry and conflict retention. | Implemented and sandbox-tested in Phase 10; OneDrive/Dropbox superseded. |
+| 28 | Server-only Vertex AI, persistent threads/proposals, teammate jobs, metering and audit. | Implemented and tested in Phase 7. |
+| 28b | PSA lifecycle, approvals, billing, PDF/delivery, trust, FX, Vertex receipts/manual fallback, and Stripe Connect reconciliation. | Implemented and tested in Phases 8–10; accounting-provider sync superseded by preserved JSON export. |
+| 29 | Responsive/keyboard flows, automated accessibility audit, virtualized task/search collections, lazy feature chunks, and a sub-350 kB Tasklytic initial-feature budget. | Implemented and tested in Phase 10. |
+| 30 | Authenticated onboarding/evaluation plus first-party bounded usage/audit events. | Implemented and tested; customer trial and third-party analytics superseded. |
+
+Milestone C operational steps and rollback boundaries are recorded in
+`plans/TASKLYTIC-LAUNCH-RUNBOOK.md`; production execution remains a human-owned
+deployment action under `plans/TASKLYTIC.md`.

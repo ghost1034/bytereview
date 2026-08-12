@@ -3,40 +3,55 @@
 /**
  * SearchPage — workspace-wide advanced search for tasks and projects.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Button } from '@/components/ui/button'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import { useAuthStore } from '../../stores/auth'
 import {
   useCommentsStore,
   useCustomFieldsStore,
+  useGoalsStore,
   useProjectsStore,
+  useSavedViewsStore,
   useTagsStore,
   useTasksStore,
   useUsersStore,
 } from '../../stores/entities'
 import { useViewQueryStore } from '../../stores/viewQuery'
 import { QueryToolbar } from '../query/QueryToolbar'
-import { DEFAULT_VIEW_QUERY, applyViewQuery, type ViewQuery } from '../../lib/query/applyQuery'
-import { searchWorkspaceProjects, searchWorkspaceTasks } from '../../lib/search/searchIndex'
+import { DEFAULT_VIEW_QUERY, applyViewQuery, clauseCount, migrateViewQuery, type ViewQuery } from '../../lib/query/applyQuery'
+import { searchWorkspaceGoals, searchWorkspacePeople, searchWorkspaceProjects, searchWorkspaceTasks } from '../../lib/search/searchIndex'
 import { SearchTabs, type SearchTab } from './SearchTabs'
 import { SearchResultsList } from './SearchResultsList'
 import { useSearchIndex } from './useSearchIndex'
+import { SearchResultsBoard } from './SearchResultsBoard'
+import { SearchResultsChart } from './SearchResultsChart'
+import { SavedSearchControls } from './SavedSearchControls'
+import { savedSearchLiveCount } from './SavedSearchesSidebarGroup'
+
+type SearchView = 'list' | 'board' | 'chart'
+const EMPTY_SEARCHES: string[] = []
 
 export function SearchPage() {
-  const { workspaceId } = useWorkspaceContext()
+  const { workspaceId, workspace } = useWorkspaceContext()
   const currentUserId = useAuthStore((s) => s.currentUserId)
+  const savedSearchId = useSearchParams().get('saved')
   const projects = useProjectsStore((s) => s.list())
   const tasks = useTasksStore((s) => s.list())
   const users = useUsersStore((s) => s.list())
   const tags = useTagsStore((s) => s.list())
   const comments = useCommentsStore((s) => s.list())
   const customFields = useCustomFieldsStore((s) => s.list())
-  const recentSearches = useViewQueryStore((s) => (workspaceId ? s.getRecentSearches(workspaceId) : []))
+  const goals = useGoalsStore((s) => s.list())
+  const savedViews = useSavedViewsStore((s) => s.list())
+  const recentSearches = useViewQueryStore((s) => workspaceId ? s.recentSearchesByWorkspace[workspaceId] : undefined) ?? EMPTY_SEARCHES
   const addRecentSearch = useViewQueryStore((s) => s.addRecentSearch)
 
   const [query, setQuery] = useState<ViewQuery>({ ...DEFAULT_VIEW_QUERY })
-  const [tab, setTab] = useState<SearchTab>('all')
+  const [tab, setTab] = useState<SearchTab>('tasks')
+  const [view, setView] = useState<SearchView>('list')
   const [includeArchived, setIncludeArchived] = useState(false)
 
   const basePath = workspaceId ? `/dashboard/project-management/w/${workspaceId}` : '/dashboard/project-management'
@@ -49,8 +64,8 @@ export function SearchPage() {
     [tasks, workspaceId]
   )
   const workspaceMembers = useMemo(
-    () => users.filter((u) => workspaceProjects.some((p) => p.memberIds.includes(u.id))),
-    [users, workspaceProjects]
+    () => users.filter((u) => workspace?.memberIds.includes(u.id)),
+    [users, workspace]
   )
   const workspaceCustomFields = useMemo(
     () => customFields.filter((f) => f.workspaceId === workspaceId),
@@ -59,11 +74,18 @@ export function SearchPage() {
 
   useSearchIndex(tasks, projects, comments)
 
+  useEffect(() => {
+    const saved = savedViews.find((item) => item.id === savedSearchId && item.ownerScope.type === 'search' && item.ownerScope.id === workspaceId)
+    if (!saved) return
+    setQuery(migrateViewQuery(saved.query ?? { ...DEFAULT_VIEW_QUERY, filters: saved.filters as ViewQuery['filters'], filterExpression: saved.filterExpression }))
+    setView(saved.viewType === 'board' || saved.viewType === 'chart' ? saved.viewType : 'list')
+  }, [savedSearchId, savedViews, workspaceId])
+
   usePageMeta({
     breadcrumbs: workspaceId
       ? [
           { label: 'AI Project Management', href: `${basePath}/home` },
-          { label: 'Search' },
+          { label: 'My Searches' },
         ]
       : [],
   })
@@ -136,8 +158,21 @@ export function SearchPage() {
       .filter((p): p is NonNullable<typeof p> => !!p)
   }, [basePath, comments, includeArchived, projects, query.search, tasks, workspaceId, workspaceProjects])
 
-  const isActiveQuery = Boolean(query.search.trim()) || query.filters.length > 0
-  const hasResults = isActiveQuery && (taskResults.length > 0 || projectResults.length > 0)
+  const goalResults = useMemo(
+    () => workspaceId ? searchWorkspaceGoals(query.search, workspaceId, goals) : [],
+    [goals, query.search, workspaceId]
+  )
+  const peopleResults = useMemo(
+    () => searchWorkspacePeople(query.search, workspaceMembers.map((user) => user.id), workspaceMembers),
+    [query.search, workspaceMembers]
+  )
+  const workspaceSearches = useMemo(
+    () => savedViews.filter((saved) => saved.ownerScope.type === 'search' && saved.ownerScope.id === workspaceId && saved.ownership === 'workspace'),
+    [savedViews, workspaceId]
+  )
+
+  const isActiveQuery = Boolean(query.search.trim()) || (query.filterExpression ? clauseCount(query.filterExpression) : query.filters.length) > 0
+  const hasResults = isActiveQuery && (taskResults.length > 0 || projectResults.length > 0 || goalResults.length > 0 || peopleResults.length > 0)
   const recentSuggestions = recentSearches.slice(0, 5)
 
   if (!workspaceId) {
@@ -147,9 +182,9 @@ export function SearchPage() {
   return (
     <div className="space-y-4" data-tour-page="search">
       <div>
-        <h1 className="font-serif text-2xl">Search</h1>
+        <h1 className="font-serif text-2xl">My Searches</h1>
         <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
-          Find tasks and projects across this workspace with filters and saved views.
+          Find tasks, projects, goals, and people with recursive filters and saved searches.
         </p>
       </div>
 
@@ -171,6 +206,8 @@ export function SearchPage() {
           onChange={setTab}
           taskCount={taskResults.length}
           projectCount={projectResults.length}
+          goalCount={goalResults.length}
+          peopleCount={peopleResults.length}
         />
         <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--ink-secondary)' }}>
           <input
@@ -180,19 +217,22 @@ export function SearchPage() {
           />
           Include archived
         </label>
+        {currentUserId ? <SavedSearchControls workspaceId={workspaceId} userId={currentUserId} query={query} viewType={view} /> : null}
+        {tab === 'tasks' ? <div className="ml-auto flex rounded-lg border p-0.5" style={{ borderColor: 'var(--border-subtle)' }}>
+          {(['list', 'board', 'chart'] as SearchView[]).map((mode) => <Button key={mode} variant={view === mode ? 'secondary' : 'ghost'} size="sm" className="h-7 capitalize" onClick={() => setView(mode)}>{mode}</Button>)}
+        </div> : null}
       </div>
 
+      {workspaceSearches.length ? <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border-subtle)' }}><p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Pinned workspace searches</p><div className="flex flex-wrap gap-2">{workspaceSearches.map((saved) => <Button key={saved.id} variant="outline" size="sm" onClick={() => setQuery(migrateViewQuery(saved.query ?? { ...DEFAULT_VIEW_QUERY, filters: saved.filters as ViewQuery['filters'], filterExpression: saved.filterExpression }))}>{saved.name} ({savedSearchLiveCount(saved, workspaceTasks, currentUserId)})</Button>)}</div></div> : null}
+
       {isActiveQuery ? (
-        <SearchResultsList
-          tab={tab}
-          query={query.search}
-          basePath={basePath}
-          taskRows={taskResults}
-          projectRows={projectResults}
-          users={workspaceMembers}
-          projects={workspaceProjects}
-          tags={tags.filter((t) => t.workspaceId === workspaceId)}
-        />
+        tab === 'tasks' && view === 'board' ? <SearchResultsBoard tasks={taskResults.map((row) => row.task)} projects={workspaceProjects} />
+        : tab === 'tasks' && view === 'chart' ? <SearchResultsChart tasks={taskResults.map((row) => row.task)} projects={workspaceProjects} />
+        : <SearchResultsList
+            tab={tab} query={query.search} basePath={basePath} taskRows={taskResults} projectRows={projectResults}
+            goalRows={goalResults} peopleRows={peopleResults} users={workspaceMembers} projects={workspaceProjects}
+            tags={tags.filter((t) => t.workspaceId === workspaceId)}
+          />
       ) : (
         <div className="rounded-xl border px-6 py-12 text-center" style={{ borderColor: 'var(--border-subtle)' }}>
           <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>

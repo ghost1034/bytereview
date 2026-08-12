@@ -320,6 +320,8 @@ async function applyAction(
       await createSubtask(task.id, name, actorId)
       return 'create_subtask'
     }
+    case 'send_email':
+      return 'send_email (server job)'
     default:
       return 'unknown'
   }

@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -44,6 +45,10 @@ import { EmojiPicker } from '../workspaces/EmojiPicker'
 import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import { ProjectColorPicker } from './ProjectColorPicker'
 import { ProjectViewCards } from './ProjectViewCards'
+import { BriefRichEditor } from './BriefRichEditor'
+import { ProjectMembersSettings } from './ProjectMembersSettings'
+import { ProjectNotificationSettings } from './ProjectNotificationSettings'
+import { ProjectFieldsManager } from '../custom-fields/ProjectFieldsManager'
 import { PRIVACY_LABELS, PROJECT_VIEWS } from './projectUtils'
 
 type Props = {
@@ -62,6 +67,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
     project.sectionIds.map((id) => s.getById(id)).filter(Boolean)
   )
   const [name, setName] = useState(project.name)
+  const [description, setDescription] = useState(project.description ?? '')
   const [iconEmoji, setIconEmoji] = useState(project.iconEmoji ?? '📁')
   const [color, setColor] = useState(project.color)
   const [privacy, setPrivacy] = useState(project.privacy)
@@ -79,6 +85,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
   const saveGeneral = async () => {
     await updateProject(project.id, {
       name: name.trim() || project.name,
+      description,
       iconEmoji,
       color,
       privacy,
@@ -101,21 +108,34 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <TasklyticDialogContent className="max-w-xl">
+        <TasklyticDialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-serif text-xl">Project settings</DialogTitle>
+            <DialogDescription>Manage this project, its members, fields, notifications, and default views.</DialogDescription>
           </DialogHeader>
           <Tabs defaultValue="general">
             <TabsList className="mb-4 flex flex-wrap">
               <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="members">Members</TabsTrigger>
               <TabsTrigger value="views">Views</TabsTrigger>
+              <TabsTrigger value="fields">Custom fields</TabsTrigger>
+              <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="sections">Sections</TabsTrigger>
               <TabsTrigger value="advanced">Advanced</TabsTrigger>
             </TabsList>
             <TabsContent value="general" className="space-y-3">
               <div className="grid gap-2">
-                <Label>Name</Label>
-                <Input className="tl-input" value={name} onChange={(e) => setName(e.target.value)} />
+                <Label htmlFor="project-settings-name">Name</Label>
+                <Input id="project-settings-name" className="tl-input" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div className="grid gap-2">
+                <Label>Description</Label>
+                <BriefRichEditor
+                  html={description}
+                  onChange={setDescription}
+                  placeholder="Outline goals, scope, and deliverables."
+                  ariaLabel="Description"
+                />
               </div>
               <div className="grid gap-2">
                 <Label>Icon</Label>
@@ -148,6 +168,9 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
                 </Select>
               </div>
             </TabsContent>
+            <TabsContent value="members">
+              <ProjectMembersSettings project={project} />
+            </TabsContent>
             <TabsContent value="views">
               <ProjectViewCards
                 defaultView={defaultView}
@@ -155,6 +178,12 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
                 onDefaultChange={setDefaultView}
                 onEnabledChange={setEnabledViews}
               />
+            </TabsContent>
+            <TabsContent value="fields">
+              <ProjectFieldsManager projectId={project.id} />
+            </TabsContent>
+            <TabsContent value="notifications">
+              <ProjectNotificationSettings project={project} />
             </TabsContent>
             <TabsContent value="sections" className="space-y-3">
               <ul className="space-y-2">
@@ -191,9 +220,6 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
               <Button variant="destructive" className="w-full justify-start" onClick={() => setConfirmDelete(true)}>
                 Delete project permanently
               </Button>
-              <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
-                Custom fields and notifications are configured in dedicated settings (steps 14 & 17).
-              </p>
             </TabsContent>
           </Tabs>
           <DialogFooter>

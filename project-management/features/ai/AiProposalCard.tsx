@@ -2,12 +2,15 @@
 
 /** Proposal card — preview diff with Apply / Dismiss (user-confirmed mutations only). */
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, Pencil, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import type { AiProposal, CreateSubtasksPayload } from '../../lib/ai/types'
 import { applyProposal } from './proposals'
 import { AiSubtaskProposalCard } from './AiSubtaskProposalCard'
+import { discardServerProposal } from '../../lib/ai/serverState'
+import { usesTasklyticBackend } from '../../lib/forms/publicFormApi'
+import { Textarea } from '@/components/ui/textarea'
 
 type Props = {
   proposal: AiProposal
@@ -19,6 +22,8 @@ type Props = {
 export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Props) {
   const [status, setStatus] = useState<'idle' | 'applying' | 'done' | 'dismissed'>('idle')
   const [feedback, setFeedback] = useState<string | null>(null)
+  const [editing, setEditing] = useState(false)
+  const [draftPayload, setDraftPayload] = useState(() => JSON.stringify(proposal.payload, null, 2))
 
   if (status === 'dismissed') return null
 
@@ -38,7 +43,17 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
   const apply = async () => {
     if (!actorId || status !== 'idle') return
     setStatus('applying')
-    const result = await applyProposal(proposal, actorId)
+    let payload = proposal.payload
+    if (editing) {
+      try {
+        payload = JSON.parse(draftPayload) as typeof proposal.payload
+      } catch {
+        setFeedback('Proposal JSON is invalid.')
+        setStatus('idle')
+        return
+      }
+    }
+    const result = await applyProposal({ ...proposal, payload }, actorId)
     if (result.ok) {
       setFeedback(result.message)
       setStatus('done')
@@ -64,6 +79,9 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
         >
           {proposal.preview}
         </pre>
+        {editing ? (
+          <Textarea aria-label="Editable proposal JSON" className="mt-2 min-h-32 font-mono text-xs" value={draftPayload} onChange={(event) => setDraftPayload(event.target.value)} />
+        ) : null}
         {feedback ? (
           <p className="mt-2 text-xs" style={{ color: 'var(--ink-muted)' }}>
             {feedback}
@@ -72,6 +90,10 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
       </CardContent>
       {status !== 'done' ? (
         <CardFooter className="gap-2 pb-3">
+          <Button size="sm" variant="outline" className="gap-1" onClick={() => setEditing((value) => !value)}>
+            <Pencil className="h-3.5 w-3.5" />
+            {editing ? 'Preview' : 'Edit'}
+          </Button>
           <Button size="sm" className="tl-btn-primary flex-1 gap-1 border-0" disabled={!actorId || status === 'applying'} onClick={() => void apply()}>
             <Check className="h-3.5 w-3.5" />
             Apply
@@ -82,6 +104,7 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
             className="gap-1"
             onClick={() => {
               setStatus('dismissed')
+              if (usesTasklyticBackend()) void discardServerProposal(proposal.id)
               onDismiss?.()
             }}
           >

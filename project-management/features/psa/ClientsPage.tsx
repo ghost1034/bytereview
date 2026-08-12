@@ -2,6 +2,7 @@
 
 /** Clients list and CRUD. */
 import { useState } from 'react'
+import Link from 'next/link'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePageMeta } from '../../hooks/usePageMeta'
@@ -47,7 +48,7 @@ export function ClientsPage() {
               const ar = invoices.filter((i) => i.clientId === c.id).reduce((s, i) => s + (i.amountOutstanding ?? 0), 0)
               return (
                 <tr key={c.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
-                  <td className="px-4 py-2 font-medium">{c.name}</td>
+                  <td className="px-4 py-2 font-medium"><Link className="hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/clients/${c.id}`}>{c.name}</Link></td>
                   <td className="px-4 py-2">{c.type}</td>
                   <td className="px-4 py-2">{clientMatters}</td>
                   <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(wip)}</td>

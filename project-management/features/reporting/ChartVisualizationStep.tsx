@@ -59,7 +59,9 @@ export function ChartVisualizationStep({ draft, onChange }: Props) {
           <Label>Top N</Label>
           <Select
             value={String(draft.topN ?? 0)}
-            onValueChange={(v) => onChange({ topN: v === '0' ? undefined : Number(v) })}
+            onValueChange={(v) => onChange({
+              topN: v === '0' ? undefined : Number(v) as ChartBuilderDraft['topN'],
+            })}
           >
             <SelectTrigger>
               <SelectValue />

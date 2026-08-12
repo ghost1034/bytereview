@@ -11,6 +11,7 @@ import { normalizeUnknownError } from '../../lib/errors'
 import { appendChartToDashboard, duplicateDashboard } from '../../lib/reporting/dashboardActions'
 import { exportDashboardPng, exportDashboardPrint } from '../../lib/reporting/exportDashboard'
 import type { ReportingDashboard } from '../../lib/reporting/types'
+import { canEditDashboard, canManageDashboardSharing, canViewDashboard } from '../../lib/reporting/dashboardPermissions'
 import { now } from '../../lib/time'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useAuthStore } from '../../stores/auth'
@@ -20,7 +21,6 @@ import { DashboardGrid } from './DashboardGrid'
 import { ScheduleDigestDialog } from './ScheduleDigestDialog'
 import { ShareDashboardDialog } from './ShareDashboardDialog'
 import { useReportingData } from './useReportingData'
-import { useReportingScheduler } from './useReportingScheduler'
 import type { Chart } from '../../types'
 import {
   useCustomFieldsStore,
@@ -33,10 +33,17 @@ import {
 } from '../../stores/entities'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 
-type Props = { workspaceId: string; dashboardId: string; basePath: string }
+type Props = {
+  workspaceId: string
+  dashboardId: string
+  basePath: string
+  returnHref?: string
+  breadcrumbLabel?: string
+  fixedProjectId?: string
+}
 
 /** Dashboard detail with editable title, chart grid, and actions. */
-export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
+export function DashboardPage({ workspaceId, dashboardId, basePath, returnHref, breadcrumbLabel, fixedProjectId }: Props) {
   const router = useRouter()
   const { toast } = useToast()
   const gridRef = useRef<HTMLDivElement>(null)
@@ -46,8 +53,7 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
   const remove = useDashboardsStore((s) => s.remove)
   const add = useDashboardsStore((s) => s.add)
   const dataCtx = useReportingData(workspaceId)
-  const { teams } = useWorkspaceContext()
-  useReportingScheduler(workspaceId)
+  const { teams, workspace } = useWorkspaceContext()
 
   const projects = useProjectsStore((s) => s.list().filter((p) => p.workspaceId === workspaceId && !p.archived))
   const portfolios = usePortfoliosStore((s) => s.list().filter((p) => p.workspaceId === workspaceId))
@@ -63,15 +69,20 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
   const [digestOpen, setDigestOpen] = useState(false)
   const [title, setTitle] = useState(dashboard?.name ?? '')
   const [exporting, setExporting] = useState(false)
+  const canView = dashboard ? canViewDashboard(dashboard, currentUserId, workspace) : false
+  const canEdit = dashboard ? canEditDashboard(dashboard, currentUserId, workspace) : false
+  const canShare = dashboard ? canManageDashboardSharing(dashboard, currentUserId, workspace) : false
 
   usePageMeta({
     breadcrumbs: [
-      { label: 'Reporting', href: `${basePath}/reporting` },
+      { label: 'AI Project Management', href: `${basePath}/home` },
+      ...(breadcrumbLabel ? [{ label: 'Projects', href: `${basePath}/projects` }] : []),
+      { label: breadcrumbLabel ?? 'Reporting', href: returnHref ?? `${basePath}/reporting` },
       { label: dashboard?.name ?? 'Dashboard' },
     ],
   })
 
-  if (!dashboard || dashboard.workspaceId !== workspaceId || !dataCtx) {
+  if (!dashboard || dashboard.workspaceId !== workspaceId || !dataCtx || !canView) {
     return (
       <div className="tl-card p-8 text-center shadow-paper-sm">
         <p style={{ color: 'var(--ink-muted)' }}>Dashboard not found.</p>
@@ -80,7 +91,7 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
   }
 
   const saveTitle = async () => {
-    if (title.trim() && title !== dashboard.name) {
+    if (canEdit && title.trim() && title !== dashboard.name) {
       await update(dashboard.id, { name: title.trim(), updatedAt: now() } as Partial<ReportingDashboard>)
     }
   }
@@ -128,13 +139,16 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
         <Input
           className="max-w-md border-0 bg-transparent font-serif text-2xl shadow-none focus-visible:ring-0"
           value={title}
+          readOnly={!canEdit}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={() => void saveTitle()}
         />
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShareOpen(true)}>
-            <Share2 className="h-4 w-4" /> Share
-          </Button>
+          {canShare ? (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setShareOpen(true)}>
+              <Share2 className="h-4 w-4" /> Share
+            </Button>
+          ) : null}
           <Button
             variant="outline"
             size="sm"
@@ -160,30 +174,34 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
           <Button variant="outline" size="sm" className="gap-1.5" onClick={exportDashboardPrint}>
             <Printer className="h-4 w-4" /> Print / PDF
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDigestOpen(true)}>
-            <CalendarClock className="h-4 w-4" /> Schedule digest
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-destructive"
-            onClick={async () => {
-              await remove(dashboard.id)
-              router.push(`${basePath}/reporting`)
-            }}
-          >
-            <Trash2 className="h-4 w-4" /> Delete
-          </Button>
-          <Button
-            className="tl-btn-primary gap-1.5 border-0"
-            size="sm"
-            onClick={() => {
-              setEditChart(undefined)
-              setBuilderOpen(true)
-            }}
-          >
-            <Plus className="h-4 w-4" /> Add chart
-          </Button>
+          {canEdit ? (
+            <>
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setDigestOpen(true)}>
+                <CalendarClock className="h-4 w-4" /> Schedule digest
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-destructive"
+                onClick={async () => {
+                  await remove(dashboard.id)
+                  router.push(returnHref ?? `${basePath}/reporting`)
+                }}
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </Button>
+              <Button
+                className="tl-btn-primary gap-1.5 border-0"
+                size="sm"
+                onClick={() => {
+                  setEditChart(undefined)
+                  setBuilderOpen(true)
+                }}
+              >
+                <Plus className="h-4 w-4" /> Add chart
+              </Button>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -194,6 +212,7 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
             layout={dashboard.layout}
             dataCtx={dataCtx}
             basePath={basePath}
+            editable={canEdit}
             onLayoutChange={(layout) => void update(dashboard.id, { layout, updatedAt: now() } as Partial<ReportingDashboard>)}
             onEditChart={(chart) => {
               setEditChart(chart)
@@ -207,14 +226,16 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
             <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>
               Add a chart or pick a recommended template to get started.
             </p>
-            <Button className="tl-btn-primary mt-4 border-0" onClick={() => setBuilderOpen(true)}>
-              Add chart
-            </Button>
+            {canEdit ? (
+              <Button className="tl-btn-primary mt-4 border-0" onClick={() => setBuilderOpen(true)}>
+                Add chart
+              </Button>
+            ) : null}
           </div>
         )}
       </div>
 
-      <ChartBuilderModal
+      {canEdit ? <ChartBuilderModal
         open={builderOpen}
         onOpenChange={setBuilderOpen}
         initial={editChart}
@@ -228,9 +249,10 @@ export function DashboardPage({ workspaceId, dashboardId, basePath }: Props) {
         sections={sections}
         tags={tags}
         onSave={(chart) => void saveChart(chart)}
-      />
-      <ShareDashboardDialog open={shareOpen} onOpenChange={setShareOpen} dashboard={dashboard} />
-      <ScheduleDigestDialog open={digestOpen} onOpenChange={setDigestOpen} dashboard={dashboard} />
+        fixedProjectId={fixedProjectId}
+      /> : null}
+      {canShare ? <ShareDashboardDialog open={shareOpen} onOpenChange={setShareOpen} dashboard={dashboard} /> : null}
+      {canEdit ? <ScheduleDigestDialog open={digestOpen} onOpenChange={setDigestOpen} dashboard={dashboard} /> : null}
     </div>
   )
 }

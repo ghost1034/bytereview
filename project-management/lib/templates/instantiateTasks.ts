@@ -44,12 +44,14 @@ export async function createTaskFromTaskTemplate(
     projectStart: string
     parentId?: string
     taskOrder: string[]
+    roleAssignments?: Record<string, string>
   }
 ): Promise<Task> {
   const taskId = newId()
   ctx.taskOrder.push(taskId)
   const role = extractRole(tpl.defaults.notes)
-  const tagIds: string[] = role ? [await ensureRoleTag(ctx.workspaceId, role)] : []
+  const resolvedRoleUserId = role ? ctx.roleAssignments?.[role] : undefined
+  const tagIds: string[] = role && !resolvedRoleUserId ? [await ensureRoleTag(ctx.workspaceId, role)] : []
   const task: Task = {
     id: taskId,
     workspaceId: ctx.workspaceId,
@@ -57,7 +59,7 @@ export async function createTaskFromTaskTemplate(
     notes: tpl.defaults.notes,
     resourceSubtype: tpl.defaults.resourceSubtype ?? 'default_task',
     completed: false,
-    assigneeId: role ? undefined : tpl.defaults.assigneeId ?? ctx.ownerId,
+    assigneeId: role ? resolvedRoleUserId : tpl.defaults.assigneeId ?? ctx.ownerId,
     collaboratorIds: tpl.defaults.collaboratorIds ?? [],
     startOn: resolveRelativeDate(tpl.defaults.startOn, ctx.projectStart),
     dueOn: resolveRelativeDate(tpl.defaults.dueOn, ctx.projectStart),

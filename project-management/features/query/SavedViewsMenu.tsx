@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import type { ProjectView, SavedView } from '../../types'
-import type { ViewQuery } from '../../lib/query/applyQuery'
+import { migrateViewQuery, type ViewQuery } from '../../lib/query/applyQuery'
 import { useAuthStore } from '../../stores/auth'
 import { useSavedViewsStore } from '../../stores/entities'
 import { useViewQueryStore } from '../../stores/viewQuery'
@@ -38,21 +38,23 @@ type Props = {
 
 /** Map a SavedView entity into the shared ViewQuery shape. */
 export function savedViewToViewQuery(saved: SavedView, current: ViewQuery): ViewQuery {
-  return {
+  return migrateViewQuery({
     ...current,
     filters: saved.filters as ViewQuery['filters'],
+    filterExpression: saved.filterExpression,
     groupBy: (saved.groupBy as ViewQuery['groupBy']) ?? undefined,
     sortBy: saved.sortBy,
     sort: saved.sortBy,
     hiddenFields: saved.hiddenFields ?? [],
     search: current.search,
-  }
+  })
 }
 
 /** Map ViewQuery fields into SavedView-compatible filter/sort/group fields. */
 export function viewQueryToSavedFields(query: ViewQuery) {
   return {
     filters: query.filters,
+    filterExpression: migrateViewQuery(query).filterExpression,
     groupBy: query.groupBy,
     sortBy: query.sortBy ?? query.sort,
     hiddenFields: query.hiddenFields,
@@ -92,6 +94,7 @@ export function SavedViewsMenu({ projectId, viewType, query, onChange }: Props) 
       name: name.trim(),
       viewType,
       filters: fields.filters,
+      filterExpression: fields.filterExpression,
       groupBy: fields.groupBy,
       sortBy: fields.sortBy,
       hiddenFields: fields.hiddenFields,

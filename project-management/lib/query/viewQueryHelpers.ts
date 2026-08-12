@@ -2,6 +2,7 @@
  * ViewQuery normalization helpers for legacy + new field names.
  */
 import type { ViewQuery } from './types'
+import { clauseCount, resolveFilterExpression } from './filterExpression'
 
 /** Whether completed tasks should appear in results. */
 export function resolvesShowCompleted(query: ViewQuery): boolean {
@@ -47,7 +48,7 @@ export function patchViewQuery(current: ViewQuery, patch: Partial<ViewQuery>): V
 /** True when query differs from defaults (excluding ephemeral search). */
 export function isQueryModified(query: ViewQuery, baseline: ViewQuery = { filters: [], hiddenFields: [], showCompleted: true, density: 'comfortable', collapsedSectionIds: [], search: '' }): boolean {
   return (
-    query.filters.length > 0 ||
+    clauseCount(resolveFilterExpression(query)) > 0 ||
     !!resolveSort(query) ||
     (query.groupBy !== undefined && query.groupBy !== 'none') ||
     query.hiddenFields.length > 0 ||

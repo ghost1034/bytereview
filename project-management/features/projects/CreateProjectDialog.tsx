@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -100,6 +101,7 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: Props) 
           <DialogTitle className="font-serif text-xl">
             Create project {step > 1 ? `(step ${step} of 3)` : ''}
           </DialogTitle>
+          <DialogDescription>Choose a starting point, project details, and the views your team will use.</DialogDescription>
         </DialogHeader>
         {step === 1 && (
           <CreateProjectChooseStep

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import html
 import json
 import os
@@ -14,21 +16,81 @@ from pathlib import PurePath
 from typing import Any
 from urllib.parse import quote
 
+import stripe
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.database import get_db
 from core.runtime import frontend_base_url, is_local
 from dependencies.auth import verify_firebase_token
-from models.tasklytic import TasklyticEntityRecord, TasklyticFileUpload, TasklyticInvitation, TasklyticWorkspace, TasklyticWorkspaceMember
+from models.tasklytic import (
+    TasklyticCommand,
+    TasklyticCommandRun,
+    TasklyticAiUsageEvent,
+    TasklyticEntityRecord,
+    TasklyticFileUpload,
+    TasklyticInvitation,
+    TasklyticIntegrationConnection,
+    TasklyticWorkspace,
+    TasklyticWorkspaceMember,
+)
 from services.email_service import email_service
 from services.billing_service import PlanLimitExceeded
 from services.gcs_service import get_storage_service
 from services.rate_limit import rate_limiter
 from services.tasklytic_ai_service import generate_tasklytic_response
+from services.tasklytic_ai_contracts import SUPPORTED_VERTEX_MODELS
+from services.tasklytic_ai_persistence import (
+    accept_proposal,
+    create_thread,
+    discard_proposal,
+    edit_proposal,
+    get_or_create_settings,
+    list_audit,
+    list_teammates,
+    list_threads,
+    migrate_local_threads,
+    proposal_payload,
+    settings_payload,
+    teammate_payload,
+    thread_payload,
+    update_settings,
+    upsert_teammate,
+)
+from services.tasklytic_automation import AUTOMATION_RULE_RUN
+from services.tasklytic_commands import (
+    command_payload,
+    command_run_payload,
+    execute_inline_command,
+    mutation_command_type,
+    retry_failed_command,
+)
+from services.tasklytic_reporting import reporting_sources_payload
+from services.tasklytic_psa import execute_psa_action
+from services.tasklytic_billing import (
+    create_fx_quote,
+    generate_invoice,
+    invoice_action,
+    invoice_pdf,
+    record_payment,
+    record_trust_transaction,
+    reverse_payment,
+    reverse_trust_transaction,
+)
+from services.tasklytic_integrations import (
+    SUPPORTED_PROVIDERS,
+    create_stripe_payment_link,
+    extract_receipt,
+    import_google_drive_files,
+    integration_capabilities,
+    list_google_drive_files,
+    queue_email_delivery,
+    reconcile_stripe_event,
+    record_usage_event,
+    upsert_connection,
+)
 from services.tasklytic_service import (
     ENTITY_POLICIES,
     append_workspace_event,
@@ -139,7 +201,7 @@ async def _verify_completed_object(row: TasklyticFileUpload) -> None:
         raise HTTPException(status_code=409, detail="Uploaded object MIME type does not match")
 
 
-def _public_form_row(db: Session, form_key: str) -> TasklyticEntityRecord:
+def _published_form_row(db: Session, form_key: str) -> TasklyticEntityRecord:
     rows = db.query(TasklyticEntityRecord).filter_by(entity_kind="forms").all()
     for row in rows:
         data = row.payload or {}
@@ -148,19 +210,75 @@ def _public_form_row(db: Session, form_key: str) -> TasklyticEntityRecord:
     raise HTTPException(status_code=404, detail="Published form not found")
 
 
-def _sanitize_public_form(data: dict[str, Any]) -> dict[str, Any]:
-    return {
+def _public_form_row(db: Session, form_key: str) -> TasklyticEntityRecord:
+    row = _published_form_row(db, form_key)
+    if (row.payload or {}).get("accessMode", "public") != "public":
+        raise HTTPException(status_code=401, detail="Sign in is required for this form")
+    workspace = db.get(TasklyticWorkspace, row.workspace_id)
+    settings = ((workspace.payload or {}).get("settings") or {}) if workspace else {}
+    if settings.get("allowPublicForms") is False:
+        raise HTTPException(status_code=401, detail="Sign in is required for this form")
+    return row
+
+
+def _form_spam_secret() -> bytes:
+    return os.getenv("TASKLYTIC_FORM_SPAM_SECRET", os.getenv("SECRET_KEY", "tasklytic-test-form-secret")).encode()
+
+
+def _submission_token(row: TasklyticEntityRecord) -> str:
+    issued = int(utcnow().timestamp())
+    value = f"{row.workspace_id}:{row.record_id}:{issued}"
+    signature = hmac.new(_form_spam_secret(), value.encode(), hashlib.sha256).hexdigest()
+    return f"{issued}.{signature}"
+
+
+def _validate_submission_token(row: TasklyticEntityRecord, supplied: Any) -> None:
+    try:
+        issued_text, signature = str(supplied or "").split(".", 1)
+        issued = int(issued_text)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=422, detail="A valid submission token is required")
+    age = int(utcnow().timestamp()) - issued
+    value = f"{row.workspace_id}:{row.record_id}:{issued}"
+    expected = hmac.new(_form_spam_secret(), value.encode(), hashlib.sha256).hexdigest()
+    if age < 0 or age > 86400 or not secrets.compare_digest(signature, expected):
+        raise HTTPException(status_code=422, detail="The submission token is invalid or expired")
+
+
+def _sanitize_public_form(data: dict[str, Any], submission_token: str | None = None) -> dict[str, Any]:
+    result = {
         "id": data.get("id"),
         "name": data.get("name"),
         "description": data.get("description"),
         "fields": data.get("fields") or [],
         "isPublic": True,
+        "accessMode": data.get("accessMode") or "public",
         "publicSlug": data.get("publicSlug"),
         "confirmationMessage": data.get("confirmationMessage") or "Thanks for your submission.",
         "branding": data.get("branding"),
         "copyAnswersToDescription": False,
         "createdAt": data.get("createdAt"),
     }
+    if submission_token:
+        result["submissionToken"] = submission_token
+    return result
+
+
+def _field_is_visible(field: dict[str, Any], answers: dict[str, Any]) -> bool:
+    rule = field.get("visibleIf")
+    if not isinstance(rule, dict):
+        return True
+    value = answers.get(rule.get("fieldId"))
+    is_set = value not in (None, "", [])
+    if rule.get("op") == "is_set":
+        return is_set
+    if rule.get("op") == "is_not_set":
+        return not is_set
+    if rule.get("op") == "eq":
+        return rule.get("value") in value if isinstance(value, list) else value == rule.get("value")
+    if rule.get("op") == "neq":
+        return rule.get("value") not in value if isinstance(value, list) else value != rule.get("value")
+    return False
 
 
 def _validate_public_answers(form: dict[str, Any], answers: Any) -> dict[str, Any]:
@@ -171,6 +289,9 @@ def _validate_public_answers(form: dict[str, Any], answers: Any) -> dict[str, An
     if any(key not in known for key in answers):
         raise HTTPException(status_code=422, detail="answers contain an unknown field")
     for field in fields:
+        if not _field_is_visible(field, answers):
+            answers.pop(field.get("id"), None)
+            continue
         field_id, field_type = field.get("id"), field.get("type")
         value = answers.get(field_id)
         missing = value is None or value == "" or value == []
@@ -205,7 +326,8 @@ def _check_public_rate(request: Request, form_key: str) -> None:
 
 @router.get("/public/forms/{form_key}")
 def get_public_form(form_key: str, db: Session = Depends(get_db)):
-    return _sanitize_public_form(_public_form_row(db, form_key).payload or {})
+    row = _public_form_row(db, form_key)
+    return _sanitize_public_form(row.payload or {}, _submission_token(row))
 
 
 @router.post("/public/forms/{form_key}/files:initiate")
@@ -251,16 +373,17 @@ async def complete_public_file(body: dict[str, Any] = Body(...), db: Session = D
     return {"ok": True}
 
 
-@router.post("/public/forms/{form_key}/submit")
-def submit_public_form(
+def _submit_public_form_command(
     form_key: str,
     request: Request,
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     db: Session = Depends(get_db),
+    *,
+    allow_workspace: bool = False,
+    submitted_by: str | None = None,
 ):
-    _check_public_rate(request, form_key)
-    form_row = _public_form_row(db, form_key)
+    form_row = _published_form_row(db, form_key) if allow_workspace else _public_form_row(db, form_key)
     form = form_row.payload or {}
     answers = _validate_public_answers(form, body.get("answers"))
     key = (idempotency_key or body.get("idempotencyKey") or "").strip()
@@ -341,6 +464,8 @@ def submit_public_form(
         "answers": {field_id: safe_answer(value) for field_id, value in answers.items()},
         "taskId": task_id, "createdAt": now_text,
     }
+    if submitted_by:
+        submission["submittedBy"] = submitted_by
     upsert_record(db, "formSubmissions", submission, actor_id, form_row.workspace_id)
     assignee_id = form.get("defaultAssigneeId")
     if assignee_id:
@@ -353,97 +478,123 @@ def submit_public_form(
             "createdAt": now_text,
         }
         upsert_record(db, "notifications", notification, actor_id, None)
-    # Run the deterministic subset of form-triggered rules in the same transaction.
-    for rule in db.query(TasklyticEntityRecord).filter_by(entity_kind="rules", workspace_id=form_row.workspace_id).all():
-        data = rule.payload or {}
-        trigger = data.get("trigger") or {}
-        if (
-            not data.get("enabled") or data.get("projectId") != project.record_id or
-            trigger.get("type") != "form_submitted" or trigger.get("formId") != form.get("id")
-        ):
-            continue
-        def condition_value(field: str) -> Any:
-            if field.startswith("customField:"):
-                wrapped = task["customFieldValues"].get(field.split(":", 1)[1])
-                return wrapped.get("value") if isinstance(wrapped, dict) else None
-            if field in {"assignee", "assigneeId"}:
-                return task.get("assigneeId")
-            if field == "sectionId":
-                return task["sectionIdByProject"].get(project.record_id)
-            if field == "projectId":
-                return project.record_id
-            return task.get(field)
-
-        conditions_match = True
-        for condition in data.get("conditions") or []:
-            raw = condition_value(str(condition.get("field") or ""))
-            expected = condition.get("value")
-            op = condition.get("op")
-            try:
-                matched = (
-                    (op == "eq" and raw == expected) or
-                    (op == "neq" and raw != expected) or
-                    (op == "gt" and float(raw) > float(expected)) or
-                    (op == "lt" and float(raw) < float(expected)) or
-                    (op == "in" and isinstance(expected, list) and raw in expected)
-                )
-            except (TypeError, ValueError):
-                matched = False
-            if not matched:
-                conditions_match = False
-                break
-        if not conditions_match:
-            continue
-        for action in data.get("actions") or []:
-            if action.get("type") == "assign_to":
-                task["assigneeId"] = action.get("userId")
-            elif action.get("type") == "move_to_section":
-                task["sectionIdByProject"][project.record_id] = action.get("sectionId")
-            elif action.get("type") == "set_due_in_days":
-                days = max(0, min(int(action.get("days") or 0), 3650))
-                task["dueOn"] = (utcnow() + timedelta(days=days)).date().isoformat()
-            elif action.get("type") == "set_custom_field":
-                task["customFieldValues"][str(action.get("customFieldId"))] = {
-                    "type": "text", "value": str(action.get("value") or ""),
-                }
-            elif action.get("type") == "add_collaborator":
-                task["collaboratorIds"] = list(dict.fromkeys(task["collaboratorIds"] + [action.get("userId")]))
-            elif action.get("type") == "add_to_project":
-                additional = _find_record(db, "projects", str(action.get("projectId")), form_row.workspace_id)
-                if additional and additional.record_id not in task["projectIds"]:
-                    task["projectIds"].append(additional.record_id)
-                    first_section = ((additional.payload or {}).get("sectionIds") or [None])[0]
-                    task["sectionIdByProject"][additional.record_id] = first_section
-            elif action.get("type") == "send_notification":
-                recipient = task.get("assigneeId") if action.get("userId") == "__assignee__" else action.get("userId")
-                if recipient:
-                    upsert_record(db, "notifications", {
-                        "id": str(uuid.uuid4()), "userId": recipient, "actorId": actor_id,
-                        "type": "rule_action", "scope": {"type": "task", "id": task_id},
-                        "message": str(action.get("message") or "Rule action").replace("{{taskName}}", title),
-                        "unread": True, "archived": False, "metadata": {"ruleId": rule.record_id},
-                        "createdAt": now_text,
-                    }, actor_id, None)
-            elif action.get("type") == "create_subtask":
-                subtask_id = str(uuid.uuid4())
-                subtask = {
-                    **task, "id": subtask_id, "name": str(action.get("templateName") or "Follow up").replace("{{taskName}}", title),
-                    "parentId": task_id, "attachmentIds": [], "createdAt": now_text, "modifiedAt": now_text,
-                }
-                upsert_record(db, "tasks", subtask, actor_id, form_row.workspace_id)
-        data["runCount"] = int(data.get("runCount") or 0) + 1
-        data["lastRunAt"] = now_text
-        upsert_record(db, "rules", data, actor_id, form_row.workspace_id)
-    upsert_record(db, "tasks", task, actor_id, form_row.workspace_id)
-    try:
-        _commit(db)
-    except IntegrityError:
-        db.rollback()
-        replay = _find_record(db, "formSubmissions", submission_id, form_row.workspace_id)
-        if replay:
-            return {"taskId": (replay.payload or {}).get("taskId"), "submissionId": submission_id, "replayed": True}
-        raise
     return {"taskId": task_id, "submissionId": submission_id, "replayed": False}
+
+
+@router.post("/public/forms/{form_key}/submit")
+def submit_public_form(
+    form_key: str,
+    request: Request,
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    db: Session = Depends(get_db),
+):
+    _check_public_rate(request, form_key)
+    form_row = _public_form_row(db, form_key)
+    if body.get("website"):
+        raise HTTPException(status_code=422, detail="Submission rejected")
+    _validate_submission_token(form_row, body.get("submissionToken"))
+    form = form_row.payload or {}
+    key = (idempotency_key or body.get("idempotencyKey") or "").strip()
+    if not key or len(key) > 128:
+        raise HTTPException(status_code=422, detail="A valid Idempotency-Key header is required")
+    submission_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"tasklytic:{form_row.workspace_id}:{form.get('id')}:{key}"))
+    result, _command, replayed = execute_inline_command(
+        db,
+        command_type="domain.public_form.submit",
+        deduplication_key=submission_id,
+        payload={"formId": form.get("id"), "submissionId": submission_id},
+        actor_id=str(((_find_record(db, "projects", str(form.get("projectId")), form_row.workspace_id) or form_row).payload or {}).get("ownerId") or "public-form"),
+        workspace_id=form_row.workspace_id,
+        operation=lambda: _submit_public_form_command(form_key, request, body, idempotency_key, db),
+    )
+    _commit(db)
+    if replayed and isinstance(result, dict):
+        result = {**result, "replayed": True}
+    return result
+
+
+@router.get("/forms/{form_key}/definition")
+def get_authenticated_form(
+    form_key: str,
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    row = _published_form_row(db, form_key)
+    get_membership(db, row.workspace_id, token["uid"])
+    return _sanitize_public_form(row.payload or {})
+
+
+@router.post("/forms/{form_key}/files:initiate")
+async def initiate_authenticated_form_file(
+    form_key: str,
+    body: dict[str, Any] = Body(...),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    form_row = _published_form_row(db, form_key)
+    get_membership(db, form_row.workspace_id, token["uid"])
+    filename, mime_type, size = _validate_upload(body.get("filename"), body.get("content_type"), body.get("size"))
+    upload_id = uuid.uuid4()
+    upload_token = secrets.token_urlsafe(32)
+    object_name = f"tasklytic/{form_row.workspace_id}/forms/{upload_id}/{quote(filename, safe='._-')}"
+    db.add(TasklyticFileUpload(
+        id=upload_id,
+        object_name=object_name,
+        workspace_id=form_row.workspace_id,
+        uploader_id=token["uid"],
+        scope_type="form",
+        scope_id=str((form_row.payload or {}).get("id")),
+        filename=filename,
+        mime_type=mime_type,
+        size_bytes=size,
+        public_token_hash=token_hash(upload_token),
+        expires_at=utcnow() + timedelta(hours=1),
+    ))
+    db.flush()
+    upload_url = await get_storage_service().generate_presigned_put_url(
+        object_name, expiration_minutes=15, content_type=mime_type
+    )
+    _commit(db)
+    return {
+        "object_name": object_name,
+        "upload_url": upload_url,
+        "upload_token": upload_token,
+        "content_type": mime_type,
+    }
+
+
+@router.post("/forms/{form_key}/submit")
+def submit_authenticated_form(
+    form_key: str,
+    request: Request,
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    row = _published_form_row(db, form_key)
+    get_membership(db, row.workspace_id, token["uid"])
+    key = (idempotency_key or body.get("idempotencyKey") or "").strip()
+    if not key or len(key) > 128:
+        raise HTTPException(status_code=422, detail="A valid Idempotency-Key header is required")
+    submission_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"tasklytic:{row.workspace_id}:{(row.payload or {}).get('id')}:{key}"))
+    result, _command, replayed = execute_inline_command(
+        db,
+        command_type="domain.authenticated_form.submit",
+        deduplication_key=submission_id,
+        payload={"formId": (row.payload or {}).get("id"), "submissionId": submission_id},
+        actor_id=token["uid"],
+        workspace_id=row.workspace_id,
+        operation=lambda: _submit_public_form_command(
+            form_key, request, body, idempotency_key, db,
+            allow_workspace=True, submitted_by=token["uid"],
+        ),
+    )
+    _commit(db)
+    if replayed and isinstance(result, dict):
+        result = {**result, "replayed": True}
+    return result
 
 
 @router.get("/bootstrap")
@@ -463,6 +614,145 @@ def get_capabilities(
 ):
     workspace_id = validate_id(workspace_id, "workspace_id")
     return {"workspaceId": workspace_id, "capabilities": capabilities_for_user(db, workspace_id, token["uid"])}
+
+
+@router.get("/reporting/sources")
+def get_reporting_sources(
+    workspace_id: str = Query(...),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(workspace_id, "workspace_id")
+    get_membership(db, workspace_id, token["uid"])
+    return {"workspaceId": workspace_id, "sources": reporting_sources_payload()}
+
+
+def _authorize_command_admin(db: Session, command: TasklyticCommand, user_id: str) -> None:
+    if command.workspace_id:
+        require_admin(db, command.workspace_id, user_id)
+    elif command.actor_id != user_id:
+        raise HTTPException(status_code=403, detail="Command diagnostics are restricted to administrators")
+
+
+@router.get("/commands")
+def list_commands(
+    workspace_id: str = Query(...),
+    status: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=250),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(workspace_id, "workspace_id")
+    require_admin(db, workspace_id, token["uid"])
+    query = db.query(TasklyticCommand).filter_by(workspace_id=workspace_id)
+    if status:
+        statuses = {item.strip() for item in status.split(",") if item.strip()}
+        if not statuses or not statuses.issubset({"pending", "leased", "retry", "succeeded", "failed"}):
+            raise HTTPException(status_code=422, detail="Invalid command status filter")
+        query = query.filter(TasklyticCommand.status.in_(statuses))
+    rows = query.order_by(TasklyticCommand.created_at.desc()).limit(limit).all()
+    return {"commands": [command_payload(row) for row in rows]}
+
+
+@router.get("/commands/{command_id}")
+def get_command_diagnostics(
+    command_id: uuid.UUID,
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    command = db.get(TasklyticCommand, command_id)
+    if command is None:
+        raise HTTPException(status_code=404, detail="Command not found")
+    _authorize_command_admin(db, command, token["uid"])
+    runs = db.query(TasklyticCommandRun).filter_by(command_id=command.id).order_by(TasklyticCommandRun.attempt).all()
+    return {**command_payload(command, include_payload=True), "runs": [command_run_payload(run) for run in runs]}
+
+
+@router.post("/commands/{command_id}/retry")
+def retry_command(
+    command_id: uuid.UUID,
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    command = db.get(TasklyticCommand, command_id)
+    if command is None:
+        raise HTTPException(status_code=404, detail="Command not found")
+    _authorize_command_admin(db, command, token["uid"])
+    retry_failed_command(db, command)
+    _commit(db)
+    return command_payload(command)
+
+
+@router.get("/automation/rules/{rule_id}/runs")
+def list_rule_runs(
+    rule_id: str,
+    workspace_id: str = Query(...),
+    limit: int = Query(default=50, ge=1, le=100),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    """Visible, retry-aware rule history backed by durable command attempts."""
+
+    workspace_id = validate_id(workspace_id, "workspace_id")
+    rule_id = validate_id(rule_id, "rule_id")
+    rule = _find_record(db, "rules", rule_id, workspace_id)
+    if rule is None:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    authorize_record(db, "rules", rule.payload or {}, workspace_id, token["uid"])
+    rows = (
+        db.query(TasklyticCommand)
+        .filter(
+            TasklyticCommand.workspace_id == workspace_id,
+            TasklyticCommand.command_type.in_({AUTOMATION_RULE_RUN, "maintenance.scheduled_rule"}),
+        )
+        .order_by(TasklyticCommand.created_at.desc())
+        .limit(500)
+        .all()
+    )
+    matching = [row for row in rows if str((row.payload or {}).get("ruleId")) == rule_id][:limit]
+    history = []
+    for command in matching:
+        attempts = (
+            db.query(TasklyticCommandRun)
+            .filter_by(command_id=command.id)
+            .order_by(TasklyticCommandRun.attempt)
+            .all()
+        )
+        history.append({
+            **command_payload(command),
+            "ruleId": rule_id,
+            "taskId": (command.payload or {}).get("taskId"),
+            "taskName": (command.result or {}).get("taskName") or (command.payload or {}).get("taskName") or "Task",
+            "actionsApplied": (command.result or {}).get("actionsApplied") or [],
+            "event": (command.payload or {}).get("event"),
+            "runs": [command_run_payload(run) for run in attempts],
+        })
+    return {"ruleId": rule_id, "runs": history}
+
+
+@router.post("/automation/runs/{command_id}/retry")
+def retry_rule_run(
+    command_id: uuid.UUID,
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    command = db.get(TasklyticCommand, command_id)
+    if command is None or command.command_type not in {AUTOMATION_RULE_RUN, "maintenance.scheduled_rule"}:
+        raise HTTPException(status_code=404, detail="Rule run not found")
+    rule = _find_record(db, "rules", str((command.payload or {}).get("ruleId")), command.workspace_id)
+    if rule is None:
+        raise HTTPException(status_code=404, detail="Rule not found")
+    authorize_mutation(
+        db,
+        "rules",
+        rule.payload or {},
+        command.workspace_id,
+        token["uid"],
+        rule.payload or {},
+    )
+    retry_failed_command(db, command)
+    _commit(db)
+    return command_payload(command)
 
 
 def _event_cursor(cursor: int | None, last_event_id: str | None) -> int:
@@ -521,14 +811,35 @@ async def stream_workspace_events(
 
 
 @router.post("/provision")
-def provision(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
-    result = provision_bundle(db, body.get("bundle", body), token)
+def provision(
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    bundle = body.get("bundle", body)
+    if idempotency_key is not None and (not idempotency_key.strip() or len(idempotency_key.strip()) > 128):
+        raise HTTPException(status_code=422, detail="Invalid Idempotency-Key header")
+    result, _command, _replayed = execute_inline_command(
+        db,
+        command_type="domain.workspace.provision",
+        deduplication_key=(idempotency_key or str(uuid.uuid4())).strip(),
+        payload={"bundleVersion": "v1"},
+        actor_id=token["uid"],
+        workspace_id=None,
+        operation=lambda: provision_bundle(db, bundle, token),
+    )
     _commit(db)
     return result
 
 
 @router.post("/invitations/send")
-def send_invitations(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+def send_invitations(
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     require_admin(db, workspace_id, token["uid"])
     workspace = db.get(TasklyticWorkspace, workspace_id)
@@ -541,38 +852,53 @@ def send_invitations(body: dict[str, Any] = Body(...), token: dict = Depends(ver
         team = _find_record(db, "teams", validate_id(team_id, "teamId"), workspace_id)
         if team is None:
             raise HTTPException(status_code=422, detail="Invite team was not found in this workspace")
-    results = []
-    for raw_email in emails:
-        email = str(raw_email).strip().lower()
-        if not EMAIL_RE.fullmatch(email) or len(email) > 320:
-            results.append({"email": email, "ok": False, "error": "Invalid email address"})
-            continue
-        plain_token = secrets.token_urlsafe(32)
-        invite = TasklyticInvitation(
-            workspace_id=workspace_id, email=email, role=role, team_id=team_id,
-            invited_by_id=token["uid"], note=str(body.get("note") or "").strip()[:2000] or None,
-            token_hash=token_hash(plain_token), expires_at=utcnow() + timedelta(days=7),
-        )
-        db.add(invite)
-        db.flush()
-        name = (workspace.payload or {}).get("name") or "a workspace"
-        inviter = token.get("name") or token.get("email") or "A teammate"
-        link = f"{frontend_base_url()}/dashboard/project-management/accept-invite?token={quote(plain_token)}"
-        sent = email_service.send_html_email(
-            email,
-            f"{inviter} invited you to {name} on Tasklytic",
-            f"<p>{html.escape(str(inviter))} invited you to join <strong>{html.escape(str(name))}</strong> as {html.escape(role)}.</p><p><a href=\"{html.escape(link)}\">Accept invitation</a></p>",
-            f"{inviter} invited you to {name} as {role}. Accept: {link}",
-        )
-        invite.delivery_state = "sent" if sent else "failed"
-        invite.delivery_error = None if sent else "Email delivery failed"
-        results.append({"email": email, "ok": sent, "emailSent": sent, "error": None if sent else "Email delivery failed", "invitation": invitation_payload(invite)})
-        append_workspace_event(
-            db, workspace_id, token["uid"], "workspaceInvitations",
-            str(invite.id), "created", invite.revision, invitation_payload(invite),
-        )
+    if idempotency_key is not None and (not idempotency_key.strip() or len(idempotency_key.strip()) > 128):
+        raise HTTPException(status_code=422, detail="Invalid Idempotency-Key header")
+
+    def operation():
+        results = []
+        for raw_email in emails:
+            email = str(raw_email).strip().lower()
+            if not EMAIL_RE.fullmatch(email) or len(email) > 320:
+                results.append({"email": email, "ok": False, "error": "Invalid email address"})
+                continue
+            plain_token = secrets.token_urlsafe(32)
+            invite = TasklyticInvitation(
+                workspace_id=workspace_id, email=email, role=role, team_id=team_id,
+                invited_by_id=token["uid"], note=str(body.get("note") or "").strip()[:2000] or None,
+                token_hash=token_hash(plain_token), expires_at=utcnow() + timedelta(days=7),
+            )
+            db.add(invite)
+            db.flush()
+            name = (workspace.payload or {}).get("name") or "a workspace"
+            inviter = token.get("name") or token.get("email") or "A teammate"
+            link = f"{frontend_base_url()}/dashboard/project-management/accept-invite?token={quote(plain_token)}"
+            sent = email_service.send_html_email(
+                email,
+                f"{inviter} invited you to {name} on Tasklytic",
+                f"<p>{html.escape(str(inviter))} invited you to join <strong>{html.escape(str(name))}</strong> as {html.escape(role)}.</p><p><a href=\"{html.escape(link)}\">Accept invitation</a></p>",
+                f"{inviter} invited you to {name} as {role}. Accept: {link}",
+            )
+            invite.delivery_state = "sent" if sent else "failed"
+            invite.delivery_error = None if sent else "Email delivery failed"
+            results.append({"email": email, "ok": sent, "emailSent": sent, "error": None if sent else "Email delivery failed", "invitation": invitation_payload(invite)})
+            append_workspace_event(
+                db, workspace_id, token["uid"], "workspaceInvitations",
+                str(invite.id), "created", invite.revision, invitation_payload(invite),
+            )
+        return {"results": results}
+
+    result, _command, _replayed = execute_inline_command(
+        db,
+        command_type="domain.invitation.send",
+        deduplication_key=(idempotency_key or str(uuid.uuid4())).strip(),
+        payload={"emails": emails, "role": role, "teamId": team_id},
+        actor_id=token["uid"],
+        workspace_id=workspace_id,
+        operation=operation,
+    )
     _commit(db)
-    return {"results": results}
+    return result
 
 
 @router.post("/invitations/accept")
@@ -584,42 +910,66 @@ def accept_invitation(body: dict[str, Any] = Body(...), token: dict = Depends(ve
     if invite is None or invite.status != "pending":
         raise HTTPException(status_code=409, detail="This invitation is invalid or is no longer available")
     if _expired(invite.expires_at):
-        invite.status = "expired"
-        invite.revision += 1
-        append_workspace_event(
-            db, invite.workspace_id, token["uid"], "workspaceInvitations",
-            str(invite.id), "updated", invite.revision, invitation_payload(invite),
+        def expire_operation():
+            invite.status = "expired"
+            invite.revision += 1
+            append_workspace_event(
+                db, invite.workspace_id, token["uid"], "workspaceInvitations",
+                str(invite.id), "updated", invite.revision, invitation_payload(invite),
+            )
+            return {"invitationId": str(invite.id), "status": "expired"}
+
+        execute_inline_command(
+            db,
+            command_type="domain.invitation.expire",
+            deduplication_key=str(invite.id),
+            payload={"invitationId": str(invite.id)},
+            actor_id=token["uid"],
+            workspace_id=invite.workspace_id,
+            operation=expire_operation,
         )
         _commit(db)
         raise HTTPException(status_code=410, detail="This invitation has expired")
     email = str(token.get("email") or "").strip().lower()
     if not token.get("email_verified") or email != invite.email:
         raise HTTPException(status_code=403, detail=f"Sign in with the verified address {invite.email} to accept this invitation")
-    membership = db.get(TasklyticWorkspaceMember, (invite.workspace_id, token["uid"]))
-    if membership is None:
-        membership = TasklyticWorkspaceMember(workspace_id=invite.workspace_id, user_id=token["uid"], role=invite.role)
-        db.add(membership)
-    elif membership.role != "admin":
-        membership.role = invite.role
-    if invite.team_id:
-        team = _find_record(db, "teams", invite.team_id, invite.workspace_id)
-        if team:
-            data = dict(team.payload or {})
-            data["memberIds"] = list(dict.fromkeys((data.get("memberIds") or []) + [token["uid"]]))
-            if invite.role == "guest":
-                data["guestIds"] = list(dict.fromkeys((data.get("guestIds") or []) + [token["uid"]]))
-            team.payload = data
-            team.revision += 1
-    invite.status = "accepted"
-    invite.accepted_by_id = token["uid"]
-    invite.accepted_at = utcnow()
-    invite.revision += 1
-    append_workspace_event(
-        db, invite.workspace_id, token["uid"], "workspaceInvitations",
-        str(invite.id), "updated", invite.revision, invitation_payload(invite),
+    def operation():
+        membership = db.get(TasklyticWorkspaceMember, (invite.workspace_id, token["uid"]))
+        if membership is None:
+            membership = TasklyticWorkspaceMember(workspace_id=invite.workspace_id, user_id=token["uid"], role=invite.role)
+            db.add(membership)
+        elif membership.role != "admin":
+            membership.role = invite.role
+        if invite.team_id:
+            team = _find_record(db, "teams", invite.team_id, invite.workspace_id)
+            if team:
+                data = dict(team.payload or {})
+                data["memberIds"] = list(dict.fromkeys((data.get("memberIds") or []) + [token["uid"]]))
+                if invite.role == "guest":
+                    data["guestIds"] = list(dict.fromkeys((data.get("guestIds") or []) + [token["uid"]]))
+                team.payload = data
+                team.revision += 1
+        invite.status = "accepted"
+        invite.accepted_by_id = token["uid"]
+        invite.accepted_at = utcnow()
+        invite.revision += 1
+        append_workspace_event(
+            db, invite.workspace_id, token["uid"], "workspaceInvitations",
+            str(invite.id), "updated", invite.revision, invitation_payload(invite),
+        )
+        return {"workspaceId": invite.workspace_id, "role": invite.role}
+
+    result, _command, _replayed = execute_inline_command(
+        db,
+        command_type="domain.invitation.accept",
+        deduplication_key=str(invite.id),
+        payload={"invitationId": str(invite.id)},
+        actor_id=token["uid"],
+        workspace_id=invite.workspace_id,
+        operation=operation,
     )
     _commit(db)
-    return {"workspaceId": invite.workspace_id, "role": invite.role}
+    return result
 
 
 @router.post("/invitations/{invitation_id}/revoke")
@@ -629,14 +979,28 @@ def revoke_invitation(invitation_id: uuid.UUID, token: dict = Depends(verify_fir
         raise HTTPException(status_code=404, detail="Invitation not found")
     require_admin(db, invite.workspace_id, token["uid"])
     if invite.status == "pending":
-        invite.status = "revoked"
-        invite.revision += 1
-        append_workspace_event(
-            db, invite.workspace_id, token["uid"], "workspaceInvitations",
-            str(invite.id), "updated", invite.revision, invitation_payload(invite),
+        def operation():
+            invite.status = "revoked"
+            invite.revision += 1
+            append_workspace_event(
+                db, invite.workspace_id, token["uid"], "workspaceInvitations",
+                str(invite.id), "updated", invite.revision, invitation_payload(invite),
+            )
+            return invitation_payload(invite)
+
+        result, _command, _replayed = execute_inline_command(
+            db,
+            command_type="domain.invitation.revoke",
+            deduplication_key=str(invite.id),
+            payload={"invitationId": str(invite.id)},
+            actor_id=token["uid"],
+            workspace_id=invite.workspace_id,
+            operation=operation,
         )
+    else:
+        result = invitation_payload(invite)
     _commit(db)
-    return invitation_payload(invite)
+    return result
 
 
 @router.post("/actions/deliver-notification")
@@ -650,21 +1014,145 @@ def deliver_notification(body: dict[str, Any] = Body(...), token: dict = Depends
     return result
 
 
-@router.post("/email/send")
-def send_email(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+@router.post("/email/send", status_code=202)
+def send_email(
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    key = _idempotency_key(idempotency_key, body)
+    command, replayed = queue_email_delivery(
+        db, workspace_id=workspace_id, actor_id=token["uid"], body=body,
+        idempotency_key=key,
+    )
+    result = dict(command.result or {})
+    _commit(db)
+    return {
+        **result, "commandId": str(command.id), "status": command.status,
+        "replayed": replayed, "ids": result.get("ids", []),
+    }
+
+
+@router.get("/integrations/capabilities")
+def get_integration_capabilities(
+    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    return {"capabilities": integration_capabilities(db, workspace_id, token["uid"])}
+
+
+@router.put("/integrations/{provider}")
+def configure_integration(
+    provider: str, body: dict[str, Any] = Body(...),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     require_admin(db, workspace_id, token["uid"])
-    recipients = body.get("to") if isinstance(body.get("to"), list) else [body.get("to")]
-    ids = []
-    for recipient in recipients:
-        email = str(recipient or "").strip().lower()
-        if not EMAIL_RE.fullmatch(email):
-            raise HTTPException(status_code=422, detail="Invalid email recipient")
-        sent = email_service.send_html_email(email, str(body.get("subject") or "")[:998], str(body.get("bodyHtml") or ""), str(body.get("bodyText") or ""))
-        if not sent:
-            raise HTTPException(status_code=502, detail="Email delivery failed")
-        ids.append(str(uuid.uuid4()))
-    return {"ids": ids}
+    if provider not in SUPPORTED_PROVIDERS:
+        raise HTTPException(status_code=404, detail="Unsupported integration")
+    row = upsert_connection(
+        db, workspace_id=workspace_id, provider=provider,
+        owner_user_id=token["uid"],
+        external_account_id=str(body.get("externalAccountId") or "").strip() or None,
+        status="disabled" if body.get("enabled") is False else "active",
+        capability=body.get("capability") if isinstance(body.get("capability"), dict) else {},
+    )
+    _commit(db)
+    return {"provider": row.provider, "status": row.status, "revision": row.revision}
+
+
+@router.get("/integrations/google-drive/files")
+def google_drive_files(
+    workspace_id: str = Query(...), q: str | None = Query(default=None, max_length=255),
+    page_token: str | None = Query(default=None, max_length=1024),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    result = list_google_drive_files(
+        db, workspace_id=workspace_id, actor_id=token["uid"], query=q,
+        page_token=page_token,
+    )
+    _commit(db)
+    return result
+
+
+@router.post("/integrations/google-drive:import")
+def google_drive_import(
+    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    result = import_google_drive_files(
+        db, workspace_id=workspace_id, actor_id=token["uid"],
+        scope_type=str(body.get("scope") or ""), scope_id=str(body.get("scopeId") or ""),
+        file_ids=body.get("fileIds") or [],
+    )
+    _commit(db)
+    return result
+
+
+@router.post("/integrations/vertex/receipts:extract")
+async def extract_expense_receipt(
+    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    connection = db.query(TasklyticIntegrationConnection).filter_by(
+        workspace_id=workspace_id, provider="vertex_receipts", status="active",
+    ).one_or_none()
+    if connection is None:
+        return {"status": "manual_required", "manualAllowed": True, "reason": "integration_unavailable"}
+    upload = _get_upload(db, str(body.get("objectName") or ""))
+    if upload.workspace_id != workspace_id or upload.uploader_id != token["uid"] or upload.state not in {"completed", "consumed"}:
+        raise HTTPException(status_code=403, detail="Receipt upload is unavailable")
+    blob = get_storage_service().bucket.blob(upload.object_name)
+    content = await asyncio.to_thread(blob.download_as_bytes)
+    return extract_receipt(content, upload.mime_type)
+
+
+@router.post("/billing/invoices/{invoice_id}:payment-link")
+def billing_invoice_payment_link(
+    invoice_id: str, body: dict[str, Any] = Body(...),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    result = create_stripe_payment_link(
+        db, workspace_id=workspace_id, actor_id=token["uid"], invoice_id=invoice_id,
+        success_url=str(body.get("successUrl") or ""), cancel_url=str(body.get("cancelUrl") or ""),
+    )
+    _commit(db)
+    return result
+
+
+@router.post("/integrations/stripe-connect/webhook")
+async def stripe_connect_webhook(request: Request, db: Session = Depends(get_db)):
+    secret = os.getenv("TASKLYTIC_STRIPE_CONNECT_WEBHOOK_SECRET")
+    if not secret:
+        raise HTTPException(status_code=503, detail="Stripe Connect webhook is not configured")
+    payload = await request.body()
+    signature = request.headers.get("stripe-signature")
+    try:
+        event = stripe.Webhook.construct_event(payload, signature, secret)
+    except (ValueError, stripe.SignatureVerificationError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid Stripe Connect webhook") from exc
+    result = reconcile_stripe_event(db, dict(event))
+    _commit(db)
+    return result
+
+
+@router.post("/events/usage", status_code=202)
+def create_usage_event(
+    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+):
+    result = record_usage_event(
+        db, workspace_id=validate_id(body.get("workspaceId"), "workspaceId"),
+        actor_id=token["uid"], event_name=str(body.get("event") or ""),
+        properties=body.get("properties") if isinstance(body.get("properties"), dict) else {},
+    )
+    _commit(db)
+    return result
 
 
 @router.post("/files:initiate")
@@ -674,17 +1162,18 @@ async def initiate_file(body: dict[str, Any] = Body(...), token: dict = Depends(
     get_membership(db, workspace_id, token["uid"])
     scope_type = body.get("scope")
     parent_kind = {"task": "tasks", "comment": "comments", "project": "projects"}.get(scope_type)
-    if not parent_kind:
+    if not parent_kind and scope_type != "receipt":
         raise HTTPException(status_code=422, detail="Unsupported upload scope")
-    parent = _find_record(db, parent_kind, validate_id(body.get("scope_id"), "scope_id"), workspace_id)
-    if parent is None:
+    parent = _find_record(db, parent_kind, validate_id(body.get("scope_id"), "scope_id"), workspace_id) if parent_kind else None
+    if parent_kind and parent is None:
         raise HTTPException(status_code=422, detail="Upload scope was not found")
-    authorize_mutation(db, parent_kind, parent.payload or {}, workspace_id, token["uid"], parent.payload or {})
+    if parent:
+        authorize_mutation(db, parent_kind, parent.payload or {}, workspace_id, token["uid"], parent.payload or {})
     upload_id = uuid.uuid4()
     object_name = f"tasklytic/{workspace_id}/{upload_id}/{quote(filename, safe='._-')}"
     row = TasklyticFileUpload(
         id=upload_id, object_name=object_name, workspace_id=workspace_id, uploader_id=token["uid"],
-        scope_type=scope_type, scope_id=parent.record_id, filename=filename, mime_type=mime_type,
+        scope_type=scope_type, scope_id=parent.record_id if parent else workspace_id, filename=filename, mime_type=mime_type,
         size_bytes=size, expires_at=utcnow() + timedelta(hours=1),
     )
     db.add(row)
@@ -740,6 +1229,151 @@ async def delete_file(object_name: str = Query(...), token: dict = Depends(verif
     return {"ok": True}
 
 
+@router.get("/ai/models")
+def ai_models(token: dict = Depends(verify_firebase_token)):
+    return {"models": list(SUPPORTED_VERTEX_MODELS)}
+
+
+@router.get("/ai/settings")
+def ai_settings(
+    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    row = get_or_create_settings(db, workspace_id, token["uid"])
+    _commit(db)
+    return settings_payload(row)
+
+
+@router.put("/ai/settings")
+def put_ai_settings(
+    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    try:
+        row = update_settings(db, validate_id(body.get("workspaceId"), "workspaceId"), token["uid"], body)
+        _commit(db)
+        return settings_payload(row)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/ai/threads")
+def get_ai_threads(
+    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    return {"threads": list_threads(db, workspace_id, token["uid"])}
+
+
+@router.post("/ai/threads", status_code=201)
+def post_ai_thread(
+    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    try:
+        row = create_thread(db, validate_id(body.get("workspaceId"), "workspaceId"), token["uid"], body)
+        _commit(db)
+        return thread_payload(db, row)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/ai/threads:migrate")
+def migrate_ai_threads(
+    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    try:
+        migrated, threads = migrate_local_threads(
+            db,
+            validate_id(body.get("workspaceId"), "workspaceId"),
+            token["uid"],
+            str(body.get("migrationId") or ""),
+            body.get("threads"),
+        )
+        _commit(db)
+        return {"migrated": migrated, "threads": threads}
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.patch("/ai/proposals/{proposal_id}")
+def patch_ai_proposal(
+    proposal_id: uuid.UUID, body: dict[str, Any] = Body(...),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    try:
+        row = edit_proposal(db, proposal_id, token["uid"], body)
+        _commit(db)
+        return proposal_payload(row)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/ai/proposals/{proposal_id}:accept")
+def accept_ai_proposal(
+    proposal_id: uuid.UUID, token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    try:
+        row = accept_proposal(db, proposal_id, token["uid"])
+        _commit(db)
+        return proposal_payload(row)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/ai/proposals/{proposal_id}:discard")
+def discard_ai_proposal(
+    proposal_id: uuid.UUID, token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    row = discard_proposal(db, proposal_id, token["uid"])
+    _commit(db)
+    return proposal_payload(row)
+
+
+@router.get("/ai/teammates")
+def get_ai_teammates(
+    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    return {"jobs": list_teammates(db, workspace_id, token["uid"])}
+
+
+@router.put("/ai/teammates")
+def put_ai_teammate(
+    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    try:
+        row = upsert_teammate(db, validate_id(body.get("workspaceId"), "workspaceId"), token["uid"], body)
+        _commit(db)
+        return teammate_payload(row)
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/ai/audit")
+def get_ai_audit(
+    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    return {"events": list_audit(db, workspace_id, token["uid"])}
+
+
+@router.get("/ai/usage")
+def get_ai_usage(
+    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    require_admin(db, workspace_id, token["uid"])
+    rows = db.query(TasklyticAiUsageEvent).filter_by(workspace_id=workspace_id).order_by(
+        TasklyticAiUsageEvent.created_at.desc()
+    ).limit(250).all()
+    return {"events": [{
+        "id": str(row.id), "userId": row.user_id, "eventType": row.event_type, "model": row.model,
+        "threadId": row.thread_id, "jobId": str(row.job_id) if row.job_id else None,
+        "promptTokens": row.prompt_tokens, "outputTokens": row.output_tokens, "totalTokens": row.total_tokens,
+        "createdAt": row.created_at.isoformat(),
+    } for row in rows]}
+
+
 @router.post("/ai/generate")
 async def ai_generate(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
     prompt = body.get("prompt")
@@ -752,16 +1386,25 @@ async def ai_generate(body: dict[str, Any] = Body(...), token: dict = Depends(ve
     if not isinstance(scope, dict):
         raise HTTPException(status_code=422, detail="An AI scope is required")
     try:
-        return await asyncio.wait_for(generate_tasklytic_response(db, token["uid"], prompt.strip(), history, body.get("model"), scope), timeout=60)
+        result = await asyncio.wait_for(generate_tasklytic_response(
+            db, token["uid"], prompt.strip(), history, body.get("model"), scope, body.get("threadId")
+        ), timeout=60)
+        _commit(db)
+        return result
     except asyncio.TimeoutError:
+        db.rollback()
         raise HTTPException(status_code=504, detail="AI request timed out")
     except ValueError as exc:
+        db.rollback()
         raise HTTPException(status_code=422, detail=str(exc))
     except PlanLimitExceeded as exc:
+        db.rollback()
         raise HTTPException(status_code=402, detail=str(exc))
     except HTTPException:
+        db.rollback()
         raise
     except Exception:
+        db.rollback()
         raise HTTPException(status_code=502, detail="AI service is temporarily unavailable")
 
 
@@ -769,9 +1412,233 @@ async def ai_generate(body: dict[str, Any] = Body(...), token: dict = Depends(ve
 def clear(token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
     if not is_local() or os.getenv("ENVIRONMENT", "").lower() == "production":
         raise HTTPException(status_code=404, detail="Not found")
-    clear_user_data(db, token["uid"])
+    execute_inline_command(
+        db,
+        command_type="domain.user.clear",
+        deduplication_key=str(uuid.uuid4()),
+        payload={},
+        actor_id=token["uid"],
+        workspace_id=None,
+        operation=lambda: clear_user_data(db, token["uid"]),
+    )
     _commit(db)
     return {"ok": True}
+
+
+def _idempotency_key(header_value: str | None, body: dict[str, Any]) -> str:
+    key = (header_value or str(body.get("idempotencyKey") or "")).strip()
+    if not key or len(key) > 128:
+        raise HTTPException(status_code=422, detail="A valid Idempotency-Key is required")
+    return key
+
+
+@router.post("/billing/invoices:generate")
+def billing_generate_invoice(
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    key = _idempotency_key(idempotency_key, body)
+    result, _command, replayed = execute_inline_command(
+        db, command_type="domain.billing.invoice.generate",
+        deduplication_key=f"billing:{workspace_id}:invoice:generate:{key}",
+        payload=body, actor_id=token["uid"], workspace_id=workspace_id,
+        operation=lambda: generate_invoice(db, workspace_id=workspace_id, actor_id=token["uid"], body=body),
+    )
+    _commit(db)
+    return {**result, "replayed": replayed}
+
+
+@router.post("/billing/invoices/{invoice_id}:{action}")
+def billing_invoice_action(
+    invoice_id: str, action: str, body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    key = _idempotency_key(idempotency_key, body)
+    operation = (
+        (lambda: record_payment(
+            db, invoice_id=invoice_id, workspace_id=workspace_id,
+            actor_id=token["uid"], body=body,
+        ))
+        if action == "payment"
+        else (lambda: invoice_action(
+            db, invoice_id=invoice_id, action=action, workspace_id=workspace_id,
+            actor_id=token["uid"], body=body,
+        ))
+    )
+    result, _command, replayed = execute_inline_command(
+        db, command_type="domain.billing.payment.apply" if action == "payment" else f"domain.billing.invoice.{action}",
+        deduplication_key=f"billing:{workspace_id}:invoice:{invoice_id}:{action}:{key}",
+        payload=body, actor_id=token["uid"], workspace_id=workspace_id,
+        operation=operation,
+    )
+    delivery = None
+    if action in {"send", "resend"} and body.get("method") == "email":
+        recipient = str(body.get("recipient") or "").strip().lower()
+        invoice = result.get("invoice") or {}
+        command, email_replayed = queue_email_delivery(
+            db, workspace_id=workspace_id, actor_id=token["uid"],
+            idempotency_key=f"invoice:{invoice_id}:{action}:{key}",
+            require_workspace_admin=False,
+            body={
+                "to": recipient,
+                "subject": f"Invoice {invoice.get('invoiceNumber') or invoice_id}",
+                "bodyText": f"Invoice {invoice.get('invoiceNumber') or invoice_id} from your service provider is ready. Amount due: {invoice.get('amountOutstanding')} {invoice.get('currency')}.",
+                "bodyHtml": f"<p>Invoice <strong>{html.escape(str(invoice.get('invoiceNumber') or invoice_id))}</strong> is ready.</p><p>Amount due: {html.escape(str(invoice.get('amountOutstanding')))} {html.escape(str(invoice.get('currency') or ''))}</p>",
+            },
+        )
+        delivery = {"commandId": str(command.id), "status": command.status, "replayed": email_replayed}
+    _commit(db)
+    return {**result, "replayed": replayed, "delivery": delivery}
+
+
+@router.post("/billing/invoices/{invoice_id}:payment")
+def billing_record_payment(
+    invoice_id: str, body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    key = _idempotency_key(idempotency_key, body)
+    result, _command, replayed = execute_inline_command(
+        db, command_type="domain.billing.payment.apply",
+        deduplication_key=f"billing:{workspace_id}:invoice:{invoice_id}:payment:{key}",
+        payload=body, actor_id=token["uid"], workspace_id=workspace_id,
+        operation=lambda: record_payment(
+            db, invoice_id=invoice_id, workspace_id=workspace_id,
+            actor_id=token["uid"], body=body,
+        ),
+    )
+    _commit(db)
+    return {**result, "replayed": replayed}
+
+
+@router.post("/billing/payments/{payment_id}:reverse")
+def billing_reverse_payment(
+    payment_id: str, body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    key = _idempotency_key(idempotency_key, body)
+    result, _command, replayed = execute_inline_command(
+        db, command_type="domain.billing.payment.reverse",
+        deduplication_key=f"billing:{workspace_id}:payment:{payment_id}:reverse:{key}",
+        payload=body, actor_id=token["uid"], workspace_id=workspace_id,
+        operation=lambda: reverse_payment(
+            db, payment_id=payment_id, workspace_id=workspace_id,
+            actor_id=token["uid"], body=body,
+        ),
+    )
+    _commit(db)
+    return {**result, "replayed": replayed}
+
+
+@router.post("/billing/trust:record")
+def billing_record_trust(
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    key = _idempotency_key(idempotency_key, body)
+    result, _command, replayed = execute_inline_command(
+        db, command_type="domain.billing.trust.record",
+        deduplication_key=f"billing:{workspace_id}:trust:record:{key}",
+        payload=body, actor_id=token["uid"], workspace_id=workspace_id,
+        operation=lambda: record_trust_transaction(db, workspace_id=workspace_id, actor_id=token["uid"], body=body),
+    )
+    _commit(db)
+    return {**result, "replayed": replayed}
+
+
+@router.post("/billing/trust/{transaction_id}:reverse")
+def billing_reverse_trust(
+    transaction_id: str, body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    key = _idempotency_key(idempotency_key, body)
+    result, _command, replayed = execute_inline_command(
+        db, command_type="domain.billing.trust.reverse",
+        deduplication_key=f"billing:{workspace_id}:trust:{transaction_id}:reverse:{key}",
+        payload=body, actor_id=token["uid"], workspace_id=workspace_id,
+        operation=lambda: reverse_trust_transaction(
+            db, transaction_id=transaction_id, workspace_id=workspace_id,
+            actor_id=token["uid"], body=body,
+        ),
+    )
+    _commit(db)
+    return {**result, "replayed": replayed}
+
+
+@router.post("/billing/fx:quote")
+def billing_fx_quote(
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    key = _idempotency_key(idempotency_key, body)
+    result, _command, replayed = execute_inline_command(
+        db, command_type="domain.billing.fx.quote",
+        deduplication_key=f"billing:{workspace_id}:fx:quote:{key}",
+        payload=body, actor_id=token["uid"], workspace_id=workspace_id,
+        operation=lambda: create_fx_quote(db, workspace_id=workspace_id, actor_id=token["uid"], body=body),
+    )
+    _commit(db)
+    return {**result, "replayed": replayed}
+
+
+@router.get("/billing/invoices/{invoice_id}/pdf")
+def billing_invoice_pdf(
+    invoice_id: str, workspace_id: str = Query(...),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    get_membership(db, workspace_id, token["uid"])
+    content, sha256 = invoice_pdf(db, invoice_id=invoice_id, workspace_id=workspace_id, actor_id=token["uid"])
+    return Response(
+        content=content, media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="invoice-{invoice_id}.pdf"', "X-Content-SHA256": sha256},
+    )
+
+
+@router.post("/psa/{entity}/{record_id}:{action}")
+def psa_lifecycle_action(
+    entity: str, record_id: str, action: str,
+    body: dict[str, Any] = Body(...),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+):
+    workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
+    get_membership(db, workspace_id, token["uid"])
+    key = (idempotency_key or str(body.get("idempotencyKey") or "")).strip()
+    if not key or len(key) > 128:
+        raise HTTPException(status_code=422, detail="A valid Idempotency-Key is required")
+    result, _command, replayed = execute_inline_command(
+        db,
+        command_type=f"domain.psa.{entity}.{action}",
+        deduplication_key=f"psa:{workspace_id}:{entity}:{record_id}:{action}:{key}",
+        payload={"entity": entity, "recordId": record_id, "action": action, "body": body},
+        actor_id=token["uid"], workspace_id=workspace_id,
+        operation=lambda: execute_psa_action(
+            db, kind=entity, record_id=record_id, action=action, body=body,
+            actor_id=token["uid"], workspace_id=workspace_id,
+        ),
+    )
+    _commit(db)
+    return {**result, "replayed": replayed}
 
 
 # Generic routes deliberately come last so named specialized paths win.
@@ -819,15 +1686,37 @@ def put_record(
         get_membership(db, workspace_id, token["uid"])
         existing = _find_record(db, entity, record_id, workspace_id)
     expected_revision = parse_revision_etag(if_match) if existing is not None else None
-    result = upsert_record(
-        db,
-        entity,
-        body,
-        token["uid"],
-        workspace_id,
-        expected_revision,
-        enforce_precondition=True,
-    )
+    previous = dict(existing.payload or {}) if existing is not None else None
+    command_type = mutation_command_type(entity, body, previous)
+    if command_type:
+        digest = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+        result, _command, _replayed = execute_inline_command(
+            db,
+            command_type=command_type,
+            deduplication_key=f"{entity}:{record_id}:revision:{expected_revision or 0}:{digest}",
+            payload={"entity": entity, "recordId": record_id, "expectedRevision": expected_revision, "mutation": body},
+            actor_id=token["uid"],
+            workspace_id=workspace_id or getattr(existing, "workspace_id", None) or body.get("workspaceId"),
+            operation=lambda: upsert_record(
+                db,
+                entity,
+                body,
+                token["uid"],
+                workspace_id,
+                expected_revision,
+                enforce_precondition=True,
+            ),
+        )
+    else:
+        result = upsert_record(
+            db,
+            entity,
+            body,
+            token["uid"],
+            workspace_id,
+            expected_revision,
+            enforce_precondition=True,
+        )
     _commit(db)
     response.headers["ETag"] = format_revision_etag(result["revision"])
     return result
@@ -840,6 +1729,28 @@ def remove_record(
     token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
 ):
     expected_revision = parse_revision_etag(if_match)
-    delete_record(db, entity, record_id, token["uid"], workspace_id, expected_revision)
+    existing = None
+    if entity == "workspaces":
+        existing = db.get(TasklyticWorkspace, record_id)
+    elif workspace_id and entity in {"rules", "invoices", "payments", "timesheets", "expenseReports"}:
+        existing = _find_record(db, entity, record_id, workspace_id)
+    current = dict(existing.payload or {}) if existing is not None else {}
+    command_type = mutation_command_type(entity, current, current)
+    if entity == "workspaces":
+        command_type = "domain.workspace.delete"
+    elif entity in {"rules", "invoices", "payments"}:
+        command_type = command_type or f"domain.{entity.rstrip('s')}.execute"
+    if command_type:
+        execute_inline_command(
+            db,
+            command_type=command_type,
+            deduplication_key=f"delete:{entity}:{record_id}:revision:{expected_revision}",
+            payload={"entity": entity, "recordId": record_id, "expectedRevision": expected_revision},
+            actor_id=token["uid"],
+            workspace_id=None if entity == "workspaces" else workspace_id,
+            operation=lambda: delete_record(db, entity, record_id, token["uid"], workspace_id, expected_revision),
+        )
+    else:
+        delete_record(db, entity, record_id, token["uid"], workspace_id, expected_revision)
     _commit(db)
     return None

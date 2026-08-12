@@ -8,6 +8,7 @@ type Props = {
   html: string
   onChange: (html: string) => void
   placeholder?: string
+  ariaLabel?: string
 }
 
 function exec(cmd: string, value?: string) {
@@ -15,7 +16,7 @@ function exec(cmd: string, value?: string) {
 }
 
 /** Lightweight contentEditable brief editor for project overview. */
-export function BriefRichEditor({ html, onChange, placeholder }: Props) {
+export function BriefRichEditor({ html, onChange, placeholder, ariaLabel }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   const sync = useCallback(() => {
@@ -74,6 +75,7 @@ export function BriefRichEditor({ html, onChange, placeholder }: Props) {
       <div
         ref={ref}
         contentEditable
+        aria-label={ariaLabel}
         suppressContentEditableWarning
         className="min-h-28 rounded-lg border p-3 text-sm outline-none tl-input"
         style={{ color: 'var(--ink-primary)' }}

@@ -110,9 +110,10 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
         <Input id="logo" type="file" accept="image/*" className="tl-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) readImage(f, 'logoDataUrl') }} />
       </div>
       <div className="flex items-center justify-between">
-        <Label htmlFor="is-public">Public (anyone with link)</Label>
+        <Label htmlFor="is-public">Published</Label>
         <Switch id="is-public" checked={form.isPublic} onCheckedChange={(v) => onChange({ isPublic: v })} />
       </div>
+      {form.isPublic ? <div className="grid gap-2"><Label>Who can submit</Label><Select value={form.accessMode ?? 'public'} onValueChange={(value) => onChange({ accessMode: value as 'public' | 'workspace' })}><SelectTrigger aria-label="Form access"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="public">Anyone with the link</SelectItem><SelectItem value="workspace">Workspace members only</SelectItem></SelectContent></Select></div> : null}
     </div>
   )
 }

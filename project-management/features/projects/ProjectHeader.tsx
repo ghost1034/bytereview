@@ -42,6 +42,7 @@ import type { Project } from '../../types'
 import { MemberAvatarStack } from '../members/MemberAvatarStack'
 import { SaveProjectAsTemplateModal } from '../templates/SaveProjectAsTemplateModal'
 import { SpawnChildProjectOffer } from '../templates/SpawnChildProjectOffer'
+import { ApplyBundleDialog } from '../templates/ApplyBundleDialog'
 import { ProjectStatusPill } from './ProjectStatusPill'
 import { ProjectSettingsDialog } from './ProjectSettingsDialog'
 
@@ -54,6 +55,7 @@ type Props = {
   members: import('../../types').User[]
   settingsOpen: boolean
   onSettingsOpenChange: (open: boolean) => void
+  canEdit: boolean
 }
 
 /** Project header row with inline rename, status, star, and actions menu. */
@@ -66,12 +68,14 @@ export function ProjectHeader({
   members,
   settingsOpen,
   onSettingsOpenChange,
+  canEdit,
 }: Props) {
   const router = useRouter()
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(project.name)
   const [confirmArchive, setConfirmArchive] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
+  const [bundleOpen, setBundleOpen] = useState(false)
   const meta = project as ProjectWithTemplateMeta
 
   const saveName = async () => {
@@ -121,14 +125,14 @@ export function ProjectHeader({
                 aria-label="Project name"
               />
             ) : (
-              <button type="button" className="text-left font-serif text-2xl hover:opacity-80" onClick={() => setEditing(true)}>
+              <button type="button" disabled={!canEdit} className="text-left font-serif text-2xl hover:opacity-80 disabled:cursor-default" onClick={() => setEditing(true)}>
                 {project.name}
               </button>
             )}
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <ProjectStatusPill
                 status={project.status}
-                editable
+                editable={canEdit}
                 onChange={(s) => void updateProjectStatus(project.id, s, currentUserId)}
               />
               <MemberAvatarStack users={members} size="sm" />
@@ -154,17 +158,18 @@ export function ProjectHeader({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="tl-popover-surface" align="end">
-              <DropdownMenuItem onClick={() => onSettingsOpenChange(true)}>Edit details</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTemplateOpen(true)}>
+              {canEdit ? <DropdownMenuItem onClick={() => onSettingsOpenChange(true)}>Edit details</DropdownMenuItem> : null}
+              {canEdit ? <DropdownMenuItem onClick={() => setTemplateOpen(true)}>
                 <LayoutTemplate className="mr-2 h-4 w-4" /> Save as template
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => void onDuplicate()}>
+              </DropdownMenuItem> : null}
+              {canEdit ? <DropdownMenuItem onClick={() => setBundleOpen(true)}>Apply bundle</DropdownMenuItem> : null}
+              {canEdit ? <DropdownMenuItem onClick={() => void onDuplicate()}>
                 <Copy className="mr-2 h-4 w-4" /> Duplicate
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setConfirmArchive(true)}>
+              </DropdownMenuItem> : null}
+              {canEdit ? <DropdownMenuSeparator /> : null}
+              {canEdit ? <DropdownMenuItem onClick={() => setConfirmArchive(true)}>
                 <Archive className="mr-2 h-4 w-4" /> Archive
-              </DropdownMenuItem>
+              </DropdownMenuItem> : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -186,6 +191,7 @@ export function ProjectHeader({
         createdBy={currentUserId}
         defaultName={project.name}
       />
+      <ApplyBundleDialog open={bundleOpen} onOpenChange={setBundleOpen} projectId={project.id} workspaceId={workspaceId} actorId={currentUserId} />
 
       <AlertDialog open={confirmArchive} onOpenChange={setConfirmArchive}>
         <AlertDialogContent className="tl-dialog-surface tl-dialog-mobile">

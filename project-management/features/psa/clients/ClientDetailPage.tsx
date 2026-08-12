@@ -1,0 +1,30 @@
+'use client'
+
+import Link from 'next/link'
+import { usePageMeta } from '../../../hooks/usePageMeta'
+import { useWorkspaceContext } from '../../../hooks/useWorkspaceContext'
+import { useClientsStore, useExpensesStore, useInvoicesStore, useMattersStore, useProjectsStore, useTimeEntriesStore } from '../../../stores/entities'
+import { formatMoney } from '../../../lib/billing/formatMoney'
+import { wipTotal } from '../../../lib/billing/selectors'
+import { matterTerminology } from '../../../lib/psa/terminology'
+
+export function ClientDetailPage({ clientId }: { clientId: string }) {
+  const { workspaceId, workspace } = useWorkspaceContext()
+  const client = useClientsStore((s) => s.getById(clientId))
+  const matters = useMattersStore((s) => s.list().filter((m) => m.clientId === clientId))
+  const projects = useProjectsStore((s) => s.list())
+  const time = useTimeEntriesStore((s) => s.list().filter((e) => e.clientId === clientId))
+  const expenses = useExpensesStore((s) => s.list().filter((e) => e.clientId === clientId))
+  const invoices = useInvoicesStore((s) => s.list().filter((e) => e.clientId === clientId))
+  const terms = matterTerminology(workspace)
+  usePageMeta({ breadcrumbs: [{ label: 'Clients' }, { label: client?.name ?? 'Client' }] })
+  if (!workspaceId || !client || client.workspaceId !== workspaceId) return <p>Client not found.</p>
+  const ar = invoices.reduce((sum, invoice) => sum + (invoice.amountOutstanding ?? 0), 0)
+  return <div className="space-y-5">
+    <div><h1 className="font-serif text-2xl">{client.name}</h1><p className="text-sm" style={{ color: 'var(--ink-muted)' }}>{client.contactName ?? 'No primary contact'} · {client.contactEmail ?? 'No email'}</p></div>
+    <div className="grid gap-3 sm:grid-cols-3"><Metric label="WIP" value={formatMoney(wipTotal(time, expenses))} /><Metric label="Accounts receivable" value={formatMoney(ar)} /><Metric label="Retainer" value={formatMoney(client.retainerBalance ?? 0)} /></div>
+    <div className="tl-card p-4 shadow-paper-sm"><h2 className="mb-3 font-medium">{terms.plural}</h2><div className="space-y-2">{matters.map((matter) => <Link className="flex justify-between rounded-md border p-3 hover:underline" key={matter.id} href={`/dashboard/project-management/w/${workspaceId}/psa/${terms.route}/${matter.id}`}><span>{projects.find((p) => p.id === matter.projectId)?.name ?? matter.matterNumber}</span><span>{matter.status}</span></Link>)}</div></div>
+  </div>
+}
+
+function Metric({ label, value }: { label: string; value: string }) { return <div className="tl-card p-4 shadow-paper-sm"><p className="text-xs uppercase" style={{ color: 'var(--ink-muted)' }}>{label}</p><p className="font-mono text-xl">{value}</p></div> }

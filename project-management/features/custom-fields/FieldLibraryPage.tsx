@@ -53,9 +53,11 @@ export function FieldLibraryPage({ project, onAddToProject }: Props = {}) {
   const [deleteTarget, setDeleteTarget] = useState<CustomField | null>(null)
 
   usePageMeta({
-    breadcrumbs: project
-      ? [{ label: 'Settings', href: '../settings' }, { label: 'Custom fields' }]
-      : [{ label: 'Settings', href: '../settings' }, { label: 'Field library' }],
+    breadcrumbs: workspaceId ? [
+      { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+      { label: 'Settings', href: `/dashboard/project-management/w/${workspaceId}/settings` },
+      { label: project ? 'Custom fields' : 'Field library' },
+    ] : [],
   })
 
   const filtered = useMemo(() => {

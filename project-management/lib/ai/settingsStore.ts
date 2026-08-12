@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { AiChatRole, AiContextScope, AiProposal, GeminiModelId } from './types'
+import type { AiChatRole, AiContextScope, AiProposal, GeminiModelId, VertexModelOption } from './types'
 
 export type AiChatMessage = {
   id: string
@@ -25,27 +25,21 @@ export type AiThread = {
 type AiSettingsState = {
   enabled: boolean
   paused: boolean
-  apiKey: string
   model: GeminiModelId
+  modelOptions: VertexModelOption[]
   activeThreadId: string | null
   threads: AiThread[]
   setEnabled: (v: boolean) => void
   setPaused: (v: boolean) => void
-  setApiKey: (key: string) => void
   setModel: (model: GeminiModelId) => void
+  setModelOptions: (models: VertexModelOption[]) => void
   setActiveThread: (id: string | null) => void
   upsertThread: (thread: AiThread) => void
   appendMessage: (threadId: string, message: AiChatMessage) => void
   createThread: (workspaceId: string, title?: string, contextScope?: AiContextScope) => string
   getThread: (id: string) => AiThread | undefined
   listThreads: (workspaceId: string) => AiThread[]
-}
-
-/** Resolved API key: local settings first, then NEXT_PUBLIC_GEMINI_API_KEY. */
-export function resolveGeminiApiKey(settingsKey: string): string {
-  const trimmed = settingsKey.trim()
-  if (trimmed) return trimmed
-  return (typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_GEMINI_API_KEY : '') ?? ''
+  replaceWorkspaceThreads: (workspaceId: string, threads: AiThread[]) => void
 }
 
 export const useAiSettingsStore = create<AiSettingsState>()(
@@ -53,14 +47,14 @@ export const useAiSettingsStore = create<AiSettingsState>()(
     (set, get) => ({
       enabled: true,
       paused: false,
-      apiKey: '',
       model: 'gemini-2.5-flash',
+      modelOptions: [],
       activeThreadId: null,
       threads: [],
       setEnabled: (v) => set({ enabled: v }),
       setPaused: (v) => set({ paused: v }),
-      setApiKey: (key) => set({ apiKey: key }),
       setModel: (model) => set({ model }),
+      setModelOptions: (modelOptions) => set({ modelOptions }),
       setActiveThread: (id) => set({ activeThreadId: id }),
       upsertThread: (thread) =>
         set((s) => ({
@@ -92,7 +86,21 @@ export const useAiSettingsStore = create<AiSettingsState>()(
         get()
           .threads.filter((t) => t.workspaceId === workspaceId)
           .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+      replaceWorkspaceThreads: (workspaceId, threads) => set((state) => ({
+        threads: [...state.threads.filter((thread) => thread.workspaceId !== workspaceId), ...threads],
+        activeThreadId: threads.some((thread) => thread.id === state.activeThreadId)
+          ? state.activeThreadId
+          : threads[0]?.id ?? null,
+      })),
     }),
-    { name: 'tasklytic:ai:v1' }
+    {
+      name: 'tasklytic:ai:v1',
+      version: 2,
+      migrate: (persisted) => {
+        const state = { ...(persisted as Record<string, unknown>) }
+        delete state.apiKey
+        return state as unknown as AiSettingsState
+      },
+    }
   )
 )

@@ -20,10 +20,11 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   users: User[]
+  canEdit: boolean
 }
 
 /** Manager-facing capacity and time-off editor. */
-export function CapacityEditorDialog({ open, onOpenChange, users }: Props) {
+export function CapacityEditorDialog({ open, onOpenChange, users, canEdit }: Props) {
   const updateUser = useUsersStore((s) => s.update)
   const [drafts, setDrafts] = useState<Record<string, { capacity: string; timeOff: UserTimeOff[] }>>({})
 
@@ -40,6 +41,7 @@ export function CapacityEditorDialog({ open, onOpenChange, users }: Props) {
   }, [open, users])
 
   async function save() {
+    if (!canEdit) return
     await Promise.all(
       users.map((u) => {
         const d = drafts[u.id]
@@ -93,7 +95,7 @@ export function CapacityEditorDialog({ open, onOpenChange, users }: Props) {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" onClick={() => void save()}>Save</Button>
+          <Button className="tl-btn-primary border-0" disabled={!canEdit} onClick={() => void save()}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

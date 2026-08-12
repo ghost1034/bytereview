@@ -33,7 +33,10 @@ export function MyTasksPage() {
 
   const basePath = workspaceId ? `/dashboard/project-management/w/${workspaceId}/my-tasks` : '#'
 
-  usePageMeta({ breadcrumbs: [{ label: 'My Tasks' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'My Tasks' },
+  ] : [] })
 
   const body = useMemo(() => {
     if (!workspaceId) return null

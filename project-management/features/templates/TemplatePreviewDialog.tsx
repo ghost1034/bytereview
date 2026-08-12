@@ -8,6 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import type { CuratedProjectTemplate } from '../../lib/templates/types'
 import { countTemplateTasks } from '../../lib/templates/templateLibrary'
+import { templatePlaceholderRoles } from '../../lib/templates/templateValidation'
+import type { User } from '../../types'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type Props = {
   template: CuratedProjectTemplate | null
@@ -15,18 +18,22 @@ type Props = {
   loading: boolean
   onClose: () => void
   onUse: () => void
+  users: User[]
+  roleAssignments: Record<string, string>
+  onRoleAssignmentChange: (role: string, userId: string) => void
 }
 
-export function TemplatePreviewDialog({ template, open, loading, onClose, onUse }: Props) {
+export function TemplatePreviewDialog({ template, open, loading, onClose, onUse, users, roleAssignments, onRoleAssignmentChange }: Props) {
   if (!template) return null
   const specs = template.taskSpecs ?? []
   const previewTasks = specs.slice(0, 20)
   const hasForms = (template.formTemplates?.length ?? 0) > 0
   const hasDashboards = (template.dashboardTemplates?.length ?? 0) > 0
+  const placeholderRoles = templatePlaceholderRoles(template)
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <TasklyticDialogContent className="max-w-2xl">
+      <TasklyticDialogContent className="max-w-2xl" aria-describedby={undefined}>
         <Tabs defaultValue="overview">
           <DialogHeader>
             <DialogTitle className="font-serif text-xl">
@@ -41,6 +48,7 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse 
             <TabsTrigger value="fields">Custom fields</TabsTrigger>
             <TabsTrigger value="tasks">Starter tasks</TabsTrigger>
             <TabsTrigger value="rules">Rules</TabsTrigger>
+            {placeholderRoles.length ? <TabsTrigger value="roles">Roles</TabsTrigger> : null}
             {hasForms && <TabsTrigger value="forms">Forms</TabsTrigger>}
             {hasDashboards && <TabsTrigger value="dashboards">Dashboards</TabsTrigger>}
           </TabsList>
@@ -114,6 +122,11 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse 
               ))}
             </ul>
           </TabsContent>
+
+          {placeholderRoles.length ? <TabsContent value="roles" className="max-h-64 space-y-3 overflow-y-auto">
+            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Resolve placeholder roles before creating the project. Unresolved roles remain visible as task tags.</p>
+            {placeholderRoles.map((role) => <label key={role} className="grid grid-cols-[140px_1fr] items-center gap-2 text-sm"><span>{role}</span><Select value={roleAssignments[role] ?? '__unassigned__'} onValueChange={(value) => onRoleAssignmentChange(role, value === '__unassigned__' ? '' : value)}><SelectTrigger aria-label={`Resolve role ${role}`}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__unassigned__">Leave unassigned</SelectItem>{users.map((user) => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}</SelectContent></Select></label>)}
+          </TabsContent> : null}
 
           {hasForms && (
             <TabsContent value="forms" className="max-h-64 overflow-y-auto text-sm">

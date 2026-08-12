@@ -24,6 +24,9 @@ export function useGoalFormState(open: boolean, goal: Goal | undefined, currentU
   const [manualStatus, setManualStatus] = useState<'on_track' | 'at_risk' | 'off_track'>('on_track')
   const [projectIds, setProjectIds] = useState<string[]>([])
   const [subGoalIds, setSubGoalIds] = useState<string[]>([])
+  const [rollupWeight, setRollupWeight] = useState('1')
+  const [supportingGoalWeights, setSupportingGoalWeights] = useState<Record<string, number>>({})
+  const [supportingProjectWeights, setSupportingProjectWeights] = useState<Record<string, number>>({})
 
   useEffect(() => {
     if (!open) return
@@ -38,6 +41,9 @@ export function useGoalFormState(open: boolean, goal: Goal | undefined, currentU
       setPrivacy(goal.privacy)
       setProjectIds(goal.supportingProjectIds)
       setSubGoalIds(goal.supportingGoalIds)
+      setRollupWeight(String(goal.rollupWeight ?? 1))
+      setSupportingGoalWeights(goal.supportingGoalWeights ?? {})
+      setSupportingProjectWeights(goal.supportingProjectWeights ?? {})
       if (goal.metric.type === 'manual') {
         setMetricKind('manual')
         setManualStatus(goal.metric.status)
@@ -89,5 +95,7 @@ export function useGoalFormState(open: boolean, goal: Goal | undefined, currentU
     privacy, setPrivacy, metricKind, setMetricKind, current, setCurrent, target, setTarget,
     unit, setUnit, symbol, setSymbol, manualStatus, setManualStatus,
     projectIds, setProjectIds, subGoalIds, setSubGoalIds, buildMetric,
+    rollupWeight, setRollupWeight, supportingGoalWeights, setSupportingGoalWeights,
+    supportingProjectWeights, setSupportingProjectWeights,
   }
 }

@@ -13,6 +13,10 @@ import {
   useTagsStore,
   useTasksStore,
   useUsersStore,
+  useTimeEntriesStore,
+  useExpensesStore,
+  useInvoicesStore,
+  usePaymentsStore,
 } from '../../stores/entities'
 
 /** Build ChartComputeContext for a workspace id. */
@@ -26,6 +30,10 @@ export function useReportingData(workspaceId: string | null): ChartComputeContex
   const tags = useTagsStore((s) => s.list())
   const customFields = useCustomFieldsStore((s) => s.list())
   const savedViews = useSavedViewsStore((s) => s.list())
+  const timeEntries = useTimeEntriesStore((s) => s.list())
+  const expenses = useExpensesStore((s) => s.list())
+  const invoices = useInvoicesStore((s) => s.list())
+  const payments = usePaymentsStore((s) => s.list())
 
   return useMemo(() => {
     if (!workspaceId) return null
@@ -40,6 +48,10 @@ export function useReportingData(workspaceId: string | null): ChartComputeContex
       tags,
       customFields,
       savedViews,
+      timeEntries: timeEntries.filter((entry) => entry.workspaceId === workspaceId),
+      expenses: expenses.filter((expense) => expense.workspaceId === workspaceId),
+      invoices: invoices.filter((invoice) => invoice.workspaceId === workspaceId),
+      payments: payments.filter((payment) => payment.workspaceId === workspaceId),
     }
-  }, [workspaceId, tasks, projects, portfolios, goals, users, sections, tags, customFields, savedViews])
+  }, [workspaceId, tasks, projects, portfolios, goals, users, sections, tags, customFields, savedViews, timeEntries, expenses, invoices, payments])
 }

@@ -37,17 +37,34 @@ type Props = {
   sections: Section[]
   tags: Tag[]
   onSave: (chart: Chart) => void
+  fixedProjectId?: string
 }
 
-const defaultDraft = (): ChartBuilderDraft => ({
+const defaultDraft = (fixedProjectId?: string): ChartBuilderDraft => ({
   title: 'Untitled chart',
   type: 'column',
   source: 'tasks',
   filters: [],
   xAxis: 'assigneeId',
   measure: 'count',
-  scope: { type: 'workspace' },
+  scope: fixedProjectId ? { type: 'project', id: fixedProjectId } : { type: 'workspace' },
 })
+
+function draftChartFields(draft: ChartBuilderDraft): Omit<ChartBuilderDraft, 'scope'> {
+  return {
+    title: draft.title,
+    type: draft.type,
+    source: draft.source,
+    filters: draft.filters,
+    xAxis: draft.xAxis,
+    yAxis: draft.yAxis,
+    measure: draft.measure,
+    measureField: draft.measureField,
+    granularity: draft.granularity,
+    dateField: draft.dateField,
+    topN: draft.topN,
+  }
+}
 
 /** Modal wizard to configure and save a dashboard chart. */
 export function ChartBuilderModal({
@@ -64,9 +81,10 @@ export function ChartBuilderModal({
   sections,
   tags,
   onSave,
+  fixedProjectId,
 }: Props) {
   const [draft, setDraft] = useState<ChartBuilderDraft>(() => {
-    if (!initial) return defaultDraft()
+    if (!initial) return defaultDraft(fixedProjectId)
     const { scope, filters } = splitScopeFromFilters(initial.filters)
     return {
       title: initial.title,
@@ -77,37 +95,46 @@ export function ChartBuilderModal({
       yAxis: initial.yAxis,
       measure: initial.measure,
       measureField: initial.measureField,
+      dateField: initial.dateField ?? initial.yAxis,
+      granularity: initial.granularity ?? (
+        ['day', 'week', 'month', 'quarter'].includes(initial.measureField ?? '')
+          ? initial.measureField as ChartBuilderDraft['granularity']
+          : undefined
+      ),
+      topN: initial.topN,
       scope,
     }
   })
 
   const previewChart = useMemo((): Chart => {
-    const { scope, ...rest } = draft
+    const scope = fixedProjectId ? { type: 'project' as const, id: fixedProjectId } : draft.scope
+    const rest = draftChartFields(draft)
     return {
       id: 'preview',
       ...rest,
+      source: fixedProjectId ? 'tasks' : rest.source,
       filters: encodeScopeFilter(scope, draft.filters as FilterClause[]),
     }
-  }, [draft])
+  }, [draft, fixedProjectId])
 
   const previewData = useMemo(
     () =>
       computeChart(previewChart, {
         ...dataCtx,
-        granularity: draft.granularity,
-        topN: draft.topN,
         scopeProjectId: draft.scope.type === 'project' ? draft.scope.id : undefined,
       }),
-    [previewChart, dataCtx, draft.granularity, draft.topN, draft.scope]
+    [previewChart, dataCtx, draft.scope]
   )
 
   const patch = (p: Partial<ChartBuilderDraft>) => setDraft((d) => ({ ...d, ...p }))
 
   const save = () => {
-    const { scope, ...rest } = draft
+    const scope = fixedProjectId ? { type: 'project' as const, id: fixedProjectId } : draft.scope
+    const rest = draftChartFields(draft)
     onSave({
       id: initial?.id ?? newId(),
       ...rest,
+      source: fixedProjectId ? 'tasks' : rest.source,
       filters: encodeScopeFilter(scope, draft.filters as FilterClause[]),
     })
     onOpenChange(false)
@@ -127,15 +154,19 @@ export function ChartBuilderModal({
               <TabsTrigger value="viz">Visualization</TabsTrigger>
             </TabsList>
             <TabsContent value="source" className="space-y-4 pt-4">
-              <ChartSourcePicker
+              {fixedProjectId ? (
+                <p className="rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+                  This chart is scoped to the current project.
+                </p>
+              ) : <ChartSourcePicker
                 draft={draft}
                 onChange={patch}
                 projects={projects}
                 portfolios={portfolios}
                 teams={teams}
                 savedViews={savedViews}
-              />
-              {!initial ? <ChartTemplatesPanel onPick={(d) => setDraft(d)} /> : null}
+              />}
+              {!initial && !fixedProjectId ? <ChartTemplatesPanel onPick={(d) => setDraft(d)} /> : null}
             </TabsContent>
             <TabsContent value="filters" className="pt-4">
               <ChartFiltersStep

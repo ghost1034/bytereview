@@ -19,6 +19,7 @@ import type { BaselineSnapshot, ColorBy, RowsBy, TimelineRow, ZoomLevel } from '
 
 type Props = {
   project: Project
+  variant?: 'timeline' | 'gantt'
   tasks: Task[]
   sections: Section[]
   users: User[]
@@ -45,7 +46,7 @@ type Props = {
 
 export function TimelineRenderer(props: Props) {
   const {
-    project, tasks, sections, users, tags, zoom, panX, setPanX,
+    project, variant = 'timeline', tasks, sections, users, tags, zoom, panX, setPanX,
     onZoomIn, onZoomOut, colorBy, rowsBy, autoShift, highlightCriticalPath,
     showBaseline, baseline, railWidth, railCollapsed, collapsedSections,
     onToggleSection, actorId, onOpenTask, onLinkError,
@@ -57,8 +58,8 @@ export function TimelineRenderer(props: Props) {
   const [viewportW, setViewportW] = useState(800)
 
   const rows: TimelineRow[] = useMemo(
-    () => buildRows(tasks, 'timeline', rowsBy, sections, project.id, collapsedSections, users, tags),
-    [collapsedSections, project.id, rowsBy, sections, tags, tasks, users]
+    () => buildRows(tasks, variant, rowsBy, sections, project.id, collapsedSections, users, tags),
+    [collapsedSections, project.id, rowsBy, sections, tags, tasks, users, variant]
   )
 
   const taskRowIndex = useMemo(() => {
@@ -102,7 +103,7 @@ export function TimelineRenderer(props: Props) {
 
   const onWheelZoom = useCallback((deltaY: number, ctrl: boolean) => {
     if (ctrl) { if (deltaY < 0) onZoomIn(); else onZoomOut() }
-    else scrollRef.current && (scrollRef.current.scrollLeft += deltaY)
+    else if (scrollRef.current) scrollRef.current.scrollLeft += deltaY
   }, [onZoomIn, onZoomOut])
 
   useEffect(() => {

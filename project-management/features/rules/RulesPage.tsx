@@ -31,11 +31,9 @@ import { RuleLibrary } from './RuleLibrary'
 import { RulesList } from './RulesList'
 import type { RuleTemplate } from './ruleTemplates'
 import { TestRuleDialog } from './TestRuleDialog'
-import { useDailyRulesScheduler } from './useDailyRulesScheduler'
 
 export function RulesPage() {
   const { workspaceId } = useWorkspaceContext()
-  useDailyRulesScheduler()
   const addRule = useRulesStore((s) => s.add)
   const removeRule = useRulesStore((s) => s.remove)
   const projects = useProjectsStore((s) =>

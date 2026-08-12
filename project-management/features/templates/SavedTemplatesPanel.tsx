@@ -26,7 +26,7 @@ export function SavedTemplatesPanel({ onEdit }: Props) {
       {templates.map((t) => (
         <li key={t.id} className="tl-card flex items-center justify-between p-4 shadow-paper-sm">
           <div>
-            <p className="font-medium">{t.defaults.iconEmoji ?? '📋'} {t.name}</p>
+            <p className="font-medium">{t.iconEmoji ?? t.defaults.iconEmoji ?? '📋'} {t.name}</p>
             <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
               {t.sectionNames.length} sections · {t.taskTemplates.length} task templates
             </p>

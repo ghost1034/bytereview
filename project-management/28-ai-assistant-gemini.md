@@ -97,3 +97,11 @@ Each proposal renders as a card with a Preview + Apply / Discard.
 - `Design.md` row: `28 | src/features/ai | AI assistant (Gemini) | <today>` plus a section **"AI surface map"** enumerating every place AI is invoked.
 
 Strict rule: the AI must never silently mutate data. All applies are user-confirmed.
+
+## Phase 7 persistence and teammate contract
+
+- AI settings, threads, messages, proposals, teammate jobs, audit events, and token usage events are persisted by the authenticated Tasklytic backend. The browser no longer accepts or stores provider credentials.
+- Legacy `tasklytic:ai:v1` threads are uploaded with a stable migration id. The backend records the migration marker only in the same successful transaction as every imported thread and message; later attempts only hydrate server state.
+- Vertex model ids and the structured response/proposal schemas are owned by `backend/services/tasklytic_ai_contracts.py`. Prompt context is rebuilt from permission-checked server records and never trusted from browser JSON.
+- Proposal records remain `pending` while users preview or edit them. Acceptance revalidates scope, references, payload shape, current permissions, and unresolved state before applying one of the nine registered proposal types.
+- Tria, Summarie, and Statura use durable teammate-job rows and the leased maintenance command pipeline. Each job has an explicit scope, cadence, next run, daily limit, usage event, audit trail, retry history, and terminal-failure notification. Generated work remains a human-review proposal.

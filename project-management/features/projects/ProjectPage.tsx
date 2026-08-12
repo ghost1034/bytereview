@@ -22,22 +22,31 @@ import { ListView } from '../views/list/ListView'
 import { BoardView } from '../views/board/BoardView'
 import { CalendarView } from '../views/calendar/CalendarView'
 import { TimelineView } from '../views/timeline/TimelineView'
+import { GanttView } from '../views/timeline/GanttView'
+import { ProjectFilesGrid } from '../attachments/ProjectFilesGrid'
+import { ProjectDashboardTab } from './ProjectDashboardTab'
 import { VIEW_LABELS, normalizeProjectView, activeProjectViews } from './projectUtils'
 import type { ProjectView } from '../../types'
+import { canPerformWorkspaceAction } from '../../lib/permissions'
 
-type Props = { projectId: string }
+type Props = { projectId: string; routeView?: string }
 
-const VIEW_TABS: { id: ProjectView | 'overview' | 'messages'; label: string }[] = [
+type ProjectTab = ProjectView | 'overview' | 'messages' | 'files' | 'dashboard'
+
+const VIEW_TABS: { id: ProjectTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'messages', label: 'Messages' },
   { id: 'list', label: VIEW_LABELS.list },
   { id: 'board', label: VIEW_LABELS.board },
   { id: 'timeline', label: VIEW_LABELS.timeline },
+  { id: 'gantt', label: VIEW_LABELS.gantt },
   { id: 'calendar', label: VIEW_LABELS.calendar },
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'files', label: 'Files' },
 ]
 
-export function ProjectPage({ projectId }: Props) {
-  const { workspaceId } = useWorkspaceContext()
+export function ProjectPage({ projectId, routeView }: Props) {
+  const { workspaceId, workspace } = useWorkspaceContext()
   const project = useProjectsStore((s) => s.getById(projectId))
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const user = useUsersStore((s) => (currentUserId ? s.getById(currentUserId) : undefined))
@@ -45,14 +54,19 @@ export function ProjectPage({ projectId }: Props) {
     project ? project.memberIds.map((id) => s.getById(id)).filter((u): u is NonNullable<typeof u> => Boolean(u)) : []
   )
   const searchParams = useSearchParams()
-  const viewParam = searchParams.get('view') as ProjectView | 'overview' | 'messages' | null
+  const viewParam = (routeView ?? searchParams.get('view')) as ProjectTab | null
   const messageIdParam = searchParams.get('messageId')
-  const activeView = normalizeProjectView(viewParam)
+  const activeView: ProjectTab = !viewParam && project
+    ? project.defaultView
+    : viewParam === 'files' || viewParam === 'dashboard'
+    ? viewParam
+    : normalizeProjectView(viewParam)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const setCommandOpen = useUiStore((s) => s.setCommandPaletteOpen)
   const starredIds = user?.starredProjectIds ?? []
   const starred = starredIds.includes(projectId)
+  const canEdit = canPerformWorkspaceAction(user, workspace, 'edit')
 
   const basePath = workspaceId
     ? `/dashboard/project-management/w/${workspaceId}/projects/${projectId}`
@@ -64,10 +78,11 @@ export function ProjectPage({ projectId }: Props) {
         ? [
             { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
             { label: 'Projects', href: `/dashboard/project-management/w/${workspaceId}/projects` },
-            { label: project.name },
+            { label: project.name, href: activeView === 'overview' ? undefined : basePath },
+            ...(activeView === 'overview' ? [] : [{ label: VIEW_TABS.find((tab) => tab.id === activeView)?.label ?? 'Project' }]),
           ]
         : [],
-    [project?.name, workspaceId]
+    [activeView, basePath, project, workspaceId]
   )
 
   usePageMeta({ breadcrumbs })
@@ -88,6 +103,9 @@ export function ProjectPage({ projectId }: Props) {
     if (activeView === 'board') return <BoardView project={project} basePath={basePath} />
     if (activeView === 'calendar') return <CalendarView project={project} basePath={basePath} />
     if (activeView === 'timeline') return <TimelineView project={project} basePath={basePath} />
+    if (activeView === 'gantt') return <GanttView project={project} basePath={basePath} />
+    if (activeView === 'files') return <ProjectFilesGrid project={project} />
+    if (activeView === 'dashboard') return <ProjectDashboardTab project={project} basePath={basePath} />
     return null
   }, [activeView, basePath, messageIdParam, project, projectId])
 
@@ -106,20 +124,25 @@ export function ProjectPage({ projectId }: Props) {
         members={members}
         settingsOpen={settingsOpen}
         onSettingsOpenChange={setSettingsOpen}
+        canEdit={canEdit}
       />
 
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="outline" size="sm" onClick={() => setCommandOpen(true)}>
           <Search className="mr-1 h-4 w-4" /> Search
         </Button>
-        <Button size="sm" className="tl-btn-primary border-0" onClick={() => setQuickAddOpen(true)}>
+        <Button size="sm" className="tl-btn-primary border-0" disabled={!canEdit} onClick={() => setQuickAddOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> Add task
         </Button>
       </div>
 
       <nav className="flex flex-wrap gap-4 border-b pb-1" style={{ borderColor: 'var(--border-subtle)' }}>
-        {VIEW_TABS.filter((t) => t.id === 'overview' || t.id === 'messages' || activeProjectViews(project.enabledViews).includes(t.id as ProjectView)).map((tab) => {
-          const href = tab.id === 'overview' ? basePath : `${basePath}?view=${tab.id}`
+        {VIEW_TABS.filter((t) => ['overview', 'messages', 'files', 'dashboard'].includes(t.id) || activeProjectViews(project.enabledViews).includes(t.id as ProjectView)).map((tab) => {
+          const href = tab.id === 'overview'
+            ? `${basePath}?view=overview`
+            : tab.id === 'files'
+              ? `${basePath}/files`
+              : `${basePath}?view=${tab.id}`
           const active = activeView === tab.id
           return (
             <Link
@@ -137,7 +160,7 @@ export function ProjectPage({ projectId }: Props) {
         })}
       </nav>
 
-      {content}
+      <div data-project-view={activeView}>{content}</div>
       <TaskDetailPane workspaceId={workspaceId} />
       <QuickAddTaskDialog open={quickAddOpen} onOpenChange={setQuickAddOpen} workspaceId={workspaceId} defaultProjectId={projectId} />
     </div>

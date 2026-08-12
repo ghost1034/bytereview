@@ -13,7 +13,11 @@ export function BillingInquiriesPage() {
   )
   const users = useUsersStore((s) => s.list())
 
-  usePageMeta({ breadcrumbs: [{ label: 'Settings' }, { label: 'Billing inquiries' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Settings', href: `/dashboard/project-management/w/${workspaceId}/settings` },
+    { label: 'Billing inquiries' },
+  ] : [] })
 
   if (!workspaceId) return null
 

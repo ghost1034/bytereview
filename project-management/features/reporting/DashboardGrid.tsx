@@ -12,6 +12,7 @@ type Props = {
   layout: Dashboard['layout']
   dataCtx: ChartComputeContext
   basePath: string
+  editable: boolean
   onLayoutChange: (layout: Dashboard['layout']) => void
   onEditChart: (chart: Chart) => void
   onDeleteChart: (chartId: string) => void
@@ -23,6 +24,7 @@ export function DashboardGrid({
   layout,
   dataCtx,
   basePath,
+  editable,
   onLayoutChange,
   onEditChart,
   onDeleteChart,
@@ -76,6 +78,7 @@ export function DashboardGrid({
               layout={item}
               dataCtx={dataCtx}
               basePath={basePath}
+              editable={editable}
               onEdit={() => onEditChart(chart)}
               onDelete={() => onDeleteChart(chart.id)}
               onDragStart={(x, y) => onDragStart(item, x, y)}

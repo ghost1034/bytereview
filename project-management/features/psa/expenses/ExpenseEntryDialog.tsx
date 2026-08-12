@@ -1,6 +1,6 @@
 'use client'
 
-/** Expense entry dialog with receipt upload and OCR stub. */
+/** Expense entry dialog with private upload, Vertex extraction, and manual fallback. */
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import { newId } from '../../../lib/ids'
 import { now } from '../../../lib/time'
 import { getFileStorageAdapter } from '../../../lib/fileStorage'
 import { getOcrAdapter } from '../../../lib/ocr'
+import { runPsaAction } from '../../../lib/psa/actions'
 import { EXPENSE_CATEGORY_LABELS, DEFAULT_MILEAGE_RATE } from '../../../lib/psa/constants'
 import { computeBillableAmount, defaultPassThrough, expenseTotals, mileageAmount } from '../../../lib/psa/expenseUtils'
 import { formatMoney } from '../../../lib/billing/formatMoney'
@@ -30,23 +31,26 @@ type Props = {
   clientId?: string
   mileageMode?: boolean
   mileageRate?: number
+  expense?: Expense
 }
 
 export function ExpenseEntryDialog(props: Props) {
   const add = useExpensesStore((s) => s.add)
   const addAttachment = useAttachmentsStore((s) => s.add)
-  const [description, setDescription] = useState('')
-  const [vendor, setVendor] = useState('')
-  const [category, setCategory] = useState<ExpenseCategory>(props.mileageMode ? 'mileage' : 'other')
-  const [amount, setAmount] = useState('')
-  const [taxAmount, setTaxAmount] = useState('0')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [billable, setBillable] = useState(true)
-  const [passThrough, setPassThrough] = useState(defaultPassThrough(category))
-  const [markup, setMarkup] = useState('0')
-  const [reimbursable, setReimbursable] = useState(false)
-  const [miles, setMiles] = useState('')
+  const [description, setDescription] = useState(props.expense?.description ?? '')
+  const [vendor, setVendor] = useState(props.expense?.vendor ?? props.expense?.manualReceipt?.vendor ?? '')
+  const [category, setCategory] = useState<ExpenseCategory>((props.expense?.category as ExpenseCategory) ?? (props.mileageMode ? 'mileage' : 'other'))
+  const [amount, setAmount] = useState(String(props.expense?.amount ?? ''))
+  const [taxAmount, setTaxAmount] = useState(String(props.expense?.taxAmount ?? 0))
+  const [date, setDate] = useState(props.expense?.date ?? new Date().toISOString().slice(0, 10))
+  const [billable, setBillable] = useState(props.expense?.billable ?? true)
+  const [passThrough, setPassThrough] = useState(props.expense?.passThrough ?? defaultPassThrough(category))
+  const [markup, setMarkup] = useState(String(props.expense?.markupPercent ?? 0))
+  const [reimbursable, setReimbursable] = useState(props.expense?.reimbursable ?? false)
+  const [miles, setMiles] = useState(String(props.expense?.mileageMiles ?? ''))
   const [ocrHint, setOcrHint] = useState('')
+  const [receiptAttachmentId, setReceiptAttachmentId] = useState(props.expense?.receiptAttachmentId)
+  const [receiptUrl, setReceiptUrl] = useState(props.expense?.receiptUrl)
   const [loading, setLoading] = useState(false)
 
   const rate = props.mileageRate ?? DEFAULT_MILEAGE_RATE
@@ -56,16 +60,20 @@ export function ExpenseEntryDialog(props: Props) {
   const billableAmount = computeBillableAmount(totalAmount, billable, passThrough, parseFloat(markup) || 0)
 
   const onReceipt = async (file: File) => {
+    const storage = getFileStorageAdapter()
+    const uploaded = await storage.upload({ file, ownerId: props.userId, scope: 'receipt', scopeId: props.workspaceId, workspaceId: props.workspaceId })
     const ocr = getOcrAdapter()
-    const result = await ocr.scanReceipt(file)
-    if (!ocr.configured) setOcrHint('OCR provider not configured — enter amounts manually.')
+    const result = await ocr.scanReceipt({ file, objectName: uploaded.ref, workspaceId: props.workspaceId })
+    if (result.status === 'manual_required') setOcrHint('Automatic extraction is unavailable — verify and enter receipt values manually.')
+    else setOcrHint('Receipt values extracted. Verify them before saving.')
     if (result.vendor) setVendor(result.vendor)
     if (result.date) setDate(result.date)
-    if (result.amount) setAmount(String(result.amount))
-    if (result.taxAmount) setTaxAmount(String(result.taxAmount))
-    const storage = getFileStorageAdapter()
-    const uploaded = await storage.upload({ file, ownerId: props.userId, scope: 'task', scopeId: props.task?.id ?? props.projectId ?? props.workspaceId })
-    await addAttachment({ id: newId(), name: file.name, size: file.size, mime: file.type, dataUrl: uploaded.dataUrl, storage: uploaded.storage, storageRef: uploaded.ref, uploadedBy: props.userId, taskId: props.task?.id, createdAt: now() })
+    if (result.amount != null) setAmount(String(result.amount))
+    if (result.taxAmount != null) setTaxAmount(String(result.taxAmount))
+    const attachmentId = newId()
+    await addAttachment({ id: attachmentId, name: file.name, size: file.size, mime: file.type, dataUrl: uploaded.dataUrl, storage: uploaded.storage, storageRef: uploaded.ref, uploadedBy: props.userId, taskId: props.task?.id, createdAt: now() })
+    setReceiptAttachmentId(attachmentId)
+    setReceiptUrl(uploaded.dataUrl ?? uploaded.ref)
   }
 
   const submit = async () => {
@@ -96,13 +104,30 @@ export function ExpenseEntryDialog(props: Props) {
         mileageMiles: props.mileageMode ? parseFloat(miles) : undefined,
         mileageRate: props.mileageMode ? rate : undefined,
         paymentMethod: reimbursable ? 'personal' : 'corporate_card',
+        receiptAttachmentId,
+        receiptUrl,
         status: 'draft',
         approved: false,
         invoiced: false,
         createdAt: now(),
         modifiedAt: now(),
+        manualReceipt: {
+          vendor: vendor || undefined, date, subtotal: baseAmount, tax,
+          total: totalAmount, currency: 'USD', enteredById: props.userId, enteredAt: now(),
+        },
       }
-      await add(expense)
+      if (props.expense) {
+        await runPsaAction('expenses', props.expense.id, 'edit', props.workspaceId, { patch: {
+          description: expense.description, vendor: expense.vendor, amount: expense.amount,
+          category: expense.category, date: expense.date, billable: expense.billable,
+          taxAmount: expense.taxAmount, totalAmount: expense.totalAmount,
+          passThrough: expense.passThrough, markupPercent: expense.markupPercent,
+          billableAmount: expense.billableAmount, reimbursable: expense.reimbursable,
+          mileageMiles: expense.mileageMiles, mileageRate: expense.mileageRate,
+          paymentMethod: expense.paymentMethod, manualReceipt: expense.manualReceipt,
+          receiptAttachmentId: expense.receiptAttachmentId, receiptUrl: expense.receiptUrl,
+        } })
+      } else await add(expense)
       props.onOpenChange(false)
     } finally {
       setLoading(false)
@@ -112,14 +137,14 @@ export function ExpenseEntryDialog(props: Props) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="font-serif text-xl">{props.mileageMode ? 'Mileage' : 'Add expense'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif text-xl">{props.expense ? 'Edit expense' : props.mileageMode ? 'Mileage' : 'Add expense'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
           {props.mileageMode ? (
             <div className="grid gap-1"><Label>Miles</Label><Input value={miles} onChange={(e) => setMiles(e.target.value)} className="tl-input font-mono tabular-nums" /><p className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-muted)' }}>@ {formatMoney(rate)}/mi = {formatMoney(baseAmount)}</p></div>
           ) : (
             <>
               <Input type="file" accept="image/*" capture="environment" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onReceipt(f) }} />
-              {ocrHint && <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{ocrHint}</p>}
+              <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{ocrHint || 'Manual vendor, date, amount, and tax entry remains available when receipt extraction is unavailable.'}</p>
               <Input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
               <Input placeholder="Tax" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
             </>

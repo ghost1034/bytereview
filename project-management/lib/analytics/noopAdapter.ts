@@ -1,13 +1,13 @@
-import type { AnalyticsAdapter, AnalyticsEvent, AnalyticsProperties } from './types'
+import type { AnalyticsAdapter } from './types'
 
 export const noopAnalyticsAdapter: AnalyticsAdapter = {
   capabilities: { provider: 'noop' },
 
-  track(_event: AnalyticsEvent | string, _properties?: AnalyticsProperties) {
+  track() {
     // Silent no-op when no provider is bound.
   },
 
-  identify(_userId: string, _traits?: AnalyticsProperties) {},
+  identify() {},
 
-  page(_name: string, _properties?: AnalyticsProperties) {},
+  page() {},
 }

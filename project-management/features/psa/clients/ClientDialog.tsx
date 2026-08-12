@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
-import { useClientsStore } from '../../../stores/entities'
+import { useClientsStore, useRateCardsStore } from '../../../stores/entities'
 import { newId } from '../../../lib/ids'
 import { now } from '../../../lib/time'
 import type { Client } from '../../../types'
@@ -23,10 +23,13 @@ type Props = {
 export function ClientDialog({ open, onOpenChange, workspaceId, client }: Props) {
   const add = useClientsStore((s) => s.add)
   const update = useClientsStore((s) => s.update)
+  const rateCards = useRateCardsStore((s) => s.list().filter((card) => card.workspaceId === workspaceId))
   const [name, setName] = useState(client?.name ?? '')
   const [type, setType] = useState<Client['type']>(client?.type ?? 'business')
   const [email, setEmail] = useState(client?.contactEmail ?? '')
   const [terms, setTerms] = useState<Client['paymentTerms']>(client?.paymentTerms ?? 'net_30')
+  const [rateCardId, setRateCardId] = useState(client?.defaultRateCardId ?? 'none')
+  const [currency, setCurrency] = useState(client?.defaultCurrency ?? 'USD')
   const [loading, setLoading] = useState(false)
 
   const submit = async () => {
@@ -34,7 +37,7 @@ export function ClientDialog({ open, onOpenChange, workspaceId, client }: Props)
     setLoading(true)
     try {
       if (client) {
-        await update(client.id, { name: name.trim(), type, contactEmail: email, paymentTerms: terms })
+        await update(client.id, { name: name.trim(), type, contactEmail: email, paymentTerms: terms, defaultRateCardId: rateCardId === 'none' ? undefined : rateCardId, defaultCurrency: currency.toUpperCase() })
       } else {
         await add({
           id: newId(),
@@ -43,7 +46,8 @@ export function ClientDialog({ open, onOpenChange, workspaceId, client }: Props)
           type,
           contactEmail: email || undefined,
           paymentTerms: terms,
-          defaultCurrency: 'USD',
+          defaultCurrency: currency.toUpperCase(),
+          defaultRateCardId: rateCardId === 'none' ? undefined : rateCardId,
           archived: false,
           createdAt: now(),
         })
@@ -69,6 +73,8 @@ export function ClientDialog({ open, onOpenChange, workspaceId, client }: Props)
             <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
             <SelectContent className="tl-popover-surface z-[100]">{(['due_on_receipt', 'net_15', 'net_30', 'net_45', 'net_60'] as const).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
+          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="tl-input"><SelectValue placeholder="Default rate card" /></SelectTrigger><SelectContent className="tl-popover-surface z-[100]"><SelectItem value="none">No default rate card</SelectItem>{rateCards.map((card) => <SelectItem value={card.id} key={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
+          <div><Label>Billing currency</Label><Input maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value)} className="tl-input uppercase" /></div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>

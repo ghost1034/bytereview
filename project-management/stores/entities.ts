@@ -20,6 +20,8 @@ import type {
   Project,
   ProjectTemplate,
   RateCard,
+  ActivityCode,
+  BillingBudget,
   ReimbursementBatch,
   Rule,
   SavedView,
@@ -32,9 +34,13 @@ import type {
   TimeEntry,
   Timesheet,
   TrustTransaction,
+  FxQuote,
+  BillingAuditRecord,
+  BillingLock,
   User,
   Workspace,
   BillingInquiry,
+  Bundle,
   TeamJoinRequest,
   WorkspaceInvitation,
   PendingEmail,
@@ -62,6 +68,7 @@ export const useNotificationsStore = createEntityStore<Notification>('notificati
 export const useSavedViewsStore = createEntityStore<SavedView>('savedViews')
 export const useDashboardsStore = createEntityStore<Dashboard>('dashboards')
 export const useTemplatesStore = createEntityStore<ProjectTemplate>('templates')
+export const useBundlesStore = createEntityStore<Bundle>('bundles')
 export const usePendingEmailsStore = createEntityStore<PendingEmail>('pendingEmails')
 export const useWorkspaceInvitationsStore = createEntityStore<WorkspaceInvitation>('workspaceInvitations')
 export const useBillingInquiriesStore = createEntityStore<BillingInquiry>('billingInquiries')
@@ -73,8 +80,13 @@ export const useClientsStore = createEntityStore<Client>('clients')
 export const useMattersStore = createEntityStore<Matter>('matters')
 export const useBillingRatesStore = createEntityStore<BillingRate>('billingRates')
 export const useRateCardsStore = createEntityStore<RateCard>('rateCards')
+export const useActivityCodesStore = createEntityStore<ActivityCode>('activityCodes')
+export const useBillingBudgetsStore = createEntityStore<BillingBudget>('billingBudgets')
 export const useTimesheetsStore = createEntityStore<Timesheet>('timesheets')
 export const useExpenseReportsStore = createEntityStore<ExpenseReport>('expenseReports')
 export const usePaymentsStore = createEntityStore<Payment>('payments')
 export const useTrustTransactionsStore = createEntityStore<TrustTransaction>('trustTransactions')
+export const useFxQuotesStore = createEntityStore<FxQuote>('fxQuotes')
+export const useBillingAuditRecordsStore = createEntityStore<BillingAuditRecord>('billingAuditRecords')
+export const useBillingLocksStore = createEntityStore<BillingLock>('billingLocks')
 export const useReimbursementBatchesStore = createEntityStore<ReimbursementBatch>('reimbursementBatches')

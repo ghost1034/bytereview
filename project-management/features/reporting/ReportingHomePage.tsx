@@ -14,36 +14,41 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { ReportingDashboard } from '../../lib/reporting/types'
+import { canViewDashboard } from '../../lib/reporting/dashboardPermissions'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import { useDashboardsStore, useUsersStore } from '../../stores/entities'
+import { useAuthStore } from '../../stores/auth'
 import { CreateDashboardDialog } from './CreateDashboardDialog'
 import { DashboardCard } from './DashboardCard'
 import { ReportingEmptyState } from './ReportingEmptyState'
 import { useReportingData } from './useReportingData'
-import { useReportingScheduler } from './useReportingScheduler'
 
 /** Workspace reporting index with dashboard cards and create flow. */
 export function ReportingHomePage() {
   const router = useRouter()
-  const { workspaceId } = useWorkspaceContext()
+  const { workspaceId, workspace } = useWorkspaceContext()
+  const currentUserId = useAuthStore((state) => state.currentUserId)
   const basePath = workspaceId ? `/dashboard/project-management/w/${workspaceId}` : ''
   const dashboards = useDashboardsStore((s) => s.list()) as ReportingDashboard[]
   const users = useUsersStore((s) => s.list())
   const dataCtx = useReportingData(workspaceId)
-  useReportingScheduler(workspaceId)
 
   const [search, setSearch] = useState('')
   const [ownerFilter, setOwnerFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('all')
   const [createOpen, setCreateOpen] = useState(false)
 
-  usePageMeta({ breadcrumbs: [{ label: 'Reporting' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'AI Project Management', href: `${basePath}/home` },
+    { label: 'Reporting' },
+  ] : [] })
 
   const filtered = useMemo(() => {
     if (!workspaceId) return []
     return dashboards
       .filter((d) => d.workspaceId === workspaceId)
+      .filter((d) => canViewDashboard(d, currentUserId, workspace))
       .filter((d) => d.name.toLowerCase().includes(search.toLowerCase()))
       .filter((d) => (ownerFilter === 'all' ? true : d.ownerId === ownerFilter))
       .filter((d) => {
@@ -56,7 +61,7 @@ export function ReportingHomePage() {
         return true
       })
       .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt))
-  }, [dashboards, workspaceId, search, ownerFilter])
+  }, [dashboards, workspaceId, workspace, currentUserId, search, ownerFilter, dateFilter])
 
   if (!workspaceId || !dataCtx) return null
 

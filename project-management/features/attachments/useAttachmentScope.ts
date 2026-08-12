@@ -7,9 +7,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { tasklyticToast } from '../ui/tasklyticToast'
 import { emitActivity } from '../../lib/activity'
 import {
-  getAvailableCloudDriveProviders,
   getCloudDriveAdapter,
   type CloudDriveProvider,
+  type CloudDriveFile,
 } from '../../lib/cloudDrive'
 import { getFileStorageAdapter } from '../../lib/fileStorage'
 import { newId } from '../../lib/ids'
@@ -18,6 +18,7 @@ import { useAttachmentsStore, useProjectsStore, useTasksStore } from '../../stor
 import { useAuthStore } from '../../stores/auth'
 import type { Attachment, ID, Project, Task } from '../../types'
 import { downloadNamedFile, labelFromUrl } from './attachmentUtils'
+import { rehydrateWorkspaceStores } from '../../stores/hydrate'
 
 export type AttachmentScope = {
   kind: 'task' | 'comment' | 'project'
@@ -45,6 +46,21 @@ export function useAttachmentScope(scope: AttachmentScope) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [driveProvider, setDriveProvider] = useState<CloudDriveProvider | null>(null)
   const [driveMessage, setDriveMessage] = useState<string | undefined>()
+  const [driveFiles, setDriveFiles] = useState<CloudDriveFile[]>([])
+  const [driveLoading, setDriveLoading] = useState(false)
+  const [cloudProviders, setCloudProviders] = useState<CloudDriveProvider[]>([])
+
+  useEffect(() => {
+    let active = true
+    if (!scope.workspaceId) {
+      setCloudProviders([])
+      return
+    }
+    void cloudDrive.availableProviders(scope.workspaceId)
+      .then((providers) => { if (active) setCloudProviders(providers) })
+      .catch(() => { if (active) setCloudProviders([]) })
+    return () => { active = false }
+  }, [cloudDrive, scope.workspaceId])
 
   const attachRecord = useCallback(
     async (att: Attachment) => {
@@ -122,30 +138,41 @@ export function useAttachmentScope(scope: AttachmentScope) {
 
   const connectCloudDrive = useCallback(
     async (provider: CloudDriveProvider) => {
-      const result = await cloudDrive.connect(provider)
-      if (!result.ok) {
-        setDriveProvider(provider)
-        setDriveMessage(result.message)
-        return
+      if (!scope.workspaceId || scope.kind === 'comment') return
+      setDriveProvider(provider)
+      setDriveMessage(undefined)
+      setDriveLoading(true)
+      try {
+        setDriveFiles(await cloudDrive.listFiles(provider, scope.workspaceId))
+      } catch (error) {
+        setDriveFiles([])
+        setDriveMessage(error instanceof Error ? error.message : 'Google Drive is unavailable.')
+      } finally {
+        setDriveLoading(false)
       }
-      if (!currentUserId) return
-      await attachRecord({
-        id: newId(),
-        name: result.name,
-        size: result.size,
-        mime: result.mime,
-        dataUrl: result.downloadUrl,
-        storageRef: result.storageRef,
-        storage: 'cloud_drive',
-        uploadedBy: currentUserId,
-        taskId: scope.taskId,
-        commentId: scope.kind === 'comment' ? scope.scopeId : undefined,
-        projectId: scope.kind === 'project' ? scope.scopeId : undefined,
-        createdAt: now(),
-      })
     },
-    [attachRecord, cloudDrive, currentUserId, scope],
+    [cloudDrive, scope],
   )
+
+  const importDriveFiles = useCallback(async (fileIds: string[]) => {
+    if (!driveProvider || !scope.workspaceId || scope.kind === 'comment') return
+    setDriveLoading(true)
+    try {
+      const result = await cloudDrive.importFiles(driveProvider, {
+        workspaceId: scope.workspaceId,
+        scope: scope.kind,
+        scopeId: scope.scopeId,
+        fileIds,
+      })
+      await rehydrateWorkspaceStores(scope.workspaceId)
+      setDriveMessage(result.failures.length ? `${result.imported.length} imported; ${result.failures.length} could not be imported.` : undefined)
+      if (result.status === 'succeeded') setDriveProvider(null)
+    } catch (error) {
+      setDriveMessage(error instanceof Error ? error.message : 'Drive import failed without changing local files.')
+    } finally {
+      setDriveLoading(false)
+    }
+  }, [cloudDrive, driveProvider, scope])
 
   const removeOne = useCallback(
     async (attachment: Attachment) => {
@@ -216,8 +243,11 @@ export function useAttachmentScope(scope: AttachmentScope) {
     driveProvider,
     setDriveProvider,
     driveMessage,
+    driveFiles,
+    driveLoading,
+    importDriveFiles,
     maxMb: storage.capabilities.maxFileSize / (1024 * 1024),
-    cloudProviders: getAvailableCloudDriveProviders(cloudDrive),
+    cloudProviders,
     cloudLabel: cloudDrive.label.bind(cloudDrive),
   }
 }
@@ -231,7 +261,7 @@ export function useTaskAttachmentScope(task: Task) {
     },
     [task.id, updateTaskStore],
   )
-  return useAttachmentScope({
+  const scope = useAttachmentScope({
     kind: 'task',
     scopeId: task.id,
     taskId: task.id,
@@ -239,6 +269,22 @@ export function useTaskAttachmentScope(task: Task) {
     attachmentIds: task.attachmentIds,
     onAttachmentIdsChange,
   })
+  return {
+    ...scope,
+    coverAttachmentId: task.coverAttachmentId,
+    setCoverAttachment: async (attachment: Attachment) => {
+      await updateTaskStore(task.id, {
+        coverAttachmentId: task.coverAttachmentId === attachment.id ? undefined : attachment.id,
+        modifiedAt: now(),
+      })
+    },
+    removeOne: async (attachment: Attachment) => {
+      await scope.removeOne(attachment)
+      if (task.coverAttachmentId === attachment.id) {
+        await updateTaskStore(task.id, { coverAttachmentId: undefined, modifiedAt: now() })
+      }
+    },
+  }
 }
 
 /** Project-scoped attachment ids helper — powers the Documents section. */

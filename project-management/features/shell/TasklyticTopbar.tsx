@@ -5,6 +5,7 @@
  */
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   Menu,
   Moon,
@@ -25,8 +26,9 @@ import { useAuthStore, useUiStore } from '../../stores/auth'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import type { TasklyticTheme } from '../../hooks/useTasklyticTheme'
 import { CreateProjectDialog } from '../projects/CreateProjectDialog'
-import { CreateGoalDialog } from '../goals/CreateGoalDialog'
 import { CreatePortfolioDialog } from '../portfolios/CreatePortfolioDialog'
+import { CreateFormDialog } from '../forms/CreateFormDialog'
+import { CreateDashboardDialog } from '../reporting/CreateDashboardDialog'
 import { QuickAddTaskDialog } from '../tasks/QuickAddTaskDialog'
 import { MiniInboxDropdown } from '../inbox/MiniInboxDropdown'
 import { RunningTimerChip } from '../psa/time/RunningTimerChip'
@@ -43,6 +45,8 @@ type Props = {
   onRestartSetup?: () => void
   theme?: TasklyticTheme
   onThemeCycle?: () => void
+  timerOpen?: boolean
+  onTimerOpenChange?: (open: boolean) => void
 }
 
 const THEME_ICONS: Record<TasklyticTheme, typeof Sun> = {
@@ -65,17 +69,21 @@ export function TasklyticTopbar({
   onRestartSetup,
   theme = 'system',
   onThemeCycle,
+  timerOpen,
+  onTimerOpenChange,
 }: Props) {
   const { workspaceId } = useWorkspaceContext()
+  const router = useRouter()
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const breadcrumbs = useUiStore((s) => s.breadcrumbs)
   const setCommandOpen = useUiStore((s) => s.setCommandPaletteOpen)
-  const timerRunning = useTimerStore((s) => s.running)
+  const timerRunning = useTimerStore((s) => currentUserId ? s.runningByUser[currentUserId] ?? null : null)
 
   const [taskOpen, setTaskOpen] = useState(false)
   const [projectOpen, setProjectOpen] = useState(false)
-  const [goalOpen, setGoalOpen] = useState(false)
   const [portfolioOpen, setPortfolioOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(false)
+  const [dashboardOpen, setDashboardOpen] = useState(false)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
 
   const inboxHref = workspaceId ? `/dashboard/project-management/w/${workspaceId}/inbox` : '#'
@@ -166,7 +174,7 @@ export function TasklyticTopbar({
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" className="tl-btn-primary hidden gap-1 lg:flex" aria-label="Create">
+            <Button size="sm" className="tl-btn-primary h-9 gap-1 px-2 lg:px-3" aria-label="Create">
               <Plus className="h-4 w-4" />
               Create
             </Button>
@@ -174,13 +182,14 @@ export function TasklyticTopbar({
           <DropdownMenuContent className="tl-popover-surface" align="end">
             <DropdownMenuItem onClick={() => setTaskOpen(true)}>Task</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setProjectOpen(true)}>Project</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setGoalOpen(true)}>Goal</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFormOpen(true)}>Form</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setPortfolioOpen(true)}>Portfolio</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setDashboardOpen(true)}>Dashboard</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className={cn('hidden lg:block', timerRunning && 'glow-pulse rounded-lg')}>
-          <RunningTimerChip />
+        <div className={cn(timerRunning && 'glow-pulse rounded-lg')}>
+          <RunningTimerChip open={timerOpen} onOpenChange={onTimerOpenChange} />
         </div>
 
         {currentUserId && workspaceId ? (
@@ -216,8 +225,19 @@ export function TasklyticTopbar({
         <>
           <QuickAddTaskDialog open={taskOpen} onOpenChange={setTaskOpen} workspaceId={workspaceId} />
           <CreateProjectDialog open={projectOpen} onOpenChange={setProjectOpen} workspaceId={workspaceId} />
-          <CreateGoalDialog open={goalOpen} onOpenChange={setGoalOpen} workspaceId={workspaceId} />
           <CreatePortfolioDialog open={portfolioOpen} onOpenChange={setPortfolioOpen} workspaceId={workspaceId} />
+          <CreateFormDialog
+            open={formOpen}
+            onOpenChange={setFormOpen}
+            workspaceId={workspaceId}
+            onCreated={() => router.push(`/dashboard/project-management/w/${workspaceId}/forms`)}
+          />
+          <CreateDashboardDialog
+            open={dashboardOpen}
+            onOpenChange={setDashboardOpen}
+            workspaceId={workspaceId}
+            onCreated={(id) => router.push(`/dashboard/project-management/w/${workspaceId}/reporting/${id}`)}
+          />
         </>
       ) : null}
     </>

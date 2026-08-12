@@ -2,18 +2,36 @@
 
 /** Thread switcher — multiple persistent chats per workspace. */
 import { Plus } from 'lucide-react'
+import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { useAiSettingsStore } from '../../lib/ai'
+import { usesTasklyticBackend } from '../../lib/forms/publicFormApi'
+import { createServerThread } from '../../lib/ai/serverState'
 
 type Props = {
   workspaceId: string
 }
 
 export function AiThreadList({ workspaceId }: Props) {
-  const threads = useAiSettingsStore((s) => s.listThreads(workspaceId))
+  const allThreads = useAiSettingsStore((s) => s.threads)
+  const threads = useMemo(
+    () => allThreads.filter((thread) => thread.workspaceId === workspaceId).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    [allThreads, workspaceId],
+  )
   const activeId = useAiSettingsStore((s) => s.activeThreadId)
   const setActive = useAiSettingsStore((s) => s.setActiveThread)
   const createThread = useAiSettingsStore((s) => s.createThread)
+  const upsertThread = useAiSettingsStore((s) => s.upsertThread)
+
+  const addThread = async () => {
+    if (!usesTasklyticBackend()) {
+      createThread(workspaceId)
+      return
+    }
+    const created = await createServerThread(workspaceId)
+    upsertThread(created)
+    setActive(created.id)
+  }
 
   return (
     <div className="flex items-center gap-1 border-b px-2 py-1.5" style={{ borderColor: 'var(--border-subtle)' }}>
@@ -38,7 +56,7 @@ export function AiThreadList({ workspaceId }: Props) {
         size="icon"
         className="h-7 w-7 shrink-0"
         aria-label="New chat"
-        onClick={() => createThread(workspaceId)}
+        onClick={() => void addThread()}
       >
         <Plus className="h-4 w-4" />
       </Button>

@@ -58,6 +58,9 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
         privacy: form.privacy,
         supportingProjectIds: form.projectIds,
         supportingGoalIds: form.subGoalIds,
+        rollupWeight: Math.max(0.01, Number(form.rollupWeight) || 1),
+        supportingGoalWeights: form.supportingGoalWeights,
+        supportingProjectWeights: form.supportingProjectWeights,
       }
       if (goal) await updateGoal(goal.id, payload)
       else await createGoal(payload)
@@ -132,6 +135,7 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
               </SelectContent>
             </Select>
           </GoalFormField>
+          {form.parentGoalId !== 'none' ? <GoalFormField label="Rollup weight in parent"><Input aria-label="Goal rollup weight" type="number" min="0.01" step="0.25" value={form.rollupWeight} onChange={(event) => form.setRollupWeight(event.target.value)} /></GoalFormField> : null}
           {projects.length > 0 && (
             <GoalMultiCheck
               label="Supporting projects"
@@ -148,6 +152,8 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
               onToggle={(id) => form.setSubGoalIds(toggleSelectedId(form.subGoalIds, id))}
             />
           )}
+          {form.subGoalIds.length ? <GoalFormField label="Supporting goal weights"><div className="space-y-2">{form.subGoalIds.map((id) => <label key={id} className="grid grid-cols-[1fr_100px] items-center gap-2 text-sm"><span>{goals.find((item) => item.id === id)?.name ?? id}</span><Input aria-label={`Weight for goal ${id}`} type="number" min="0.01" step="0.25" value={form.supportingGoalWeights[id] ?? 1} onChange={(event) => form.setSupportingGoalWeights((weights) => ({ ...weights, [id]: Math.max(0.01, Number(event.target.value) || 1) }))} /></label>)}</div></GoalFormField> : null}
+          {form.projectIds.length ? <GoalFormField label="Supporting project weights"><div className="space-y-2">{form.projectIds.map((id) => <label key={id} className="grid grid-cols-[1fr_100px] items-center gap-2 text-sm"><span>{projects.find((item) => item.id === id)?.name ?? id}</span><Input aria-label={`Weight for project ${id}`} type="number" min="0.01" step="0.25" value={form.supportingProjectWeights[id] ?? 1} onChange={(event) => form.setSupportingProjectWeights((weights) => ({ ...weights, [id]: Math.max(0.01, Number(event.target.value) || 1) }))} /></label>)}</div></GoalFormField> : null}
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>

@@ -19,7 +19,8 @@ import { parseDurationInput, formatHoursHMM } from '../../../lib/psa/timeEntryUt
 import { UTBMS_ACTIVITY_CODES } from '../../../lib/psa/constants'
 import { formatMoney } from '../../../lib/billing/formatMoney'
 import { usePsaContext } from '../hooks/usePsaContext'
-import type { Task } from '../../../types'
+import { runPsaAction } from '../../../lib/psa/actions'
+import type { Task, TimeEntry } from '../../../types'
 
 type Props = {
   open: boolean
@@ -32,6 +33,7 @@ type Props = {
   clientId?: string
   defaultHours?: number
   defaultDescription?: string
+  entry?: TimeEntry
 }
 
 export function ManualTimeEntryDialog(props: Props) {
@@ -40,13 +42,14 @@ export function ManualTimeEntryDialog(props: Props) {
   const rateCards = useRateCardsStore((s) => s.list())
   const pid = props.projectId ?? props.task?.projectIds[0]
   const ctx = usePsaContext(props.workspaceId, props.userId, pid, props.matterId, props.clientId)
-  const [description, setDescription] = useState(props.defaultDescription ?? '')
-  const [duration, setDuration] = useState(formatHoursHMM(props.defaultHours ?? 1))
-  const [decimalHours, setDecimalHours] = useState(String(props.defaultHours ?? 1))
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
-  const [billable, setBillable] = useState(true)
-  const [activityCode, setActivityCode] = useState('')
-  const [rateOverride, setRateOverride] = useState('')
+  const initialHours = props.entry?.hours ?? props.defaultHours ?? 1
+  const [description, setDescription] = useState(props.entry?.description ?? props.defaultDescription ?? '')
+  const [duration, setDuration] = useState(formatHoursHMM(initialHours))
+  const [decimalHours, setDecimalHours] = useState(String(initialHours))
+  const [date, setDate] = useState(props.entry?.date ?? new Date().toISOString().slice(0, 10))
+  const [billable, setBillable] = useState(props.entry?.billable ?? true)
+  const [activityCode, setActivityCode] = useState(props.entry?.activityCode ?? '')
+  const [rateOverride, setRateOverride] = useState(props.entry?.rateSource === 'override' ? String(props.entry.rateSnapshot ?? '') : '')
   const [loading, setLoading] = useState(false)
 
   const syncDuration = (raw: string, from: 'hmm' | 'dec') => {
@@ -86,7 +89,14 @@ export function ManualTimeEntryDialog(props: Props) {
         billingRates,
         rateCards,
       })
-      await add(entry)
+      if (props.entry) {
+        await runPsaAction('timeEntries', props.entry.id, 'edit', props.workspaceId, { patch: {
+          description: entry.description, date: entry.date, hours: entry.hours,
+          durationMinutes: entry.durationMinutes, billable: entry.billable,
+          activityCode: entry.activityCode, rateSnapshot: entry.rateSnapshot,
+          rateSource: entry.rateSource, amount: entry.amount,
+        } })
+      } else await add(entry)
       props.onOpenChange(false)
     } finally {
       setLoading(false)
@@ -99,7 +109,7 @@ export function ManualTimeEntryDialog(props: Props) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="font-serif text-xl">Add time</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif text-xl">{props.entry ? 'Edit time' : 'Add time'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="grid gap-1"><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="tl-input" /></div>
           <div className="grid grid-cols-2 gap-3">

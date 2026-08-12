@@ -4,38 +4,36 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { now } from '../../../lib/time'
 import { formatMoney } from '../../../lib/billing/formatMoney'
-import { useExpenseReportsStore, useExpensesStore } from '../../../stores/entities'
+import { useExpenseReportsStore } from '../../../stores/entities'
+import { useExpensesStore } from '../../../stores/entities'
+import { runPsaAction } from '../../../lib/psa/actions'
+import Link from 'next/link'
 
 type Props = { workspaceId: string; approverId: string }
 
-export function ExpenseApprovalsTab({ workspaceId, approverId }: Props) {
+export function ExpenseApprovalsTab({ workspaceId }: Props) {
   const reports = useExpenseReportsStore((s) => s.list().filter((r) => r.workspaceId === workspaceId && r.status === 'submitted'))
-  const updateReport = useExpenseReportsStore((s) => s.update)
-  const updateExpense = useExpensesStore((s) => s.update)
+  const standaloneExpenses = useExpensesStore((s) => s.list().filter((expense) => expense.workspaceId === workspaceId && expense.status === 'submitted' && !expense.expenseReportId))
   const [reason, setReason] = useState('')
   const [rejectId, setRejectId] = useState<string | null>(null)
 
   const approve = async (id: string) => {
-    await updateReport(id, { status: 'approved', approvedById: approverId, approvedAt: now() })
-    const report = useExpenseReportsStore.getState().getById(id)
-    if (report) await Promise.all(report.expenseIds.map((eid) => updateExpense(eid, { status: 'approved', approved: true, approvedById: approverId, approvedAt: now() })))
+    await runPsaAction('expenseReports', id, 'approve', workspaceId)
   }
 
   const reject = async (id: string) => {
     if (!reason.trim()) return
-    await updateReport(id, { status: 'rejected', rejectedReason: reason })
-    const report = useExpenseReportsStore.getState().getById(id)
-    if (report) await Promise.all(report.expenseIds.map((eid) => updateExpense(eid, { status: 'draft', rejectedReason: reason })))
+    await runPsaAction('expenseReports', id, 'reject', workspaceId, { reason })
     setRejectId(null)
     setReason('')
   }
 
-  if (reports.length === 0) return <p className="py-8 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>No expense reports pending.</p>
+  if (reports.length === 0 && standaloneExpenses.length === 0) return <p className="py-8 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>No expenses or reports pending.</p>
 
   return (
     <div className="space-y-3">
+      {standaloneExpenses.map((expense) => <div key={expense.id} className="tl-card flex items-center justify-between gap-3 p-4 shadow-paper-sm"><div><p className="font-medium">{expense.description}</p><p className="font-mono text-sm">{formatMoney(expense.totalAmount ?? expense.amount)}</p></div><div className="flex gap-2"><Button size="sm" onClick={() => void runPsaAction('expenses', expense.id, 'approve', workspaceId)}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const rejection = window.prompt('Rejection reason'); if (rejection) void runPsaAction('expenses', expense.id, 'reject', workspaceId, { reason: rejection }) }}>Reject</Button></div></div>)}
       {reports.map((r) => (
         <div key={r.id} className="tl-card p-4 shadow-paper-sm">
           <p className="font-medium">{r.name}</p>
@@ -43,6 +41,7 @@ export function ExpenseApprovalsTab({ workspaceId, approverId }: Props) {
           <div className="mt-2 flex gap-2">
             <Button size="sm" className="tl-btn-primary border-0" onClick={() => void approve(r.id)}>Approve</Button>
             <Button size="sm" variant="outline" onClick={() => setRejectId(r.id)}>Reject</Button>
+            <Button size="sm" variant="ghost" asChild><Link href={`/dashboard/project-management/w/${workspaceId}/psa/expenses/reports/${r.id}`}>Review items</Link></Button>
           </div>
           {rejectId === r.id && (
             <div className="mt-2 flex gap-2">

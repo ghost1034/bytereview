@@ -9,9 +9,9 @@ import { Search } from 'lucide-react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '../../stores/auth'
-import { useProjectsStore, useTasksStore } from '../../stores/entities'
+import { useGoalsStore, useProjectsStore, useTasksStore, useUsersStore } from '../../stores/entities'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
-import { searchWorkspace } from '../../lib/search/searchIndex'
+import { searchWorkspace, searchWorkspaceGoals, searchWorkspacePeople } from '../../lib/search/searchIndex'
 import { useAuth } from '@/contexts/AuthContext'
 import { HighlightMatch } from './CommandPaletteHighlight'
 import { filterDestinations } from './searchDestinations'
@@ -31,10 +31,12 @@ export function CommandPalette() {
   const [activeIndex, setActiveIndex] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
-  const { workspaceId } = useWorkspaceContext()
+  const { workspaceId, workspace } = useWorkspaceContext()
   const { signOut } = useAuth()
   const projects = useProjectsStore((s) => s.list().filter((p) => p.workspaceId === workspaceId && !p.archived))
   const tasks = useTasksStore((s) => s.list().filter((t) => t.workspaceId === workspaceId))
+  const goals = useGoalsStore((s) => s.list().filter((goal) => goal.workspaceId === workspaceId))
+  const people = useUsersStore((s) => s.list().filter((user) => workspace?.memberIds.includes(user.id)))
 
   useEffect(() => {
     if (!open) {
@@ -58,6 +60,8 @@ export function CommandPalette() {
           group: hit.type === 'project' ? 'Projects' : 'Tasks',
         })
       })
+      searchWorkspaceGoals(q, workspaceId, goals).slice(0, 20).forEach((goal) => items.push({ label: goal.name, href: `${base}/goals/${goal.id}`, group: 'Goals' }))
+      searchWorkspacePeople(q, workspace?.memberIds ?? [], people).slice(0, 20).forEach((person) => items.push({ label: person.name, href: `${base}/people/${person.id}`, group: 'People' }))
     } else if (workspaceId) {
       projects.slice(0, 8).forEach((p) =>
         items.push({ label: p.name, href: `${base}/projects/${p.id}`, group: 'Projects' })
@@ -70,6 +74,8 @@ export function CommandPalette() {
           group: 'Tasks',
         })
       })
+      goals.slice(0, 8).forEach((goal) => items.push({ label: goal.name, href: `${base}/goals/${goal.id}`, group: 'Goals' }))
+      people.slice(0, 8).forEach((person) => items.push({ label: person.name, href: `${base}/people/${person.id}`, group: 'People' }))
     }
 
     const actions: FlatItem[] = [
@@ -83,7 +89,7 @@ export function CommandPalette() {
       .forEach((a) => items.push(a))
 
     return items
-  }, [projects, query, tasks, workspaceId])
+  }, [goals, people, projects, query, tasks, workspace?.memberIds, workspaceId])
 
   useEffect(() => {
     setActiveIndex(0)
@@ -146,7 +152,7 @@ export function CommandPalette() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="tl-dialog-surface max-w-[600px] gap-0 overflow-hidden p-0">
+      <DialogContent aria-describedby={undefined} className="tl-dialog-surface max-w-[600px] gap-0 overflow-hidden p-0">
         <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
           <Search className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
           <input

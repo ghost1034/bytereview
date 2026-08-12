@@ -4,7 +4,7 @@ import type { Rule, RuleAction, RuleTrigger } from '../../types'
 import { useFormsStore, useProjectsStore, useSectionsStore, useUsersStore } from '../../stores/entities'
 
 /** Short trigger label for cards and summaries. */
-export function triggerLabel(trigger: RuleTrigger, projectId: string): string {
+export function triggerLabel(trigger: RuleTrigger): string {
   switch (trigger.type) {
     case 'task_added_to_project':
       return 'Task added to project'
@@ -50,6 +50,8 @@ export function actionLabel(action: RuleAction): string {
       return `Notify ${users.getById(action.userId)?.name ?? 'user'}`
     case 'create_subtask':
       return `Create subtask "${action.templateName}"`
+    case 'send_email':
+      return 'Send email'
   }
 }
 
@@ -60,7 +62,7 @@ export function ruleSummaryParts(rule: Rule): { trigger: string; conditions: str
       ? rule.conditions.map((c) => `${c.field} ${c.op} ${String(c.value)}`).join(' & ')
       : ''
   return {
-    trigger: triggerLabel(rule.trigger, rule.projectId),
+    trigger: triggerLabel(rule.trigger),
     conditions,
     actions: rule.actions.map(actionLabel),
   }

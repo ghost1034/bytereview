@@ -1,6 +1,14 @@
 # 21 — Rules & Automations
 
-**Goal:** A visual **Rule builder** with triggers, conditions, and actions, plus an evaluation engine that runs on every relevant store mutation. Includes templates from a small library.
+**Goal:** A visual **Rule builder** with triggers, conditions, and actions, backed by the server event/job pipeline. Includes templates from a small library.
+
+## Production automation contract (Phase 6)
+
+Task and form writes append durable workspace events. Matching enabled rules are translated into one leased command per `(workspace event, rule, trigger)`; the database uniqueness constraint prevents replay. Scheduled due-date rules are discovered by the maintenance worker. Every attempt is retained, failures use bounded exponential backoff, and project editors can inspect or retry terminal failures from Rule history.
+
+Supported triggers are: task added to project, task moved to section, task completed, task due in N days, custom field changed (optionally to a value), and form submitted.
+
+Supported ordered actions are: assign (including deterministic round-robin), set due date, move section, add project, set custom field, add collaborator, send notification, create subtask with documented interpolation tokens, and send email. Rule execution respects the creator's current workspace/project access. Automation-generated writes suppress recursive rule dispatch; this is the server-side loop boundary.
 
 ---
 
@@ -77,7 +85,7 @@ Engine code lives in `src/features/rules/engine.ts`.
 - Avoid infinite loops:
   - Track a per-mutation "rule trace stack". If a rule action causes another mutation, allow up to depth 3, then abort with a log.
   - Skip a rule if it last ran on the same `(rule.id, task.id)` within the last 250 ms.
-- Daily-style triggers (Task due in N days): run at app open (and every 30 minutes while app is open) for each enabled rule with that trigger.
+- Daily-style triggers (Task due in N days): the server maintenance worker discovers due work independently of browser sessions.
 - After running, increment `runCount` and `lastRunAt`. Push an `ActivityEvent` of type `'rule_action'` to the task. Send notifications when the action says so.
 
 ### Rule history

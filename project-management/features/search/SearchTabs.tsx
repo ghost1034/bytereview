@@ -3,29 +3,32 @@
 /**
  * Search result type tabs — All, Tasks, Projects.
  */
-import { FolderKanban, LayoutGrid, ListTodo } from 'lucide-react'
+import { FolderKanban, ListTodo, Target, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type SearchTab = 'all' | 'tasks' | 'projects'
+export type SearchTab = 'tasks' | 'projects' | 'goals' | 'people'
 
 type Props = {
   tab: SearchTab
   onChange: (tab: SearchTab) => void
   taskCount?: number
   projectCount?: number
+  goalCount?: number
+  peopleCount?: number
 }
 
 const TABS: Array<{ id: SearchTab; label: string; icon: typeof ListTodo }> = [
-  { id: 'all', label: 'All', icon: LayoutGrid },
   { id: 'tasks', label: 'Tasks', icon: ListTodo },
   { id: 'projects', label: 'Projects', icon: FolderKanban },
+  { id: 'goals', label: 'Goals', icon: Target },
+  { id: 'people', label: 'People', icon: Users },
 ]
 
-export function SearchTabs({ tab, onChange, taskCount, projectCount }: Props) {
+export function SearchTabs({ tab, onChange, taskCount, projectCount, goalCount, peopleCount }: Props) {
   return (
     <div className="inline-flex rounded-xl border p-1" style={{ borderColor: 'var(--border-subtle)' }}>
       {TABS.map(({ id, label, icon: Icon }) => {
-        const count = id === 'tasks' ? taskCount : id === 'projects' ? projectCount : undefined
+        const count = id === 'tasks' ? taskCount : id === 'projects' ? projectCount : id === 'goals' ? goalCount : peopleCount
         return (
           <button
             key={id}

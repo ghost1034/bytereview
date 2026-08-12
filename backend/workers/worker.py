@@ -1987,7 +1987,7 @@ async def run_esign_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
 
 async def run_tasklytic_maintenance(ctx: Dict[str, Any]) -> Dict[str, Any]:
-    """Deliver due dashboard digests and expire incomplete direct uploads."""
+    """Run Tasklytic automation, reporting digests, and bounded maintenance."""
     from services.tasklytic_maintenance import run_tasklytic_maintenance as run
 
     logger.info("Running Tasklytic maintenance")

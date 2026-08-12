@@ -4,6 +4,7 @@
  * TasklyticProvider — hydrates stores and syncs Firebase auth user to Tasklytic user.
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 import { useParams, useRouter, usePathname } from 'next/navigation'
 import { usesTasklyticBackend } from './lib/forms/publicFormApi'
 import { useAuth } from '@/contexts/AuthContext'
@@ -18,8 +19,6 @@ import {
   type RevisionConflict,
 } from './lib/concurrency'
 import { setActiveRepositoryWorkspaceId } from './lib/repository/workspaceScope'
-import { OnboardingWizard } from './features/onboarding/OnboardingWizard'
-import { ProductTour } from './features/onboarding/ProductTour'
 import { registerOnboardingWizardStarter } from './features/onboarding/startOnboardingWizard'
 import { TasklyticErrorBoundary } from './features/ui/TasklyticErrorBoundary'
 import { TasklyticServiceUnavailable } from './features/ui/TasklyticServiceUnavailable'
@@ -41,6 +40,9 @@ import {
   useWorkspacesStore,
 } from './stores/entities'
 import './styles/tasklytic.css'
+
+const OnboardingWizard = dynamic(() => import('./features/onboarding/OnboardingWizard').then((module) => module.OnboardingWizard), { ssr: false })
+const ProductTour = dynamic(() => import('./features/onboarding/ProductTour').then((module) => module.ProductTour), { ssr: false })
 
 type Props = { children: ReactNode }
 
@@ -132,9 +134,9 @@ export function TasklyticProvider({ children }: Props) {
 
   useEffect(() => {
     if (firebaseUser && currentUserId) {
-      identify(currentUserId, { email: firebaseUser.email ?? undefined })
+      identify(currentUserId, { workspaceId: effectiveWorkspaceId ?? undefined })
     }
-  }, [firebaseUser, currentUserId])
+  }, [currentUserId, effectiveWorkspaceId, firebaseUser])
 
   useEffect(() => {
     if (authLoading || !authUserId) return

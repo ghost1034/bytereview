@@ -19,13 +19,14 @@ export function requiredCapabilityForMutation(
       (next as Record<string, unknown>)[field] !== (previous as Record<string, unknown>)[field]
     ))) return 'workspace-administration'
   }
-  if (entity === 'billingRates' || entity === 'rateCards') return 'rate'
-  if (entity === 'invoices' || entity === 'reimbursementBatches') return 'bill'
+  if (entity === 'billingRates' || entity === 'rateCards' || entity === 'activityCodes' || entity === 'billingBudgets' || entity === 'fxQuotes' || entity === 'fxRateCache') return 'rate'
+  if (entity === 'invoices' || entity === 'reimbursementBatches' || entity === 'billingLocks' || entity === 'billingAuditRecords') return 'bill'
   if (entity === 'payments') return 'payment'
   if (entity === 'trustTransactions') return 'trust'
-  if ((next.status === 'approved' || next.status === 'rejected') && next.status !== previous?.status) {
+  if ((next.status === 'approved' || next.status === 'rejected' || next.status === 'partially_approved') && next.status !== previous?.status) {
     return 'approve'
   }
+  if (['billed', 'written_off', 'locked', 'reimbursed'].includes(String(next.status)) && next.status !== previous?.status) return 'bill'
   if (next.status === 'submitted' && next.status !== previous?.status) return 'submit'
   return 'edit'
 }

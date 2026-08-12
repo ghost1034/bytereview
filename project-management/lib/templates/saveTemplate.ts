@@ -2,10 +2,8 @@
  * Save project or task subtree as reusable templates (workspace-level).
  */
 import { newId } from '../ids'
-import { now } from '../time'
 import type { ProjectTemplate, Task, TaskTemplate } from '../../types'
 import {
-  useCustomFieldsStore,
   useProjectsStore,
   useRulesStore,
   useSectionsStore,
@@ -62,6 +60,9 @@ export async function saveProjectAsTemplate(input: SaveProjectAsTemplateInput): 
     id: newId(),
     name: input.name,
     description: input.description,
+    workspaceId: input.workspaceId,
+    createdBy: input.createdBy,
+    iconEmoji: input.iconEmoji ?? project.iconEmoji ?? '📋',
     defaults: {
       iconEmoji: input.iconEmoji ?? project.iconEmoji,
       color: project.color,
@@ -72,14 +73,12 @@ export async function saveProjectAsTemplate(input: SaveProjectAsTemplateInput): 
     sectionNames: sections.map((s) => s.name),
     taskTemplates,
     customFieldIds,
+    ruleTemplates: input.includeRules
+      ? useRulesStore.getState().list().filter((rule) => rule.projectId === input.projectId).map(({ id: _id, projectId: _projectId, createdBy: _createdBy, createdAt: _createdAt, ...rule }) => rule)
+      : [],
   }
 
   await useTemplatesStore.getState().add(template)
-
-  if (input.includeRules) {
-    const rules = useRulesStore.getState().list().filter((r) => r.projectId === input.projectId)
-    void rules
-  }
 
   return template
 }
@@ -98,20 +97,21 @@ export async function saveTaskAsTemplate(
     id: newId(),
     name,
     description: `Task template from "${task.name}"`,
+    workspaceId,
+    createdBy,
+    iconEmoji: '📋',
     defaults: { iconEmoji: '📋' },
     sectionNames: ['Tasks'],
     taskTemplates: [taskToTemplate(task, allTasks)],
     customFieldIds: [],
   }
   await useTemplatesStore.getState().add(template)
-  void workspaceId
-  void createdBy
   return template
 }
 
 /** List saved workspace templates. */
-export function listSavedTemplates(_workspaceId: string): ProjectTemplate[] {
-  return useTemplatesStore.getState().list()
+export function listSavedTemplates(workspaceId: string): ProjectTemplate[] {
+  return useTemplatesStore.getState().list().filter((template) => !template.workspaceId || template.workspaceId === workspaceId)
 }
 
 /** Delete a saved workspace template. */

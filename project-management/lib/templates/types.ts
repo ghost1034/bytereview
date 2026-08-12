@@ -11,8 +11,7 @@ import type {
   ProjectTemplate,
   ProjectView,
   Rule,
-  Task,
-  TaskTemplate,
+  Bundle,
 } from '../../types'
 
 /** Template gallery category chips. */
@@ -99,21 +98,7 @@ export type TemplateCardView = {
   tasks: Array<{ name: string; sectionIndex: number; notes?: string }>
 }
 
-/** Bundle — reusable pack applied to existing projects (step 27). */
-export type Bundle = {
-  id: string
-  workspaceId: string
-  name: string
-  description?: string
-  iconEmoji?: string
-  customFieldIds: string[]
-  sectionNames: string[]
-  taskTemplates: TaskTemplate[]
-  ruleTemplates: Array<Omit<Rule, 'id' | 'projectId' | 'createdBy' | 'createdAt'>>
-  appliedToProjectIds: string[]
-  createdBy: string
-  createdAt: string
-}
+export type { Bundle }
 
 /** Project metadata persisted additively at instantiation time. */
 export type InstantiatedProjectMeta = {
@@ -139,6 +124,8 @@ export type InstantiateTemplateInput = {
   startOn?: string
   parentProjectId?: string
   skipSiblingProjects?: boolean
+  /** Maps curated placeholder roles (for example "PM") to workspace user ids. */
+  roleAssignments?: Record<string, string>
 }
 
 export type InstantiateTemplateResult = {

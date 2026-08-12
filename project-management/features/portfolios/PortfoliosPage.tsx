@@ -58,7 +58,10 @@ export function PortfoliosPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [filters, setFilters] = useState<PortfolioListFilters>(DEFAULT_PORTFOLIO_FILTERS)
 
-  usePageMeta({ breadcrumbs: [{ label: 'Portfolios' }] })
+  usePageMeta({ breadcrumbs: workspaceId ? [
+    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Portfolios' },
+  ] : [] })
 
   const filtered = useMemo(
     () => filterPortfolios(portfolios, filters, projects, tasks),

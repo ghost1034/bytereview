@@ -23,10 +23,21 @@ export type FilterOp =
   | 'does_not_contain'
 
 export type FilterClause = {
+  type?: 'clause'
+  id?: string
   field: string
   op: FilterOp
   value: unknown
 }
+
+export type FilterGroup = {
+  type: 'group'
+  id?: string
+  operator: 'and' | 'or'
+  children: FilterExpression[]
+}
+
+export type FilterExpression = FilterClause | FilterGroup
 
 export type GroupingKey =
   | 'none'
@@ -43,7 +54,10 @@ export type GroupingKey =
 export type ViewDensity = 'compact' | 'comfortable' | 'detailed'
 
 export type ViewQuery = {
+  /** Legacy flat filters. Read once and lazily migrated into filterExpression. */
   filters: FilterClause[]
+  /** Canonical recursive query tree. */
+  filterExpression?: FilterGroup
   groupBy?: GroupingKey
   sortBy?: { field: string; direction: 'asc' | 'desc' }
   /** Legacy alias for sortBy — kept for existing view integrations. */

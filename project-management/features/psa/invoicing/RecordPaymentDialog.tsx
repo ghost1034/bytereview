@@ -6,23 +6,18 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
-import { buildPayment, invoiceAfterPayment } from '../../../lib/psa/invoiceActions'
-import { useClientsStore, useInvoicesStore, usePaymentsStore } from '../../../stores/entities'
+import { applyInvoicePayment } from '../../../lib/billing/actions'
 import type { Invoice, Payment } from '../../../types'
 
 type Props = {
   open: boolean
   onOpenChange: (v: boolean) => void
   invoice: Invoice
-  recordedById: string
 }
 
-export function RecordPaymentDialog({ open, onOpenChange, invoice, recordedById }: Props) {
-  const addPayment = usePaymentsStore((s) => s.add)
-  const updateInvoice = useInvoicesStore((s) => s.update)
-  const updateClient = useClientsStore((s) => s.update)
+export function RecordPaymentDialog({ open, onOpenChange, invoice }: Props) {
   const [amount, setAmount] = useState(String(invoice.amountOutstanding ?? invoice.amount))
   const [method, setMethod] = useState<Payment['method']>('check')
   const [reference, setReference] = useState('')
@@ -33,13 +28,10 @@ export function RecordPaymentDialog({ open, onOpenChange, invoice, recordedById 
     if (!amt || amt <= 0) return
     setLoading(true)
     try {
-      const payment = buildPayment(invoice.workspaceId, invoice.id, amt, invoice.currency ?? 'USD', method, recordedById, reference)
-      await addPayment(payment)
-      await updateInvoice(invoice.id, invoiceAfterPayment(invoice, amt))
-      if (method === 'trust_application' && invoice.clientId) {
-        const client = useClientsStore.getState().getById(invoice.clientId)
-        if (client) await updateClient(client.id, { retainerBalance: Math.max(0, (client.retainerBalance ?? 0) - amt) })
-      }
+      await applyInvoicePayment(invoice.id, invoice.workspaceId, {
+        amount: amt, currency: invoice.currency ?? 'USD', method, reference,
+        paidAt: new Date().toISOString().slice(0, 10),
+      })
       onOpenChange(false)
     } finally {
       setLoading(false)
@@ -49,7 +41,7 @@ export function RecordPaymentDialog({ open, onOpenChange, invoice, recordedById 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle className="font-serif text-xl">Record payment</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-serif text-xl">Record payment</DialogTitle><DialogDescription>Apply a manual payment to {invoice.invoiceNumber}. Reversals remain in the audit history.</DialogDescription></DialogHeader>
         <div className="grid gap-3 py-2">
           <div><Label>Amount</Label><Input value={amount} onChange={(e) => setAmount(e.target.value)} className="tl-input font-mono tabular-nums" /></div>
           <div><Label>Method</Label>

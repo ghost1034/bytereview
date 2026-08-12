@@ -13,6 +13,9 @@ import { createSubtask } from '../../../lib/taskActions'
 import { useAuthStore } from '../../../stores/auth'
 import { canAddSubtask } from '../../tasks'
 import { LIST_ROW_HEIGHT } from './listTypes'
+import { useProjectsStore, useTemplatesStore } from '../../../stores/entities'
+import { instantiateTemplateTasksFromTemplates } from '../../../lib/templates/instantiateTasks'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 type Props = {
   gridTemplate: string
@@ -45,6 +48,8 @@ export function InlineNewTaskRow({
   const [subName, setSubName] = useState('')
   const subRef = useRef<HTMLInputElement>(null)
   const active = forceActive || localActive
+  const taskTemplates = useTemplatesStore((state) => state.list().filter((template) => template.taskTemplates.length > 0))
+  const project = useProjectsStore((state) => state.getById(projectId))
 
   const cancel = () => {
     setLocalActive(false)
@@ -125,6 +130,11 @@ export function InlineNewTaskRow({
             onCancel={cancel}
           />
         </div>
+        {currentUserId && taskTemplates.length ? <Select value="" onValueChange={(templateId) => {
+          const template = taskTemplates.find((item) => item.id === templateId)
+          if (!template || !project) return
+          void instantiateTemplateTasksFromTemplates(template.taskTemplates, { workspaceId, projectId, sectionId, ownerId: currentUserId, projectStart: project.startOn ?? new Date().toISOString().slice(0, 10) })
+        }}><SelectTrigger className="h-7 w-36 text-xs" aria-label="Create task from template"><SelectValue placeholder="From template" /></SelectTrigger><SelectContent>{taskTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>)}</SelectContent></Select> : null}
         <Button
           type="button"
           variant="ghost"

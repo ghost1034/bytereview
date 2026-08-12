@@ -14,7 +14,6 @@ import {
   useProjectsStore,
   useRulesStore,
   useSectionsStore,
-  useTasksStore,
 } from '../../stores/entities'
 import type { CreateProjectInput } from '../projectActions'
 import { createTaskFromTaskTemplate } from './instantiateTasks'
@@ -136,6 +135,7 @@ async function instantiateOneTemplate(
       ownerId: input.ownerId,
       projectStart,
       taskOrder: taskOrderBySection[sectionId],
+      roleAssignments: input.roleAssignments,
     })
   }
 
@@ -144,7 +144,7 @@ async function instantiateOneTemplate(
   await useProjectsStore.getState().update(projectId, { taskOrderBySection })
   for (const fieldId of project.customFieldIds) await addFieldToProject(projectId, fieldId)
 
-  await createRulesFormsDashboards(template, projectId, input)
+  await createRulesFormsDashboards(template, projectId, input, sections, project.customFieldIds)
 
   emitActivity({
     projectId,
@@ -174,10 +174,25 @@ async function instantiateOneTemplate(
 async function createRulesFormsDashboards(
   template: CuratedProjectTemplate,
   projectId: string,
-  input: InstantiateTemplateInput
+  input: InstantiateTemplateInput,
+  sections: Section[],
+  customFieldIds: string[],
 ): Promise<void> {
+  const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const fields = useCustomFieldsStore.getState().list().filter((field) => customFieldIds.includes(field.id))
+  const resolveFieldId = (value: string) => fields.find((field) => field.id === value || normalize(field.name) === normalize(value))?.id ?? value
+  const resolveSectionId = (value: string) => sections.find((section) => section.id === value || normalize(section.name) === normalize(value))?.id ?? value
   for (const ruleTpl of template.ruleTemplates ?? []) {
-    const rule: Rule = { ...ruleTpl, id: newId(), projectId, createdBy: input.ownerId, createdAt: now() }
+    const trigger = ruleTpl.trigger.type === 'custom_field_changed'
+      ? { ...ruleTpl.trigger, customFieldId: resolveFieldId(ruleTpl.trigger.customFieldId) }
+      : ruleTpl.trigger
+    const actions = ruleTpl.actions.map((action) => {
+      if (action.type === 'assign_to' || action.type === 'send_notification') return { ...action, userId: action.userId === 'owner' ? input.ownerId : (input.roleAssignments?.[action.userId] ?? action.userId) }
+      if (action.type === 'move_to_section') return { ...action, sectionId: resolveSectionId(action.sectionId) }
+      if (action.type === 'set_custom_field') return { ...action, customFieldId: resolveFieldId(action.customFieldId) }
+      return action
+    })
+    const rule: Rule = { ...ruleTpl, trigger, actions, id: newId(), projectId, createdBy: input.ownerId, createdAt: now() }
     await useRulesStore.getState().add(rule)
   }
   for (const formTpl of template.formTemplates ?? []) {

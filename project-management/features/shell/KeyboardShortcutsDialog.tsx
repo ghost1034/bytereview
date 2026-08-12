@@ -19,6 +19,7 @@ const SHORTCUTS: Shortcut[] = [
   { keys: '[', description: 'Collapse sidebar' },
   { keys: ']', description: 'Expand sidebar' },
   { keys: 't', description: 'Toggle theme' },
+  { keys: 'Shift+T', description: 'Open timer controls' },
   { keys: '?', description: 'Show this dialog' },
 ]
 

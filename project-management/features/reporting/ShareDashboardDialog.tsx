@@ -1,6 +1,6 @@
 'use client'
 
-/** Share dashboard dialog — visibility and shared editors. */
+/** Share dashboard dialog — visibility plus explicit viewer/editor roles. */
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -34,16 +34,23 @@ export function ShareDashboardDialog({ open, onOpenChange, dashboard }: Props) {
   const update = useDashboardsStore((s) => s.update)
   const users = useUsersStore((s) => s.list())
   const [visibility, setVisibility] = useState<DashboardVisibility>(dashboard.visibility ?? 'private')
-  const [sharedWith, setSharedWith] = useState<string[]>(dashboard.sharedWith)
+  const [editorIds, setEditorIds] = useState<string[]>(dashboard.editorIds ?? dashboard.sharedWith)
+  const [viewerIds, setViewerIds] = useState<string[]>(dashboard.viewerIds ?? [])
 
-  const toggleUser = (id: string) => {
-    setSharedWith((prev) => (prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]))
+  const toggleViewer = (id: string) => {
+    setViewerIds((prev) => (prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]))
+  }
+  const toggleEditor = (id: string) => {
+    setEditorIds((prev) => (prev.includes(id) ? prev.filter((u) => u !== id) : [...prev, id]))
+    setViewerIds((prev) => prev.filter((u) => u !== id))
   }
 
   const save = async () => {
     await update(dashboard.id, {
       visibility,
-      sharedWith: visibility === 'people' ? sharedWith : [],
+      sharedWith: visibility === 'private' ? [] : editorIds,
+      editorIds: visibility === 'private' ? [] : editorIds,
+      viewerIds: visibility === 'people' ? viewerIds : [],
       updatedAt: now(),
     } as Partial<ReportingDashboard>)
     onOpenChange(false)
@@ -71,11 +78,24 @@ export function ShareDashboardDialog({ open, onOpenChange, dashboard }: Props) {
           </div>
           {visibility === 'people' ? (
             <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3" style={{ borderColor: 'var(--border-subtle)' }}>
-              {users.map((user) => (
-                <label key={user.id} className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={sharedWith.includes(user.id)} onCheckedChange={() => toggleUser(user.id)} />
-                  {user.name}
-                </label>
+              <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>
+                <span>Person</span><span>Viewer</span><span>Editor</span>
+              </div>
+              {users.filter((user) => user.id !== dashboard.ownerId).map((user) => (
+                <div key={user.id} className="grid grid-cols-[1fr_auto_auto] items-center gap-3 text-sm">
+                  <span>{user.name}</span>
+                  <Checkbox
+                    aria-label={`${user.name} viewer`}
+                    checked={viewerIds.includes(user.id)}
+                    disabled={editorIds.includes(user.id)}
+                    onCheckedChange={() => toggleViewer(user.id)}
+                  />
+                  <Checkbox
+                    aria-label={`${user.name} editor`}
+                    checked={editorIds.includes(user.id)}
+                    onCheckedChange={() => toggleEditor(user.id)}
+                  />
+                </div>
               ))}
             </div>
           ) : null}

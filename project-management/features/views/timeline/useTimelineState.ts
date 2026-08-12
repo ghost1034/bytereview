@@ -45,13 +45,13 @@ const useTimelineStore = create<Store>()(
   )
 )
 
-function storeKey(projectId: string): string {
-  return `${projectId}:timeline`
+function storeKey(projectId: string, view: 'timeline' | 'gantt'): string {
+  return `${projectId}:${view}`
 }
 
 /** Hook for persisted timeline chrome state. */
-export function useTimelineState(projectId: string) {
-  const key = storeKey(projectId)
+export function useTimelineState(projectId: string, view: 'timeline' | 'gantt' = 'timeline') {
+  const key = storeKey(projectId, view)
   const state = useTimelineStore(
     useShallow((s) => {
       const stored = s.byKey[key]

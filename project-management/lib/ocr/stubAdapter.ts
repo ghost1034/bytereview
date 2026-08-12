@@ -4,6 +4,6 @@ import type { OcrAdapter, OcrReceiptResult } from './types'
 export const stubOcrAdapter: OcrAdapter = {
   configured: false,
   async scanReceipt(): Promise<OcrReceiptResult> {
-    return {}
+    return { status: 'manual_required', reason: 'integration_unavailable' }
   },
 }

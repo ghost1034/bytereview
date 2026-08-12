@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import { useAuthStore } from '../../stores/auth'
-import { useTeamsStore } from '../../stores/entities'
+import { useTeamsStore, useUsersStore, useWorkspacesStore } from '../../stores/entities'
 import {
   TEMPLATE_LIBRARY,
   getCuratedTemplateById,
@@ -23,6 +23,7 @@ import { TemplatePreviewDialog } from './TemplatePreviewDialog'
 import { CreateTemplateModal } from './CreateTemplateModal'
 import { SavedTemplatesPanel } from './SavedTemplatesPanel'
 import { useTemplateInstantiate } from './useTemplateInstantiate'
+import { BundlesPanel } from './BundlesPanel'
 
 const PROJECT_VIEWS: ProjectView[] = ['list', 'board', 'calendar', 'timeline', 'gantt']
 
@@ -30,6 +31,8 @@ export function TemplatesPage() {
   const { workspaceId } = useWorkspaceContext()
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const teamId = useTeamsStore((s) => s.list().find((t) => t.workspaceId === workspaceId)?.id)
+  const workspace = useWorkspacesStore((s) => workspaceId ? s.getById(workspaceId) : undefined)
+  const users = useUsersStore((s) => s.list().filter((user) => workspace?.memberIds.includes(user.id)))
   const { useTemplate: instantiateTemplate, loadingId } = useTemplateInstantiate(workspaceId ?? '')
 
   const [previewId, setPreviewId] = useState<string | null>(null)
@@ -37,6 +40,7 @@ export function TemplatesPage() {
   const [search, setSearch] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   const [editTemplate, setEditTemplate] = useState<ProjectTemplate | undefined>()
+  const [roleAssignments, setRoleAssignments] = useState<Record<string, string>>({})
 
   usePageMeta({ breadcrumbs: [{ label: 'Templates' }] })
 
@@ -63,6 +67,7 @@ export function TemplatesPage() {
       privacy: 'public_to_team',
       defaultView: tpl?.defaultView ?? 'list',
       enabledViews: tpl?.enabledViews ?? PROJECT_VIEWS,
+      roleAssignments,
     })
     setPreviewId(null)
   }
@@ -85,6 +90,7 @@ export function TemplatesPage() {
         <TabsList>
           <TabsTrigger value="gallery">Gallery</TabsTrigger>
           <TabsTrigger value="saved">My templates</TabsTrigger>
+          <TabsTrigger value="bundles">Bundles</TabsTrigger>
         </TabsList>
 
         <TabsContent value="gallery" className="space-y-4 pt-4">
@@ -113,6 +119,9 @@ export function TemplatesPage() {
         <TabsContent value="saved" className="space-y-4 pt-4">
           <SavedTemplatesPanel onEdit={(t) => { setEditTemplate(t); setCreateOpen(true) }} />
         </TabsContent>
+        <TabsContent value="bundles" className="space-y-4 pt-4">
+          {workspaceId && currentUserId ? <BundlesPanel workspaceId={workspaceId} userId={currentUserId} /> : null}
+        </TabsContent>
       </Tabs>
 
       <TemplatePreviewDialog
@@ -121,6 +130,9 @@ export function TemplatesPage() {
         loading={loadingId === previewId}
         onClose={() => setPreviewId(null)}
         onUse={() => previewId && void instantiate(previewId)}
+        users={users}
+        roleAssignments={roleAssignments}
+        onRoleAssignmentChange={(role, userId) => setRoleAssignments((current) => ({ ...current, [role]: userId }))}
       />
 
       {workspaceId && currentUserId && (

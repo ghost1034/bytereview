@@ -1,6 +1,12 @@
 # 26 — Reporting Dashboards (Universal Reporting)
 
-**Goal:** Asana-style **Universal Reporting** — build custom dashboards with charts pulled from tasks, projects, portfolios, and goals.
+**Goal:** Universal reporting dashboards with persisted chart definitions, role-aware sharing, accessible drill-downs, and server-rendered digest snapshots.
+
+## Production reporting contract (Phase 6)
+
+The reporting-source registry is the extension seam for later PSA phases. Tasks and projects are registered as server snapshot sources now; existing portfolio and goal client sources remain compatible. Chart persistence stores date field, metric field, granularity, grouping, and top-N independently and repairs legacy field aliases on write.
+
+Dashboard roles are owner, editor, and viewer. Workspace visibility grants viewing only; editors may change charts/layout/schedules; only owners and workspace administrators may change sharing. Scheduled digests run only in the server maintenance pipeline, embed a current PNG snapshot, persist snapshot metadata, advance from the schedule anchor, and expose `schedule.nextRunAt` in dashboard cards.
 
 ---
 
@@ -124,5 +130,5 @@ A "Start from template" panel in the new-chart modal with curated starters:
 - I can create a dashboard with at least 5 different chart types using my existing data.
 - Charts react to dark mode and resize fluidly.
 - Drill-down works on at least Bar and Donut.
-- Schedules persist (visual only).
+- Schedules persist and are executed exactly once per schedule occurrence by the server job pipeline.
 - `Design.md` row: `26 | src/features/reporting, src/features/charts | Universal reporting dashboards | <today>`.

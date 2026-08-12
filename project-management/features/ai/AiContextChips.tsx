@@ -5,6 +5,7 @@ import { X } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
   useGoalsStore,
+  useDashboardsStore,
   usePortfoliosStore,
   useProjectsStore,
   useTasksStore,
@@ -35,6 +36,10 @@ function labelForScope(scope: AiContextScope): string {
     case 'portfolio': {
       const pf = usePortfoliosStore.getState().getById(scope.portfolioId)
       return pf?.name ?? 'Portfolio'
+    }
+    case 'dashboard': {
+      const dashboard = useDashboardsStore.getState().getById(scope.dashboardId)
+      return dashboard?.name ?? 'Dashboard'
     }
   }
 }

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { updateTask } from '../../lib/taskActions'
+import { useRouter } from 'next/navigation'
 import { tasksInBucketForUser } from '../../lib/workload'
 import { UNASSIGNED_USER_ID } from '../../lib/workload/constants'
 import type { TimeBucket } from '../../lib/workload/buckets'
@@ -45,6 +46,7 @@ export function BucketTasksDialog({
   users,
   actorId,
 }: Props) {
+  const router = useRouter()
   if (!bucket) return null
   const bucketTasks = tasksInBucketForUser(tasks, userId, bucket.start, bucket.end)
 
@@ -78,6 +80,7 @@ export function BucketTasksDialog({
                   <GripVertical className="mt-0.5 h-4 w-4 shrink-0 cursor-grab" style={{ color: 'var(--ink-muted)' }} />
                   <div className="min-w-0 flex-1 space-y-2">
                     <p className="text-sm font-medium">{task.name}</p>
+                    <div className="flex gap-2"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => router.push(`/dashboard/project-management/w/${task.workspaceId}/projects/${task.projectIds[0]}?task=${task.id}`)}>Open</Button></div>
                     <Select
                       value={task.assigneeId ?? UNASSIGNED_USER_ID}
                       onValueChange={(v) => {
@@ -108,6 +111,7 @@ export function BucketTasksDialog({
                         }}
                       />
                     </div>
+                    <Input aria-label={`Estimate for ${task.name}`} type="number" min={0} className="h-8 text-xs" value={task.effort?.value ?? ''} placeholder="Estimate hours" onChange={(event) => void updateTask(task.id, { effort: event.target.value ? { value: Number(event.target.value), unit: 'hours' } : undefined }, actorId)} />
                   </div>
                 </div>
               </li>

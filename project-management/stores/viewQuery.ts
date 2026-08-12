@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { ProjectView } from '../types'
-import { DEFAULT_VIEW_QUERY, type ViewQuery } from '../lib/query/applyQuery'
+import { DEFAULT_VIEW_QUERY, migrateViewQuery, type ViewQuery } from '../lib/query/applyQuery'
 
 const RECENT_SEARCH_CAP = 10
 
@@ -38,7 +38,12 @@ export const useViewQueryStore = create<ViewQueryState>()(
       getQuery: (projectId, viewType = 'list') => {
         const key = viewKey(projectId, viewType)
         const stored = get().byKey[key] ?? get().byKey[projectId]
-        return stored ? { ...DEFAULT_VIEW_QUERY, ...stored } : DEFAULT_VIEW_QUERY
+        if (!stored) return DEFAULT_VIEW_QUERY
+        const normalized = migrateViewQuery({ ...DEFAULT_VIEW_QUERY, ...stored })
+        if (!stored.filterExpression) {
+          set((state) => ({ byKey: { ...state.byKey, [key]: normalized } }))
+        }
+        return normalized
       },
 
       setQuery: (projectId, query, viewType = 'list') =>

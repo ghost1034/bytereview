@@ -5,26 +5,22 @@
  */
 import { useMemo, useState, type ReactNode } from 'react'
 import {
-  BarChart3,
   Bell,
   Briefcase,
+  Building2,
   CheckSquare,
+  FileCheck2,
   Clock,
-  FileText,
-  Home,
-  Landmark,
-  LayoutTemplate,
-  Plus,
   Receipt,
-  Target,
-  Timer,
+  Home,
+  Search,
+  Plus,
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import {
   Tooltip,
@@ -38,6 +34,8 @@ import { useAuthStore, useUiStore } from '../../stores/auth'
 import {
   useNotificationsStore,
   useProjectsStore,
+  useSavedViewsStore,
+  useTasksStore,
   useUsersStore,
 } from '../../stores/entities'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
@@ -48,13 +46,16 @@ import { SidebarNavSections } from './SidebarNavSections'
 import { InvitePeopleDialog } from './InvitePeopleDialog'
 import { TasklyticEmptyState } from '../ui/TasklyticEmptyState'
 import type { NavItem } from './sidebarUtils'
+import { SavedSearchesSidebarGroup } from '../search/SavedSearchesSidebarGroup'
+import { matterTerminology } from '../../lib/psa/terminology'
 
 type Props = {
   onNavigate?: () => void
 }
 
 export function TasklyticSidebar({ onNavigate }: Props) {
-  const { workspaceId } = useWorkspaceContext()
+  const { workspaceId, workspace } = useWorkspaceContext()
+  const matterTerms = matterTerminology(workspace)
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const collapsed = useUiStore((s) => s.sidebarCollapsed)
   const setCollapsed = useUiStore((s) => s.setSidebarCollapsed)
@@ -62,7 +63,11 @@ export function TasklyticSidebar({ onNavigate }: Props) {
   const setSidebarWidth = useUiStore((s) => s.setSidebarWidth)
   const unread = useNotificationsStore((s) => s.list().filter((n) => n.unread && !n.archived).length)
   const currentUser = useUsersStore((s) => (currentUserId ? s.getById(currentUserId) : undefined))
-  const starredIds = currentUser?.starredProjectIds ?? []
+  const starredIds = useMemo(() => currentUser?.starredProjectIds ?? [], [currentUser])
+  const allTasks = useTasksStore((s) => s.list().filter((task) => task.workspaceId === workspaceId))
+  const personalSearches = useSavedViewsStore((s) => s.list().filter((saved) =>
+    saved.ownerScope.type === 'search' && saved.ownerScope.id === workspaceId && saved.createdBy === currentUserId && saved.ownership !== 'workspace' && saved.pinned !== false
+  ))
 
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
@@ -100,6 +105,8 @@ export function TasklyticSidebar({ onNavigate }: Props) {
             { href: `${base}/home`, label: 'Home', icon: Home },
             { href: `${base}/my-tasks`, label: 'My Tasks', icon: CheckSquare, tourId: 'my-tasks' },
             { href: `${base}/inbox`, label: 'Inbox', icon: Bell, badge: unread || undefined },
+            { href: `${base}/teams`, label: 'Teams', icon: Users },
+            { href: `${base}/my-searches`, label: 'My Searches', icon: Search },
           ]
         : [],
     [base, unread]
@@ -109,10 +116,7 @@ export function TasklyticSidebar({ onNavigate }: Props) {
     () =>
       base
         ? [
-            { href: `${base}/reporting`, label: 'Reporting', icon: BarChart3, tourId: 'reporting' },
             { href: `${base}/portfolios`, label: 'Portfolios', icon: Briefcase },
-            { href: `${base}/goals`, label: 'Goals', icon: Target },
-            { href: `${base}/templates`, label: 'Templates', icon: LayoutTemplate },
           ]
         : [],
     [base]
@@ -123,16 +127,13 @@ export function TasklyticSidebar({ onNavigate }: Props) {
       base
         ? [
             { href: `${base}/psa/time`, label: 'Time', icon: Clock },
-            { href: `${base}/psa/timesheets`, label: 'Timesheets', icon: Timer },
+            { href: `${base}/psa/timesheets`, label: 'Timesheets', icon: FileCheck2 },
             { href: `${base}/psa/expenses`, label: 'Expenses', icon: Receipt },
-            { href: `${base}/psa/clients`, label: 'Clients', icon: Users },
-            { href: `${base}/psa/matters`, label: 'Matters', icon: Briefcase },
-            { href: `${base}/psa/invoicing`, label: 'Invoicing', icon: FileText },
-            { href: `${base}/psa/trust`, label: 'Trust', icon: Landmark },
-            { href: `${base}/psa/reports`, label: 'PSA Reports', icon: BarChart3 },
+            { href: `${base}/psa/clients`, label: 'Clients', icon: Building2 },
+            { href: `${base}/psa/${matterTerms.route}`, label: matterTerms.plural, icon: Briefcase },
           ]
         : [],
-    [base]
+    [base, matterTerms.plural, matterTerms.route]
   )
 
   if (!workspaceId || !base) return null
@@ -172,6 +173,8 @@ export function TasklyticSidebar({ onNavigate }: Props) {
             onNavigate={onNavigate}
             sectionLabel={sectionLabel}
           />
+
+          <SavedSearchesSidebarGroup basePath={base} searches={personalSearches} tasks={allTasks} currentUserId={currentUserId} collapsed={collapsed} onNavigate={onNavigate} />
 
           {starredProjects.length > 0 ? (
             <Collapsible open={starredOpen} onOpenChange={setStarredOpen}>

@@ -22,6 +22,7 @@ const ACTION_TYPES: { value: RuleAction['type']; label: string }[] = [
   { value: 'add_collaborator', label: 'Add collaborator' },
   { value: 'send_notification', label: 'Send notification' },
   { value: 'create_subtask', label: 'Create subtask' },
+  { value: 'send_email', label: 'Send email' },
 ]
 
 type Props = {
@@ -37,7 +38,6 @@ type Props = {
 export function ActionEditor({
   action,
   onChange,
-  project,
   projects,
   sections,
   members,
@@ -68,6 +68,9 @@ export function ActionEditor({
         break
       case 'create_subtask':
         onChange({ type, templateName: 'Follow up on {{taskName}}' })
+        break
+      case 'send_email':
+        onChange({ type, recipient: 'assignee', subject: 'Update: {{taskName}}', body: 'Task {{taskName}} is ready for review.' })
         break
     }
   }
@@ -189,6 +192,23 @@ export function ActionEditor({
           />
           <Label className="text-xs" style={{ color: 'var(--ink-muted)' }}>
             Supports {'{{taskName}}'}, {'{{assigneeName}}'}, {'{{today}}'}, {'{{dueIn:N}}'}
+          </Label>
+        </div>
+      )}
+
+      {action.type === 'send_email' && (
+        <div className="grid gap-2">
+          <Select value={action.recipient} onValueChange={(recipient) => onChange({ ...action, recipient })}>
+            <SelectTrigger><SelectValue placeholder="Recipient" /></SelectTrigger>
+            <SelectContent className="tl-popover-surface z-[100]">
+              <SelectItem value="assignee">Task assignee</SelectItem>
+              {members.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Input value={action.subject} onChange={(e) => onChange({ ...action, subject: e.target.value })} placeholder="Subject" />
+          <Input value={action.body} onChange={(e) => onChange({ ...action, body: e.target.value })} placeholder="Body" />
+          <Label className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            Supports {'{{taskName}}'}, {'{{assigneeName}}'}, and {'{{dueDate}}'}
           </Label>
         </div>
       )}

@@ -2,15 +2,16 @@
 
 /** Expense reports list and create-from-selection. */
 import { useState } from 'react'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { newId } from '../../../lib/ids'
-import { now } from '../../../lib/time'
 import { formatMoney } from '../../../lib/billing/formatMoney'
 import { expenseDisplayTotal } from '../../../lib/psa/expenseUtils'
 import { useExpenseReportsStore, useExpensesStore } from '../../../stores/entities'
 import type { Expense } from '../../../types'
+import { runPsaAction } from '../../../lib/psa/actions'
 
 type Props = { workspaceId: string; userId: string; expenses: Expense[] }
 
@@ -54,11 +55,7 @@ export function ExpenseReportPanel({ workspaceId, userId, expenses }: Props) {
   }
 
   const submitReport = async (reportId: string) => {
-    await useExpenseReportsStore.getState().update(reportId, { status: 'submitted', submittedAt: now() })
-    const report = useExpenseReportsStore.getState().getById(reportId)
-    if (report) {
-      await Promise.all(report.expenseIds.map((id) => updateExpense(id, { status: 'submitted', submittedAt: now() })))
-    }
+    await runPsaAction('expenseReports', reportId, 'submit', workspaceId)
   }
 
   return (
@@ -83,7 +80,7 @@ export function ExpenseReportPanel({ workspaceId, userId, expenses }: Props) {
         {reports.map((r) => (
           <div key={r.id} className="tl-card flex items-center justify-between p-3 shadow-paper-sm">
             <div>
-              <p className="font-medium">{r.name}</p>
+              <Link className="font-medium hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/expenses/reports/${r.id}`}>{r.name}</Link>
               <p className="text-sm font-mono tabular-nums" style={{ color: 'var(--ink-muted)' }}>{formatMoney(r.totalAmount)} · reimb {formatMoney(r.reimbursableAmount)}</p>
             </div>
             <div className="flex items-center gap-2">

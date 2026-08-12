@@ -1,19 +1,16 @@
 import type { Project, ProjectStatus, ProjectView, Task } from '../../types'
 import { formatDate } from '../../lib/time'
 
-export const PROJECT_VIEWS: ProjectView[] = ['list', 'board', 'calendar', 'timeline']
+export const PROJECT_VIEWS: ProjectView[] = ['list', 'board', 'calendar', 'timeline', 'gantt']
 
-/** Legacy Gantt URLs and saved settings map to Timeline. */
 export function normalizeProjectView(view: ProjectView | 'overview' | 'messages' | null | undefined): ProjectView | 'overview' | 'messages' {
   if (!view || view === 'overview' || view === 'messages') return view ?? 'overview'
-  if (view === 'gantt') return 'timeline'
   return view
 }
 
 export function activeProjectViews(enabled?: ProjectView[]): ProjectView[] {
   const raw = enabled ?? PROJECT_VIEWS
-  const normalized = raw.map((v) => (v === 'gantt' ? 'timeline' : v))
-  return [...new Set(normalized)].filter((v) => PROJECT_VIEWS.includes(v))
+  return [...new Set(raw)].filter((v) => PROJECT_VIEWS.includes(v))
 }
 
 export const VIEW_LABELS: Record<ProjectView, string> = {
@@ -21,7 +18,7 @@ export const VIEW_LABELS: Record<ProjectView, string> = {
   board: 'Board',
   calendar: 'Calendar',
   timeline: 'Timeline',
-  gantt: 'Timeline',
+  gantt: 'Gantt',
 }
 
 export const STATUS_LABELS: Record<Exclude<ProjectStatus, null>, string> = {

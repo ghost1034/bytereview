@@ -4,6 +4,8 @@
 import { createSubtask, createTask, updateNotes, updateTask } from '../../lib/taskActions'
 import { postStatusUpdate } from '../../lib/statusUpdateActions'
 import { useTasksStore } from '../../stores/entities'
+import { usesTasklyticBackend } from '../../lib/forms/publicFormApi'
+import { acceptServerProposal, editServerProposal } from '../../lib/ai/serverState'
 import type {
   AiProposal,
   CreateSubtasksPayload,
@@ -72,6 +74,15 @@ async function applyCreateTask(payload: CreateTaskPayload, actorId: string): Pro
 
 /** Execute a confirmed proposal against stores via task/status actions. */
 export async function applyProposal(proposal: AiProposal, actorId: string): Promise<ApplyResult> {
+  if (usesTasklyticBackend()) {
+    try {
+      await editServerProposal(proposal.id, proposal.payload as Record<string, unknown>)
+      await acceptServerProposal(proposal.id)
+      return { ok: true, message: 'Proposal accepted and applied on the server.' }
+    } catch (reason) {
+      return { ok: false, error: reason instanceof Error ? reason.message : 'Proposal could not be applied.' }
+    }
+  }
   switch (proposal.type) {
     case 'draft_status_update':
       return applyDraftStatus(proposal.payload as DraftStatusUpdatePayload, actorId)

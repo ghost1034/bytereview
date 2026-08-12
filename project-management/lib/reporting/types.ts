@@ -13,10 +13,18 @@ export type DashboardVisibility = 'private' | 'people' | 'workspace'
 
 /** Runtime extensions for dashboards — persisted via store, additive to base model. */
 export type ReportingDashboard = Dashboard & {
+  projectId?: string
   updatedAt?: ISODateTime
   visibility?: DashboardVisibility
   schedule?: DashboardSchedule
   tags?: string[]
+  lastSnapshot?: {
+    generatedAt: ISODateTime
+    sha256: string
+    mimeType: 'image/png'
+    width: number
+    height: number
+  }
 }
 
 /** Scope applied before chart filters. */
@@ -53,9 +61,6 @@ export type ChartComputed =
 
 export type ChartBuilderDraft = Omit<Chart, 'id'> & {
   scope: ChartScope
-  granularity?: 'day' | 'week' | 'month' | 'quarter'
-  dateField?: string
-  topN?: number
 }
 
 export const SCOPE_FILTER_FIELD = '__scope'
