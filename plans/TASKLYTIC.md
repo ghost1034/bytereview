@@ -1,88 +1,132 @@
-# Complete AI Project Management / Tasklytic
+# Tasklytic Phase-by-Phase Completion Plan
 
 ## Summary
 
-Finish Tasklytic to full documented feature parity, including visible placeholders, unreachable or inert features, production-readiness gaps, and stale documentation. Keep `/dashboard/project-management` as the canonical route and “AI Project Management” as the user-facing name; retain “Tasklytic” only as the internal/legacy module name.
+Implement each phase from the result of its predecessor. Every phase must pass its exit gate before the next begins, but production deployment is allowed only at the milestone gates after Phases 3, 7, and 10. Production deployment should be done only by the human developer.
 
-Use Firebase authentication and the existing CPAAutomation infrastructure. Remove the abandoned trial model, while preserving internal evaluation workspaces. Unsupported integrations will be hidden instead of presented as unfinished options.
+Preserve these decisions throughout: `/dashboard/project-management` is canonical, “AI Project Management” is customer-facing, Firebase owns authentication, PostgreSQL is authoritative for authenticated users, internal evaluation workspaces remain supported, and customer trial behavior is removed.
 
-## Implementation Changes
+## Implementation Phases
 
-### 1. Platform correctness and production infrastructure
+### Phase 1 — Baseline, boundaries, and quality gates
 
-- Make the backend authoritative for authenticated use. Restrict the local repository to tests and internal evaluation; authenticated production must show a recoverable service error rather than silently falling back to browser storage.
-- Add optimistic concurrency to entity writes using record revisions and `If-Match`; return `409` conflicts with the current record. Add workspace event streaming with an SSE cursor, retaining focus refresh as fallback.
-- Move cross-record operations into transactional domain commands instead of chained client writes: approvals, invoice generation, billing locks, payment application, rule execution, and scheduled reporting.
-- Extend the existing maintenance entrypoint into an idempotent job/outbox runner for scheduled rules, due-date notifications, dashboard digests, AI teammates, abandoned uploads, and integration retries.
-- Centralize authorization for view, edit, submit, approve, bill, record-payment, trust-account, rate-management, and workspace-administration actions. Enforce it in both APIs and UI.
-- Add complete loading, empty, forbidden, not-found, conflict, and retry states where pages currently render blank or depend on console errors.
+- Create a requirement traceability matrix covering the numbered Tasklytic specifications, current implementation, target phase, and final disposition.
+- Remove trial roles, partitions, claims, onboarding copy, and analytics events without deleting legacy browser keys. Preserve explicitly gated evaluation tenants.
+- Require the backend repository for authenticated use. Limit local persistence to tests and evaluation tooling; show a recoverable service-unavailable state when production persistence cannot load.
+- Hide unsupported integration choices and remove stale route/name documentation.
+- Make the existing ESLint flat configuration and TypeScript checks enforceable in CI. Fix blocking violations, remove Next.js build bypasses, and add Tasklytic lint, type-check, frontend-unit, and backend-test jobs.
 
-### 2. Finish the core project-management experience
+Exit gate: canonical routes and access boundaries are tested; no customer trial path is reachable; explicit lint, type-check, unit, backend, OpenAPI, and production-build checks pass.
 
-- Complete navigation and creation surfaces: Teams and My Searches sidebar groups; Form and Dashboard create actions; working breadcrumbs; Integrations, Feedback, Templates, Bundles, and AI Teammates settings.
-- Complete projects:
-  - Add distinct Timeline and Gantt renderers, plus Files and Dashboard tabs.
-  - Wire the existing files grid with search, filtering, sorting, grid/list modes, bulk download, and authorized deletion.
-  - Add members, description, custom fields, notifications, and view defaults to project settings.
-  - Support real attachment-image board covers and connect task/project template actions, including editable template icons.
-- Replace the unfinished timer behavior with one user-scoped running timer, a global banner, quick-start control, accurate elapsed-time capture, and Save/Discard/Cancel when switching tasks. Preserve `T` for theme and use `Shift+T` for timer control.
-- Implement recursive AND/OR query groups, migrating existing flat filters to a top-level AND group. Complete global search with Tasks, Projects, Goals, and People scopes; list/board/chart results; personal and workspace saved searches; pinned sidebar entries; and live counts.
-- Finish goals with weighted key-result/supporting-goal rollups. Complete workload grouping by person, team, and project; effort-field selection; capacity permissions; task context actions; and people drill-down.
-- Finish template bundles, application previews, placeholder-role resolution, and task-template entry points. Validate all curated templates during provisioning.
-- Keep the existing forms implementation, but harden public submission, attachment, idempotency, spam, validation, and permission paths with end-to-end coverage.
-- Remove obsolete placeholder pages, orphaned module shells, dead controls, stale “coming soon” text, and unused duplicate components after their functionality is connected or superseded.
+### Phase 2 — Concurrency, authorization, and live data contracts
 
-### 3. Complete automation, reporting, and AI
+- Standardize revisions on mutable records and expose them in bootstrap and collection responses.
+- Require `If-Match` on updates and deletes. Return `409` with the current record when revisions conflict, and add reusable conflict/reload UI.
+- Add workspace event persistence and an authenticated SSE endpoint supporting `Last-Event-ID` or an explicit cursor. Retain refresh-on-focus as fallback.
+- Centralize action-level authorization for view, edit, submit, approve, bill, payment, trust, rate, and workspace-administration operations; enforce the same capabilities in APIs and UI.
+- Introduce shared loading, empty, forbidden, not-found, conflict, retry, and service-error components.
 
-- Move rules from page-triggered client evaluation to the backend job/event pipeline. Add exactly-once run records, retries, failure history, scheduled triggers, due-date events, and all documented PSA triggers/actions.
-- Complete dashboards and reporting:
-  - Fix chart-builder field corruption and add PSA sources for time, expenses, invoices, payments, and WIP.
-  - Enforce dashboard visibility/editor permissions and accessible drill-downs.
-  - Generate actual dashboard snapshots for email digests, display next-run status, and prevent client/server duplicate scheduling.
-- Persist AI threads and settings per authenticated user/workspace instead of local storage. Migrate existing local threads once after a successful server write.
-- Expand the proposal registry to include task creation, subtasks, description updates, status drafts, custom fields, rules, dashboard charts, summaries, and assignee suggestions. Every mutation remains previewable, editable, permission-checked, and explicitly accepted.
-- Implement Tria, Summarie, and Statura as configurable AI teammates executed by the job runner, with scoped context, schedules, audit trails, rate limits, usage metering, and failure notifications.
-- Centralize supported Vertex models and structured-output schemas; keep API credentials and prompt context server-side.
+Exit gate: tenant isolation, conditional writes, conflict recovery, SSE reconnect/cursor behavior, and every authorization capability have backend and frontend regression tests.
 
-### 4. Complete PSA and integrations
+### Phase 3 — Transactional commands and background execution
 
-- Add unified Approvals and Billing Settings, conditional Matters/Engagements terminology, and detail routes for clients, matters, expense reports, and invoices.
-- Complete time and expense workflows: edit, duplicate, submit, approve/reject, partial approval where allowed, write-off, lock states, filters, receipt extraction, reimbursement administration, and immutable billed records.
-- Complete billing: rate cards, activity codes, approval routing, budgets, invoice narrative/discount/write-off editing, PDF generation, Gmail delivery/resend, aging, voiding, payments, trust/retainer application, and audit history.
-- Aggregate money by currency unless an explicit FX quote exists. Add a server FX service using cached ECB daily rates with workspace manual overrides for unsupported currencies.
-- Replace adapter stubs with:
-  - Existing Google OAuth/Drive for file selection and authorized import; hide OneDrive and Dropbox.
-  - Vertex structured extraction for receipt OCR, with explicit manual fallback on extraction failure.
-  - Existing Gmail and GCS paths for messages, invoices, exports, and attachments.
-  - Existing Stripe billing for the workspace plan, plus separately scoped Stripe Connect payment links and webhook reconciliation for client invoices; retain manual payments.
-  - QuickBooks Online OAuth and idempotent customer, invoice, and payment synchronization using the existing encrypted connector infrastructure.
-  - First-party backend usage/audit events instead of advertising unsupported third-party analytics providers.
-- Handle revoked credentials, duplicate webhooks, partial syncs, retry exhaustion, and external-ID conflicts without losing local accounting records.
+- Add an idempotent outbox/job model with leases, retry policy, run history, failure details, and deduplication keys.
+- Extend Tasklytic maintenance into the runner for scheduled rules, due-date notifications, dashboard digests, AI teammates, abandoned uploads, and integration retries.
+- Move existing multi-record mutations into transactional domain commands. Require future approvals, invoices, payments, locks, and rule executions to use the same command boundary.
+- Expose command status and retry diagnostics for authorized administrators.
 
-## Interfaces, Routes, and Migration
+Exit gate: atomic rollback, duplicate dispatch, concurrent workers, retry exhaustion, and scheduled-job idempotency tests pass.
 
-- Replace flat `FilterClause[]` storage with a recursive `FilterExpression` containing clauses and `and`/`or` groups; lazily migrate existing filters as AND groups.
-- Remove `trial` from repository partitions, roles, claims, analytics events, onboarding copy, and documentation. Do not destructively delete legacy browser keys; leave them unread.
-- Add revisions and event cursors to bootstrap data; require conditional updates for existing records and expose workspace SSE events.
-- Add explicit lifecycle/action APIs for submissions, approvals, invoices, payments, rules, scheduled work, receipt extraction, and connector synchronization.
-- Add typed integration capability/status, external-reference, approval-policy, FX-quote, AI-thread, AI-teammate, and automation-run records.
-- Add routes for Integrations, Feedback, Templates/Bundles, AI Teammates, PSA Approvals/Billing Settings, entity detail pages, and the Engagements alias. Add `gantt`, `files`, and `dashboard` project view values without breaking existing project URLs.
-- Apply additive database migrations first, deploy backward-compatible backend responses second, then enable the new frontend by workspace capability. Remove compatibility code only after telemetry shows no legacy clients.
+Milestone A: the platform foundation may be deployed after backward-compatibility verification.
 
-## Test and Acceptance Plan
+### Phase 4 — Core projects, navigation, files, and timers
 
-- Restore linting with an ESLint flat configuration and add Tasklytic-specific lint, type-check, frontend unit, backend, and browser-test CI jobs; production builds must no longer skip type or lint validation.
-- Add unit tests for recursive filters, date/time handling, timers, template resolution, reporting queries, permissions, monetary aggregation, and every PSA lifecycle state machine.
-- Add backend tests for tenant isolation, action-level authorization, revision conflicts, atomic multi-record commands, scheduler idempotency, webhook replay, integration retries, AI scoping, and file authorization.
-- Add end-to-end flows for navigation, projects and every view, search/saved searches, templates, rules, forms, goals, workload, dashboards, AI proposals/teammates, and the complete time-to-invoice/payment workflow.
-- Test admin, member, approver, billing-admin, trust-admin, guest, and external-form-user access in desktop and mobile layouts. Run keyboard and automated accessibility checks on all primary workflows.
-- Split the catch-all page into feature-level lazy chunks and virtualize large lists. Require the reported initial Tasklytic JavaScript load to fall below 350 kB, with no eager loading of PSA, reporting, AI, and settings screens.
-- Maintain a documented traceability matrix against every Tasklytic design requirement. Completion requires every entry to be implemented and tested or explicitly marked superseded by the assumptions below, with no visible placeholders, dead controls, false integration links, or unexplained orphan components.
+- Complete Teams and My Searches navigation, breadcrumbs, Form and Dashboard creation actions, and all currently visible settings destinations. Keep later-phase destinations hidden until functional.
+- Add distinct Timeline and Gantt views plus project Files and Dashboard tabs without breaking existing project URLs.
+- Complete project settings, members, descriptions, custom fields, notifications, view defaults, attachment-image covers, and project/task template entry points.
+- Finish the files grid: search, filter, sort, grid/list layouts, bulk download, and authorized deletion.
+- Implement one user-scoped running timer, global banner, quick start, accurate elapsed capture, and Save/Discard/Cancel when switching tasks. Preserve `T` for theme and use `Shift+T` for timer control.
 
-## Assumptions and Superseded Requirements
+Exit gate: desktop/mobile browser tests cover navigation, project CRUD/settings, every project view, files, permissions, covers, and timer switching/recovery.
 
-- Firebase-authenticated access replaces all Tasklytic trial flows; the host application continues to own sign-in and profile management.
-- Google Drive, Gmail, GCS, Vertex AI, Stripe, QuickBooks Online, and ECB/manual FX are the supported production integrations. Other advertised providers are removed until implemented.
-- `/dashboard/project-management` supersedes stale `/dashboard/tasklytic` documentation.
-- Evaluation-only repository partitions remain available for internal demos and tests, but are never exposed as a customer trial.
-- Existing local data is migrated non-destructively where practical; successful server persistence is required before local copies are retired.
+### Phase 5 — Advanced work management
+
+- Replace flat filters with recursive AND/OR groups and lazily migrate existing filters into a top-level AND group.
+- Complete global search across Tasks, Projects, Goals, and People, including list/board/chart results, live counts, personal/workspace saved searches, and pinned sidebar entries.
+- Finish weighted goal and supporting-goal rollups.
+- Complete workload grouping, effort selection, capacity permissions, context actions, and people drill-down.
+- Finish template bundles, previews, placeholder-role resolution, editable icons, task-template entry points, and curated-template validation.
+- Harden public forms for validation, attachments, idempotency, spam controls, and permissions.
+
+Exit gate: recursive-query migration, saved-search ownership, goal rollups, workload permissions, template resolution, and authenticated/public form flows are covered by unit, backend, and browser tests.
+
+### Phase 6 — Automation and reporting
+
+- Move rule evaluation from page-triggered client execution to the event/job pipeline.
+- Add documented triggers/actions, scheduled and due-date events, exactly-once run records, retries, and visible failure history.
+- Repair chart field handling and establish an extensible reporting-source registry; register project/task sources now and PSA sources as Phases 8–9 add them.
+- Enforce dashboard viewer/editor permissions and accessible drill-downs.
+- Generate real dashboard snapshots for email digests, expose next-run status, and eliminate client/server duplicate scheduling.
+
+Exit gate: event-triggered and scheduled rules, replay protection, chart persistence, dashboard permissions, drill-downs, snapshots, and digest scheduling pass automated tests.
+
+### Phase 7 — Persistent AI and AI teammates
+
+- Persist AI threads and user/workspace settings on the backend. Migrate local threads once only after successful server persistence.
+- Centralize supported Vertex models and structured-output schemas; keep credentials and prompt context server-side.
+- Support previewable, editable, permission-checked proposals for task creation, subtasks, descriptions, status drafts, custom fields, rules, dashboard charts, summaries, and assignee suggestions.
+- Implement Tria, Summarie, and Statura as configurable scheduled jobs with scoped context, audit trails, rate limits, metering, and failure notifications.
+
+Exit gate: AI scope isolation, proposal validation/acceptance, one-time migration, teammate scheduling, rate limits, usage events, and failure handling pass backend and browser tests.
+
+Milestone B: the completed work-management, automation, reporting, and AI feature set may enter authenticated internal beta.
+
+### Phase 8 — PSA operations and approvals
+
+- Add unified Approvals settings, conditional Matters/Engagements terminology, and detail routes for clients, matters/engagements, and expense reports.
+- Complete time and expense edit, duplicate, submit, approve/reject, partial approval, write-off, lock, filter, receipt, and reimbursement workflows.
+- Enforce immutable billed records and capability-based approval actions.
+- Register time, expense, utilization, and WIP reporting sources.
+- Provide manual receipt entry as the reliable fallback until Vertex extraction is enabled in Phase 10.
+
+Exit gate: every time, timesheet, expense, and expense-report lifecycle transition is tested across member, approver, billing-admin, and unauthorized roles.
+
+### Phase 9 — Billing, payments, trust, and financial controls
+
+- Complete Billing Settings, rate cards, activity codes, approval routing, and budgets.
+- Add invoice detail routes and complete narrative, discount, write-off, PDF, delivery/resend, aging, void, payment, trust/retainer, and audit-history workflows.
+- Add transactional invoice generation, billing locks, payment application, and reversal behavior.
+- Aggregate money by currency unless an explicit FX quote exists. Add cached ECB daily rates with workspace overrides for unsupported currencies.
+- Register invoice, payment, realization, effective-rate, and AR-aging reporting sources.
+
+Exit gate: rate resolution, currency separation, FX overrides, invoice/payment/trust state machines, immutable billing records, PDF output, and authorization pass unit, backend, and end-to-end tests.
+
+### Phase 10 — Production integrations and launch hardening
+
+- Implement Google Drive selection/import, Vertex receipt extraction with manual fallback, Gmail/GCS delivery and storage, and Stripe Connect payment links/webhook reconciliation.
+- Keep workspace-plan Stripe billing separately scoped from client invoice payments.
+- Replace advertised analytics adapters with first-party usage/audit events. Keep QuickBooks Online, OneDrive, Dropbox, Xero, NetSuite, and other unsupported providers hidden.
+- Handle revoked credentials, replayed webhooks, partial synchronization, retry exhaustion, and external-ID conflicts without losing local records.
+- Split the catch-all UI into feature-level lazy chunks, virtualize large lists, and keep the reported initial Tasklytic JavaScript load below 350 kB without eager PSA, reporting, AI, or settings code.
+- Complete mobile, keyboard, and accessibility verification; remove obsolete placeholders, dead controls, duplicate components, and stale “coming soon” content.
+- Close the traceability matrix only when every requirement is implemented and tested or explicitly superseded.
+
+Exit gate: supported integrations pass sandbox tests; failure/replay scenarios preserve accounting records; accessibility and performance budgets pass; no visible placeholder or false integration remains; full CI and representative end-to-end suites are green.
+
+Milestone C: production launch after migration rehearsal, capability enablement, monitoring verification, and rollback validation.
+
+## Public Interfaces and Migrations
+
+- Responses expose integer `revision` values and matching ETags. Existing-record `PUT` and `DELETE` requests require `If-Match`; conflicts return `409` with `detail.code = "revision_conflict"` and the current record.
+- Add authenticated workspace SSE events with durable event IDs/cursors.
+- Introduce recursive `FilterExpression` clause/group types and migrate legacy `FilterClause[]` values lazily as AND groups.
+- Add typed approval-policy, external-reference, FX-quote, AI-thread, AI-teammate, automation-run, job/outbox, and integration-capability records.
+- Use resource-scoped lifecycle actions for submit, approve, reject, generate, send, void, pay, retry, and synchronize operations rather than generic collection replacement.
+- Add project view values `gantt`, `files`, and `dashboard`; add the Engagements alias and required settings/entity-detail routes.
+- Use additive Alembic migrations, backward-compatible backend responses, regenerated `lib/api-types.ts`, and capability-gated frontend activation. Remove compatibility code only after the final rollout gate.
+
+## Verification Rules
+
+- Every phase begins from the predecessor and is delivered as a separately reviewable change set.
+- Every phase runs targeted tests first, followed by Tasklytic lint, TypeScript, frontend unit tests, `backend/tests/test_tasklytic_service.py`, relevant new backend tests, and OpenAPI freshness checks.
+- A green Next.js build alone is not accepted as type or lint evidence.
