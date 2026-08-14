@@ -11,6 +11,7 @@ import os
 import re
 import secrets
 import uuid
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import PurePath
 from typing import Any
@@ -19,10 +20,11 @@ from urllib.parse import quote
 import stripe
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from core.database import get_db
+from core.database import db_config, get_db
 from core.runtime import frontend_base_url, is_local
 from dependencies.auth import verify_firebase_token
 from models.tasklytic import (
@@ -768,6 +770,34 @@ def _event_cursor(cursor: int | None, last_event_id: str | None) -> int:
     return parsed
 
 
+SessionFactory = Callable[[], Session]
+
+
+def _workspace_event_session_factory() -> SessionFactory:
+    return db_config.get_session
+
+
+def _workspace_event_batch(
+    session_factory: SessionFactory,
+    workspace_id: str,
+    user_id: str,
+    after_id: int,
+) -> list[tuple[int, str]]:
+    """Read one event batch without retaining a connection between polls."""
+    db = session_factory()
+    try:
+        rows = list_workspace_events(db, workspace_id, user_id, after_id)
+        return [
+            (
+                row.id,
+                json.dumps(workspace_event_payload(row), separators=(",", ":")),
+            )
+            for row in rows
+        ]
+    finally:
+        db.close()
+
+
 @router.get("/workspaces/{workspace_id}/events")
 async def stream_workspace_events(
     workspace_id: str,
@@ -775,24 +805,42 @@ async def stream_workspace_events(
     cursor: int | None = Query(default=None),
     last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
     token: dict = Depends(verify_firebase_token),
-    db: Session = Depends(get_db),
+    session_factory: SessionFactory = Depends(_workspace_event_session_factory),
 ):
     workspace_id = validate_id(workspace_id, "workspace_id")
     next_cursor = _event_cursor(cursor, last_event_id)
-    get_membership(db, workspace_id, token["uid"])
+    # Load once before starting the response so authorization errors retain
+    # their normal HTTP status. Every batch owns and closes its session; a
+    # long-lived SSE client must never reserve a database connection.
+    initial_batch = await run_in_threadpool(
+        _workspace_event_batch,
+        session_factory,
+        workspace_id,
+        token["uid"],
+        next_cursor,
+    )
 
     async def events():
         nonlocal next_cursor
         idle_ticks = 0
+        batch: list[tuple[int, str]] | None = initial_batch
         while not await request.is_disconnected():
-            rows = list_workspace_events(db, workspace_id, token["uid"], next_cursor)
-            if rows:
+            if batch is None:
+                batch = await run_in_threadpool(
+                    _workspace_event_batch,
+                    session_factory,
+                    workspace_id,
+                    token["uid"],
+                    next_cursor,
+                )
+            if batch:
                 idle_ticks = 0
-                for row in rows:
-                    next_cursor = row.id
-                    data = json.dumps(workspace_event_payload(row), separators=(",", ":"))
-                    yield f"id: {row.id}\nevent: workspace-change\ndata: {data}\n\n"
+                for event_id, data in batch:
+                    next_cursor = event_id
+                    yield f"id: {event_id}\nevent: workspace-change\ndata: {data}\n\n"
+                batch = None
                 continue
+            batch = None
             idle_ticks += 1
             if idle_ticks >= 15:
                 idle_ticks = 0

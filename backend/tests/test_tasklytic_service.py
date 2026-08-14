@@ -12,7 +12,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import QueuePool, StaticPool
 
 from models.db_models import Base
 from models.tasklytic import (
@@ -49,7 +49,7 @@ from services.tasklytic_service import (
 )
 from core.database import get_db
 from dependencies.auth import verify_firebase_token
-from routes.tasklytic import _event_cursor, router as tasklytic_router
+from routes.tasklytic import _event_cursor, _workspace_event_batch, router as tasklytic_router
 from services.tasklytic_ai_service import build_authorized_context, validate_proposals
 from services.tasklytic_ai_contracts import PROPOSAL_TYPES, SUPPORTED_VERTEX_MODEL_IDS
 from services.tasklytic_ai_persistence import (
@@ -177,6 +177,54 @@ def test_authenticated_routes_reject_missing_firebase_identity(db):
     assert client.get("/api/tasklytic/bootstrap").status_code == 401
     assert client.get("/api/tasklytic/workspaces/w1/events").status_code == 401
     assert client.get("/api/tasklytic/public/forms/not-published").status_code == 404
+
+
+def test_workspace_event_poll_releases_database_connection():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=QueuePool,
+        pool_size=1,
+        max_overflow=0,
+        pool_timeout=0.05,
+    )
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            TasklyticWorkspace.__table__,
+            TasklyticWorkspaceMember.__table__,
+            TasklyticEntityRecord.__table__,
+            TasklyticWorkspaceEvent.__table__,
+        ],
+    )
+    session_factory = sessionmaker(bind=engine)
+    setup_db = session_factory()
+    try:
+        setup_db.add(TasklyticWorkspace(id="w1", payload={"id": "w1", "name": "Acme"}))
+        setup_db.add(TasklyticWorkspaceMember(workspace_id="w1", user_id="owner", role="admin"))
+        setup_db.add(TasklyticWorkspaceEvent(
+            workspace_id="w1",
+            actor_id="owner",
+            entity_kind="tasks",
+            record_id="task1",
+            operation="updated",
+            revision=2,
+            payload={"id": "task1", "name": "Updated"},
+        ))
+        setup_db.commit()
+    finally:
+        setup_db.close()
+
+    try:
+        first = _workspace_event_batch(session_factory, "w1", "owner", 0)
+        assert first
+        assert engine.pool.checkedout() == 0
+
+        second = _workspace_event_batch(session_factory, "w1", "owner", first[-1][0])
+        assert second == []
+        assert engine.pool.checkedout() == 0
+    finally:
+        engine.dispose()
 
 
 def test_provision_is_atomic_shape_and_idempotent(db):
