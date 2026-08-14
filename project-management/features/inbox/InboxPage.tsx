@@ -107,7 +107,7 @@ export function InboxPage() {
   if (!currentUserId) return null
 
   return (
-    <div className="flex h-[calc(100vh-52px)] flex-col" data-tour-page="inbox">
+    <div className="flex h-full min-h-0 flex-col" data-tour-page="inbox">
       <div className="border-b px-4 py-4" style={{ borderColor: 'hsl(var(--border))' }}>
         <h1 className="font-sans text-2xl" style={{ color: 'hsl(var(--foreground))' }}>
           Inbox

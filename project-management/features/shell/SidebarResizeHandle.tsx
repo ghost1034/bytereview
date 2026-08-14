@@ -11,12 +11,14 @@ type Props = {
 
 export function SidebarResizeHandle({ width, collapsed, onWidthChange }: Props) {
   const dragging = useRef(false)
+  const sidebarLeft = useRef(0)
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (collapsed) return
       e.preventDefault()
       dragging.current = true
+      sidebarLeft.current = e.currentTarget.parentElement?.getBoundingClientRect().left ?? 0
       e.currentTarget.setPointerCapture(e.pointerId)
     },
     [collapsed]
@@ -25,7 +27,7 @@ export function SidebarResizeHandle({ width, collapsed, onWidthChange }: Props) 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
       if (!dragging.current) return
-      onWidthChange(clampSidebarWidth(e.clientX))
+      onWidthChange(clampSidebarWidth(e.clientX - sidebarLeft.current))
     }
     const onUp = () => {
       dragging.current = false

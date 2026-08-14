@@ -7,25 +7,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import type { User } from '../../types'
 
 type Props = {
   collapsed: boolean
-  currentUser?: User
   onInvite: () => void
-  onToggleCollapse: () => void
+  onToggleCollapse?: () => void
 }
 
-export function SidebarFooter({ collapsed, currentUser, onInvite, onToggleCollapse }: Props) {
-  const initials = currentUser?.name
-    ? currentUser.name
-        .split(/\s+/)
-        .map((n) => n[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase()
-    : '?'
-
+export function SidebarFooter({ collapsed, onInvite, onToggleCollapse }: Props) {
   return (
     <div
       className={cn('flex flex-col gap-1 border-t p-2', collapsed && 'items-center')}
@@ -58,26 +47,13 @@ export function SidebarFooter({ collapsed, currentUser, onInvite, onToggleCollap
         </button>
       )}
 
-      <div className={cn('flex items-center gap-2', collapsed && 'flex-col')}>
-        <div
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{ background: currentUser?.avatarColor ?? 'hsl(var(--primary))' }}
-          title={currentUser?.name}
-          aria-hidden
-        >
-          {initials}
-        </div>
-        {!collapsed && (
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{currentUser?.name ?? 'User'}</p>
-            <p className="truncate text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
-              {currentUser?.email}
-            </p>
-          </div>
-        )}
+      {onToggleCollapse ? (
         <button
           type="button"
-          className="rounded-lg p-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          className={cn(
+            'flex h-9 items-center rounded-lg text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            collapsed ? 'w-9 justify-center' : 'w-full gap-2 px-2.5',
+          )}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           onClick={onToggleCollapse}
         >
@@ -86,8 +62,9 @@ export function SidebarFooter({ collapsed, currentUser, onInvite, onToggleCollap
           ) : (
             <PanelLeftClose className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           )}
+          {!collapsed ? <span style={{ color: 'hsl(var(--foreground-muted))' }}>Collapse navigator</span> : null}
         </button>
-      </div>
+      ) : null}
     </div>
   )
 }

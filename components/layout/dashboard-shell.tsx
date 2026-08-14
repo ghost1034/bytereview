@@ -84,7 +84,8 @@ export function DashboardShell({
   const isWideRoute =
     pathname.startsWith('/dashboard/cpe-tracker') ||
     pathname.startsWith('/dashboard/inkwise') ||
-    pathname.startsWith('/dashboard/pbc')
+    pathname.startsWith('/dashboard/pbc') ||
+    pathname.startsWith('/dashboard/project-management')
   const isImmersiveEsign =
     pathname.startsWith('/dashboard/esign/sign/') ||
     /\/dashboard\/esign\/[^/]+\/(prepare|fields|review|documents|recipients)$/.test(pathname) ||
@@ -111,7 +112,7 @@ export function DashboardShell({
     [],
   )
 
-  if (isImmersiveEsign || isProjectManagement) {
+  if (isImmersiveEsign) {
     return (
       <main id="main-content" tabIndex={-1} className="min-h-dvh bg-surface outline-none">
         <ProductTourProvider>{children}</ProductTourProvider>
@@ -120,7 +121,10 @@ export function DashboardShell({
   }
 
   return (
-    <SidebarProvider defaultOpen={defaultSidebarOpen}>
+    <SidebarProvider
+      defaultOpen={defaultSidebarOpen}
+      className={cn(isProjectManagement && 'h-svh max-h-svh overflow-hidden')}
+    >
       <a
         href="#main-content"
         className={cn(
@@ -134,18 +138,29 @@ export function DashboardShell({
 
       <AppSidebar />
 
-      <SidebarInset className="min-w-0 bg-surface">
+      <SidebarInset
+        className={cn(
+          'min-w-0 bg-surface',
+          isProjectManagement && 'min-h-0 overflow-hidden',
+        )}
+      >
         <DashboardTopbar onOpenCommandPalette={() => setPaletteOpen(true)} />
 
         <main
           id="main-content"
           tabIndex={-1}
-          className="relative flex-1 outline-none focus-visible:outline-none"
+          className={cn(
+            'relative flex-1 outline-none focus-visible:outline-none',
+            isProjectManagement && 'min-h-0 overflow-hidden',
+          )}
         >
           <div
             className={cn(
-              'mx-auto w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
-              isWideRoute ? 'max-w-none' : 'max-w-7xl',
+              'w-full',
+              isProjectManagement
+                ? 'h-full min-h-0 max-w-none p-0'
+                : 'mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
+              !isProjectManagement && (isWideRoute ? 'max-w-none' : 'max-w-7xl'),
             )}
           >
             <ProductTourProvider>

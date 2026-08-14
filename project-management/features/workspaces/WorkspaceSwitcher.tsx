@@ -16,7 +16,7 @@ import { useAuthStore, useUiStore } from '../../stores/auth'
 import { useProjectsStore, useWorkspacesStore } from '../../stores/entities'
 import { CreateWorkspaceDialog } from './CreateWorkspaceDialog'
 
-export function WorkspaceSwitcher({ fullWidth }: { fullWidth?: boolean }) {
+export function WorkspaceSwitcher({ fullWidth, compact = false }: { fullWidth?: boolean; compact?: boolean }) {
   const router = useRouter()
   const [createOpen, setCreateOpen] = useState(false)
   const currentUserId = useAuthStore((s) => s.currentUserId)
@@ -49,12 +49,21 @@ export function WorkspaceSwitcher({ fullWidth }: { fullWidth?: boolean }) {
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className={fullWidth ? 'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm' : 'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium shadow-sm'}
+            className={compact
+              ? 'flex w-full items-center justify-center rounded-lg border p-1.5 shadow-sm'
+              : fullWidth
+                ? 'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium shadow-sm'
+                : 'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-medium shadow-sm'}
             style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
+            aria-label={compact ? `Switch workspace: ${active.name}` : undefined}
           >
             <WorkspaceIcon name={active.name} emoji={active.iconEmoji} />
-            <span className={fullWidth ? 'min-w-0 flex-1 truncate' : 'max-w-[160px] truncate'}>{active.name}</span>
-            <ChevronDown className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
+            {!compact ? (
+              <>
+                <span className={fullWidth ? 'min-w-0 flex-1 truncate' : 'max-w-[160px] truncate'}>{active.name}</span>
+                <ChevronDown className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
+              </>
+            ) : null}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-56">

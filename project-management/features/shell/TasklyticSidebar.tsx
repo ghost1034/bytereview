@@ -51,13 +51,14 @@ import { matterTerminology } from '../../lib/psa/terminology'
 
 type Props = {
   onNavigate?: () => void
+  mode?: 'desktop' | 'drawer'
 }
 
-export function TasklyticSidebar({ onNavigate }: Props) {
+export function TasklyticSidebar({ onNavigate, mode = 'desktop' }: Props) {
   const { workspaceId, workspace } = useWorkspaceContext()
   const matterTerms = matterTerminology(workspace)
   const currentUserId = useAuthStore((s) => s.currentUserId)
-  const collapsed = useUiStore((s) => s.sidebarCollapsed)
+  const storedCollapsed = useUiStore((s) => s.sidebarCollapsed)
   const setCollapsed = useUiStore((s) => s.setSidebarCollapsed)
   const sidebarWidth = useUiStore((s) => s.sidebarWidth)
   const setSidebarWidth = useUiStore((s) => s.setSidebarWidth)
@@ -138,6 +139,8 @@ export function TasklyticSidebar({ onNavigate }: Props) {
 
   if (!workspaceId || !base) return null
 
+  const drawer = mode === 'drawer'
+  const collapsed = drawer ? false : storedCollapsed
   const width = collapsed ? 56 : sidebarWidth
 
   const sectionLabel = (label: string, action?: ReactNode) =>
@@ -154,14 +157,14 @@ export function TasklyticSidebar({ onNavigate }: Props) {
     <TooltipProvider delayDuration={0}>
       <aside
         className="relative flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out"
-        style={{ width, borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}
+        style={{ width: drawer ? '100%' : width, borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}
         aria-label="Project management navigation"
         data-tour="sidebar"
       >
-        <SidebarResizeHandle width={sidebarWidth} collapsed={collapsed} onWidthChange={setSidebarWidth} />
+        {!drawer ? <SidebarResizeHandle width={sidebarWidth} collapsed={collapsed} onWidthChange={setSidebarWidth} /> : null}
 
         <div className={cn('border-b p-2', collapsed && 'px-1')} style={{ borderColor: 'hsl(var(--border))' }}>
-          <WorkspaceSwitcher fullWidth />
+          <WorkspaceSwitcher fullWidth compact={collapsed} />
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
@@ -254,9 +257,8 @@ export function TasklyticSidebar({ onNavigate }: Props) {
 
         <SidebarFooter
           collapsed={collapsed}
-          currentUser={currentUser}
           onInvite={() => setInviteOpen(true)}
-          onToggleCollapse={() => setCollapsed(!collapsed)}
+          onToggleCollapse={drawer ? undefined : () => setCollapsed(!collapsed)}
         />
       </aside>
 

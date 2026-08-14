@@ -56,7 +56,7 @@ const secondTask: Task = { ...task, id: 'task-2', name: 'Review variance' }
 
 function seed() {
   useAuthStore.setState({ currentUserId: user.id, hydrated: true })
-  useUiStore.setState({ activeWorkspaceId: workspace.id, sidebarCollapsed: false })
+  useUiStore.setState({ activeWorkspaceId: workspace.id, sidebarCollapsed: false, sidebarWidth: 240 })
   useWorkspacesStore.setState({ items: { [workspace.id]: workspace }, hydrated: true })
   useUsersStore.setState({ items: { [user.id]: user, [secondUser.id]: secondUser }, hydrated: true })
   useTeamsStore.setState({ items: { [team.id]: team }, hydrated: true })
@@ -94,6 +94,27 @@ describe('Phase 4 desktop and mobile browser gate', () => {
     await page.viewport(390, 844)
     await expect.element(screen.getByRole('link', { name: 'Teams' })).toBeVisible()
     await expect.element(screen.getByRole('link', { name: 'My Searches' })).toBeVisible()
+  })
+
+  it('keeps a 240px resizable desktop navigator, a 56px rail, and an expanded mobile drawer', async () => {
+    await page.viewport(1440, 900)
+    const desktop = render(<TasklyticSidebar />)
+    expect((desktop.container.querySelector('aside') as HTMLElement).style.width).toBe('240px')
+    await desktop.getByRole('button', { name: 'Collapse sidebar' }).click()
+    expect((desktop.container.querySelector('aside') as HTMLElement).style.width).toBe('56px')
+    desktop.unmount()
+
+    useUiStore.setState({ sidebarCollapsed: false })
+    await page.viewport(1024, 768)
+    const breakpoint = render(<TasklyticSidebar />)
+    expect((breakpoint.container.querySelector('aside') as HTMLElement).style.width).toBe('240px')
+    breakpoint.unmount()
+
+    await page.viewport(390, 844)
+    const drawer = render(<TasklyticSidebar mode="drawer" />)
+    expect((drawer.container.querySelector('aside') as HTMLElement).style.width).toBe('100%')
+    await expect.element(drawer.getByRole('button', { name: 'Collapse sidebar' })).not.toBeInTheDocument()
+    expect(drawer.container.querySelector('[role="separator"]')).toBeNull()
   })
 
   it('keeps all five project views distinct at mobile width', async () => {
