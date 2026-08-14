@@ -82,7 +82,7 @@ export function TriggerPicker({ trigger, onChange, sections, forms, customFields
           <Input
             type="number"
             min={0}
-            className="w-24 tl-input"
+            className="w-24 rounded-md border border-input bg-background text-foreground"
             value={trigger.days}
             onChange={(e) => onChange({ ...trigger, days: Number(e.target.value) || 0 })}
           />
@@ -104,7 +104,7 @@ export function TriggerPicker({ trigger, onChange, sections, forms, customFields
           </Select>
           <Input
             placeholder="Optional: to value"
-            className="tl-input"
+            className="rounded-md border border-input bg-background text-foreground"
             value={trigger.toValue != null ? String(trigger.toValue) : ''}
             onChange={(e) =>
               onChange({ ...trigger, toValue: e.target.value || undefined })

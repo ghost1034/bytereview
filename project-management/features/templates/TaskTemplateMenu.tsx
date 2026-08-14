@@ -34,7 +34,7 @@ export function TaskTemplateMenu({ taskId, taskName, workspaceId, createdBy }: P
   if (naming) {
     return (
       <div className="flex gap-1">
-        <Input value={name} onChange={(e) => setName(e.target.value)} className="tl-input h-8 text-xs" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground h-8 text-xs" />
         <Button size="sm" className="h-8" onClick={() => void save()}>Save</Button>
       </div>
     )

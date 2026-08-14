@@ -3,10 +3,9 @@
 /** Modal to save an existing project as a workspace template. */
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import { saveProjectAsTemplate } from '../../lib/templates/saveTemplate'
 
 type Props = {
@@ -57,18 +56,18 @@ export function SaveProjectAsTemplateModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-sans text-xl">Save as template</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="grid gap-1">
             <Label htmlFor="tpl-name">Template name</Label>
-            <Input id="tpl-name" value={name} onChange={(e) => setName(e.target.value)} className="tl-input" />
+            <Input id="tpl-name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
           <div className="grid gap-1">
             <Label htmlFor="tpl-desc">Description</Label>
-            <Input id="tpl-desc" value={description} onChange={(e) => setDescription(e.target.value)} className="tl-input" />
+            <Input id="tpl-desc" value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={includeTasks} onChange={(e) => setIncludeTasks(e.target.checked)} />
@@ -85,11 +84,11 @@ export function SaveProjectAsTemplateModal({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading || !name.trim()} onClick={() => void submit()}>
+          <Button className=" border-0" disabled={loading || !name.trim()} onClick={() => void submit()}>
             Save template
           </Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

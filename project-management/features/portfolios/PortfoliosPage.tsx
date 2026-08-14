@@ -74,7 +74,7 @@ export function PortfoliosPage() {
     <div className="space-y-4" data-tour-page="portfolios">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-sans text-2xl">Portfolios</h1>
-        <Button className="tl-btn-primary border-0" size="sm" onClick={() => setCreateOpen(true)}>
+        <Button className=" border-0" size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> New portfolio
         </Button>
       </div>
@@ -83,14 +83,14 @@ export function PortfoliosPage() {
         <div className="relative min-w-[180px] flex-1">
           <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           <Input
-            className="tl-input pl-8"
+            className="rounded-md border border-input bg-background text-foreground pl-8"
             placeholder="Search portfolios…"
             value={filters.search}
             onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
           />
         </div>
         <Select value={filters.ownerId} onValueChange={(v) => setFilters((f) => ({ ...f, ownerId: v }))}>
-          <SelectTrigger className="tl-input w-[140px]"><SelectValue placeholder="Owner" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground w-[140px]"><SelectValue placeholder="Owner" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="all">All owners</SelectItem>
             {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
@@ -100,7 +100,7 @@ export function PortfoliosPage() {
           value={filters.status === 'all' ? 'all' : (filters.status ?? 'all')}
           onValueChange={(v) => setFilters((f) => ({ ...f, status: v === 'all' ? 'all' : (v as PortfolioListFilters['status']) }))}
         >
-          <SelectTrigger className="tl-input w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="on_track">On track</SelectItem>
@@ -111,7 +111,7 @@ export function PortfoliosPage() {
           </SelectContent>
         </Select>
         <Select value={filters.timePeriod} onValueChange={(v) => setFilters((f) => ({ ...f, timePeriod: v as PortfolioListFilters['timePeriod'] }))}>
-          <SelectTrigger className="tl-input w-[130px]"><SelectValue placeholder="Period" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground w-[130px]"><SelectValue placeholder="Period" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="all">All time</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>
@@ -134,7 +134,7 @@ export function PortfoliosPage() {
             {filtered.map((p) => <PortfolioCard key={p.id} portfolio={p} workspaceId={workspaceId} />)}
           </div>
         ) : (
-          <div className="tl-card overflow-hidden shadow-sm">
+          <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>

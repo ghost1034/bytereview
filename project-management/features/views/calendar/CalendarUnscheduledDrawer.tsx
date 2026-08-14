@@ -81,13 +81,13 @@ export function CalendarUnscheduledDrawer({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search…"
-              className="tl-input mt-3 h-8 w-full text-sm"
+              className="rounded-md border border-input bg-background text-foreground mt-3 h-8 w-full text-sm"
             />
             <div className="mt-2 flex gap-2">
               <select
                 value={assigneeFilter}
                 onChange={(e) => setAssigneeFilter(e.target.value)}
-                className="tl-input h-8 flex-1 text-xs"
+                className="rounded-md border border-input bg-background text-foreground h-8 flex-1 text-xs"
               >
                 <option value="all">All assignees</option>
                 <option value="unassigned">Unassigned</option>
@@ -100,7 +100,7 @@ export function CalendarUnscheduledDrawer({
               <select
                 value={tagFilter}
                 onChange={(e) => setTagFilter(e.target.value)}
-                className="tl-input h-8 flex-1 text-xs"
+                className="rounded-md border border-input bg-background text-foreground h-8 flex-1 text-xs"
               >
                 <option value="all">All tags</option>
                 {tags.map((t) => (

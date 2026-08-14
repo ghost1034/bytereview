@@ -59,7 +59,7 @@ export function BoardColumnHeader({
   }
 
   return (
-    <div className="tl-card mb-2 flex shrink-0 items-center gap-1 px-2 py-2 shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground mb-2 flex shrink-0 items-center gap-1 px-2 py-2 shadow-sm">
       <button type="button" aria-label="Collapse column" onClick={onToggleCollapse}>
         <ChevronDown className="h-4 w-4 shrink-0" style={{ color: 'hsl(var(--foreground-muted))' }} />
       </button>

@@ -13,12 +13,11 @@ describe('Phase 10 launch contracts', () => {
     const router = readFileSync('project-management/ProjectManagementWorkspaceRouter.tsx', 'utf8')
     const chrome = readFileSync('project-management/TasklyticChrome.tsx', 'utf8')
     expect(router).not.toMatch(/from '\.\/features\/(psa|reporting|ai|settings)\//)
-    expect(router).toContain("lazy(() => import('./features/psa/")
-    expect(router).toContain("lazy(() => import('./features/reporting/")
-    expect(router).toContain("lazy(() => import('./features/ai/")
-    expect(router).toContain("lazy(() => import('./features/settings/")
-    expect(chrome).toContain("dynamic(() => import('./features/ai/AiAssistantPanel')")
-    expect(chrome).toContain("dynamic(() => import('./features/psa/time/TimerBanner')")
+    for (const family of ['psa', 'reporting', 'ai', 'settings']) {
+      expect(router).toMatch(new RegExp(`lazy\\(\\s*\\(\\) =>\\s*import\\('\\./features/${family}/`))
+    }
+    expect(chrome).toMatch(/dynamic\(\s*\(\) =>\s*import\('\.\/features\/ai\/AiAssistantPanel'\)/)
+    expect(chrome).toMatch(/dynamic\(\s*\(\) =>\s*import\('\.\/features\/psa\/time\/TimerBanner'\)/)
   })
 
   it('does not advertise unsupported provider registries or stale destinations', () => {

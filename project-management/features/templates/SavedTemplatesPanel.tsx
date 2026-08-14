@@ -24,7 +24,7 @@ export function SavedTemplatesPanel({ onEdit }: Props) {
   return (
     <ul className="space-y-2">
       {templates.map((t) => (
-        <li key={t.id} className="tl-card flex items-center justify-between p-4 shadow-sm">
+        <li key={t.id} className="rounded-lg border border-border bg-card text-card-foreground flex items-center justify-between p-4 shadow-sm">
           <div>
             <p className="font-medium">{t.iconEmoji ?? t.defaults.iconEmoji ?? '📋'} {t.name}</p>
             <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>

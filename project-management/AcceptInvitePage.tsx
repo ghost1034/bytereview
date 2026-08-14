@@ -39,7 +39,7 @@ export function AcceptInvitePage() {
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
-      <div className="tl-card w-full max-w-md p-8 text-center shadow-md">
+      <div className="rounded-lg border border-border bg-card text-card-foreground w-full max-w-md p-8 text-center shadow-md">
         {error ? (
           <>
             <XCircle className="mx-auto h-10 w-10" style={{ color: 'hsl(var(--destructive))' }} />

@@ -47,7 +47,7 @@ export function HomeOnboardingChecklist({ workspaceId, onCreateProject, onQuickA
   }
 
   return (
-    <div className="tl-card relative p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground relative p-4 shadow-sm">
       <button
         type="button"
         className="absolute right-2 top-2 rounded p-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"

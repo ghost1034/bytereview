@@ -84,7 +84,7 @@ export function DashboardPage({ workspaceId, dashboardId, basePath, returnHref, 
 
   if (!dashboard || dashboard.workspaceId !== workspaceId || !dataCtx || !canView) {
     return (
-      <div className="tl-card p-8 text-center shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground p-8 text-center shadow-sm">
         <p style={{ color: 'hsl(var(--foreground-muted))' }}>Dashboard not found.</p>
       </div>
     )
@@ -191,7 +191,7 @@ export function DashboardPage({ workspaceId, dashboardId, basePath, returnHref, 
                 <Trash2 className="h-4 w-4" /> Delete
               </Button>
               <Button
-                className="tl-btn-primary gap-1.5 border-0"
+                className=" gap-1.5 border-0"
                 size="sm"
                 onClick={() => {
                   setEditChart(undefined)
@@ -221,13 +221,13 @@ export function DashboardPage({ workspaceId, dashboardId, basePath, returnHref, 
             onDeleteChart={(id) => void deleteChart(id)}
           />
         ) : (
-          <div className="tl-card p-12 text-center shadow-sm">
+          <div className="rounded-lg border border-border bg-card text-card-foreground p-12 text-center shadow-sm">
             <p className="font-sans text-lg">This dashboard is waiting for its first chart</p>
             <p className="mt-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Add a chart or pick a recommended template to get started.
             </p>
             {canEdit ? (
-              <Button className="tl-btn-primary mt-4 border-0" onClick={() => setBuilderOpen(true)}>
+              <Button className=" mt-4 border-0" onClick={() => setBuilderOpen(true)}>
                 Add chart
               </Button>
             ) : null}

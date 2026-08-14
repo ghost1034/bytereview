@@ -13,7 +13,7 @@ type Props = {
 export function GoalsEmptyState({ tabLabel, onCreate }: Props) {
   return (
     <div
-      className="tl-card flex flex-col items-center justify-center px-8 py-16 text-center shadow-sm"
+      className="rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center justify-center px-8 py-16 text-center shadow-sm"
      
     >
       <div
@@ -29,7 +29,7 @@ export function GoalsEmptyState({ tabLabel, onCreate }: Props) {
           : `No goals in ${tabLabel.toLowerCase()} yet. When your team publishes objectives, they will appear here.`}
       </p>
       {tabLabel === 'My goals' ? (
-        <Button className="tl-btn-primary mt-6 border-0" onClick={onCreate}>
+        <Button className=" mt-6 border-0" onClick={onCreate}>
           Create your first goal
         </Button>
       ) : null}

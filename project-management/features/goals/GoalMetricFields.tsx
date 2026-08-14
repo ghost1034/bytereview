@@ -55,12 +55,12 @@ export function GoalMetricFields(props: Props) {
         </Select>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <Input type="number" className="tl-input" placeholder="Current" value={props.current} onChange={(e) => props.setCurrent(e.target.value)} />
+          <Input type="number" className="rounded-md border border-input bg-background text-foreground" placeholder="Current" value={props.current} onChange={(e) => props.setCurrent(e.target.value)} />
           {metricKind !== 'percent' && (
-            <Input type="number" className="tl-input" placeholder="Target" value={props.target} onChange={(e) => props.setTarget(e.target.value)} />
+            <Input type="number" className="rounded-md border border-input bg-background text-foreground" placeholder="Target" value={props.target} onChange={(e) => props.setTarget(e.target.value)} />
           )}
-          {metricKind === 'numeric' && <Input className="tl-input" placeholder="Unit" value={props.unit} onChange={(e) => props.setUnit(e.target.value)} />}
-          {metricKind === 'currency' && <Input className="tl-input" placeholder="Symbol" value={props.symbol} onChange={(e) => props.setSymbol(e.target.value)} />}
+          {metricKind === 'numeric' && <Input className="rounded-md border border-input bg-background text-foreground" placeholder="Unit" value={props.unit} onChange={(e) => props.setUnit(e.target.value)} />}
+          {metricKind === 'currency' && <Input className="rounded-md border border-input bg-background text-foreground" placeholder="Symbol" value={props.symbol} onChange={(e) => props.setSymbol(e.target.value)} />}
         </div>
       )}
     </>

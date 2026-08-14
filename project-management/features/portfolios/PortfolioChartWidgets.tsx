@@ -69,7 +69,7 @@ type NumberProps = { label: string; value: number | string; suffix?: string }
 
 export function PortfolioNumberCard({ label, value, suffix }: NumberProps) {
   return (
-    <div className="tl-card flex flex-col items-center justify-center p-6 text-center shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center justify-center p-6 text-center shadow-sm">
       <p className="text-3xl font-sans tabular-nums" style={{ color: 'hsl(var(--primary))' }}>
         {value}{suffix}
       </p>

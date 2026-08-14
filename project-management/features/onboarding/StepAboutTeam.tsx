@@ -118,7 +118,7 @@ export function StepAboutTeam(props: Props) {
           id="company-name"
           value={props.companyName}
           onChange={(e) => props.onCompanyNameChange(e.target.value)}
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
         />
       </div>
       <div className="grid gap-2">

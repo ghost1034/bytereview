@@ -32,7 +32,7 @@ function Stat({
   tone?: 'danger'
 }) {
   return (
-    <div className="tl-card px-4 py-3 shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground px-4 py-3 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {label}
       </p>

@@ -3,10 +3,9 @@
 /** Create / edit a custom workspace template (minimal editor). */
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import type { ProjectTemplate } from '../../types'
 import { useTemplatesStore } from '../../stores/entities'
 import { newId } from '../../lib/ids'
@@ -58,35 +57,35 @@ export function CreateTemplateModal({ open, onOpenChange, workspaceId, createdBy
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-sans text-xl">{initial ? 'Edit template' : 'Create template'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="grid gap-1">
             <Label>Icon</Label>
-            <Input aria-label="Template icon" value={iconEmoji} onChange={(e) => setIconEmoji(e.target.value)} className="tl-input" maxLength={8} />
+            <Input aria-label="Template icon" value={iconEmoji} onChange={(e) => setIconEmoji(e.target.value)} className="rounded-md border border-input bg-background text-foreground" maxLength={8} />
           </div>
           <div className="grid gap-1">
             <Label>Name</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="tl-input" />
+            <Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
           <div className="grid gap-1">
             <Label>Description</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} className="tl-input" />
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
           <div className="grid gap-1">
             <Label>Sections (comma-separated)</Label>
-            <Input value={sections} onChange={(e) => setSections(e.target.value)} className="tl-input" />
+            <Input value={sections} onChange={(e) => setSections(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading || !name.trim()} onClick={() => void submit()}>
+          <Button className=" border-0" disabled={loading || !name.trim()} onClick={() => void submit()}>
             {initial ? 'Save changes' : 'Create'}
           </Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

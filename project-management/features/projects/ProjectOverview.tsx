@@ -90,7 +90,7 @@ export function ProjectOverview({ project }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="tl-card p-4 shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium">Completion</span>
           <span className="text-sm tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{progress}%</span>
@@ -100,7 +100,7 @@ export function ProjectOverview({ project }: Props) {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <h2 className="font-sans text-lg">Project brief</h2>
             <div className="mt-3">
               <BriefRichEditor
@@ -114,7 +114,7 @@ export function ProjectOverview({ project }: Props) {
             </div>
           </section>
 
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <h2 className="font-sans text-lg">Project roles</h2>
             <table className="mt-3 w-full text-sm">
               <thead>
@@ -129,7 +129,7 @@ export function ProjectOverview({ project }: Props) {
                     <td className="py-2">{m.name}</td>
                     <td className="py-2">
                       <Input
-                        className="tl-input h-8"
+                        className="rounded-md border border-input bg-background text-foreground h-8"
                         defaultValue={project.memberRoles?.[m.id] ?? 'Member'}
                         onBlur={(e) => void setRole(m.id, e.target.value)}
                       />
@@ -140,7 +140,7 @@ export function ProjectOverview({ project }: Props) {
             </table>
           </section>
 
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <h2 className="font-sans text-lg">Documents</h2>
             <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Upload files (up to {projectFiles.maxMb} MB each).
@@ -148,7 +148,7 @@ export function ProjectOverview({ project }: Props) {
             <AttachmentListPanel scope={projectFiles} allowLink={false} allowCloudDrive={false} />
           </section>
 
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="font-sans text-lg">Key resources</h2>
               <Button size="sm" variant="outline" onClick={() => void addResource()}>
@@ -165,13 +165,13 @@ export function ProjectOverview({ project }: Props) {
                 {(project.keyResources ?? []).map((r) => (
                   <li key={r.id} className="flex items-center gap-2">
                     <Input
-                      className="tl-input w-36 shrink-0 sm:w-44"
+                      className="rounded-md border border-input bg-background text-foreground w-36 shrink-0 sm:w-44"
                       defaultValue={r.title}
                       placeholder="Title"
                       onBlur={(e) => void updateResource(r.id, { title: e.target.value })}
                     />
                     <Input
-                      className="tl-input min-w-0 flex-1"
+                      className="rounded-md border border-input bg-background text-foreground min-w-0 flex-1"
                       defaultValue={r.url ?? ''}
                       placeholder="https://…"
                       onBlur={(e) => void updateResource(r.id, { url: e.target.value })}
@@ -185,7 +185,7 @@ export function ProjectOverview({ project }: Props) {
             )}
           </section>
 
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="font-sans text-lg">Milestones</h2>
               <Button size="sm" variant="outline" onClick={() => setMilestoneDialogOpen(true)}>
@@ -234,7 +234,7 @@ export function ProjectOverview({ project }: Props) {
             />
           </section>
 
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <h2 className="font-sans text-lg">Recent activity</h2>
             <ul className="mt-3 space-y-2">
               {activity.length ? activity.map((a) => (
@@ -250,14 +250,14 @@ export function ProjectOverview({ project }: Props) {
         </div>
 
         <div className="space-y-4">
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <h2 className="font-sans text-lg">Status</h2>
             <div className="mt-3">
               <StatusUpdateComposer project={project} currentUserId={currentUserId} />
             </div>
           </section>
 
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <h2 className="font-sans text-lg">Members</h2>
             <MemberAvatarStack users={members} />
             <div className="mt-3">
@@ -265,7 +265,7 @@ export function ProjectOverview({ project }: Props) {
             </div>
           </section>
 
-          <section className="tl-card p-5 shadow-sm">
+          <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
             <h2 className="font-sans text-lg">Project details</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-2">
@@ -289,7 +289,7 @@ export function ProjectOverview({ project }: Props) {
                 <dd>
                   <Input
                     type="date"
-                    className="tl-input h-8 w-auto"
+                    className="rounded-md border border-input bg-background text-foreground h-8 w-auto"
                     defaultValue={project.startOn ?? ''}
                     onBlur={(e) => void updateProject(project.id, { startOn: e.target.value || undefined, modifiedAt: now() })}
                   />
@@ -300,7 +300,7 @@ export function ProjectOverview({ project }: Props) {
                 <dd>
                   <Input
                     type="date"
-                    className="tl-input h-8 w-auto"
+                    className="rounded-md border border-input bg-background text-foreground h-8 w-auto"
                     defaultValue={project.dueOn ?? ''}
                     onBlur={(e) => void updateProject(project.id, { dueOn: e.target.value || undefined, modifiedAt: now() })}
                   />

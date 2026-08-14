@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
+import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useClientsStore, useRateCardsStore } from '../../../stores/entities'
 import { newId } from '../../../lib/ids'
 import { now } from '../../../lib/time'
@@ -60,27 +59,27 @@ export function ClientDialog({ open, onOpenChange, workspaceId, client }: Props)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle className="font-sans text-xl">{client ? 'Edit client' : 'New client'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
-          <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="tl-input" /></div>
+          <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" /></div>
           <Select value={type} onValueChange={(v) => setType(v as Client['type'])}>
-            <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
             <SelectContent className="z-[100]">{(['individual', 'business', 'nonprofit', 'government'] as const).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
-          <div><Label>Contact email</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} className="tl-input" /></div>
+          <div><Label>Contact email</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} className="rounded-md border border-input bg-background text-foreground" /></div>
           <Select value={terms} onValueChange={(v) => setTerms(v as Client['paymentTerms'])}>
-            <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
             <SelectContent className="z-[100]">{(['due_on_receipt', 'net_15', 'net_30', 'net_45', 'net_60'] as const).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="tl-input"><SelectValue placeholder="Default rate card" /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="none">No default rate card</SelectItem>{rateCards.map((card) => <SelectItem value={card.id} key={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
-          <div><Label>Billing currency</Label><Input maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value)} className="tl-input uppercase" /></div>
+          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Default rate card" /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="none">No default rate card</SelectItem>{rateCards.map((card) => <SelectItem value={card.id} key={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
+          <div><Label>Billing currency</Label><Input maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value)} className="rounded-md border border-input bg-background text-foreground uppercase" /></div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading} onClick={() => void submit()}>Save</Button>
+          <Button className=" border-0" disabled={loading} onClick={() => void submit()}>Save</Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

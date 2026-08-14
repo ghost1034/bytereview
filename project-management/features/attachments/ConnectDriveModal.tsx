@@ -54,7 +54,7 @@ export function ConnectDriveModal({ provider, message, open, onOpenChange, files
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading || selected.size === 0} onClick={() => void onImport([...selected])}>Import selected</Button>
+          <Button className=" border-0" disabled={loading || selected.size === 0} onClick={() => void onImport([...selected])}>Import selected</Button>
         </div>
       </DialogContent>
     </Dialog>

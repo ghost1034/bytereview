@@ -33,19 +33,19 @@ export function ExpenseApprovalsTab({ workspaceId }: Props) {
 
   return (
     <div className="space-y-3">
-      {standaloneExpenses.map((expense) => <div key={expense.id} className="tl-card flex items-center justify-between gap-3 p-4 shadow-sm"><div><p className="font-medium">{expense.description}</p><p className="font-mono text-sm">{formatMoney(expense.totalAmount ?? expense.amount)}</p></div><div className="flex gap-2"><Button size="sm" onClick={() => void runPsaAction('expenses', expense.id, 'approve', workspaceId)}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const rejection = window.prompt('Rejection reason'); if (rejection) void runPsaAction('expenses', expense.id, 'reject', workspaceId, { reason: rejection }) }}>Reject</Button></div></div>)}
+      {standaloneExpenses.map((expense) => <div key={expense.id} className="rounded-lg border border-border bg-card text-card-foreground flex items-center justify-between gap-3 p-4 shadow-sm"><div><p className="font-medium">{expense.description}</p><p className="font-mono text-sm">{formatMoney(expense.totalAmount ?? expense.amount)}</p></div><div className="flex gap-2"><Button size="sm" onClick={() => void runPsaAction('expenses', expense.id, 'approve', workspaceId)}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const rejection = window.prompt('Rejection reason'); if (rejection) void runPsaAction('expenses', expense.id, 'reject', workspaceId, { reason: rejection }) }}>Reject</Button></div></div>)}
       {reports.map((r) => (
-        <div key={r.id} className="tl-card p-4 shadow-sm">
+        <div key={r.id} className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm">
           <p className="font-medium">{r.name}</p>
           <p className="font-mono tabular-nums text-sm">{formatMoney(r.totalAmount)}</p>
           <div className="mt-2 flex gap-2">
-            <Button size="sm" className="tl-btn-primary border-0" onClick={() => void approve(r.id)}>Approve</Button>
+            <Button size="sm" className=" border-0" onClick={() => void approve(r.id)}>Approve</Button>
             <Button size="sm" variant="outline" onClick={() => setRejectId(r.id)}>Reject</Button>
             <Button size="sm" variant="ghost" asChild><Link href={`/dashboard/project-management/w/${workspaceId}/psa/expenses/reports/${r.id}`}>Review items</Link></Button>
           </div>
           {rejectId === r.id && (
             <div className="mt-2 flex gap-2">
-              <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" className="tl-input" />
+              <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason" className="rounded-md border border-input bg-background text-foreground" />
               <Button size="sm" variant="destructive" onClick={() => void reject(r.id)}>Confirm</Button>
             </div>
           )}

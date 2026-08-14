@@ -129,11 +129,11 @@ export function MemberTable({
 
   if (rows.length === 0) {
     return (
-      <div className="tl-card flex flex-col items-center gap-4 p-10 text-center shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center gap-4 p-10 text-center shadow-sm">
         <EmptyIllustration />
         <p className="font-medium">No teammates yet</p>
         <AdminOnlyWrap allowed={canManage}>
-          <Button className="tl-btn-primary gap-2" disabled={!canManage} onClick={() => setInviteOpen(true)}>
+          <Button className=" gap-2" disabled={!canManage} onClick={() => setInviteOpen(true)}>
             <UserPlus className="h-4 w-4" /> Invite teammates
           </Button>
         </AdminOnlyWrap>
@@ -159,7 +159,7 @@ export function MemberTable({
           placeholder="Search members…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="tl-input max-w-xs"
+          className="rounded-md border border-input bg-background text-foreground max-w-xs"
         />
         <Select value={roleFilter} onValueChange={setRoleFilter}>
           <SelectTrigger className="w-[130px]"><SelectValue placeholder="Role" /></SelectTrigger>
@@ -179,7 +179,7 @@ export function MemberTable({
         </Select>
         <div className="flex-1" />
         <AdminOnlyWrap allowed={canManage}>
-          <Button className="tl-btn-primary gap-2" disabled={!canManage} onClick={() => setInviteOpen(true)}>
+          <Button className=" gap-2" disabled={!canManage} onClick={() => setInviteOpen(true)}>
             <UserPlus className="h-4 w-4" /> Invite people
           </Button>
         </AdminOnlyWrap>
@@ -203,7 +203,7 @@ export function MemberTable({
         </div>
       )}
 
-      <div className="tl-card overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
             <TableRow style={{ background: 'hsl(var(--surface-muted))' }}>

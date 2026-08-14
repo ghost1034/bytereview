@@ -81,7 +81,7 @@ export function TemplatesPage() {
             {TEMPLATE_LIBRARY.length} curated templates across General, Business, Accounting, Law, Finance, Procurement, HR, and Corporate Dev.
           </p>
         </div>
-        <Button className="tl-btn-primary border-0" onClick={() => { setEditTemplate(undefined); setCreateOpen(true) }}>
+        <Button className=" border-0" onClick={() => { setEditTemplate(undefined); setCreateOpen(true) }}>
           Create template
         </Button>
       </div>

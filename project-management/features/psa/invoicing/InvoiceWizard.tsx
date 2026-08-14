@@ -6,8 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
+import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { buildInvoiceFromEntries } from '../../../lib/psa/invoiceActions'
 import { createFxQuote, generateInvoice } from '../../../lib/billing/actions'
 import { formatMoney } from '../../../lib/billing/formatMoney'
@@ -115,24 +114,24 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg">
         <DialogHeader><DialogTitle className="font-sans text-xl">Generate invoice — step {step}/5</DialogTitle></DialogHeader>
         {step === 1 && (
           <div className="grid gap-3 py-2">
             <Label>Client</Label>
             <Select value={clientId} onValueChange={setClientId}>
-              <SelectTrigger className="tl-input"><SelectValue placeholder="Select client" /></SelectTrigger>
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Select client" /></SelectTrigger>
               <SelectContent className="z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         )}
         {step === 2 && (
-          <div className="grid gap-3 py-2"><Label>Billing scope</Label><Select value={billingScope} onValueChange={setBillingScope}><SelectTrigger className="tl-input"><SelectValue /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="all">All open work for client</SelectItem>{matters.filter((matter) => matter.clientId === clientId).map((matter) => <SelectItem key={matter.id} value={`matter:${matter.id}`}>Matter {matter.matterNumber}</SelectItem>)}{projects.filter((project) => project.clientId === clientId && !matters.some((matter) => matter.projectId === project.id)).map((project) => <SelectItem key={project.id} value={`project:${project.id}`}>{project.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-3 py-2"><Label>Billing scope</Label><Select value={billingScope} onValueChange={setBillingScope}><SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="all">All open work for client</SelectItem>{matters.filter((matter) => matter.clientId === clientId).map((matter) => <SelectItem key={matter.id} value={`matter:${matter.id}`}>Matter {matter.matterNumber}</SelectItem>)}{projects.filter((project) => project.clientId === clientId && !matters.some((matter) => matter.projectId === project.id)).map((project) => <SelectItem key={project.id} value={`project:${project.id}`}>{project.name}</SelectItem>)}</SelectContent></Select></div>
         )}
         {step === 3 && (
           <div className="grid grid-cols-2 gap-3 py-2">
-            <div><Label>Period start</Label><Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className="tl-input" /></div>
-            <div><Label>Period end</Label><Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} className="tl-input" /></div>
+            <div><Label>Period start</Label><Input type="date" value={periodStart} onChange={(e) => setPeriodStart(e.target.value)} className="rounded-md border border-input bg-background text-foreground" /></div>
+            <div><Label>Period end</Label><Input type="date" value={periodEnd} onChange={(e) => setPeriodEnd(e.target.value)} className="rounded-md border border-input bg-background text-foreground" /></div>
           </div>
         )}
         {step === 4 && preview && (
@@ -140,9 +139,9 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
             {[...unbilledTime, ...unbilledExp].map((entry) => <div key={entry.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b pb-2"><input aria-label={`Include ${entry.description}`} type="checkbox" checked={!excludedIds.has(entry.id)} onChange={() => setExcludedIds((old) => { const next = new Set(old); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next })} /><Input aria-label={`Narrative ${entry.description}`} value={narratives[entry.id] ?? entry.description} onChange={(event) => setNarratives((old) => ({ ...old, [entry.id]: event.target.value }))} /><label className="text-xs"><input type="checkbox" checked={writeOffIds.has(entry.id)} onChange={() => setWriteOffIds((old) => { const next = new Set(old); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next })} /> Write off</label></div>)}
             <div className="flex justify-between border-t pt-2 font-medium"><span>Total</span><span className="font-mono tabular-nums">{formatMoney(preview.total ?? preview.amount)}</span></div>
             {writeOffIds.size > 0 && <Input aria-label="Write-off reason" placeholder="Write-off reason" value={writeOffReason} onChange={(event) => setWriteOffReason(event.target.value)} />}
-            <Input placeholder="Tax" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
-            <Input placeholder="Discount" value={discount} onChange={(e) => setDiscount(e.target.value)} className="tl-input font-mono tabular-nums" />
-            <Input placeholder="Discount reason" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} className="tl-input" />
+            <Input placeholder="Tax" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
+            <Input placeholder="Discount" value={discount} onChange={(e) => setDiscount(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
+            <Input placeholder="Discount reason" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
         )}
         {step === 5 && <div className="grid gap-3 py-2"><div><Label>Due date</Label><Input type="date" value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></div><div><Label>Invoice notes</Label><Input value={notes} onChange={(event) => setNotes(event.target.value)} /></div><p className="text-sm">Create a draft invoice. Submit and deliver it from the invoice detail page.</p></div>}
@@ -150,12 +149,12 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
         <DialogFooter>
           {step > 1 && <Button variant="ghost" onClick={() => setStep((s) => s - 1)}>Back</Button>}
           {step < 5 ? (
-            <Button className="tl-btn-primary border-0" disabled={step === 1 && !clientId} onClick={() => setStep((s) => s + 1)}>Next</Button>
+            <Button className=" border-0" disabled={step === 1 && !clientId} onClick={() => setStep((s) => s + 1)}>Next</Button>
           ) : (
-            <Button className="tl-btn-primary border-0" disabled={loading || !preview || (writeOffIds.size > 0 && !writeOffReason) || (Number(discount) > 0 && !discountReason)} onClick={() => void generate()}>Create invoice</Button>
+            <Button className=" border-0" disabled={loading || !preview || (writeOffIds.size > 0 && !writeOffReason) || (Number(discount) > 0 && !discountReason)} onClick={() => void generate()}>Create invoice</Button>
           )}
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

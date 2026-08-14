@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search } from 'lucide-react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '../../stores/auth'
 import { useGoalsStore, useProjectsStore, useTasksStore, useUsersStore } from '../../stores/entities'
@@ -156,6 +156,7 @@ export function CommandPalette() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent aria-describedby={undefined} className="max-w-[600px] gap-0 overflow-hidden p-0">
+        <DialogTitle className="sr-only">Search project management</DialogTitle>
         <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
           <Search className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           <input

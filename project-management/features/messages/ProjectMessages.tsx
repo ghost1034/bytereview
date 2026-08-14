@@ -81,12 +81,12 @@ export function ProjectMessages({ projectId, selectedMessageId, basePath }: Prop
   }
 
   return (
-    <div className="tl-card overflow-hidden shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
       <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
         <h2 className="font-sans text-lg">Project messages</h2>
         <Button
           size="sm"
-          className="tl-btn-primary border-0"
+          className=" border-0"
           onClick={() => {
             setEditMessage(null)
             setComposerOpen(true)

@@ -39,7 +39,7 @@ export function StepPickTemplates({ industries, selectedIds, onToggle, onBrowseA
               type="button"
               disabled={disabled}
               onClick={() => onToggle(t.id)}
-              className="tl-card flex items-start justify-between gap-3 p-3 text-left shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              className="rounded-lg border border-border bg-card text-card-foreground flex items-start justify-between gap-3 p-3 text-left shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               style={{ outline: selected ? '2px solid hsl(var(--ring))' : 'none' }}
             >
               <div>
@@ -57,7 +57,7 @@ export function StepPickTemplates({ industries, selectedIds, onToggle, onBrowseA
         <button
           type="button"
           onClick={() => onToggle('blank')}
-          className="tl-card p-3 text-left shadow-sm"
+          className="rounded-lg border border-border bg-card text-card-foreground p-3 text-left shadow-sm"
           style={{ outline: selectedIds.includes('blank') ? '2px solid hsl(var(--ring))' : 'none' }}
         >
           <p className="font-medium text-foreground">Start blank</p>

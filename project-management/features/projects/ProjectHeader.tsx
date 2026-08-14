@@ -121,7 +121,7 @@ export function ProjectHeader({
                 onChange={(e) => setName(e.target.value)}
                 onBlur={() => void saveName()}
                 onKeyDown={(e) => e.key === 'Enter' && void saveName()}
-                className="tl-input h-9 font-sans text-xl"
+                className="rounded-md border border-input bg-background text-foreground h-9 font-sans text-xl"
                 aria-label="Project name"
               />
             ) : (
@@ -194,7 +194,7 @@ export function ProjectHeader({
       <ApplyBundleDialog open={bundleOpen} onOpenChange={setBundleOpen} projectId={project.id} workspaceId={workspaceId} actorId={currentUserId} />
 
       <AlertDialog open={confirmArchive} onOpenChange={setConfirmArchive}>
-        <AlertDialogContent className="tl-dialog-mobile">
+        <AlertDialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle>Archive project?</AlertDialogTitle>
             <AlertDialogDescription>

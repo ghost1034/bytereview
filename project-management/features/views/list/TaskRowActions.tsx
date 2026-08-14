@@ -5,6 +5,7 @@
  */
 import { Copy, Diamond, ExternalLink, FolderInput, GripVertical, MoreHorizontal, ShieldCheck, Trash2 } from 'lucide-react'
 import {
+  DropdownMenuContent,
   DropdownMenu,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -13,7 +14,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { TasklyticDropdownMenuContent } from '../../ui/TasklyticDropdownMenuContent'
 import { Button } from '@/components/ui/button'
 import type { Section, Task } from '../../../types'
 import { deleteTask, duplicateTask, setSectionForProject, setSubtype } from '../../../lib/taskActions'
@@ -64,7 +64,7 @@ export function TaskRowActions({ task, projectId, sections, onOpen, dragListener
             <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
         </DropdownMenuTrigger>
-        <TasklyticDropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
           <DropdownMenuItem onClick={onOpen}>
             <ExternalLink className="mr-2 h-3.5 w-3.5" /> Open
           </DropdownMenuItem>
@@ -100,7 +100,7 @@ export function TaskRowActions({ task, projectId, sections, onOpen, dragListener
           <DropdownMenuItem className="text-destructive" onClick={() => void deleteTask(task.id, currentUserId ?? undefined)}>
             <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
           </DropdownMenuItem>
-        </TasklyticDropdownMenuContent>
+        </DropdownMenuContent>
       </DropdownMenu>
     </div>
   )

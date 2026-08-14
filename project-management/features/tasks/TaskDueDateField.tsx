@@ -121,7 +121,7 @@ export function TaskDueDateField({ task }: Props) {
               <Clock className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
               <Input
                 type="time"
-                className="tl-input h-8 w-28 text-sm"
+                className="rounded-md border border-input bg-background text-foreground h-8 w-28 text-sm"
                 defaultValue={timeFromISO(task.dueAt)}
                 onChange={(e) => {
                   if (!task.dueOn || !e.target.value) return

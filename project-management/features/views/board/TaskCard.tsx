@@ -75,7 +75,7 @@ export function TaskCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.45 : 1 }}
-      className={`tl-card mb-2 cursor-grab shadow-sm active:cursor-grabbing ${compact ? 'p-2' : 'p-3'}`}
+      className={`rounded-lg border border-border bg-card text-card-foreground mb-2 cursor-grab shadow-sm active:cursor-grabbing ${compact ? 'p-2' : 'p-3'}`}
       {...attributes}
       {...listeners}
     >

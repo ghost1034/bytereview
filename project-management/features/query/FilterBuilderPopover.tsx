@@ -5,15 +5,14 @@
  */
 import { Braces, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
-import { TasklyticPopoverContent } from '../ui/TasklyticPopoverContent'
+import { PopoverContent, Popover, PopoverTrigger } from '@/components/ui/popover'
 import {
+  SelectContent,
   Select,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { TasklyticSelectContent } from '../ui/TasklyticSelectContent'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import type { CustomField, Section, Tag, User } from '../../types'
@@ -98,7 +97,7 @@ export function FilterBuilderPopover({
   return (
     <Popover>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <TasklyticPopoverContent align="start" className="w-[520px] p-0">
+      <PopoverContent align="start" className="w-[520px] p-0">
         <div className="border-b px-3 py-2" style={{ borderColor: 'hsl(var(--border))' }}>
           <p className="text-xs font-medium" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Quick filters
@@ -153,7 +152,7 @@ export function FilterBuilderPopover({
             </Button>
           ) : null}
         </div>
-      </TasklyticPopoverContent>
+      </PopoverContent>
     </Popover>
   )
 }
@@ -176,10 +175,10 @@ function FilterGroupEditor({ group, root, fieldDefs, ctx, onUpdate, onRemove, on
         <Braces className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
         <Select value={group.operator} onValueChange={(operator) => onUpdate(group.id ?? '', (node) => isFilterGroup(node) ? { ...node, operator: operator as 'and' | 'or' } : node)}>
           <SelectTrigger className="h-7 w-24 text-xs" aria-label={root ? 'Root filter operator' : 'Filter group operator'}><SelectValue /></SelectTrigger>
-          <TasklyticSelectContent>
+          <SelectContent>
             <SelectItem value="and">All (AND)</SelectItem>
             <SelectItem value="or">Any (OR)</SelectItem>
-          </TasklyticSelectContent>
+          </SelectContent>
         </Select>
         <Button variant="ghost" size="sm" className="h-7 text-xs" aria-label="Add filter condition" onClick={() => onAddClause(group.id)}><Plus className="mr-1 h-3 w-3" />Condition</Button>
         <Button variant="ghost" size="sm" className="h-7 text-xs" aria-label="Add filter group" onClick={() => onAddGroup(group.id)}><Plus className="mr-1 h-3 w-3" />Group</Button>
@@ -205,11 +204,11 @@ function FilterClauseEditor({ clause, fieldDefs, ctx, onUpdate, onRemove }: Pick
         patch({ field, op: operatorsForField(def)[0], value: defaultValueForField(def) })
       }}>
         <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
-        <TasklyticSelectContent>{fieldDefs.map((field) => <SelectItem key={field.id} value={field.id}>{field.label}</SelectItem>)}</TasklyticSelectContent>
+        <SelectContent>{fieldDefs.map((field) => <SelectItem key={field.id} value={field.id}>{field.label}</SelectItem>)}</SelectContent>
       </Select>
       <Select value={clause.op} onValueChange={(op) => patch({ op: op as FilterClause['op'] })}>
         <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
-        <TasklyticSelectContent>{ops.map((op) => <SelectItem key={op} value={op}>{op.replace(/_/g, ' ')}</SelectItem>)}</TasklyticSelectContent>
+        <SelectContent>{ops.map((op) => <SelectItem key={op} value={op}>{op.replace(/_/g, ' ')}</SelectItem>)}</SelectContent>
       </Select>
       <FilterValueEditor clause={clause} fieldDef={fieldDef} ctx={ctx} onChange={(value) => patch({ value })} />
       <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Remove filter" onClick={() => onRemove(clause.id ?? '')}><Trash2 className="h-3.5 w-3.5" /></Button>

@@ -4,8 +4,7 @@
  * TaskCompleteCell — circle control for marking a task complete/incomplete.
  */
 import { Check } from 'lucide-react'
-import { Tooltip, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { TasklyticTooltipContent } from '../../ui/TasklyticTooltipContent'
+import { TooltipContent, Tooltip, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { Task } from '../../../types'
 import { toggleComplete } from '../../../lib/taskActions'
 import { useAuthStore } from '../../../stores/auth'
@@ -43,11 +42,11 @@ export function TaskCompleteCell({ task }: Props) {
             ) : null}
           </button>
         </TooltipTrigger>
-        <TasklyticTooltipContent side="top" className="max-w-xs">
+        <TooltipContent side="top" className="max-w-xs">
           {task.completed
             ? 'Mark incomplete. Use Undo in the toolbar if you completed this by mistake.'
             : 'Mark complete. Use Show completed in the toolbar if the row hides.'}
-        </TasklyticTooltipContent>
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )

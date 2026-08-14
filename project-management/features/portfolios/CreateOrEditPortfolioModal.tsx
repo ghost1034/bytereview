@@ -130,16 +130,16 @@ export function CreateOrEditPortfolioModal({ open, onOpenChange, workspaceId, po
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
             <Label htmlFor="portfolio-name">Name</Label>
-            <Input id="portfolio-name" value={name} onChange={(e) => setName(e.target.value)} className="tl-input" />
+            <Input id="portfolio-name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="portfolio-desc">Description</Label>
-            <Input id="portfolio-desc" value={description} onChange={(e) => setDescription(e.target.value)} className="tl-input" />
+            <Input id="portfolio-desc" value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-2">
               <Label htmlFor="portfolio-icon">Icon</Label>
-              <Input id="portfolio-icon" value={iconEmoji} onChange={(e) => setIconEmoji(e.target.value)} className="tl-input" />
+              <Input id="portfolio-icon" value={iconEmoji} onChange={(e) => setIconEmoji(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
             </div>
             <div className="grid gap-2">
               <Label>Color</Label>
@@ -149,7 +149,7 @@ export function CreateOrEditPortfolioModal({ open, onOpenChange, workspaceId, po
           <div className="grid gap-2">
             <Label>Owner</Label>
             <Select value={ownerId} onValueChange={setOwnerId}>
-              <SelectTrigger className="tl-input"><SelectValue placeholder="Select owner" /></SelectTrigger>
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Select owner" /></SelectTrigger>
               <SelectContent className="z-[100]">
                 {users.map((u) => (
                   <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
@@ -186,7 +186,7 @@ export function CreateOrEditPortfolioModal({ open, onOpenChange, workspaceId, po
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading || !name.trim()} onClick={() => void submit()}>
+          <Button className=" border-0" disabled={loading || !name.trim()} onClick={() => void submit()}>
             {editing ? 'Save changes' : 'Create portfolio'}
           </Button>
         </DialogFooter>

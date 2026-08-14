@@ -78,7 +78,7 @@ export function InboxPreviewPane({ workspaceId, notification }: Props) {
           </div>
         </div>
 
-        <div className="tl-card space-y-2 p-4 shadow-sm">
+        <div className="rounded-lg border border-border bg-card text-card-foreground space-y-2 p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {breadcrumb}
           </p>
@@ -110,7 +110,7 @@ export function InboxPreviewPane({ workspaceId, notification }: Props) {
 
         <div className="flex flex-wrap gap-2">
           <Button
-            className="tl-btn-primary"
+            className=""
             onClick={() => {
               if (notification.scope.type === 'task') {
                 router.push(`${href.split('/tasks/')[0]}/inbox?task=${notification.scope.id}`)

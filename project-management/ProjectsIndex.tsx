@@ -68,7 +68,7 @@ export function ProjectsIndex() {
     <div className="space-y-4" data-tour-page="projects">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-sans text-2xl">Projects</h1>
-        <Button className="tl-btn-primary border-0" size="sm" onClick={() => setCreateOpen(true)}>
+        <Button className=" border-0" size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> New project
         </Button>
       </div>
@@ -78,7 +78,7 @@ export function ProjectsIndex() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search projects…"
-          className="tl-input h-10 max-w-sm flex-1 px-3 text-sm"
+          className="rounded-md border border-input bg-background text-foreground h-10 max-w-sm flex-1 px-3 text-sm"
         />
         <Select value={teamFilter} onValueChange={setTeamFilter}>
           <SelectTrigger className="w-36"><SelectValue placeholder="Team" /></SelectTrigger>

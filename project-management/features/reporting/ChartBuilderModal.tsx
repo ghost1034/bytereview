@@ -182,7 +182,7 @@ export function ChartBuilderModal({
               <ChartVisualizationStep draft={draft} onChange={patch} />
             </TabsContent>
           </Tabs>
-          <div className="tl-card flex flex-col p-3 shadow-sm">
+          <div className="rounded-lg border border-border bg-card text-card-foreground flex flex-col p-3 shadow-sm">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Live preview
             </p>
@@ -195,7 +195,7 @@ export function ChartBuilderModal({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="tl-btn-primary border-0" onClick={save}>
+          <Button className=" border-0" onClick={save}>
             Save chart
           </Button>
         </DialogFooter>

@@ -152,11 +152,11 @@ export function InvitePeopleDialog({
         )}
         <DialogFooter>
           {results.length > 0 ? (
-            <Button className="tl-btn-primary" onClick={() => onOpenChange(false)}>Done</Button>
+            <Button className="" onClick={() => onOpenChange(false)}>Done</Button>
           ) : (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button className="tl-btn-primary" disabled={loading || !emailsRaw.trim()} onClick={() => void submit()}>
+              <Button className="" disabled={loading || !emailsRaw.trim()} onClick={() => void submit()}>
                 {loading ? 'Sending…' : 'Send invites'}
               </Button>
             </>

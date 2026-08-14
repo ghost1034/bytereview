@@ -71,7 +71,7 @@ export function TeamOverviewTab({ team, workspace, currentUser, workspaceId }: P
       </div>
 
       {!isMember && currentUser && (
-        <Button className="tl-btn-primary" onClick={() => void handleJoin()}>
+        <Button className="" onClick={() => void handleJoin()}>
           {team.privacy === 'public' ? 'Join team' : 'Request to join'}
         </Button>
       )}

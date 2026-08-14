@@ -29,7 +29,7 @@ export function TeamJoinRequestsPanel({ team, workspace, reviewerId }: Props) {
           <div key={req.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <span>{user?.name ?? req.userId} wants to join</span>
             <div className="flex gap-2">
-              <Button size="sm" className="tl-btn-primary" onClick={() => void approveTeamJoin(req.id, reviewerId, workspace)}>
+              <Button size="sm" className="" onClick={() => void approveTeamJoin(req.id, reviewerId, workspace)}>
                 Approve
               </Button>
               <Button size="sm" variant="outline" onClick={() => void rejectTeamJoin(req.id, reviewerId)}>

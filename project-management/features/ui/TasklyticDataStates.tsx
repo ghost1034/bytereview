@@ -22,7 +22,7 @@ function DataState({
 }: StateProps) {
   return (
     <section
-      className="tl-card flex min-h-40 flex-col items-center justify-center gap-2 px-6 py-8 text-center"
+      className="rounded-lg border border-border bg-card text-card-foreground flex min-h-40 flex-col items-center justify-center gap-2 px-6 py-8 text-center"
       role={role}
     >
       <h2 className="font-sans text-lg text-[hsl(var(--foreground))]">{title}</h2>
@@ -31,7 +31,7 @@ function DataState({
       ) : null}
       {children}
       {actionLabel && onAction ? (
-        <Button className="tl-btn-primary mt-2 border-0" onClick={onAction}>
+        <Button className=" mt-2 border-0" onClick={onAction}>
           {actionLabel}
         </Button>
       ) : null}

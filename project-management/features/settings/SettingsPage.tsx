@@ -87,7 +87,7 @@ export function SettingsPage() {
             <Link
               key={item.href}
               href={`${base}/${item.href}`}
-              className="tl-card group flex flex-col gap-2 p-4 shadow-sm transition-shadow hover:shadow-md"
+              className="rounded-lg border border-border bg-card text-card-foreground group flex flex-col gap-2 p-4 shadow-sm transition-shadow hover:shadow-md"
             >
               <span className="inline-flex items-center gap-2 font-medium group-hover:underline">
                 <Icon className="h-4 w-4" style={{ color: 'hsl(var(--primary))' }} strokeWidth={1.5} />
@@ -105,7 +105,7 @@ export function SettingsPage() {
 
       <OnboardingSettingsPanel />
 
-      <div className="tl-card flex items-start gap-3 p-4 shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground flex items-start gap-3 p-4 shadow-sm">
         <Settings2 className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'hsl(var(--foreground-muted))' }} strokeWidth={1.5} />
         <div>
           <p className="text-sm font-medium">Custom fields</p>

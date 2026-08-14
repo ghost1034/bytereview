@@ -5,8 +5,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
+import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { newId } from '../../../lib/ids'
 import { entryHours } from '../../../lib/psa/timeEntryUtils'
 import { utilizationPercent } from '../../../lib/billing/selectors'
@@ -68,16 +67,16 @@ export function TimesheetSubmitDialog(props: Props) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <TasklyticDialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm">
         <DialogHeader><DialogTitle className="font-sans text-xl">Submit timesheet</DialogTitle></DialogHeader>
         <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{props.periodStart} — {props.periodEnd}</p>
         <p className="font-mono tabular-nums text-sm">{total.toFixed(2)}h total · {billable.toFixed(2)}h billable</p>
-        <div className="grid gap-1"><Label>Notes (optional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} className="tl-input" /></div>
+        <div className="grid gap-1"><Label>Notes (optional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} className="rounded-md border border-input bg-background text-foreground" /></div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => props.onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading || props.entries.length === 0} onClick={() => void submit()}>Submit week</Button>
+          <Button className=" border-0" disabled={loading || props.entries.length === 0} onClick={() => void submit()}>Submit week</Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

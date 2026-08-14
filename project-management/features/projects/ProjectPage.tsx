@@ -131,7 +131,7 @@ export function ProjectPage({ projectId, routeView }: Props) {
         <Button variant="outline" size="sm" onClick={() => setCommandOpen(true)}>
           <Search className="mr-1 h-4 w-4" /> Search
         </Button>
-        <Button size="sm" className="tl-btn-primary border-0" disabled={!canEdit} onClick={() => setQuickAddOpen(true)}>
+        <Button size="sm" className=" border-0" disabled={!canEdit} onClick={() => setQuickAddOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> Add task
         </Button>
       </div>

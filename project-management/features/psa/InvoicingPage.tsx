@@ -43,9 +43,9 @@ export function InvoicingPage() {
           <h1 className="font-sans text-2xl">Invoicing</h1>
           <p className="text-sm font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{Object.entries(outstanding).map(([currency, amount]) => formatMoney(amount, currency)).join(' + ') || formatMoney(0, workspace?.defaultCurrency)} outstanding · {invoices.length} invoices</p>
         </div>
-        {canBill && <Button className="tl-btn-primary border-0" size="sm" onClick={() => setWizardOpen(true)}><Plus className="mr-1 h-4 w-4" /> Generate invoice</Button>}
+        {canBill && <Button className=" border-0" size="sm" onClick={() => setWizardOpen(true)}><Plus className="mr-1 h-4 w-4" /> Generate invoice</Button>}
       </div>
-      <div className="tl-card overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Invoice #</th><th className="px-4 py-2">Client</th><th className="px-4 py-2">Status</th>

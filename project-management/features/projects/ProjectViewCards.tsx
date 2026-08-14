@@ -68,7 +68,7 @@ export function ProjectViewCards({ defaultView, enabledViews, onDefaultChange, o
         return (
           <div
             key={view}
-            className="tl-card p-3 shadow-sm"
+            className="rounded-lg border border-border bg-card text-card-foreground p-3 shadow-sm"
             style={{ opacity: enabled ? 1 : 0.55 }}
           >
             <button

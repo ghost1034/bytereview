@@ -72,7 +72,7 @@ export function TaskAssigneeField({ task }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or email…"
-            className="tl-input h-8 text-sm"
+            className="rounded-md border border-input bg-background text-foreground h-8 text-sm"
             autoFocus
           />
           {currentUserId ? (

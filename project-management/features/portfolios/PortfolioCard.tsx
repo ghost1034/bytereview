@@ -32,7 +32,7 @@ export function PortfolioCard({ portfolio, workspaceId }: Props) {
 
   return (
     <Link href={href} className="block">
-      <article className="tl-card p-4 shadow-sm transition-shadow hover:shadow-md">
+      <article className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm transition-shadow hover:shadow-md">
         <div className="flex items-start justify-between gap-3">
           <div
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-lg"

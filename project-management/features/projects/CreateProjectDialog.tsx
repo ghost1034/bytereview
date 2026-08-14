@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
+  DialogContent,
   Dialog,
   DialogDescription,
   DialogFooter,
@@ -18,7 +19,6 @@ import { createProject } from '../../lib/projectActions'
 import type { ProjectView } from '../../types'
 import { useAuthStore } from '../../stores/auth'
 import { useTeamsStore, useTemplatesStore } from '../../stores/entities'
-import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import {
   CreateProjectChooseStep,
   CreateProjectDetailsStep,
@@ -96,7 +96,7 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-sans text-xl">
             Create project {step > 1 ? `(step ${step} of 3)` : ''}
@@ -148,19 +148,19 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: Props) 
           )}
           {step < 3 ? (
             <Button
-              className="tl-btn-primary border-0"
+              className=" border-0"
               disabled={step === 2 && !canNext}
               onClick={() => setStep((s) => s + 1)}
             >
               Continue
             </Button>
           ) : (
-            <Button className="tl-btn-primary border-0" disabled={loading || !name.trim()} onClick={() => void submit()}>
+            <Button className=" border-0" disabled={loading || !name.trim()} onClick={() => void submit()}>
               Create project
             </Button>
           )}
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

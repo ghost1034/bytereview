@@ -60,11 +60,11 @@ export function ExpenseReportPanel({ workspaceId, userId, expenses }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="tl-card p-4 shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm">
         <h3 className="mb-2 font-medium">Create report from selection</h3>
         <div className="flex gap-2">
-          <Input placeholder="Report name" value={name} onChange={(e) => setName(e.target.value)} className="tl-input" />
-          <Button className="tl-btn-primary border-0" disabled={selected.size === 0} onClick={() => void createReport()}>Create</Button>
+          <Input placeholder="Report name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
+          <Button className=" border-0" disabled={selected.size === 0} onClick={() => void createReport()}>Create</Button>
         </div>
         <div className="mt-3 max-h-48 space-y-1 overflow-y-auto">
           {expenses.filter((e) => !e.expenseReportId).map((e) => (
@@ -78,7 +78,7 @@ export function ExpenseReportPanel({ workspaceId, userId, expenses }: Props) {
       </div>
       <div className="space-y-2">
         {reports.map((r) => (
-          <div key={r.id} className="tl-card flex items-center justify-between p-3 shadow-sm">
+          <div key={r.id} className="rounded-lg border border-border bg-card text-card-foreground flex items-center justify-between p-3 shadow-sm">
             <div>
               <Link className="font-medium hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/expenses/reports/${r.id}`}>{r.name}</Link>
               <p className="text-sm font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{formatMoney(r.totalAmount)} · reimb {formatMoney(r.reimbursableAmount)}</p>

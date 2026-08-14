@@ -62,7 +62,7 @@ export function MyTasksSummary({ workspaceId }: Props) {
   }
 
   return (
-    <section className="tl-card p-4 shadow-sm">
+    <section className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="font-sans text-lg">My Tasks</h2>
         <Button variant="link" size="sm" asChild className="h-auto p-0 text-xs">

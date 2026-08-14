@@ -56,7 +56,7 @@ export function TimelineToolbarExtras({
       {hasBaseline ? (
         <>
           <div className="flex items-center gap-2">
-            <Switch id="show-bl" className="tl-switch" checked={showBaseline} onCheckedChange={onShowBaseline} />
+            <Switch id="show-bl" className="" checked={showBaseline} onCheckedChange={onShowBaseline} />
             <Label htmlFor="show-bl" className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Show baseline
             </Label>

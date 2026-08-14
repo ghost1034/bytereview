@@ -66,7 +66,7 @@ export function EmojiPicker({ value, onChange, size = 'md' }: Props) {
         placeholder="Search emojis…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        className="tl-input h-8 text-sm"
+        className="rounded-md border border-input bg-background text-foreground h-8 text-sm"
       />
       <div className={`flex flex-wrap gap-2 ${size === 'sm' ? 'max-w-xs' : ''}`}>
         {filtered.map((emoji) => (

@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { StepIndicator } from '@/components/ui/step-indicator'
 import { track } from '../../lib/analytics/track'
@@ -18,7 +18,6 @@ import { rehydrateWorkspaceStores } from '../../stores/hydrate'
 import { useAuthStore, useUiStore } from '../../stores/auth'
 import { useUsersStore, useWorkspacesStore } from '../../stores/entities'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
-import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import { completeOnboarding } from './completeOnboarding'
 import {
   MAX_INDUSTRY_SELECTIONS,
@@ -271,7 +270,7 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-2xl bg-background">
+      <DialogContent className="max-w-2xl bg-background">
         <DialogHeader>
           <DialogTitle className="font-sans text-xl">{STEP_LABELS[step]}</DialogTitle>
           <Progress value={progress} className="mt-2 h-1" />
@@ -399,7 +398,7 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
           </DialogFooter>
         ) : null}
         </div>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

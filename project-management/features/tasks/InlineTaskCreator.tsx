@@ -55,7 +55,7 @@ export function InlineTaskCreator({
       value={name}
       onChange={(e) => setName(e.target.value)}
       placeholder={placeholder}
-      className="tl-input h-8 border-dashed text-sm shadow-none"
+      className="rounded-md border border-input bg-background text-foreground h-8 border-dashed text-sm shadow-none"
       disabled={busy}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {

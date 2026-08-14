@@ -34,18 +34,18 @@ export function FormsPage() {
     <div className="space-y-4" data-tour-page="forms">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-sans text-2xl">Forms</h1>
-        <Button className="tl-btn-primary gap-2 border-0" onClick={() => setCreateOpen(true)} disabled={!projects.length}>
+        <Button className=" gap-2 border-0" onClick={() => setCreateOpen(true)} disabled={!projects.length}>
           <Plus className="h-4 w-4" />
           New form
         </Button>
       </div>
 
       {projects.length === 0 ? (
-        <div className="tl-card p-8 text-center shadow-sm">
+        <div className="rounded-lg border border-border bg-card text-card-foreground p-8 text-center shadow-sm">
           <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Create a project first to add forms.</p>
         </div>
       ) : forms.length === 0 ? (
-        <div className="tl-card p-8 text-center shadow-sm">
+        <div className="rounded-lg border border-border bg-card text-card-foreground p-8 text-center shadow-sm">
           <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             No forms yet. Create one to collect structured task requests.
           </p>

@@ -42,7 +42,7 @@ export function EvaluationTenantsPanel() {
   }
 
   return (
-    <div className="tl-card space-y-4 p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground space-y-4 p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-sans text-lg">Evaluation tenants</h2>
@@ -147,13 +147,13 @@ export function EvaluationTenantsPanel() {
           <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Type <strong>reset {confirmTenant?.name}</strong> to wipe and re-provision this fixture.
           </p>
-          <Input value={confirmPhrase} onChange={(e) => setConfirmPhrase(e.target.value)} className="tl-input" />
+          <Input value={confirmPhrase} onChange={(e) => setConfirmPhrase(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setConfirmTenant(null)}>
               Cancel
             </Button>
             <Button
-              className="tl-btn-primary border-0"
+              className=" border-0"
               disabled={confirmPhrase !== `reset ${confirmTenant?.name}` || !confirmTenant}
               onClick={() => confirmTenant && void resetTenant(confirmTenant.id)}
             >

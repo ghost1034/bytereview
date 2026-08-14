@@ -19,7 +19,7 @@ export function TemplateFilters({ category, search, onCategoryChange, onSearchCh
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
         placeholder="Search templates…"
-        className="tl-input max-w-md"
+        className="rounded-md border border-input bg-background text-foreground max-w-md"
       />
       <div className="flex flex-wrap gap-2">
         {(['all', ...TEMPLATE_CATEGORIES] as const).map((cat) => (

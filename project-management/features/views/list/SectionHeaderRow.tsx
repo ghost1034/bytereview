@@ -9,12 +9,12 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  DropdownMenuContent,
   DropdownMenu,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { TasklyticDropdownMenuContent } from '../../ui/TasklyticDropdownMenuContent'
 import type { Section } from '../../../types'
 import {
   deleteProjectSection,
@@ -121,7 +121,7 @@ export function SectionHeaderRow({
         <span className="w-6" />
       )}
       <Checkbox
-        className="tl-checkbox"
+        className=""
         checked={checkState}
         onClick={(e) => {
           e.stopPropagation()
@@ -175,7 +175,7 @@ export function SectionHeaderRow({
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <TasklyticDropdownMenuContent align="end">
+          <DropdownMenuContent align="end">
             {taskCount === 0 ? (
               <DropdownMenuItem className="text-destructive" onClick={() => void deleteProjectSection(section.id)}>
                 Delete empty section
@@ -191,7 +191,7 @@ export function SectionHeaderRow({
             <DropdownMenuItem onClick={() => void moveSection('down')}>Move down</DropdownMenuItem>
             <DropdownMenuItem onClick={() => void moveSection('top')}>Move to top</DropdownMenuItem>
             <DropdownMenuItem onClick={() => void moveSection('bottom')}>Move to bottom</DropdownMenuItem>
-          </TasklyticDropdownMenuContent>
+          </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
     </div>

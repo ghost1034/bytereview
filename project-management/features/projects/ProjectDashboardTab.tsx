@@ -68,7 +68,7 @@ export function ProjectDashboardTab({ project, basePath }: Props) {
   }
 
   return (
-    <div className="tl-card flex flex-col items-center gap-3 p-10 text-center shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center gap-3 p-10 text-center shadow-sm">
       <BarChart3 className="h-9 w-9" style={{ color: 'hsl(var(--foreground-subtle))' }} />
       <div>
         <p className="font-sans text-lg">Build a project dashboard</p>
@@ -76,7 +76,7 @@ export function ProjectDashboardTab({ project, basePath }: Props) {
           Charts created here stay attached to {project.name}.
         </p>
       </div>
-      <Button className="tl-btn-primary border-0" onClick={() => void createDashboard()}>
+      <Button className=" border-0" onClick={() => void createDashboard()}>
         <Plus className="mr-1 h-4 w-4" /> Create dashboard
       </Button>
     </div>

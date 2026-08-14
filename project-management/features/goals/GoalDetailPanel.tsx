@@ -40,7 +40,7 @@ export function GoalDetailPanel({ goal, workspaceId, currentUserId, onClose }: P
 
   return (
     <aside
-      className="tl-card fixed right-4 top-20 z-40 flex h-[calc(100vh-6rem)] w-full max-w-md flex-col overflow-hidden shadow-lg"
+      className="rounded-lg border border-border bg-card text-card-foreground fixed right-4 top-20 z-40 flex h-[calc(100vh-6rem)] w-full max-w-md flex-col overflow-hidden shadow-lg"
      
     >
       <div className="flex items-start justify-between border-b p-4" style={{ borderColor: 'hsl(var(--border))' }}>

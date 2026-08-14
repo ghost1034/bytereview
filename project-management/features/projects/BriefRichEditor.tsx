@@ -77,7 +77,7 @@ export function BriefRichEditor({ html, onChange, placeholder, ariaLabel }: Prop
         contentEditable
         aria-label={ariaLabel}
         suppressContentEditableWarning
-        className="min-h-28 rounded-lg border p-3 text-sm outline-none tl-input"
+        className="min-h-28 rounded-lg border p-3 text-sm outline-none rounded-md border border-input bg-background text-foreground"
         style={{ color: 'hsl(var(--foreground))' }}
         data-placeholder={placeholder}
         dangerouslySetInnerHTML={{ __html: html || '' }}

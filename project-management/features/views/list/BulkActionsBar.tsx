@@ -7,8 +7,7 @@ import { useState } from 'react'
 import { addDays, startOfToday } from 'date-fns'
 import { CalendarIcon, Check, FolderInput, FolderPlus, Trash2, UserPlus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
-import { TasklyticPopoverContent } from '../../ui/TasklyticPopoverContent'
+import { PopoverContent, Popover, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import {
   assign,
@@ -178,7 +177,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
             <UserPlus className="mr-1 h-4 w-4" /> Assign to…
           </Button>
         </PopoverTrigger>
-        <TasklyticPopoverContent className="w-52 p-2">
+        <PopoverContent className="w-52 p-2">
           <ul className="max-h-48 overflow-y-auto">
             {users.map((u) => (
               <li key={u.id}>
@@ -189,7 +188,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
               </li>
             ))}
           </ul>
-        </TasklyticPopoverContent>
+        </PopoverContent>
       </Popover>
       <Popover open={dueOpen} onOpenChange={setDueOpen}>
         <PopoverTrigger asChild>
@@ -197,14 +196,14 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
             <CalendarIcon className="mr-1 h-4 w-4" /> Set due date…
           </Button>
         </PopoverTrigger>
-        <TasklyticPopoverContent className="w-fit p-2">
+        <PopoverContent className="w-fit p-2">
           <div className="mb-2 flex gap-1">
             <Button size="sm" variant="ghost" onClick={() => void bulkDue(toISODate(startOfToday()))}>Today</Button>
             <Button size="sm" variant="ghost" onClick={() => void bulkDue(toISODate(addDays(startOfToday(), 7)))}>+1 week</Button>
             <Button size="sm" variant="ghost" onClick={() => void bulkDue(null)}>Clear</Button>
           </div>
           <Calendar mode="single" onSelect={(d) => d && void bulkDue(toISODate(d))} />
-        </TasklyticPopoverContent>
+        </PopoverContent>
       </Popover>
       <Popover open={sectionOpen} onOpenChange={setSectionOpen}>
         <PopoverTrigger asChild>
@@ -212,7 +211,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
             <FolderInput className="mr-1 h-4 w-4" /> Move to section…
           </Button>
         </PopoverTrigger>
-        <TasklyticPopoverContent className="z-[100] w-52 p-2">
+        <PopoverContent className="z-[100] w-52 p-2">
           <ul className="max-h-48 overflow-y-auto">
             {sections.map((s) => (
               <li key={s.id}>
@@ -226,7 +225,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
               </li>
             ))}
           </ul>
-        </TasklyticPopoverContent>
+        </PopoverContent>
       </Popover>
       <Popover open={projectOpen} onOpenChange={setProjectOpen}>
         <PopoverTrigger asChild>
@@ -234,7 +233,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
             <FolderPlus className="mr-1 h-4 w-4" /> Add to project…
           </Button>
         </PopoverTrigger>
-        <TasklyticPopoverContent className="w-52 p-2">
+        <PopoverContent className="w-52 p-2">
           <ul className="max-h-48 overflow-y-auto">
             {projects.filter((p) => p.id !== currentProjectId).map((p) => (
               <li key={p.id}>
@@ -244,7 +243,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
               </li>
             ))}
           </ul>
-        </TasklyticPopoverContent>
+        </PopoverContent>
       </Popover>
       <Button size="sm" variant="destructive" onClick={() => void bulkDelete()}>
         <Trash2 className="mr-1 h-4 w-4" /> Delete

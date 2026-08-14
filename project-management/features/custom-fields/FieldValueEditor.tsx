@@ -2,8 +2,7 @@
 
 /** FieldValueEditor — popover-based inline editors per custom field type. */
 import { useState } from 'react'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
-import { TasklyticPopoverContent } from '../ui/TasklyticPopoverContent'
+import { PopoverContent, Popover, PopoverTrigger } from '@/components/ui/popover'
 import type { CustomField, CustomFieldValue, Task } from '../../types'
 import { useAuthStore } from '../../stores/auth'
 import { useUsersStore } from '../../stores/entities'
@@ -52,13 +51,13 @@ export function FieldValueEditor({ task, field, allFields, compact, className }:
           <FieldValueCell field={field} value={value} users={users} className={className} />
         </button>
       </PopoverTrigger>
-      <TasklyticPopoverContent
+      <PopoverContent
         className="w-64 p-2"
         align="start"
         onClick={(e) => e.stopPropagation()}
       >
         <FieldEditorBody field={field} value={value} users={users} onSave={(v) => void save(v)} />
-      </TasklyticPopoverContent>
+      </PopoverContent>
     </Popover>
   )
 }

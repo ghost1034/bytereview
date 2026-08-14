@@ -102,7 +102,7 @@ export function ActionEditor({
         <Input
           type="number"
           min={0}
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
           value={action.days}
           onChange={(e) => onChange({ ...action, days: Number(e.target.value) || 0 })}
         />
@@ -144,7 +144,7 @@ export function ActionEditor({
             </SelectContent>
           </Select>
           <Input
-            className="tl-input"
+            className="rounded-md border border-input bg-background text-foreground"
             value={String(action.value ?? '')}
             onChange={(e) => onChange({ ...action, value: e.target.value })}
             placeholder="Value"
@@ -175,7 +175,7 @@ export function ActionEditor({
             </SelectContent>
           </Select>
           <Input
-            className="tl-input"
+            className="rounded-md border border-input bg-background text-foreground"
             value={action.message}
             onChange={(e) => onChange({ ...action, message: e.target.value })}
             placeholder="Message (supports {{taskName}})"
@@ -186,7 +186,7 @@ export function ActionEditor({
       {action.type === 'create_subtask' && (
         <div className="grid gap-1">
           <Input
-            className="tl-input"
+            className="rounded-md border border-input bg-background text-foreground"
             value={action.templateName}
             onChange={(e) => onChange({ ...action, templateName: e.target.value })}
           />

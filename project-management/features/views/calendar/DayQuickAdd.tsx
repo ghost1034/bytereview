@@ -44,7 +44,7 @@ export function DayQuickAdd({ workspaceId, projectId, dueOn, onDone }: Props) {
       value={name}
       onChange={(e) => setName(e.target.value)}
       placeholder="Task name…"
-      className="tl-input h-7 border-dashed text-xs shadow-none"
+      className="rounded-md border border-input bg-background text-foreground h-7 border-dashed text-xs shadow-none"
       disabled={busy}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {

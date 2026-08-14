@@ -49,7 +49,7 @@ export function ProjectMembersSettings({ project }: { project: Project }) {
             <UserAvatar userId={member.id} size="sm" />
             <span className="min-w-32 flex-1 truncate text-sm font-medium">{member.name}</span>
             <Input
-              className="tl-input h-8 w-40 text-sm"
+              className="rounded-md border border-input bg-background text-foreground h-8 w-40 text-sm"
               defaultValue={project.memberRoles?.[member.id] ?? (member.id === project.ownerId ? 'Project lead' : 'Member')}
               aria-label={`${member.name} project role`}
               onBlur={(event) => void updateRole(member.id, event.target.value)}

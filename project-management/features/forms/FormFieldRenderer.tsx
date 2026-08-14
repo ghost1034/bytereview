@@ -64,7 +64,7 @@ function renderControl(
           placeholder={field.placeholder}
           required={field.required}
           disabled={readOnly}
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
         />
       )
     case 'long_text':
@@ -77,7 +77,7 @@ function renderControl(
           required={field.required}
           disabled={readOnly}
           rows={4}
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
         />
       )
     case 'number':
@@ -89,7 +89,7 @@ function renderControl(
           onChange={(e) => onChange(e.target.value === '' ? '' : Number(e.target.value))}
           required={field.required}
           disabled={readOnly}
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
         />
       )
     case 'date':
@@ -101,7 +101,7 @@ function renderControl(
           onChange={(e) => onChange(e.target.value)}
           required={field.required}
           disabled={readOnly}
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
         />
       )
     case 'dropdown':
@@ -111,7 +111,7 @@ function renderControl(
           onValueChange={onChange}
           disabled={readOnly}
         >
-          <SelectTrigger className="tl-input">
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground">
             <SelectValue placeholder="Select an option" />
           </SelectTrigger>
           <SelectContent className="z-[100]">

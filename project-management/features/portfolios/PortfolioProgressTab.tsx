@@ -48,7 +48,7 @@ export function PortfolioProgressTab({ portfolio, currentUserId }: Props) {
 
   return (
     <div className="space-y-6">
-      <section className="tl-card p-5 shadow-sm">
+      <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="font-sans text-lg">Portfolio health</h2>
@@ -90,7 +90,7 @@ export function PortfolioProgressTab({ portfolio, currentUserId }: Props) {
       </section>
 
       {goalRows.length > 0 && (
-        <section className="tl-card p-5 shadow-sm">
+        <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
           <h3 className="font-sans text-lg">Linked goals</h3>
           <ul className="mt-4 space-y-3">
             {goalRows.map(({ goal, pct }) => (
@@ -113,19 +113,19 @@ export function PortfolioProgressTab({ portfolio, currentUserId }: Props) {
         </section>
       )}
 
-      <section className="tl-card p-5 shadow-sm">
+      <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
         <h2 className="font-sans text-lg">Status updates</h2>
         <div className="mt-4"><PortfolioStatusComposer portfolio={portfolio} currentUserId={currentUserId} /></div>
       </section>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="tl-card p-5 shadow-sm">
+        <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
           <h3 className="font-medium">Projects by status</h3>
           {donutData.length ? <PortfolioDonutChart data={donutData} /> : (
             <p className="mt-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Add projects to see distribution.</p>
           )}
         </section>
-        <section className="tl-card p-5 shadow-sm">
+        <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
           <h3 className="font-medium">Tasks completed over time</h3>
           <PortfolioLineChart data={lineData} />
         </section>

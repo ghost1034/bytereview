@@ -26,7 +26,7 @@ export function WorkspaceBillingTab({ workspace, currentUser }: Props) {
         <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Plan and seat usage for {workspace.name}</p>
       </div>
 
-      <div className="tl-card space-y-4 p-5 shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground space-y-4 p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="font-sans text-lg capitalize">{plan.tier} plan</span>
           <Badge variant="secondary">{seatsUsed} / {plan.seatLimit} seats</Badge>
@@ -44,7 +44,7 @@ export function WorkspaceBillingTab({ workspace, currentUser }: Props) {
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button className="tl-btn-primary" disabled={!currentUser} onClick={() => setUpgradeOpen(true)}>
+          <Button className="" disabled={!currentUser} onClick={() => setUpgradeOpen(true)}>
             Upgrade plan
           </Button>
           <Button variant="outline" disabled={!currentUser} onClick={() => setManageOpen(true)}>

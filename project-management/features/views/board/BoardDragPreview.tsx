@@ -18,7 +18,7 @@ export function BoardDragPreview({ task, tags, density }: Props) {
   const dueStyle = dueChipStyle(task.dueOn)
 
   return (
-    <div className={`tl-card shadow-md ${compact ? 'p-2' : 'p-3'}`}>
+    <div className={`rounded-lg border border-border bg-card text-card-foreground shadow-md ${compact ? 'p-2' : 'p-3'}`}>
       {cover ? (
         <div className="-mx-3 -mt-3 mb-2 h-1 rounded-t-xl" style={{ background: cover }} />
       ) : null}

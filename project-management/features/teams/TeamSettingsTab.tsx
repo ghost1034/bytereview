@@ -96,7 +96,7 @@ export function TeamSettingsTab({ team, workspace, currentUser }: Props) {
           </Select>
         </div>
         <AdminOnlyWrap allowed={canEdit}>
-          <Button className="tl-btn-primary w-fit" disabled={!canEdit || saving} onClick={() => void save()}>
+          <Button className=" w-fit" disabled={!canEdit || saving} onClick={() => void save()}>
             {saving ? 'Saving…' : 'Save changes'}
           </Button>
         </AdminOnlyWrap>

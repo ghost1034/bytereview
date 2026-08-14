@@ -86,7 +86,7 @@ export function TasklyticHome() {
         <p className="mt-2 max-w-prose text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {workspace?.name ?? 'Your workspace'} — projects, tasks, and goals in one calm place.
         </p>
-        <Button className="tl-btn-primary mt-4 border-0" onClick={() => setCreateOpen(true)}>
+        <Button className=" mt-4 border-0" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> New project
         </Button>
       </div>

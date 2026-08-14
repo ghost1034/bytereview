@@ -93,7 +93,7 @@ export function CreateDashboardDialog({ open, onOpenChange, workspaceId, onCreat
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button className="tl-btn-primary border-0" disabled={!name.trim() || loading} onClick={() => void submit()}>
+          <Button className=" border-0" disabled={!name.trim() || loading} onClick={() => void submit()}>
             Create
           </Button>
         </DialogFooter>

@@ -80,7 +80,7 @@ export function TestRuleDialog({ rule, open, onOpenChange }: Props) {
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Close</Button>
-          <Button className="tl-btn-primary gap-2 border-0" disabled={!taskId && !tasks[0]} onClick={run}>
+          <Button className=" gap-2 border-0" disabled={!taskId && !tasks[0]} onClick={run}>
             <Play className="h-4 w-4" /> Run test
           </Button>
         </DialogFooter>

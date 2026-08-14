@@ -42,7 +42,7 @@ export function WorkspaceResetPanel() {
   }
 
   return (
-    <div className="tl-card space-y-3 border p-4 shadow-sm" style={{ borderColor: 'hsl(var(--destructive))' }}>
+    <div className="rounded-lg border border-border bg-card text-card-foreground space-y-3 border p-4 shadow-sm" style={{ borderColor: 'hsl(var(--destructive))' }}>
       <h2 className="font-medium" style={{ color: 'hsl(var(--destructive))' }}>
         Reset workspace content
       </h2>
@@ -68,7 +68,7 @@ export function WorkspaceResetPanel() {
           <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Type <strong>{confirmText}</strong> to confirm.
           </p>
-          <Input value={phrase} onChange={(e) => setPhrase(e.target.value)} className="tl-input" />
+          <Input value={phrase} onChange={(e) => setPhrase(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>
               Cancel

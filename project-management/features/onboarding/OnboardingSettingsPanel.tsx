@@ -55,7 +55,7 @@ export function OnboardingSettingsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="tl-card space-y-4 p-4 shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground space-y-4 p-4 shadow-sm">
         <div>
           <h2 className="font-sans text-lg">Setup wizard</h2>
           <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
@@ -72,7 +72,7 @@ export function OnboardingSettingsPanel() {
         </Button>
       </div>
 
-      <div className="tl-card space-y-4 p-4 shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground space-y-4 p-4 shadow-sm">
         <div>
           <h2 className="font-sans text-lg">Starter templates</h2>
           <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
@@ -95,7 +95,7 @@ export function OnboardingSettingsPanel() {
           </button>
         ))}
       </div>
-      <Button className="tl-btn-primary border-0" disabled={!selected || busy} onClick={() => void addProject()}>
+      <Button className=" border-0" disabled={!selected || busy} onClick={() => void addProject()}>
         Add starter project
       </Button>
       {message ? (

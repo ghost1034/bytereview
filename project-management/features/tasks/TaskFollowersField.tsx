@@ -84,7 +84,7 @@ export function TaskFollowersField({ task }: Props) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search people…"
-              className="tl-input h-8 text-sm"
+              className="rounded-md border border-input bg-background text-foreground h-8 text-sm"
               autoFocus
             />
             <ul className="mt-2 max-h-36 overflow-y-auto">

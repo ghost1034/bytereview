@@ -37,10 +37,10 @@ export function MessageCommentComposer({ messageId, authorId, workspaceUsers, on
         ref={ref}
         contentEditable
         suppressContentEditableWarning
-        className="min-h-14 rounded-lg border px-3 py-2 text-sm outline-none tl-input"
+        className="min-h-14 rounded-lg border px-3 py-2 text-sm outline-none rounded-md border border-input bg-background text-foreground"
         data-placeholder="Add a comment… (@ to mention)"
       />
-      <Button size="sm" className="tl-btn-primary border-0" onClick={() => void submit()}>
+      <Button size="sm" className=" border-0" onClick={() => void submit()}>
         Post comment
       </Button>
     </div>

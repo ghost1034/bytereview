@@ -148,7 +148,7 @@ export function RuleEditor({
         <div className="grid gap-5 py-2">
           <div className="grid gap-2">
             <Label htmlFor="rule-name">Name</Label>
-            <Input id="rule-name" className="tl-input" value={name} onChange={(e) => setName(e.target.value)} />
+            <Input id="rule-name" className="rounded-md border border-input bg-background text-foreground" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="grid gap-2">
             <Label>Project</Label>
@@ -188,7 +188,7 @@ export function RuleEditor({
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading || !name.trim() || !actions.length} onClick={() => void save()}>
+          <Button className=" border-0" disabled={loading || !name.trim() || !actions.length} onClick={() => void save()}>
             Save rule
           </Button>
         </DialogFooter>

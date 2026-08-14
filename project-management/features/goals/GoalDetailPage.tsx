@@ -61,7 +61,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
 
   if (!goal || goal.workspaceId !== workspaceId) {
     return (
-      <div className="tl-card p-8 text-center">
+      <div className="rounded-lg border border-border bg-card text-card-foreground p-8 text-center">
         <p style={{ color: 'hsl(var(--foreground-muted))' }}>Goal not found.</p>
         <Link href={`/dashboard/project-management/w/${workspaceId}/goals`} className="mt-2 inline-block text-sm underline">
           Back to goals
@@ -77,7 +77,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="tl-card flex flex-wrap items-start gap-6 p-6 shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground flex flex-wrap items-start gap-6 p-6 shadow-sm">
         <GoalProgressRing percent={percent} status={goal.status} />
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-2">

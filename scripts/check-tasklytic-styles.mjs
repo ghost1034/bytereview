@@ -57,6 +57,14 @@ const checks = [
     pattern: /\btl-(?:dialog|popover)-surface\b/g,
   },
   {
+    label: 'legacy Tasklytic compatibility class',
+    pattern: /\btl-(?:btn-primary|card|input|checkbox|switch|shimmer|card-hover|dialog-mobile|rich-editor)\b/g,
+  },
+  {
+    label: 'legacy Tasklytic shell or portal wrapper',
+    pattern: /\b(?:TasklyticTopbar(?!Actions)|Tasklytic(?:Dialog|AlertDialog|DropdownMenu|Popover|Select|Tooltip)Content|useFocusTrap)\b/g,
+  },
+  {
     label: 'raw Tailwind palette class',
     pattern: /\b(?:bg|text|border|ring|from|to|via|placeholder|divide|outline|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-(?:\d{2,3})(?:\/\d{1,3})?\b/g,
   },

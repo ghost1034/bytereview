@@ -17,7 +17,7 @@ function GoalRow({ goalId, workspaceId }: { goalId: string; workspaceId: string 
   return (
     <Link
       href={`/dashboard/project-management/w/${workspaceId}/goals/${goal.id}`}
-      className="tl-card-hover block rounded-lg border px-3 py-2 shadow-sm"
+      className="rounded-lg border border-border bg-card text-card-foreground-hover block rounded-lg border px-3 py-2 shadow-sm"
       style={{ borderColor: 'hsl(var(--border))' }}
     >
       <div className="flex items-center justify-between gap-2">

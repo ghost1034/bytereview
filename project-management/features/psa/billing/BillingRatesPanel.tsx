@@ -44,19 +44,19 @@ export function BillingRatesPanel({ workspaceId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="tl-card grid gap-3 p-4 shadow-sm md:grid-cols-3 lg:grid-cols-7">
+      <div className="rounded-lg border border-border bg-card text-card-foreground grid gap-3 p-4 shadow-sm md:grid-cols-3 lg:grid-cols-7">
         <Select value={scope} onValueChange={(v) => setScope(v as BillingRateScope)}>
-          <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent className="z-[100]">{(['workspace', 'role', 'user_default', 'client', 'project', 'matter', 'team'] as const).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
         </Select>
-        <Input aria-label="Rate target ID" placeholder={scope === 'user_default' ? 'User ID' : ['client', 'project', 'matter', 'team'].includes(scope) ? 'Scope ID' : 'Optional target'} value={targetId} onChange={(e) => setTargetId(e.target.value)} className="tl-input" />
-        <Input placeholder="Role" value={role} onChange={(e) => setRole(e.target.value)} className="tl-input" />
-        <Input placeholder="Rate" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} className="tl-input font-mono tabular-nums" />
-        <Input aria-label="Rate currency" maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value)} className="tl-input uppercase" />
-        <Input aria-label="Effective from" type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} className="tl-input" />
-        <Button className="tl-btn-primary border-0" onClick={() => void create()}>Add rate</Button>
+        <Input aria-label="Rate target ID" placeholder={scope === 'user_default' ? 'User ID' : ['client', 'project', 'matter', 'team'].includes(scope) ? 'Scope ID' : 'Optional target'} value={targetId} onChange={(e) => setTargetId(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
+        <Input placeholder="Role" value={role} onChange={(e) => setRole(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
+        <Input placeholder="Rate" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
+        <Input aria-label="Rate currency" maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value)} className="rounded-md border border-input bg-background text-foreground uppercase" />
+        <Input aria-label="Effective from" type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} className="rounded-md border border-input bg-background text-foreground" />
+        <Button className=" border-0" onClick={() => void create()}>Add rate</Button>
       </div>
-      <div className="tl-card overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Scope</th><th className="px-4 py-2">Target</th><th className="px-4 py-2">Role</th><th className="px-4 py-2 text-right">Rate</th><th className="px-4 py-2">Effective</th>

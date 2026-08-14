@@ -5,8 +5,7 @@
  */
 import { useMemo, useState } from 'react'
 import { Plus, X } from 'lucide-react'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
-import { TasklyticPopoverContent } from '../ui/TasklyticPopoverContent'
+import { PopoverContent, Popover, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { AVATAR_PALETTE } from '../../lib/colors'
@@ -78,12 +77,12 @@ export function TagPicker({ workspaceId, selectedIds, onAdd, onRemove }: Props) 
             <Plus className="h-3 w-3" /> Add tag
           </button>
         </PopoverTrigger>
-        <TasklyticPopoverContent className="w-56 p-2" align="start">
+        <PopoverContent className="w-56 p-2" align="start">
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search or create tag…"
-            className="tl-input h-8 text-sm"
+            className="rounded-md border border-input bg-background text-foreground h-8 text-sm"
             onKeyDown={(e) => {
               if (e.key === 'Enter') void createTag()
             }}
@@ -115,7 +114,7 @@ export function TagPicker({ workspaceId, selectedIds, onAdd, onRemove }: Props) 
               Create &quot;{query.trim()}&quot;
             </button>
           ) : null}
-        </TasklyticPopoverContent>
+        </PopoverContent>
       </Popover>
     </div>
   )

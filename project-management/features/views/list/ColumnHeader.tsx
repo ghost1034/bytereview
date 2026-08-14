@@ -62,7 +62,7 @@ export function ColumnHeader({
     >
       <div className="flex items-center justify-center px-1">
         <Checkbox
-          className="tl-checkbox"
+          className=""
           checked={checkState}
           onClick={(e) => {
             e.stopPropagation()

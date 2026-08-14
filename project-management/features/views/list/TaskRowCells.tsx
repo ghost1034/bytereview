@@ -6,8 +6,7 @@
 import { useState } from 'react'
 import { addDays, nextMonday, startOfToday } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
-import { Popover, PopoverTrigger } from '@/components/ui/popover'
-import { TasklyticPopoverContent } from '../../ui/TasklyticPopoverContent'
+import { PopoverContent, Popover, PopoverTrigger } from '@/components/ui/popover'
 import { Input } from '@/components/ui/input'
 import { Calendar } from '@/components/ui/calendar'
 import { Badge } from '@/components/ui/badge'
@@ -100,8 +99,8 @@ function AssigneeCell({ task, users }: { task: Task; users: User[] }) {
           )}
         </button>
       </PopoverTrigger>
-      <TasklyticPopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
-        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="tl-input h-8 text-sm" autoFocus />
+      <PopoverContent className="w-56 p-2" align="start" onClick={(e) => e.stopPropagation()}>
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search…" className="rounded-md border border-input bg-background text-foreground h-8 text-sm" autoFocus />
         <ul className="mt-2 max-h-40 overflow-y-auto">
           {filtered.map((u) => (
             <li key={u.id}>
@@ -117,7 +116,7 @@ function AssigneeCell({ task, users }: { task: Task; users: User[] }) {
             Assign to me
           </button>
         ) : null}
-      </TasklyticPopoverContent>
+      </PopoverContent>
     </Popover>
   )
 }
@@ -135,7 +134,7 @@ function DueCell({ task }: { task: Task }) {
           {label}
         </button>
       </PopoverTrigger>
-      <TasklyticPopoverContent className="w-fit p-2" align="start" onClick={(e) => e.stopPropagation()}>
+      <PopoverContent className="w-fit p-2" align="start" onClick={(e) => e.stopPropagation()}>
         <div className="mb-2 flex flex-wrap gap-1">
           {[
             { label: 'Today', date: startOfToday() },
@@ -151,7 +150,7 @@ function DueCell({ task }: { task: Task }) {
           </button>
         </div>
         <Calendar mode="single" selected={task.dueOn ? parseISODateLocal(task.dueOn) : undefined} onSelect={(d) => d && currentUserId && void setDue(task.id, { dueOn: toISODate(d) }, currentUserId)} />
-      </TasklyticPopoverContent>
+      </PopoverContent>
     </Popover>
   )
 }

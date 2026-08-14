@@ -102,7 +102,7 @@ export function ScheduleDigestDialog({ open, onOpenChange, dashboard }: Props) {
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button className="tl-btn-primary border-0" onClick={() => void save()}>
+            <Button className=" border-0" onClick={() => void save()}>
               Save schedule
             </Button>
           </div>

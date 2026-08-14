@@ -142,7 +142,7 @@ export function StatusUpdateDialog({ project, currentUserId, open, onOpenChange,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-mobile max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-w-[calc(100vw-1rem)] sm:max-w-lg max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-2">
             <DialogTitle className="font-sans">Post status update</DialogTitle>
@@ -158,7 +158,7 @@ export function StatusUpdateDialog({ project, currentUserId, open, onOpenChange,
 
           <div className="space-y-2">
             <Label htmlFor="status-title">Title</Label>
-            <Input id="status-title" className="tl-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input id="status-title" className="rounded-md border border-input bg-background text-foreground" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
 
           <StatusDataPrompts digest={digest} tasksAdded={tasksAdded} />
@@ -181,7 +181,7 @@ export function StatusUpdateDialog({ project, currentUserId, open, onOpenChange,
 
         <DialogFooter className="gap-2 sm:gap-0">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={!title.trim() || submitting} onClick={() => void submit()}>
+          <Button className=" border-0" disabled={!title.trim() || submitting} onClick={() => void submit()}>
             Post update
           </Button>
         </DialogFooter>

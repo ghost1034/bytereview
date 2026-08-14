@@ -44,19 +44,19 @@ export function TrustPage() {
   return (
     <div className="space-y-4" data-tour-page="trust">
       <h1 className="font-sans text-2xl">Trust accounting</h1>
-      {canTrust && <div className="tl-card grid gap-3 p-4 shadow-sm md:grid-cols-4">
+      {canTrust && <div className="rounded-lg border border-border bg-card text-card-foreground grid gap-3 p-4 shadow-sm md:grid-cols-4">
         <Select value={clientId} onValueChange={setClientId}>
-          <SelectTrigger className="tl-input"><SelectValue placeholder="Client" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Client" /></SelectTrigger>
           <SelectContent className="z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
         </Select>
         <Select value={type} onValueChange={(v) => setType(v as 'deposit' | 'withdrawal')}>
-          <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent className="z-[100]"><SelectItem value="deposit">Deposit</SelectItem><SelectItem value="withdrawal">Withdrawal</SelectItem></SelectContent>
         </Select>
-        <Input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
-        <Button className="tl-btn-primary border-0" onClick={() => void record()}><Plus className="mr-1 h-4 w-4" /> Record</Button>
+        <Input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
+        <Button className=" border-0" onClick={() => void record()}><Plus className="mr-1 h-4 w-4" /> Record</Button>
       </div>}
-      <div className="tl-card overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Client</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Alert</th>
@@ -74,7 +74,7 @@ export function TrustPage() {
           </tbody>
         </table>
       </div>
-      <div className="tl-card overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Date</th><th className="px-4 py-2">Type</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2" />

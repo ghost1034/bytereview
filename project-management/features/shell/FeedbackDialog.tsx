@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
+  DialogContent,
   Dialog,
   DialogFooter,
   DialogHeader,
@@ -12,7 +13,6 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuthStore } from '../../stores/auth'
 import { useFeedbackStore } from '../../stores/feedback'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
-import { TasklyticDialogContent } from './TasklyticDialogContent'
 
 type Props = {
   open: boolean
@@ -40,7 +40,7 @@ export function FeedbackDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-sans text-xl">Send feedback</DialogTitle>
         </DialogHeader>
@@ -48,7 +48,7 @@ export function FeedbackDialog({ open, onOpenChange }: Props) {
           <p className="text-sm" style={{ color: 'hsl(var(--success))' }}>Thanks — your feedback was saved.</p>
         ) : (
           <Textarea
-            className="tl-input min-h-[120px]"
+            className="rounded-md border border-input bg-background text-foreground min-h-[120px]"
             placeholder="Tell us what you think…"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -56,11 +56,11 @@ export function FeedbackDialog({ open, onOpenChange }: Props) {
         )}
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary" disabled={!message.trim() || sent} onClick={submit}>
+          <Button className="" disabled={!message.trim() || sent} onClick={submit}>
             Send
           </Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

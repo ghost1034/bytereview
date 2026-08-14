@@ -96,7 +96,7 @@ export function GoalUpdateProgressDialog({ goal, currentUserId, open, onOpenChan
               <Label htmlFor="metric-current">
                 Current {goal.metric.type === 'currency' ? `(${goal.metric.symbol})` : goal.metric.type === 'numeric' ? (goal.metric.unit ?? '') : '%'}
               </Label>
-              <Input id="metric-current" type="number" className="tl-input" value={current} onChange={(e) => setCurrent(e.target.value)} />
+              <Input id="metric-current" type="number" className="rounded-md border border-input bg-background text-foreground" value={current} onChange={(e) => setCurrent(e.target.value)} />
             </div>
           )}
           <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export function GoalUpdateProgressDialog({ goal, currentUserId, open, onOpenChan
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading} onClick={() => void submit()}>Save</Button>
+          <Button className=" border-0" disabled={loading} onClick={() => void submit()}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

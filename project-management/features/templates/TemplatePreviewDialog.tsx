@@ -2,10 +2,9 @@
 
 /** Read-only preview modal with tabs for template structure. */
 import { Button } from '@/components/ui/button'
-import { Dialog } from '@/components/ui/dialog'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import type { CuratedProjectTemplate } from '../../lib/templates/types'
 import { countTemplateTasks } from '../../lib/templates/templateLibrary'
 import { templatePlaceholderRoles } from '../../lib/templates/templateValidation'
@@ -33,7 +32,7 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse,
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <TasklyticDialogContent className="max-w-2xl" aria-describedby={undefined}>
+      <DialogContent className="max-w-2xl" aria-describedby={undefined}>
         <Tabs defaultValue="overview">
           <DialogHeader>
             <DialogTitle className="font-sans text-xl">
@@ -161,9 +160,9 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse,
 
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>Close</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading} onClick={onUse}>Use this template</Button>
+          <Button className=" border-0" disabled={loading} onClick={onUse}>Use this template</Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

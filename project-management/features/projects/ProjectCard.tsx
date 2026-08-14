@@ -91,7 +91,7 @@ export function ProjectCard({ project, href, starred, currentUserId, onToggleSta
       </div>
       <Link
         href={href}
-        className="tl-card block p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+        className="rounded-lg border border-border bg-card text-card-foreground block p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
       >
         <div className="mb-3 flex items-start">
           <div

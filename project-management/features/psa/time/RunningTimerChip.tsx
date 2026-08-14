@@ -82,7 +82,7 @@ export function RunningTimerChip({ open, onOpenChange }: Props) {
               />
               {task && workspaceId ? <Link className="block text-xs underline" href={`/dashboard/project-management/w/${workspaceId}/tasks/${task.id}`}>View task</Link> : null}
               <div className="flex gap-2">
-                <Button size="sm" className="tl-btn-primary flex-1 border-0" onClick={() => setTransitionOpen(true)}>Stop</Button>
+                <Button size="sm" className=" flex-1 border-0" onClick={() => setTransitionOpen(true)}>Stop</Button>
                 <Button size="sm" variant="outline" onClick={() => discard(running.userId)}>Discard</Button>
               </div>
             </div>
@@ -97,7 +97,7 @@ export function RunningTimerChip({ open, onOpenChange }: Props) {
               </Select>
               <Input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Description (optional)" />
               <label className="flex items-center justify-between text-sm"><span>Billable</span><Switch checked={billable} onCheckedChange={(checked) => setBillable(Boolean(checked))} /></label>
-              <Button className="tl-btn-primary w-full border-0" disabled={!selectedTask} onClick={quickStart}><Play className="mr-1 h-4 w-4" /> Start</Button>
+              <Button className=" w-full border-0" disabled={!selectedTask} onClick={quickStart}><Play className="mr-1 h-4 w-4" /> Start</Button>
             </div>
           )}
         </PopoverContent>

@@ -51,12 +51,12 @@ export function RuleCard({
   }
 
   return (
-    <li className="tl-card p-4 shadow-sm">
+    <li className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">
           {editingName ? (
             <Input
-              className="tl-input h-8 max-w-md font-medium"
+              className="rounded-md border border-input bg-background text-foreground h-8 max-w-md font-medium"
               value={nameDraft}
               autoFocus
               onChange={(e) => setNameDraft(e.target.value)}

@@ -82,7 +82,7 @@ export function GoalStatusUpdateComposer({ goal, currentUserId }: Props) {
             <Label htmlFor="goal-update-title">Title</Label>
             <Input
               id="goal-update-title"
-              className="tl-input"
+              className="rounded-md border border-input bg-background text-foreground"
               placeholder={defaultTitle}
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -92,7 +92,7 @@ export function GoalStatusUpdateComposer({ goal, currentUserId }: Props) {
             <Label htmlFor="goal-update-summary">Summary</Label>
             <textarea
               id="goal-update-summary"
-              className="tl-input min-h-[80px] w-full rounded-md border p-2 text-sm"
+              className="rounded-md border border-input bg-background text-foreground min-h-[80px] w-full rounded-md border p-2 text-sm"
               placeholder="What's changed?"
               value={summary}
               onChange={(e) => setSummary(e.target.value)}
@@ -102,7 +102,7 @@ export function GoalStatusUpdateComposer({ goal, currentUserId }: Props) {
             {latest ? (
               <Button variant="ghost" size="sm" onClick={() => setShowForm(false)}>Cancel</Button>
             ) : null}
-            <Button className="tl-btn-primary border-0" size="sm" disabled={submitting} onClick={() => void submit()}>
+            <Button className=" border-0" size="sm" disabled={submitting} onClick={() => void submit()}>
               Post update
             </Button>
           </div>

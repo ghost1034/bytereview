@@ -107,7 +107,7 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: Props) {
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
               <Label htmlFor="ws-name">Workspace name</Label>
-              <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value)} className="tl-input" />
+              <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="ws-domain">Domain (optional)</Label>
@@ -138,13 +138,13 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: Props) {
           {step === 1 ? (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button className="tl-btn-primary" disabled={!name.trim()} onClick={() => setStep(2)}>Next</Button>
+              <Button className="" disabled={!name.trim()} onClick={() => setStep(2)}>Next</Button>
             </>
           ) : (
             <>
               <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
               <Button variant="ghost" onClick={() => void create()} disabled={loading}>Skip invites</Button>
-              <Button className="tl-btn-primary" disabled={loading} onClick={() => void create()}>
+              <Button className="" disabled={loading} onClick={() => void create()}>
                 {loading ? 'Creating…' : 'Create workspace'}
               </Button>
             </>

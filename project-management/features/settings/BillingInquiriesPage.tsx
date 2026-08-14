@@ -34,7 +34,7 @@ export function BillingInquiriesPage() {
           {inquiries.map((row) => {
             const user = users.find((u) => u.id === row.userId)
             return (
-              <li key={row.id} className="tl-card p-4 text-sm shadow-sm">
+              <li key={row.id} className="rounded-lg border border-border bg-card text-card-foreground p-4 text-sm shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium capitalize">{row.type.replace('_', ' ')}</span>
                   <span className="text-xs capitalize" style={{ color: 'hsl(var(--foreground-muted))' }}>{row.status}</span>

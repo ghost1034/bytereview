@@ -98,7 +98,7 @@ export function WorkspaceSettingsPage() {
           <WorkspaceBillingTab workspace={workspace} currentUser={currentUser} />
         </TabsContent>
         <TabsContent value="security" className="mt-4">
-          <div className="tl-card flex items-center justify-between p-4"><div><Label htmlFor="public-forms">Allow public form sharing</Label><p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>When disabled, published forms require workspace authentication.</p></div><Switch id="public-forms" checked={workspace.settings?.allowPublicForms !== false} disabled={!workspace.adminIds.includes(currentUserId ?? '')} onCheckedChange={(checked) => void useWorkspacesStore.getState().update(workspace.id, { settings: { ...workspace.settings, allowPublicForms: checked } })} /></div>
+          <div className="rounded-lg border border-border bg-card text-card-foreground flex items-center justify-between p-4"><div><Label htmlFor="public-forms">Allow public form sharing</Label><p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>When disabled, published forms require workspace authentication.</p></div><Switch id="public-forms" checked={workspace.settings?.allowPublicForms !== false} disabled={!workspace.adminIds.includes(currentUserId ?? '')} onCheckedChange={(checked) => void useWorkspacesStore.getState().update(workspace.id, { settings: { ...workspace.settings, allowPublicForms: checked } })} /></div>
         </TabsContent>
       </Tabs>
 

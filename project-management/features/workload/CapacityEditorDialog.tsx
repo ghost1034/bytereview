@@ -95,7 +95,7 @@ export function CapacityEditorDialog({ open, onOpenChange, users, canEdit }: Pro
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={!canEdit} onClick={() => void save()}>Save</Button>
+          <Button className=" border-0" disabled={!canEdit} onClick={() => void save()}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

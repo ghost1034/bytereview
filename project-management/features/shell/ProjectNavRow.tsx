@@ -19,6 +19,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  DialogContent,
   Dialog,
   DialogFooter,
   DialogHeader,
@@ -39,7 +40,6 @@ import {
   toggleStarProject,
 } from '../../lib/projectActions'
 import { isRouteActive, projectDotColor } from './sidebarUtils'
-import { TasklyticDialogContent } from './TasklyticDialogContent'
 
 type Props = {
   project: Project
@@ -178,21 +178,21 @@ export function ProjectNavRow({
       </div>
 
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <TasklyticDialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="font-sans text-lg">Rename project</DialogTitle>
           </DialogHeader>
           <Input
-            className="tl-input"
+            className="rounded-md border border-input bg-background text-foreground"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && void onRename()}
           />
           <DialogFooter>
             <Button variant="ghost" onClick={() => setRenameOpen(false)}>Cancel</Button>
-            <Button className="tl-btn-primary" onClick={() => void onRename()}>Save</Button>
+            <Button className="" onClick={() => void onRename()}>Save</Button>
           </DialogFooter>
-        </TasklyticDialogContent>
+        </DialogContent>
       </Dialog>
     </>
   )

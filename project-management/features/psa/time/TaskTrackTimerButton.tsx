@@ -37,7 +37,7 @@ export function TaskTrackTimerButton({ task }: { task: Task }) {
 
   return (
     <>
-      <Button size="sm" variant={isRunning ? 'destructive' : 'default'} className={isRunning ? '' : 'tl-btn-primary border-0'} onClick={onClick}>
+      <Button size="sm" variant={isRunning ? 'destructive' : 'default'} className={isRunning ? '' : ' border-0'} onClick={onClick}>
         {isRunning ? <><Square className="mr-1 h-3 w-3" /> Stop</> : <><Play className="mr-1 h-3 w-3" /> Start timer</>}
       </Button>
       {running ? (

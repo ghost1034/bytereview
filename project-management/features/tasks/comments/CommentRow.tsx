@@ -42,7 +42,7 @@ function EditBox({ initialHtml, onSave, onCancel }: EditBoxProps) {
         dangerouslySetInnerHTML={{ __html: initialHtml }}
       />
       <div className="flex gap-2">
-        <Button size="sm" className="tl-btn-primary border-0" onClick={() => onSave(ref.current?.innerHTML ?? '')}>
+        <Button size="sm" className=" border-0" onClick={() => onSave(ref.current?.innerHTML ?? '')}>
           Save
         </Button>
         <Button size="sm" variant="ghost" onClick={onCancel}>

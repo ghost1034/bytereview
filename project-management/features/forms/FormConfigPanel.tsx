@@ -40,16 +40,16 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
       </p>
       <div className="grid gap-2">
         <Label htmlFor="form-name">Name</Label>
-        <Input id="form-name" value={form.name} onChange={(e) => onChange({ name: e.target.value })} className="tl-input" />
+        <Input id="form-name" value={form.name} onChange={(e) => onChange({ name: e.target.value })} className="rounded-md border border-input bg-background text-foreground" />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="form-desc">Description</Label>
-        <Textarea id="form-desc" value={form.description ?? ''} onChange={(e) => onChange({ description: e.target.value })} rows={3} className="tl-input" />
+        <Textarea id="form-desc" value={form.description ?? ''} onChange={(e) => onChange({ description: e.target.value })} rows={3} className="rounded-md border border-input bg-background text-foreground" />
       </div>
       <div className="grid gap-2">
         <Label>Target project</Label>
         <Select value={form.projectId} onValueChange={(v) => onChange({ projectId: v, defaultSectionId: undefined })}>
-          <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
           <SelectContent className="z-[100]">
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}>{p.iconEmoji ?? '📁'} {p.name}</SelectItem>
@@ -60,7 +60,7 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
       <div className="grid gap-2">
         <Label>Default section</Label>
         <Select value={form.defaultSectionId ?? '__none'} onValueChange={(v) => onChange({ defaultSectionId: v === '__none' ? undefined : v })}>
-          <SelectTrigger className="tl-input"><SelectValue placeholder="First section" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="First section" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="__none">First section</SelectItem>
             {projectSections.map((s) => (
@@ -72,7 +72,7 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
       <div className="grid gap-2">
         <Label>Default assignee</Label>
         <Select value={form.defaultAssigneeId ?? '__none'} onValueChange={(v) => onChange({ defaultAssigneeId: v === '__none' ? undefined : v })}>
-          <SelectTrigger className="tl-input"><SelectValue placeholder="Unassigned" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Unassigned" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="__none">Unassigned</SelectItem>
             {members.map((u) => (
@@ -84,7 +84,7 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
       <div className="grid gap-2">
         <Label>Task title field</Label>
         <Select value={form.taskTitleFieldId ?? '__none'} onValueChange={(v) => onChange({ taskTitleFieldId: v === '__none' ? undefined : v })}>
-          <SelectTrigger className="tl-input"><SelectValue placeholder="First field" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="First field" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="__none">First field</SelectItem>
             {form.fields.map((f) => (
@@ -99,15 +99,15 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
       </div>
       <div className="grid gap-2">
         <Label htmlFor="confirm-msg">Confirmation message</Label>
-        <Input id="confirm-msg" value={form.confirmationMessage} onChange={(e) => onChange({ confirmationMessage: e.target.value })} className="tl-input" />
+        <Input id="confirm-msg" value={form.confirmationMessage} onChange={(e) => onChange({ confirmationMessage: e.target.value })} className="rounded-md border border-input bg-background text-foreground" />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="cover">Cover image</Label>
-        <Input id="cover" type="file" accept="image/*" className="tl-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) readImage(f, 'coverImageDataUrl') }} />
+        <Input id="cover" type="file" accept="image/*" className="rounded-md border border-input bg-background text-foreground" onChange={(e) => { const f = e.target.files?.[0]; if (f) readImage(f, 'coverImageDataUrl') }} />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="logo">Logo</Label>
-        <Input id="logo" type="file" accept="image/*" className="tl-input" onChange={(e) => { const f = e.target.files?.[0]; if (f) readImage(f, 'logoDataUrl') }} />
+        <Input id="logo" type="file" accept="image/*" className="rounded-md border border-input bg-background text-foreground" onChange={(e) => { const f = e.target.files?.[0]; if (f) readImage(f, 'logoDataUrl') }} />
       </div>
       <div className="flex items-center justify-between">
         <Label htmlFor="is-public">Published</Label>

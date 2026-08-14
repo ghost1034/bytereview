@@ -59,7 +59,7 @@ export function AiInputArea({ scope, disabled, onSend }: Props) {
         <Button
           type="button"
           size="icon"
-          className="tl-btn-primary h-auto shrink-0 self-end border-0"
+          className=" h-auto shrink-0 self-end border-0"
           disabled={disabled || !prompt.trim()}
           aria-label="Send"
           onClick={submit}

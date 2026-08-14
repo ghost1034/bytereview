@@ -126,7 +126,7 @@ function SubmissionDetail({
   workspaceId: string
 }) {
   return (
-    <div className="tl-card space-y-3 p-4 shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground space-y-3 p-4 shadow-sm">
       <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Submission detail
       </p>

@@ -152,7 +152,7 @@ export function CommentComposer({ task, workspaceUsers, replyToId, onPosted, com
         ) : (
           <span />
         )}
-        <Button size="sm" className="tl-btn-primary border-0" disabled={submitting} onClick={() => void submit()}>
+        <Button size="sm" className=" border-0" disabled={submitting} onClick={() => void submit()}>
           {replyToId ? 'Reply' : 'Post comment'}
         </Button>
       </div>

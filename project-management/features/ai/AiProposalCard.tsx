@@ -66,7 +66,7 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
 
   return (
     <Card
-      className="tl-card shadow-sm transition-shadow hover:border-primary hover:shadow-md"
+      className="rounded-lg border border-border bg-card text-card-foreground shadow-sm transition-shadow hover:border-primary hover:shadow-md"
       style={{ borderColor: 'hsl(var(--border))' }}
     >
       <CardHeader className="pb-2 pt-3">
@@ -94,7 +94,7 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
             <Pencil className="h-3.5 w-3.5" />
             {editing ? 'Preview' : 'Edit'}
           </Button>
-          <Button size="sm" className="tl-btn-primary flex-1 gap-1 border-0" disabled={!actorId || status === 'applying'} onClick={() => void apply()}>
+          <Button size="sm" className=" flex-1 gap-1 border-0" disabled={!actorId || status === 'applying'} onClick={() => void apply()}>
             <Check className="h-3.5 w-3.5" />
             Apply
           </Button>

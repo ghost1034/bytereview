@@ -184,11 +184,11 @@ export function ProjectFilesGrid({ project }: Props) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search files…"
-            className="tl-input h-9 pl-8 text-sm"
+            className="rounded-md border border-input bg-background text-foreground h-9 pl-8 text-sm"
           />
         </div>
         <Select value={category} onValueChange={(v) => setCategory(v as MimeCategory | 'all')}>
-          <SelectTrigger className="tl-input h-9 w-40" aria-label="File type">
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground h-9 w-40" aria-label="File type">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent className="z-[100]">
@@ -201,14 +201,14 @@ export function ProjectFilesGrid({ project }: Props) {
           </SelectContent>
         </Select>
         <Select value={uploaderId} onValueChange={setUploaderId}>
-          <SelectTrigger className="tl-input h-9 w-40" aria-label="Uploader"><SelectValue placeholder="Uploader" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground h-9 w-40" aria-label="Uploader"><SelectValue placeholder="Uploader" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="all">All uploaders</SelectItem>
             {uploaders.map((user) => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
-          <SelectTrigger className="tl-input h-9 w-40" aria-label="Sort files"><SelectValue placeholder="Sort" /></SelectTrigger>
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground h-9 w-40" aria-label="Sort files"><SelectValue placeholder="Sort" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="date_desc">Newest first</SelectItem>
             <SelectItem value="date_asc">Oldest first</SelectItem>

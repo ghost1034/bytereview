@@ -63,7 +63,7 @@ export function GoalsToolbar({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-sans text-2xl">Goals & OKRs</h1>
-        <Button className="tl-btn-primary border-0" size="sm" onClick={onCreate}>
+        <Button className=" border-0" size="sm" onClick={onCreate}>
           <Plus className="mr-1 h-4 w-4" /> Create goal
         </Button>
       </div>
@@ -82,14 +82,14 @@ export function GoalsToolbar({
         <div className="relative min-w-[160px] flex-1 max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           <Input
-            className="tl-input pl-8"
+            className="rounded-md border border-input bg-background text-foreground pl-8"
             placeholder="Search goals…"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
           />
         </div>
         <Select value={timeFilter} onValueChange={(v) => onTimeFilterChange(v as typeof timeFilter)}>
-          <SelectTrigger className="w-[130px] tl-input"><SelectValue placeholder="Period" /></SelectTrigger>
+          <SelectTrigger className="w-[130px] rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Period" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="all">All periods</SelectItem>
             <SelectItem value="quarter">This quarter</SelectItem>
@@ -97,7 +97,7 @@ export function GoalsToolbar({
           </SelectContent>
         </Select>
         <Select value={ownerFilter} onValueChange={onOwnerFilterChange}>
-          <SelectTrigger className="w-[130px] tl-input"><SelectValue placeholder="Owner" /></SelectTrigger>
+          <SelectTrigger className="w-[130px] rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Owner" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="all">All owners</SelectItem>
             {owners.map((o) => (
@@ -106,7 +106,7 @@ export function GoalsToolbar({
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => onStatusFilterChange(v as Goal['status'] | 'all')}>
-          <SelectTrigger className="w-[120px] tl-input"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-[120px] rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent className="z-[100]">
             <SelectItem value="all">All status</SelectItem>
             <SelectItem value="on_track">On track</SelectItem>

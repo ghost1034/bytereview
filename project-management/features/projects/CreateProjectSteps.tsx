@@ -39,7 +39,7 @@ export function CreateProjectChooseStep({ mode, templateId, onModeChange, onTemp
           <button
             key={card.id}
             type="button"
-            className="tl-card p-4 text-left shadow-sm transition hover:shadow-md"
+            className="rounded-lg border border-border bg-card text-card-foreground p-4 text-left shadow-sm transition hover:shadow-md"
             style={mode === card.id ? { borderColor: 'hsl(var(--primary))' } : undefined}
             onClick={() => onModeChange(card.id)}
           >
@@ -105,11 +105,11 @@ export function CreateProjectDetailsStep(props: DetailsProps) {
     <div className="grid gap-4 py-2">
       <div className="grid gap-2">
         <Label htmlFor="project-name">Name</Label>
-        <Input id="project-name" value={props.name} onChange={(e) => props.onNameChange(e.target.value)} className="tl-input" />
+        <Input id="project-name" value={props.name} onChange={(e) => props.onNameChange(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="project-desc">Description</Label>
-        <Input id="project-desc" value={props.description} onChange={(e) => props.onDescriptionChange(e.target.value)} className="tl-input" />
+        <Input id="project-desc" value={props.description} onChange={(e) => props.onDescriptionChange(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
       </div>
       <div className="grid gap-2">
         <Label>Icon</Label>

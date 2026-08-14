@@ -40,7 +40,7 @@ export function GoalCard({
 
   return (
     <div
-      className="tl-card rounded-lg p-3 shadow-sm transition-shadow hover:shadow-md"
+      className="rounded-lg border border-border bg-card text-card-foreground rounded-lg p-3 shadow-sm transition-shadow hover:shadow-md"
       style={{
         marginLeft: depth * 16,
         outline: selected ? '2px solid hsl(var(--primary))' : undefined,

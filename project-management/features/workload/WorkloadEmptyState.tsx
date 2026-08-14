@@ -7,7 +7,7 @@ import { Gauge } from 'lucide-react'
 export function WorkloadEmptyState() {
   return (
     <div
-      className="tl-card flex flex-col items-center justify-center px-8 py-16 text-center shadow-sm"
+      className="rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center justify-center px-8 py-16 text-center shadow-sm"
      
     >
       <div

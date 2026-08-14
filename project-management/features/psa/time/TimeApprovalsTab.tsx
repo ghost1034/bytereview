@@ -37,12 +37,12 @@ export function TimeApprovalsTab({ workspaceId }: Props) {
 
   return (
     <div className="space-y-3">
-      {standaloneEntries.map((entry) => <div key={entry.id} className="tl-card flex items-center justify-between gap-3 p-4 shadow-sm"><div><p className="font-medium">{entry.description}</p><p className="font-mono text-sm">{entry.hours.toFixed(2)}h · {formatMoney(entry.amount ?? 0)}</p></div><div className="flex gap-2"><Button size="sm" onClick={() => void runPsaAction('timeEntries', entry.id, 'approve', workspaceId)}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const reason = window.prompt('Rejection reason'); if (reason) void runPsaAction('timeEntries', entry.id, 'reject', workspaceId, { reason }) }}>Reject</Button></div></div>)}
+      {standaloneEntries.map((entry) => <div key={entry.id} className="rounded-lg border border-border bg-card text-card-foreground flex items-center justify-between gap-3 p-4 shadow-sm"><div><p className="font-medium">{entry.description}</p><p className="font-mono text-sm">{entry.hours.toFixed(2)}h · {formatMoney(entry.amount ?? 0)}</p></div><div className="flex gap-2"><Button size="sm" onClick={() => void runPsaAction('timeEntries', entry.id, 'approve', workspaceId)}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const reason = window.prompt('Rejection reason'); if (reason) void runPsaAction('timeEntries', entry.id, 'reject', workspaceId, { reason }) }}>Reject</Button></div></div>)}
       {sheets.map((sheet) => {
         const user = users.find((u) => u.id === sheet.userId)
         const sheetEntries = entries.filter((entry) => entry.timesheetId === sheet.id)
         return (
-          <div key={sheet.id} className="tl-card p-4 shadow-sm">
+          <div key={sheet.id} className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-medium">{user?.name ?? 'User'}</p>
@@ -50,14 +50,14 @@ export function TimeApprovalsTab({ workspaceId }: Props) {
                 <p className="text-sm font-mono tabular-nums">{sheet.totalHours.toFixed(2)}h · {formatMoney(sheet.totalAmount)}</p>
               </div>
               <div className="flex gap-2">
-                <Button size="sm" className="tl-btn-primary border-0" onClick={() => void approve(sheet)}>Approve</Button>
+                <Button size="sm" className=" border-0" onClick={() => void approve(sheet)}>Approve</Button>
                 <Button size="sm" variant="outline" onClick={() => setRejectId(sheet.id)}>Reject</Button>
               </div>
             </div>
             <div className="mt-3 space-y-1 border-t pt-3">{sheetEntries.map((entry) => <label key={entry.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={approvedIds.has(entry.id)} onChange={() => setApprovedIds((old) => { const next = new Set(old); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next })} /><span>{entry.description}</span><span className="ml-auto font-mono">{entry.hours.toFixed(2)}h</span></label>)}</div>
             {rejectId === sheet.id && (
               <div className="mt-3 flex flex-wrap gap-2">
-                <Input placeholder="Rejection reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className="tl-input" />
+                <Input placeholder="Rejection reason" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
                 <Button size="sm" variant="destructive" onClick={() => void reject(sheet)}>Confirm</Button>
                 <Button size="sm" variant="outline" disabled={!rejectReason.trim() || approvedIds.size === 0 || approvedIds.size === sheetEntries.length} onClick={() => void runPsaAction('timesheets', sheet.id, 'partial-approve', workspaceId, { approvedIds: [...approvedIds], rejectedIds: sheetEntries.map((entry) => entry.id).filter((id) => !approvedIds.has(id)), reason: rejectReason })}>Approve selected</Button>
               </div>

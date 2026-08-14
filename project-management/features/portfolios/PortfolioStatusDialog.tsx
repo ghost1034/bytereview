@@ -103,7 +103,7 @@ export function PortfolioStatusDialog({ portfolio, currentUserId, open, onOpenCh
           <div className="space-y-2"><Label>Status</Label><StatusSegmentPicker value={status} onChange={setStatus} /></div>
           <div className="space-y-2">
             <Label htmlFor="pf-status-title">Title</Label>
-            <Input id="pf-status-title" className="tl-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input id="pf-status-title" className="rounded-md border border-input bg-background text-foreground" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           {digest && (
             <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
@@ -126,7 +126,7 @@ export function PortfolioStatusDialog({ portfolio, currentUserId, open, onOpenCh
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={!title.trim() || submitting} onClick={() => void submit()}>Post update</Button>
+          <Button className=" border-0" disabled={!title.trim() || submitting} onClick={() => void submit()}>Post update</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

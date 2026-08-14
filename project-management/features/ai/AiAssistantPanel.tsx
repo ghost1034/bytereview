@@ -54,7 +54,7 @@ export function AiAssistantPanel({ open, onOpenChange }: Props) {
     return (
       <button
         type="button"
-        className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full shadow-md tl-btn-primary"
+        className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full shadow-md "
         aria-label="Open Project Management AI"
         data-tour="ai-sparkles"
         onClick={() => onOpenChange(true)}

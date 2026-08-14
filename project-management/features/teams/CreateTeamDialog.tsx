@@ -86,7 +86,7 @@ export function CreateTeamDialog({
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
             <Label htmlFor="team-name">Name</Label>
-            <Input id="team-name" value={name} onChange={(e) => setName(e.target.value)} className="tl-input" />
+            <Input id="team-name" value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="team-desc">Description</Label>
@@ -110,7 +110,7 @@ export function CreateTeamDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary" disabled={!name.trim() || loading} onClick={() => void create()}>
+          <Button className="" disabled={!name.trim() || loading} onClick={() => void create()}>
             {loading ? 'Creating…' : 'Create team'}
           </Button>
         </DialogFooter>

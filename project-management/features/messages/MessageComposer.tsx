@@ -124,7 +124,7 @@ export function MessageComposer({
         <div className="space-y-3">
           <div className="space-y-1">
             <Label htmlFor="msg-title">Title</Label>
-            <Input id="msg-title" className="tl-input" value={title} onChange={(e) => setTitle(e.target.value)} />
+            <Input id="msg-title" className="rounded-md border border-input bg-background text-foreground" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label>Body</Label>
@@ -150,7 +150,7 @@ export function MessageComposer({
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button
-            className="tl-btn-primary border-0"
+            className=" border-0"
             disabled={!title.trim() || !hasBody(body) || submitting}
             onClick={() => void submit()}
           >

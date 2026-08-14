@@ -30,7 +30,7 @@ export function MobileTaskDetailBar({ task, currentUserId, onClose, onFocusComme
     >
       <Button
         size="sm"
-        className="tl-btn-primary flex-1 border-0"
+        className=" flex-1 border-0"
         disabled={!currentUserId}
         onClick={() => currentUserId && void toggleComplete(task.id, currentUserId)}
         aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}

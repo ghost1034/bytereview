@@ -57,7 +57,7 @@ export function GoalsListView({ goals, workspaceId }: Props) {
   const rows = flattenGoalTree(tree)
 
   return (
-    <div className="tl-card overflow-x-auto shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground overflow-x-auto shadow-sm">
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b text-xs uppercase tracking-wide" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>

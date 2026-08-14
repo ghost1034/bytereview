@@ -2,7 +2,7 @@
 
 Production-grade, multi-tenant work-management module built incrementally from build-plan docs `00`–`30`, integrated into the CPAAutomation Next.js app. `Tasklytic` remains the internal code name; the customer-facing name is **Tasklytic**. It mounts at the canonical authenticated route `/dashboard/project-management`, bridges CPAAutomation Firebase auth, and persists through FastAPI/PostgreSQL. See `plans/TASKLYTIC-TRACEABILITY.md` for accepted and superseded requirements.
 
-> Integration note: the build-plan docs target Vite + React Router. This module adapts every step to **Next.js App Router** + CPAAutomation's **shadcn/ui** while preserving the locked data model and adapter architecture. The standalone public marketing site from `01b §7` is intentionally **out of scope** because CPAAutomation owns marketing and routing; all in-app aesthetics from `01b` are implemented.
+> Integration note: the build-plan docs target Vite + React Router. This module adapts every step to **Next.js App Router** + CPAAutomation's **shadcn/ui** while preserving the locked data model and adapter architecture. The standalone public marketing site from `01b §7` is intentionally **out of scope** because CPAAutomation owns marketing and routing. Where older Tasklytic build-plan aesthetics conflict with the host application, the CPAAutomation design system is authoritative.
 
 ## Tech stack
 
@@ -10,11 +10,13 @@ Production-grade, multi-tenant work-management module built incrementally from b
 - shadcn/ui primitives (`@/components/ui/*`), Tailwind CSS
 - Zustand stores (one per entity domain), `@dnd-kit` for drag-and-drop, recharts via `@/components/ui/chart`
 - Feature code persists only through `RepositoryAdapter`; authenticated customer use requires FastAPI/PostgreSQL. localStorage is limited to tests and explicitly gated internal evaluation tooling, and legacy browser keys are left untouched.
-- Warm, editorial Anthropic-inspired theme scoped under `.tasklytic-root` (`styles/tasklytic.css`)
+- CPAAutomation dashboard shell, IBM Plex typography, semantic host tokens, and shared `components/ui` primitives
 
-## Design tokens (01 / 01b)
+## Design system authority
 
-Warm cream backgrounds, terracotta primary, sage/amber/rust/dusty-blue semantics, Fraunces serif headings + Inter body + JetBrains Mono numerics. Full glow system (paper/glow shadows, aurora utilities, status-dot glows, focus ring). Warm dark mode (never pure black). All values in `styles/tasklytic.css`; `prefers-reduced-motion` honored via `hooks/useReducedMotion.ts`.
+Authenticated Tasklytic surfaces inherit CPAAutomation's dashboard shell, IBM Plex typography, semantic color tokens, focus treatment, elevation, and shared UI primitives. Tasklytic owns only compact productivity density and domain-specific interactions such as its workspace navigator, boards, timelines, task details, and PSA tables. It does not own an independent theme, logo, account shell, portal surface, or typography system. Future host theme support propagates automatically through shared tokens.
+
+The client-facing public intake route is intentionally isolated under `.tasklytic-public-root` in `styles/tasklytic-public.css`; its identity must not leak into authenticated routes. Reduced-motion behavior uses the host stylesheet plus `hooks/useReducedMotion.ts` for the existing manual accessibility preference.
 
 ## Data model summary (02 — LOCKED, additive only)
 
@@ -69,7 +71,7 @@ Additive extensions added during rebuild: workspace invitations/plans, billing i
 | 27/27b/27c | `features/templates`, `lib/templates` | Templates engine + 34 industry/transactions templates | 2026-06-27 |
 | 28 | `features/ai`, `lib/ai` | Gemini AI assistant (proposal-based) | 2026-06-27 |
 | 28b | `features/psa`, `lib/billing`, `lib/psa`, `lib/accounting`, `lib/ocr` | Full PSA layer (time/expenses/billing/invoicing/trust/reporting) | 2026-06-27 |
-| 29 | `features/ui`, `hooks/useReducedMotion`, `styles/tasklytic.css` | Polish, mobile, accessibility + shell integration wiring | 2026-06-27 |
+| 29 | `features/ui`, `hooks/useReducedMotion`, host semantic styles | Polish, mobile, accessibility + shell integration wiring | 2026-06-27 |
 | 30 | `features/onboarding`, `lib/provisioning`, `lib/analytics`, `lib/evaluation` | Onboarding wizard, provisioning engine, analytics, evaluation tenants | 2026-06-27 |
 
 ## Permissions matrix (05)

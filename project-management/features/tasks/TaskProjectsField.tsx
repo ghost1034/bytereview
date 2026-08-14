@@ -83,7 +83,7 @@ export function TaskProjectsField({ task }: Props) {
                   Choose a section
                 </p>
                 <Select onValueChange={(v) => void confirmSection(v)}>
-                  <SelectTrigger className="tl-input h-8 text-sm">
+                  <SelectTrigger className="rounded-md border border-input bg-background text-foreground h-8 text-sm">
                     <SelectValue placeholder="Section…" />
                   </SelectTrigger>
                   <SelectContent className="z-[100]">
@@ -109,7 +109,7 @@ export function TaskProjectsField({ task }: Props) {
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search projects…"
-                  className="tl-input h-8 text-sm"
+                  className="rounded-md border border-input bg-background text-foreground h-8 text-sm"
                   autoFocus
                 />
                 <ul className="mt-2 max-h-40 overflow-y-auto">

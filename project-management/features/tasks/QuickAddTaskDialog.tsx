@@ -120,7 +120,7 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
               id="task-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="tl-input"
+              className="rounded-md border border-input bg-background text-foreground"
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void submit()
@@ -130,7 +130,7 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
           <div className="grid gap-2">
             <Label>Assignee</Label>
             <Select value={assigneeId || '__none'} onValueChange={(v) => setAssigneeId(v === '__none' ? '' : v)}>
-              <SelectTrigger className="tl-input">
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
               <SelectContent className="z-[100]">
@@ -153,14 +153,14 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
               type="date"
               value={dueOn}
               onChange={(e) => setDueOn(e.target.value)}
-              className="tl-input"
+              className="rounded-md border border-input bg-background text-foreground"
               min={toISODate(new Date())}
             />
           </div>
           <div className="grid gap-2">
             <Label>Project</Label>
             <Select value={projectId || '__none'} onValueChange={(v) => setProjectId(v === '__none' ? '' : v)}>
-              <SelectTrigger className="tl-input">
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground">
                 <SelectValue placeholder="No project" />
               </SelectTrigger>
               <SelectContent className="z-[100]">
@@ -178,7 +178,7 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
             <div className="grid gap-2">
               <Label>Section</Label>
               <Select value={sectionId} onValueChange={setSectionId}>
-                <SelectTrigger className="tl-input">
+                <SelectTrigger className="rounded-md border border-input bg-background text-foreground">
                   <SelectValue placeholder="Section" />
                 </SelectTrigger>
                 <SelectContent className="z-[100]">
@@ -199,7 +199,7 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
           </div>
         </div>
         <DialogFooter>
-          <Button className="tl-btn-primary border-0" disabled={!name.trim()} onClick={() => void submit()}>
+          <Button className=" border-0" disabled={!name.trim()} onClick={() => void submit()}>
             Add task
           </Button>
         </DialogFooter>

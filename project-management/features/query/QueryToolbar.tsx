@@ -92,7 +92,7 @@ export function QueryToolbar({
             if (e.key === 'Enter') onSearchSubmit?.(query.search)
           }}
           placeholder="Search tasks… (/)"
-          className="tl-input h-9 w-full pl-9 text-sm"
+          className="rounded-md border border-input bg-background text-foreground h-9 w-full pl-9 text-sm"
         />
       </div>
     )

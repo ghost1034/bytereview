@@ -39,9 +39,9 @@ export function PortfolioProjectsToolbar({
 }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Input className="tl-input max-w-xs" placeholder="Search projects…" value={search} onChange={(e) => onSearch(e.target.value)} />
+      <Input className="rounded-md border border-input bg-background text-foreground max-w-xs" placeholder="Search projects…" value={search} onChange={(e) => onSearch(e.target.value)} />
       <Select value={statusFilter} onValueChange={onStatusFilter}>
-        <SelectTrigger className="tl-input w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
+        <SelectTrigger className="rounded-md border border-input bg-background text-foreground w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
         <SelectContent className="z-[100]">
           <SelectItem value="all">All statuses</SelectItem>
           <SelectItem value="on_track">On track</SelectItem>
@@ -52,7 +52,7 @@ export function PortfolioProjectsToolbar({
         </SelectContent>
       </Select>
       <Select value={ownerFilter} onValueChange={onOwnerFilter}>
-        <SelectTrigger className="tl-input w-[140px]"><SelectValue placeholder="Owner" /></SelectTrigger>
+        <SelectTrigger className="rounded-md border border-input bg-background text-foreground w-[140px]"><SelectValue placeholder="Owner" /></SelectTrigger>
         <SelectContent className="z-[100]">
           <SelectItem value="all">All owners</SelectItem>
           {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}

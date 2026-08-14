@@ -69,7 +69,7 @@ export function ReportingHomePage() {
     <div className="space-y-4" data-tour-page="reporting">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-sans text-2xl">Reporting</h1>
-        <Button className="tl-btn-primary gap-2 border-0" onClick={() => setCreateOpen(true)}>
+        <Button className=" gap-2 border-0" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />
           New dashboard
         </Button>

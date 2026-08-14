@@ -55,7 +55,7 @@ export function ExpensesPage() {
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button className="tl-btn-primary border-0" size="sm"><Plus className="mr-1 h-4 w-4" /> Add expense <ChevronDown className="ml-1 h-3 w-3" /></Button>
+            <Button className=" border-0" size="sm"><Plus className="mr-1 h-4 w-4" /> Add expense <ChevronDown className="ml-1 h-3 w-3" /></Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setDialogOpen(true)}>Manual entry</DropdownMenuItem>
@@ -66,8 +66,8 @@ export function ExpensesPage() {
       <Tabs defaultValue="mine">
         <TabsList><TabsTrigger value="mine">My expenses</TabsTrigger><TabsTrigger value="reports">My reports</TabsTrigger>{canApprove && <TabsTrigger value="approve">To approve</TabsTrigger>}</TabsList>
         <TabsContent value="mine">
-          <select aria-label="Filter expense status" className="tl-input mb-3 w-48" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option>{['draft', 'submitted', 'approved', 'rejected', 'reimbursed', 'written_off', 'billed'].map((status) => <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>)}</select>
-          <div className="tl-card overflow-hidden shadow-sm">
+          <select aria-label="Filter expense status" className="rounded-md border border-input bg-background text-foreground mb-3 w-48" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option>{['draft', 'submitted', 'approved', 'rejected', 'reimbursed', 'written_off', 'billed'].map((status) => <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>)}</select>
+          <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
                 <th className="px-4 py-2">Date</th><th className="px-4 py-2">Description</th><th className="px-4 py-2">Category</th>

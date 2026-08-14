@@ -42,7 +42,7 @@ export function AiThreadList({ workspaceId }: Props) {
             type="button"
             onClick={() => setActive(t.id)}
             className={`max-w-[120px] truncate rounded-full px-2.5 py-1 text-xs ${
-              t.id === activeId ? 'tl-btn-primary text-white' : ''
+              t.id === activeId ? ' text-white' : ''
             }`}
             style={t.id === activeId ? undefined : { background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
           >

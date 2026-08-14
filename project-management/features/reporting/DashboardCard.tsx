@@ -28,7 +28,7 @@ export function DashboardCard({ dashboard, owner, basePath, dataCtx }: Props) {
   return (
     <Link
       href={`${basePath}/reporting/${dashboard.id}`}
-      className="tl-card block overflow-hidden shadow-sm transition-shadow hover:shadow-md"
+      className="rounded-lg border border-border bg-card text-card-foreground block overflow-hidden shadow-sm transition-shadow hover:shadow-md"
     >
       <div className="grid grid-cols-3 gap-1 border-b p-2" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}>
         {previewCharts.length ? (

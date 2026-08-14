@@ -4,10 +4,9 @@
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, Dialog, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { saveRunningTimer } from '../../../lib/psa/runningTimer'
 import { useTimerStore, type RunningTimer } from '../../../stores/timerStore'
-import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
 
 type Props = {
   open: boolean
@@ -43,7 +42,7 @@ export function TimerTransitionDialog({ open, onOpenChange, running, nextTimer }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{nextTimer ? 'Switch running timer?' : 'Stop running timer?'}</DialogTitle>
           <DialogDescription>
@@ -54,9 +53,9 @@ export function TimerTransitionDialog({ open, onOpenChange, running, nextTimer }
         <DialogFooter>
           <Button variant="ghost" disabled={saving} onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button variant="outline" disabled={saving} onClick={() => { discard(running.userId); complete() }}>Discard</Button>
-          <Button className="tl-btn-primary border-0" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</Button>
+          <Button className=" border-0" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save'}</Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

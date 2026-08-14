@@ -82,11 +82,11 @@ export function ContactSalesModal({
         )}
         <DialogFooter>
           {submitted ? (
-            <Button className="tl-btn-primary" onClick={() => close(false)}>Done</Button>
+            <Button className="" onClick={() => close(false)}>Done</Button>
           ) : (
             <>
               <Button variant="outline" onClick={() => close(false)}>Cancel</Button>
-              <Button className="tl-btn-primary" disabled={loading} onClick={() => void submit()}>
+              <Button className="" disabled={loading} onClick={() => void submit()}>
                 {loading ? 'Submitting…' : 'Contact sales'}
               </Button>
             </>

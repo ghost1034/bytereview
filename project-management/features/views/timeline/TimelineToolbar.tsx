@@ -106,14 +106,14 @@ export function TimelineToolbar({
         style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
         title="When on, dragging a predecessor bar later also moves its dependents. Turning on runs a one-time align for any overlapping dates."
       >
-        <Switch id="auto-shift" className="tl-switch" checked={autoShift} onCheckedChange={onAutoShift} />
+        <Switch id="auto-shift" className="" checked={autoShift} onCheckedChange={onAutoShift} />
         <Label htmlFor="auto-shift" className="cursor-pointer text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Auto-shift when dragging
         </Label>
       </div>
 
       <div className="flex items-center gap-2 rounded-md border px-2 py-1" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}>
-        <Switch id="crit-path" className="tl-switch" checked={highlightCriticalPath} onCheckedChange={onHighlightCriticalPath} />
+        <Switch id="crit-path" className="" checked={highlightCriticalPath} onCheckedChange={onHighlightCriticalPath} />
         <Label htmlFor="crit-path" className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Highlight critical path
         </Label>

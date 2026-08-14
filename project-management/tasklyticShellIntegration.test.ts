@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -10,9 +10,13 @@ describe('Tasklytic dashboard shell integration', () => {
     const shell = read('components/layout/dashboard-shell.tsx')
     const topbar = read('components/layout/dashboard-topbar.tsx')
 
-    expect(shell).toContain("pathname.startsWith('/dashboard/project-management')")
+    expect(shell).toContain(
+      "pathname.startsWith('/dashboard/project-management')",
+    )
     expect(shell).not.toContain('isImmersiveEsign || isProjectManagement')
-    expect(shell).toContain("isProjectManagement && 'h-svh max-h-svh overflow-hidden'")
+    expect(shell).toContain(
+      "isProjectManagement && 'h-svh max-h-svh overflow-hidden'",
+    )
     expect(shell).toContain("'h-full min-h-0 max-w-none p-0'")
     expect(shell).toContain('<AppSidebar />')
     expect(shell).toContain('<DashboardTopbar')
@@ -26,7 +30,9 @@ describe('Tasklytic dashboard shell integration', () => {
 
     expect(chrome).not.toContain("from './features/shell/TasklyticTopbar'")
     expect(chrome).not.toContain('<TasklyticTopbar ')
-    expect(chrome).not.toMatch(/AccountMenu|signOut|toggleTheme|tasklytic:theme/)
+    expect(chrome).not.toMatch(
+      /AccountMenu|signOut|toggleTheme|tasklytic:theme/,
+    )
     expect(chrome).toContain('h-full min-h-0 w-full min-w-0 overflow-hidden')
     expect(chrome).toContain('overflow-y-auto overflow-x-hidden p-3 sm:p-4')
     expect(chrome).toContain('className="hidden min-h-0 lg:flex"')
@@ -43,12 +49,16 @@ describe('Tasklytic dashboard shell integration', () => {
     const shell = read('components/layout/dashboard-shell.tsx')
     const topbar = read('components/layout/dashboard-topbar.tsx')
     const chrome = read('project-management/TasklyticChrome.tsx')
-    const actions = read('project-management/features/shell/TasklyticTopbarActions.tsx')
+    const actions = read(
+      'project-management/features/shell/TasklyticTopbarActions.tsx',
+    )
 
     expect(moduleChrome).toContain('export type DashboardModuleChrome')
     expect(moduleChrome).toContain('export function useDashboardModuleChrome')
     expect(shell).toContain('<DashboardModuleChromeProvider>')
-    expect(shell).toContain('resolveDashboardCommandPalette(moduleChrome, openGlobalPalette)')
+    expect(shell).toContain(
+      'resolveDashboardCommandPalette(moduleChrome, openGlobalPalette)',
+    )
     expect(topbar).toContain('breadcrumbs={breadcrumbs}')
     expect(topbar).toContain('{actions}')
     expect(topbar).toContain('<SidebarTrigger')
@@ -63,7 +73,14 @@ describe('Tasklytic dashboard shell integration', () => {
   it('keeps rich Tasklytic results without duplicate host account controls', () => {
     const palette = read('project-management/features/shell/CommandPalette.tsx')
 
-    for (const group of ['Pages', 'Projects', 'Tasks', 'Goals', 'People', 'Create']) {
+    for (const group of [
+      'Pages',
+      'Projects',
+      'Tasks',
+      'Goals',
+      'People',
+      'Create',
+    ]) {
       expect(palette).toContain(`group: '${group}'`)
     }
     expect(palette).toContain("group: 'CPAAutomation destinations'")
@@ -71,7 +88,9 @@ describe('Tasklytic dashboard shell integration', () => {
   })
 
   it('puts tour, setup, and shortcut utilities in the Tasklytic navigator footer', () => {
-    const sidebar = read('project-management/features/shell/TasklyticSidebar.tsx')
+    const sidebar = read(
+      'project-management/features/shell/TasklyticSidebar.tsx',
+    )
     const help = read('project-management/features/shell/HelpMenu.tsx')
 
     expect(sidebar).toContain('placement="sidebar"')
@@ -85,8 +104,12 @@ describe('Tasklytic dashboard shell integration', () => {
 
   it('keeps the navigator default, collapsed, and drawer contracts distinct', () => {
     const store = read('project-management/stores/auth.ts')
-    const sidebar = read('project-management/features/shell/TasklyticSidebar.tsx')
-    const resizeHandle = read('project-management/features/shell/SidebarResizeHandle.tsx')
+    const sidebar = read(
+      'project-management/features/shell/TasklyticSidebar.tsx',
+    )
+    const resizeHandle = read(
+      'project-management/features/shell/SidebarResizeHandle.tsx',
+    )
 
     expect(store).toContain('const SIDEBAR_WIDTH_DEFAULT = 240')
     expect(sidebar).toContain('const width = collapsed ? 56 : sidebarWidth')
@@ -94,5 +117,31 @@ describe('Tasklytic dashboard shell integration', () => {
     expect(sidebar).toContain("width: drawer ? '100%' : width")
     expect(sidebar).toContain('!drawer ? <SidebarResizeHandle')
     expect(resizeHandle).toContain('e.clientX - sidebarLeft.current')
+  })
+
+  it('removes superseded module-owned shell and portal compatibility code', () => {
+    const removedFiles = [
+      'project-management/components/branding/Logo.tsx',
+      'project-management/features/profile/AccountMenu.tsx',
+      'project-management/features/shell/TasklyticTopbar.tsx',
+      'project-management/features/shell/TasklyticDialogContent.tsx',
+      'project-management/features/ui/TasklyticAlertDialogContent.tsx',
+      'project-management/features/ui/TasklyticDropdownMenuContent.tsx',
+      'project-management/features/ui/TasklyticPopoverContent.tsx',
+      'project-management/features/ui/TasklyticSelectContent.tsx',
+      'project-management/features/ui/TasklyticTooltipContent.tsx',
+      'project-management/hooks/useFocusTrap.ts',
+      'project-management/styles/tasklytic.css',
+    ]
+
+    for (const file of removedFiles) {
+      expect(existsSync(path.join(root, file)), file).toBe(false)
+    }
+
+    const design = read('project-management/Design.md')
+    expect(design).toContain('the CPAAutomation design system is authoritative')
+    expect(design).toContain(
+      'It does not own an independent theme, logo, account shell, portal surface, or typography system.',
+    )
   })
 })

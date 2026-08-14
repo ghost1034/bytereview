@@ -29,7 +29,7 @@ export function TimesheetsPage() {
   return (
     <div className="space-y-4">
       <h1 className="font-sans text-2xl">Timesheets</h1>
-      <div className="tl-card overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">User</th><th className="px-4 py-2">Period</th><th className="px-4 py-2">Status</th>

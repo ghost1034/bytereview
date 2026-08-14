@@ -12,7 +12,7 @@ import {
   isRemovedCustomerTrialRoute,
 } from './lib/routePolicy'
 
-const loading = () => <div className="tl-card p-6 text-sm" role="status">Loading feature…</div>
+const loading = () => <div className="rounded-lg border border-border bg-card text-card-foreground p-6 text-sm" role="status">Loading feature…</div>
 const lazy = (loader: () => Promise<unknown>, name: string) => dynamic<Record<string, unknown>>(
   () => loader().then((module) => (module as Record<string, ComponentType<Record<string, unknown>>>)[name]), { loading },
 )
@@ -150,7 +150,7 @@ export function ProjectManagementWorkspaceRouter({ workspaceId, segments = [] }:
 
 function UnavailableRoute({ basePath }: { basePath: string }) {
   return (
-    <div className="tl-card mx-auto max-w-lg p-8 text-center shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground mx-auto max-w-lg p-8 text-center shadow-sm">
       <h1 className="font-sans text-2xl">Page not found</h1>
       <p className="mt-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         This project-management destination is not available.

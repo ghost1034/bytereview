@@ -133,7 +133,7 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
   return (
     <TasklyticErrorBoundary>
       <div
-        className={`tasklytic-root flex h-full min-h-0 w-full min-w-0 overflow-hidden${reducedMotion ? ' reduce-motion' : ''}`}
+        className={`tasklytic-root flex h-full min-h-0 w-full min-w-0 overflow-hidden bg-background font-sans text-foreground${reducedMotion ? ' reduce-motion' : ''}`}
       >
         <div className="hidden min-h-0 lg:flex">
           <TasklyticSidebar

@@ -49,7 +49,7 @@ export function MyTasksUnscheduledDrawer({ tasks, open, onOpenChange, onDragStar
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Filter tasks…"
-            className="tl-input m-2 h-8 text-sm"
+            className="rounded-md border border-input bg-background text-foreground m-2 h-8 text-sm"
           />
           <ul className="flex-1 overflow-y-auto px-2 pb-4">
             {filtered.map((task) => (

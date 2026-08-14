@@ -31,9 +31,9 @@ export function ClientsPage() {
     <div className="space-y-4" data-tour-page="clients">
       <div className="flex items-center justify-between">
         <h1 className="font-sans text-2xl">Clients</h1>
-        <Button className="tl-btn-primary border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New client</Button>
+        <Button className=" border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New client</Button>
       </div>
-      <div className="tl-card overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Name</th><th className="px-4 py-2">Type</th><th className="px-4 py-2">Matters</th>

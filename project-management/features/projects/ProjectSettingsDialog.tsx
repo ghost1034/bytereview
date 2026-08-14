@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
+  DialogContent,
   Dialog,
   DialogDescription,
   DialogFooter,
@@ -42,7 +43,6 @@ import { now } from '../../lib/time'
 import type { Project, ProjectView } from '../../types'
 import { useProjectsStore, useSectionsStore, useTeamsStore } from '../../stores/entities'
 import { EmojiPicker } from '../workspaces/EmojiPicker'
-import { TasklyticDialogContent } from '../shell/TasklyticDialogContent'
 import { ProjectColorPicker } from './ProjectColorPicker'
 import { ProjectViewCards } from './ProjectViewCards'
 import { BriefRichEditor } from './BriefRichEditor'
@@ -108,7 +108,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <TasklyticDialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-sans text-xl">Project settings</DialogTitle>
             <DialogDescription>Manage this project, its members, fields, notifications, and default views.</DialogDescription>
@@ -126,7 +126,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
             <TabsContent value="general" className="space-y-3">
               <div className="grid gap-2">
                 <Label htmlFor="project-settings-name">Name</Label>
-                <Input id="project-settings-name" className="tl-input" value={name} onChange={(e) => setName(e.target.value)} />
+                <Input id="project-settings-name" className="rounded-md border border-input bg-background text-foreground" value={name} onChange={(e) => setName(e.target.value)} />
               </div>
               <div className="grid gap-2">
                 <Label>Description</Label>
@@ -190,7 +190,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
                 {orderedSections.map((section, index) => section && (
                   <li key={section.id} className="flex items-center gap-2">
                     <Input
-                      className="tl-input flex-1"
+                      className="rounded-md border border-input bg-background text-foreground flex-1"
                       defaultValue={section.name}
                       onBlur={(e) => void renameProjectSection(section.id, e.target.value)}
                     />
@@ -207,7 +207,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
                 ))}
               </ul>
               <div className="flex gap-2">
-                <Input className="tl-input" placeholder="New section" value={newSection} onChange={(e) => setNewSection(e.target.value)} />
+                <Input className="rounded-md border border-input bg-background text-foreground" placeholder="New section" value={newSection} onChange={(e) => setNewSection(e.target.value)} />
                 <Button type="button" variant="outline" onClick={() => { void addProjectSection(project.id, newSection).then(() => setNewSection('')) }}>
                   <Plus className="h-4 w-4" />
                 </Button>
@@ -224,9 +224,9 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
           </Tabs>
           <DialogFooter>
             <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button className="tl-btn-primary border-0" onClick={() => void saveGeneral()}>Save changes</Button>
+            <Button className=" border-0" onClick={() => void saveGeneral()}>Save changes</Button>
           </DialogFooter>
-        </TasklyticDialogContent>
+        </DialogContent>
       </Dialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>

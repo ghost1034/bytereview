@@ -7,8 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
+import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useClientsStore, useMattersStore, useProjectsStore, useRateCardsStore, useTeamsStore, useWorkspacesStore } from '../../../stores/entities'
 import { useAuthStore } from '../../../stores/auth'
 import { newId } from '../../../lib/ids'
@@ -96,26 +95,26 @@ export function MatterDialog({ open, onOpenChange, workspaceId, teamId }: Props)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle className="font-sans text-xl">New {terms.singular.toLowerCase()}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
-          <div><Label>{terms.singular} name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="tl-input" /></div>
-          <div><Label>{terms.singular} number</Label><Input value={matterNumber} onChange={(e) => setMatterNumber(e.target.value)} className="tl-input" /></div>
+          <div><Label>{terms.singular} name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" /></div>
+          <div><Label>{terms.singular} number</Label><Input value={matterNumber} onChange={(e) => setMatterNumber(e.target.value)} className="rounded-md border border-input bg-background text-foreground" /></div>
           <Select value={clientId} onValueChange={setClientId}>
-            <SelectTrigger className="tl-input"><SelectValue placeholder="Client" /></SelectTrigger>
+            <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Client" /></SelectTrigger>
             <SelectContent className="z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
-          <Input placeholder="Practice area" value={practiceArea} onChange={(e) => setPracticeArea(e.target.value)} className="tl-input" />
-          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="tl-input"><SelectValue placeholder="Rate card" /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="none">Client / workspace default</SelectItem>{rateCards.map((card) => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
+          <Input placeholder="Practice area" value={practiceArea} onChange={(e) => setPracticeArea(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
+          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Rate card" /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="none">Client / workspace default</SelectItem>{rateCards.map((card) => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
           <div className="grid grid-cols-2 gap-2"><Input placeholder="Budget hours" value={budgetHours} onChange={(event) => setBudgetHours(event.target.value)} /><Input placeholder="Budget amount" value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} /></div>
           <label className="flex items-center gap-2 text-sm"><Switch checked={utbms} onCheckedChange={setUtbms} /> UTBMS codes</label>
           <label className="flex items-center gap-2 text-sm"><Switch checked={trust} onCheckedChange={setTrust} /> Trust accounting</label>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading} onClick={() => void submit()}>Create</Button>
+          <Button className=" border-0" disabled={loading} onClick={() => void submit()}>Create</Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

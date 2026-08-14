@@ -32,13 +32,13 @@ export class TasklyticErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="tasklytic-root flex min-h-[320px] items-center justify-center p-6">
-          <div className="tl-card max-w-md space-y-4 p-6 text-center shadow-md">
+          <div className="rounded-lg border border-border bg-card text-card-foreground max-w-md space-y-4 p-6 text-center shadow-md">
             <h2 className="font-sans text-xl">Something went wrong</h2>
             <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Tasklytic hit an unexpected error. Your data is still saved locally.
             </p>
             <div className="flex flex-wrap justify-center gap-2">
-              <Button className="tl-btn-primary border-0" onClick={() => window.location.reload()}>
+              <Button className=" border-0" onClick={() => window.location.reload()}>
                 Reload
               </Button>
               <Button variant="outline" onClick={() => void this.copyDiagnostics()}>

@@ -17,7 +17,7 @@ export function PortfolioSettingsTab({ portfolio, workspaceId }: Props) {
 
   return (
     <div className="space-y-8">
-      <section className="tl-card p-5 shadow-sm">
+      <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="font-sans text-lg">Portfolio details</h2>
@@ -26,7 +26,7 @@ export function PortfolioSettingsTab({ portfolio, workspaceId }: Props) {
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>Edit portfolio</Button>
         </div>
       </section>
-      <section className="tl-card p-5 shadow-sm">
+      <section className="rounded-lg border border-border bg-card text-card-foreground p-5 shadow-sm">
         <PortfolioCustomFieldsManager portfolio={portfolio} />
       </section>
       <CreateOrEditPortfolioModal

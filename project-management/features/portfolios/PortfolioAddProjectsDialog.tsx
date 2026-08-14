@@ -100,12 +100,12 @@ export function PortfolioAddProjectsDialog({
           <div className="grid gap-3 py-2">
             <div className="grid gap-2">
               <Label>Project name</Label>
-              <Input className="tl-input" value={newName} onChange={(e) => setNewName(e.target.value)} />
+              <Input className="rounded-md border border-input bg-background text-foreground" value={newName} onChange={(e) => setNewName(e.target.value)} />
             </div>
             <div className="grid gap-2">
               <Label>Team</Label>
               <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
                 <SelectContent className="z-[100]">
                   {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
@@ -133,14 +133,14 @@ export function PortfolioAddProjectsDialog({
           {creating ? (
             <>
               <Button variant="ghost" onClick={() => setCreating(false)}>Back</Button>
-              <Button className="tl-btn-primary border-0" disabled={loading || !newName.trim()} onClick={() => void createAndAttach()}>
+              <Button className=" border-0" disabled={loading || !newName.trim()} onClick={() => void createAndAttach()}>
                 Create & add
               </Button>
             </>
           ) : (
             <>
               <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button className="tl-btn-primary border-0" disabled={loading || !selected.length} onClick={() => void addSelected()}>
+              <Button className=" border-0" disabled={loading || !selected.length} onClick={() => void addSelected()}>
                 Add projects
               </Button>
             </>

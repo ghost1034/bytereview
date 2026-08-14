@@ -3,11 +3,11 @@
 import { Undo2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
+  TooltipContent,
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { TasklyticTooltipContent } from './TasklyticTooltipContent'
 import { TASK_UNDO_MAX, useTaskUndoStore } from '../../stores/taskUndo'
 
 /** Toolbar control to reverse the last task action (max 10). */
@@ -36,11 +36,11 @@ export function TaskUndoButton() {
             ) : null}
           </Button>
         </TooltipTrigger>
-        <TasklyticTooltipContent side="bottom" className="max-w-xs">
+        <TooltipContent side="bottom" className="max-w-xs">
           {count > 0
             ? `Undo the last action (${count} of ${TASK_UNDO_MAX} saved).`
             : `No actions to undo. Complete, delete, and bulk edits in List or Board are tracked (up to ${TASK_UNDO_MAX}).`}
-        </TasklyticTooltipContent>
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )

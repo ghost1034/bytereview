@@ -39,7 +39,7 @@ export function DrillDownPanel({ chart, recordIds, label, basePath, onClose }: P
       role="dialog"
       aria-modal="true"
       aria-labelledby="dashboard-drilldown-title"
-      className="tl-card fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col shadow-lg print:hidden"
+      className="rounded-lg border border-border bg-card text-card-foreground fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col shadow-lg print:hidden"
       style={{ maxHeight: '70vh', background: 'hsl(var(--card))' }}
     >
       <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>

@@ -69,7 +69,7 @@ export function AttachmentInput({ fieldId, value, onChange, readOnly, required, 
         multiple
         required={required && files.length === 0}
         disabled={readOnly}
-        className="tl-input"
+        className="rounded-md border border-input bg-background text-foreground"
         onChange={(e) => onFiles(e.target.files)}
       />
       {readError ? (

@@ -20,7 +20,7 @@ export function AiMessage({ message, actorId, onApplied }: Props) {
     <div className={`px-3 py-2 ${isUser ? 'text-right' : ''}`}>
       <div
         className={`inline-block max-w-[95%] rounded-2xl px-3 py-2 text-sm ${
-          isUser ? 'tl-btn-primary text-white' : 'tl-card shadow-sm'
+          isUser ? ' text-white' : 'rounded-lg border border-border bg-card text-card-foreground shadow-sm'
         }`}
         style={isUser ? undefined : { color: 'hsl(var(--foreground-muted))' }}
       >

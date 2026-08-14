@@ -68,7 +68,7 @@ export function SpawnChildProjectOffer({ project, workspaceId }: Props) {
         <Button size="sm" variant="ghost" onClick={() => void useProjectsStore.getState().update(project.id, { pendingChildOffer: undefined } as Partial<ProjectWithTemplateMeta>)}>
           Dismiss
         </Button>
-        <Button size="sm" className="tl-btn-primary border-0" disabled={loading} onClick={() => void spawn()}>
+        <Button size="sm" className=" border-0" disabled={loading} onClick={() => void spawn()}>
           Create project
         </Button>
       </div>

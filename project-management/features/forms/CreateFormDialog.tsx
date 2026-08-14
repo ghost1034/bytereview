@@ -92,12 +92,12 @@ export function CreateFormDialog({ open, onOpenChange, workspaceId, onCreated }:
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
             <Label htmlFor="form-name">Form name</Label>
-            <Input id="form-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Request intake" className="tl-input" />
+            <Input id="form-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Request intake" className="rounded-md border border-input bg-background text-foreground" />
           </div>
           <div className="grid gap-2">
             <Label>Project</Label>
             <Select value={projectId || projects[0]?.id} onValueChange={setProjectId}>
-              <SelectTrigger className="tl-input"><SelectValue placeholder="Select project" /></SelectTrigger>
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue placeholder="Select project" /></SelectTrigger>
               <SelectContent className="z-[100]">
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.iconEmoji ?? '📁'} {p.name}</SelectItem>
@@ -108,7 +108,7 @@ export function CreateFormDialog({ open, onOpenChange, workspaceId, onCreated }:
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading || !name.trim() || !projectId} onClick={() => void submit()}>
+          <Button className=" border-0" disabled={loading || !name.trim() || !projectId} onClick={() => void submit()}>
             Create form
           </Button>
         </DialogFooter>

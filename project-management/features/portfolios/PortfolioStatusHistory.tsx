@@ -56,7 +56,7 @@ export function PortfolioStatusHistory({ portfolioId, open, onOpenChange }: Prop
           <div className="space-y-1">
             <Label>Status</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
               <SelectContent className="z-[100]">
                 <SelectItem value="all">All statuses</SelectItem>
                 {(Object.keys(STATUS_LABELS) as StatusUpdate['status'][]).map((key) => (
@@ -68,7 +68,7 @@ export function PortfolioStatusHistory({ portfolioId, open, onOpenChange }: Prop
           <div className="space-y-1">
             <Label>Author</Label>
             <Select value={authorFilter} onValueChange={setAuthorFilter}>
-              <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
               <SelectContent className="z-[100]">
                 <SelectItem value="all">All authors</SelectItem>
                 {authorIds.map((id) => {

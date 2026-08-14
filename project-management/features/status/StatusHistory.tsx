@@ -69,7 +69,7 @@ export function StatusHistory({ project, open, onOpenChange }: Props) {
           <div className="space-y-1">
             <Label>Status</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
               <SelectContent className="z-[100]">
                 <SelectItem value="all">All statuses</SelectItem>
                 {(Object.keys(STATUS_LABELS) as StatusUpdate['status'][]).map((key) => (
@@ -81,7 +81,7 @@ export function StatusHistory({ project, open, onOpenChange }: Props) {
           <div className="space-y-1">
             <Label>Author</Label>
             <Select value={authorFilter} onValueChange={setAuthorFilter}>
-              <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
               <SelectContent className="z-[100]">
                 <SelectItem value="all">All authors</SelectItem>
                 {authorIds.map((id) => {
@@ -93,11 +93,11 @@ export function StatusHistory({ project, open, onOpenChange }: Props) {
           </div>
           <div className="space-y-1">
             <Label>From</Label>
-            <Input type="date" className="tl-input" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+            <Input type="date" className="rounded-md border border-input bg-background text-foreground" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
           </div>
           <div className="space-y-1">
             <Label>To</Label>
-            <Input type="date" className="tl-input" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            <Input type="date" className="rounded-md border border-input bg-background text-foreground" value={toDate} onChange={(e) => setToDate(e.target.value)} />
           </div>
         </div>
 

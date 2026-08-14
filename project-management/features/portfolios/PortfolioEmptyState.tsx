@@ -10,7 +10,7 @@ export function PortfolioEmptyState({
   hint = 'Group projects into portfolios to track health across initiatives.',
 }: Props) {
   return (
-    <div className="tl-card flex flex-col items-center p-10 text-center shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center p-10 text-center shadow-sm">
       <div
         className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
         style={{ background: 'hsl(var(--primary-soft))' }}

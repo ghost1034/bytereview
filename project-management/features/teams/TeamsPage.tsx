@@ -27,7 +27,7 @@ function TeamCard({
   const isMember = useAuthStore((s) => s.currentUserId && team.memberIds.includes(s.currentUserId))
 
   return (
-    <li className="tl-card flex items-start gap-3 p-4 shadow-sm">
+    <li className="rounded-lg border border-border bg-card text-card-foreground flex items-start gap-3 p-4 shadow-sm">
       <TeamIcon name={team.name} emoji={team.iconEmoji} className="h-10 w-10 text-lg" />
       <div className="min-w-0 flex-1">
         <Link href={href} className="font-medium hover:underline">{team.name}</Link>
@@ -77,17 +77,17 @@ export function TeamsPage() {
             Organize people and projects within your workspace.
           </p>
         </div>
-        <Button className="tl-btn-primary gap-2" onClick={() => setOpen(true)}>
+        <Button className=" gap-2" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" strokeWidth={1.5} />
           New team
         </Button>
       </div>
 
       {teams.length === 0 ? (
-        <div className="tl-card flex flex-col items-center gap-3 p-10 text-center shadow-sm">
+        <div className="rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center gap-3 p-10 text-center shadow-sm">
           <Users className="h-10 w-10" style={{ color: 'hsl(var(--foreground-subtle))' }} strokeWidth={1.5} />
           <p className="font-medium">No teams yet</p>
-          <Button className="tl-btn-primary" onClick={() => setOpen(true)}>Create team</Button>
+          <Button className="" onClick={() => setOpen(true)}>Create team</Button>
         </div>
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">

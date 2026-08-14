@@ -55,7 +55,7 @@ export function MyTasksInlineAdd({ workspaceId, sectionId, defaultProjectId, onD
         else onDone()
       }}
       placeholder="Write a task name…"
-      className="tl-input h-8 w-full text-sm"
+      className="rounded-md border border-input bg-background text-foreground h-8 w-full text-sm"
       autoFocus
       disabled={saving}
     />

@@ -91,7 +91,7 @@ export function RulesPage() {
         <h1 className="font-sans text-2xl">Rules</h1>
         <div className="flex items-center gap-2">
           <RuleLibrary onSelect={openTemplate} />
-          <Button className="tl-btn-primary gap-2 border-0" onClick={openNew}>
+          <Button className=" gap-2 border-0" onClick={openNew}>
             <Plus className="h-4 w-4" /> New rule
           </Button>
         </div>

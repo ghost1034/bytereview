@@ -44,7 +44,7 @@ export function TimesheetWeekGrid({ entries, tasks, weekAnchor, weekStart = 'mon
   const dayTotal = (date: string) => entries.filter((e) => e.date === date).reduce((s, e) => s + entryHours(e), 0)
 
   return (
-    <div className="tl-card overflow-x-auto shadow-sm">
+    <div className="rounded-lg border border-border bg-card text-card-foreground overflow-x-auto shadow-sm">
       <table className="w-full min-w-[640px] text-sm">
         <thead>
           <tr className="border-b" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>

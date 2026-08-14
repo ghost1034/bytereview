@@ -101,7 +101,7 @@ export function PortfolioTimelineTab({ portfolio, workspaceId }: Props) {
         if (!p) return null
         const isCollapsed = collapsed.has(p.id)
         return (
-          <section key={p.id} className="tl-card overflow-hidden shadow-sm">
+          <section key={p.id} className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
             <button
               type="button"
               className="flex w-full items-center gap-2 px-4 py-3 text-left"

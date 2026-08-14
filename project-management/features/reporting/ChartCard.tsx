@@ -44,7 +44,7 @@ export function ChartCard({
 
   return (
     <>
-      <div className="tl-card relative flex h-full flex-col overflow-hidden shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground relative flex h-full flex-col overflow-hidden shadow-sm">
         <div
           className={`flex items-center justify-between border-b px-2 py-1.5 ${editable ? 'cursor-grab active:cursor-grabbing' : ''}`}
           style={{ borderColor: 'hsl(var(--border))' }}

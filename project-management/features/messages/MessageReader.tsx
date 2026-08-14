@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
+  DropdownMenuContent,
   DropdownMenu,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -24,7 +25,6 @@ import { sanitizeHtml } from '../../lib/sanitizeHtml'
 import { formatRelative } from '../../lib/time'
 import { deleteProjectMessage, projectMessagePermalink, toggleProjectMessageReaction } from '../../lib/projectMessages'
 import type { ProjectMessage, User } from '../../types'
-import { TasklyticDropdownMenuContent } from '../ui/TasklyticDropdownMenuContent'
 import { tasklyticToast } from '../ui/tasklyticToast'
 import { MessageCommentComposer } from './MessageCommentComposer'
 import { MessageCommentRow } from './MessageCommentRow'
@@ -123,7 +123,7 @@ export function MessageReader({
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <TasklyticDropdownMenuContent align="end">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => void copyPermalink()}>
                 <Link2 className="mr-2 h-4 w-4" /> Copy link
               </DropdownMenuItem>
@@ -138,7 +138,7 @@ export function MessageReader({
                   </DropdownMenuItem>
                 </>
               ) : null}
-            </TasklyticDropdownMenuContent>
+            </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </header>

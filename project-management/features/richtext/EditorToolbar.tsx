@@ -95,11 +95,11 @@ export function EditorToolbar({ onCommand, className }: Props) {
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="https://…"
-              className="tl-input h-8 text-sm"
+              className="rounded-md border border-input bg-background text-foreground h-8 text-sm"
             />
             <Button
               size="sm"
-              className="tl-btn-primary h-8 border-0"
+              className=" h-8 border-0"
               disabled={!linkUrl.trim()}
               onClick={() => {
                 run('link', linkUrl.trim())

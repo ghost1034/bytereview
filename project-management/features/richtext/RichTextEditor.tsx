@@ -70,7 +70,7 @@ export function RichTextEditor({
         aria-multiline="true"
         aria-label={ariaLabel}
         data-placeholder={placeholder}
-        className={`${minHeightClassName} rounded-b-lg border px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background tl-rich-editor empty:before:text-[hsl(var(--foreground-subtle))] empty:before:content-[attr(data-placeholder)]`}
+        className={`${minHeightClassName} rounded-b-lg border px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5 empty:before:text-[hsl(var(--foreground-subtle))] empty:before:content-[attr(data-placeholder)]`}
         style={{
           borderColor: 'hsl(var(--border))',
           background: 'hsl(var(--card))',

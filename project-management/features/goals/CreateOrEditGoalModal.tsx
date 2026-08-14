@@ -79,8 +79,8 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
           <DialogTitle className="font-sans text-xl">{goal ? 'Edit goal' : 'Create goal'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
-          <GoalFormField label="Name *"><Input className="tl-input" value={form.name} onChange={(e) => form.setName(e.target.value)} /></GoalFormField>
-          <GoalFormField label="Description"><Input className="tl-input" value={form.description} onChange={(e) => form.setDescription(e.target.value)} /></GoalFormField>
+          <GoalFormField label="Name *"><Input className="rounded-md border border-input bg-background text-foreground" value={form.name} onChange={(e) => form.setName(e.target.value)} /></GoalFormField>
+          <GoalFormField label="Description"><Input className="rounded-md border border-input bg-background text-foreground" value={form.description} onChange={(e) => form.setDescription(e.target.value)} /></GoalFormField>
           <div className="grid grid-cols-2 gap-3">
             <GoalFormField label="Owner">
               <Select value={form.ownerId} onValueChange={form.setOwnerId}>
@@ -108,8 +108,8 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
               </SelectContent>
             </Select>
             <div className="mt-2 grid grid-cols-2 gap-2">
-              <Input type="date" className="tl-input" value={form.start} onChange={(e) => { form.setStart(e.target.value); form.setPreset('custom') }} />
-              <Input type="date" className="tl-input" value={form.end} onChange={(e) => { form.setEnd(e.target.value); form.setPreset('custom') }} />
+              <Input type="date" className="rounded-md border border-input bg-background text-foreground" value={form.start} onChange={(e) => { form.setStart(e.target.value); form.setPreset('custom') }} />
+              <Input type="date" className="rounded-md border border-input bg-background text-foreground" value={form.end} onChange={(e) => { form.setEnd(e.target.value); form.setPreset('custom') }} />
             </div>
           </GoalFormField>
           <GoalMetricFields
@@ -157,7 +157,7 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading || !form.name.trim()} onClick={() => void submit()}>
+          <Button className=" border-0" disabled={loading || !form.name.trim()} onClick={() => void submit()}>
             {goal ? 'Save changes' : 'Create goal'}
           </Button>
         </DialogFooter>

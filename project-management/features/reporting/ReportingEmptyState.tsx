@@ -10,7 +10,7 @@ type Props = { onCreate: () => void }
 export function ReportingEmptyState({ onCreate }: Props) {
   return (
     <div
-      className="tl-card flex flex-col items-center justify-center px-8 py-16 text-center shadow-sm"
+      className="rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center justify-center px-8 py-16 text-center shadow-sm"
      
     >
       <div
@@ -23,7 +23,7 @@ export function ReportingEmptyState({ onCreate }: Props) {
       <p className="mt-2 max-w-md text-sm leading-relaxed" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Universal reporting turns tasks, projects, portfolios, and goals into living dashboards. Start with a template or build charts from scratch.
       </p>
-      <Button className="tl-btn-primary mt-6 border-0" onClick={onCreate}>
+      <Button className=" mt-6 border-0" onClick={onCreate}>
         Create your first dashboard
       </Button>
     </div>

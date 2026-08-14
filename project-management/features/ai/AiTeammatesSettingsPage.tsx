@@ -95,7 +95,7 @@ export function AiTeammatesSettingsPage() {
           Configure server-run assistants. Their output remains a proposal until a person reviews and accepts it.
         </p>
       </div>
-      <div className="tl-card flex items-start gap-3 p-4 text-sm shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground flex items-start gap-3 p-4 text-sm shadow-sm">
         <ShieldCheck className="mt-0.5 h-4 w-4" style={{ color: 'hsl(var(--primary))' }} />
         <p>Schedules use scoped context, daily limits, metered usage, retry audit trails, and administrator failure notifications.</p>
       </div>
@@ -103,9 +103,9 @@ export function AiTeammatesSettingsPage() {
         {(Object.entries(PRESETS) as [keyof typeof PRESETS, (typeof PRESETS)[keyof typeof PRESETS]][]).map(([id, preset]) => {
           const draft = drafts[id]
           const job = jobs.find((item) => item.teammate === id)
-          if (!draft) return <div key={id} className="tl-card h-72 animate-pulse" />
+          if (!draft) return <div key={id} className="rounded-lg border border-border bg-card text-card-foreground h-72 animate-pulse" />
           return (
-            <section key={id} className="tl-card space-y-4 p-4 shadow-sm">
+            <section key={id} className="rounded-lg border border-border bg-card text-card-foreground space-y-4 p-4 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div><h2 className="font-sans text-lg">{preset.name}</h2><p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{preset.description}</p></div>
                 <Switch aria-label={`Enable ${preset.name}`} checked={draft.enabled} onCheckedChange={(enabled) => update(id, { enabled })} />
@@ -114,7 +114,7 @@ export function AiTeammatesSettingsPage() {
               <div className="space-y-1"><Label>Scope</Label><div className="flex gap-2"><Select value={draft.scopeType} onValueChange={(scopeType) => update(id, { scopeType: scopeType as Draft['scopeType'], scopeId: scopeType === 'workspace' ? workspaceId : '' })}><SelectTrigger className="w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="workspace">Workspace</SelectItem><SelectItem value="project">Project</SelectItem><SelectItem value="task">Task</SelectItem></SelectContent></Select><Input aria-label={`${preset.name} scope id`} value={draft.scopeId} disabled={draft.scopeType === 'workspace'} placeholder={`${draft.scopeType} id`} onChange={(event) => update(id, { scopeId: event.target.value })} /></div></div>
               <div className="space-y-1"><Label htmlFor={`${id}-limit`}>Daily run limit</Label><Input id={`${id}-limit`} type="number" min={1} max={100} value={draft.dailyLimit} onChange={(event) => update(id, { dailyLimit: Number(event.target.value) })} /></div>
               {job ? <p className="flex items-center gap-1 text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}><Clock className="h-3 w-3" /> Next run {new Date(job.nextRunAt).toLocaleString()}</p> : null}
-              <Button className="tl-btn-primary w-full" onClick={() => void save(id)}>Save {preset.name}</Button>
+              <Button className=" w-full" onClick={() => void save(id)}>Save {preset.name}</Button>
             </section>
           )
         })}

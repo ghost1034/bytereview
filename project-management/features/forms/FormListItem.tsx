@@ -78,7 +78,7 @@ export function FormListItemActions({ form, onPublish, onUnpublish }: ActionsPro
           </Button>
         </>
       ) : (
-        <Button className="tl-btn-primary border-0" size="sm" onClick={onPublish}>
+        <Button className=" border-0" size="sm" onClick={onPublish}>
           Publish
         </Button>
       )}

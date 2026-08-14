@@ -44,14 +44,14 @@ export function StepInviteTeammates({
           onChange={(e) => onEmailsChange(e.target.value)}
           placeholder="alex@company.com, sam@company.com"
           rows={3}
-          className="w-full rounded-md border px-3 py-2 text-sm tl-input"
+          className="w-full rounded-md border px-3 py-2 text-sm rounded-md border border-input bg-background text-foreground"
           style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
         />
       </div>
       <div className="grid gap-2">
         <Label>Role</Label>
         <Select value={role} onValueChange={(v) => onRoleChange(v as Props['role'])}>
-          <SelectTrigger className="tl-input">
+          <SelectTrigger className="rounded-md border border-input bg-background text-foreground">
             <SelectValue />
           </SelectTrigger>
           <SelectContent className="z-[100]">
@@ -68,7 +68,7 @@ export function StepInviteTeammates({
           value={note}
           onChange={(e) => onNoteChange(e.target.value)}
           placeholder="Join us in the CPAAutomation Tasklytic!"
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
         />
       </div>
     </div>

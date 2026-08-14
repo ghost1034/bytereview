@@ -6,9 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
-import { Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { TasklyticDialogContent } from '../../shell/TasklyticDialogContent'
 import { useExpensesStore, useAttachmentsStore } from '../../../stores/entities'
 import { newId } from '../../../lib/ids'
 import { now } from '../../../lib/time'
@@ -136,39 +135,39 @@ export function ExpenseEntryDialog(props: Props) {
 
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <TasklyticDialogContent className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle className="font-sans text-xl">{props.expense ? 'Edit expense' : props.mileageMode ? 'Mileage' : 'Add expense'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
           {props.mileageMode ? (
-            <div className="grid gap-1"><Label>Miles</Label><Input value={miles} onChange={(e) => setMiles(e.target.value)} className="tl-input font-mono tabular-nums" /><p className="text-xs font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>@ {formatMoney(rate)}/mi = {formatMoney(baseAmount)}</p></div>
+            <div className="grid gap-1"><Label>Miles</Label><Input value={miles} onChange={(e) => setMiles(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" /><p className="text-xs font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>@ {formatMoney(rate)}/mi = {formatMoney(baseAmount)}</p></div>
           ) : (
             <>
               <Input type="file" accept="image/*" capture="environment" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onReceipt(f) }} />
               <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{ocrHint || 'Manual vendor, date, amount, and tax entry remains available when receipt extraction is unavailable.'}</p>
-              <Input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
-              <Input placeholder="Tax" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
+              <Input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
+              <Input placeholder="Tax" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
             </>
           )}
-          <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} className="tl-input" />
-          <Input placeholder="Vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} className="tl-input" />
+          <Input placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
+          <Input placeholder="Vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           <Select value={category} onValueChange={(v) => { setCategory(v as ExpenseCategory); setPassThrough(defaultPassThrough(v)) }}>
-            <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="rounded-md border border-input bg-background text-foreground"><SelectValue /></SelectTrigger>
             <SelectContent className="z-[100]">{Object.entries(EXPENSE_CATEGORY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
           </Select>
-          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="tl-input" />
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm"><Switch checked={billable} onCheckedChange={setBillable} /> Billable</label>
             <label className="flex items-center gap-2 text-sm"><Switch checked={passThrough} onCheckedChange={setPassThrough} /> Pass-through</label>
             <label className="flex items-center gap-2 text-sm"><Switch checked={reimbursable} onCheckedChange={setReimbursable} /> Reimbursable</label>
           </div>
-          {!passThrough && <Input placeholder="Markup %" value={markup} onChange={(e) => setMarkup(e.target.value)} className="tl-input font-mono tabular-nums" />}
+          {!passThrough && <Input placeholder="Markup %" value={markup} onChange={(e) => setMarkup(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />}
           <p className="text-right font-mono tabular-nums text-sm">Billable: {formatMoney(billableAmount)}</p>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => props.onOpenChange(false)}>Cancel</Button>
-          <Button className="tl-btn-primary border-0" disabled={loading} onClick={() => void submit()}>Save</Button>
+          <Button className=" border-0" disabled={loading} onClick={() => void submit()}>Save</Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

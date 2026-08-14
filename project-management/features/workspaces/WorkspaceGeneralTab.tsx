@@ -96,7 +96,7 @@ export function WorkspaceGeneralTab({ workspace, currentUser }: Props) {
           <Switch checked={autoApprove} disabled={!canEdit} onCheckedChange={setAutoApprove} />
         </div>
         <AdminOnlyWrap allowed={canEdit}>
-          <Button className="tl-btn-primary w-fit" disabled={!canEdit || saving || !name.trim()} onClick={() => void save()}>
+          <Button className=" w-fit" disabled={!canEdit || saving || !name.trim()} onClick={() => void save()}>
             {saving ? 'Saving…' : 'Save changes'}
           </Button>
         </AdminOnlyWrap>

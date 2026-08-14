@@ -85,7 +85,7 @@ export function CreateMilestoneDialog({ project, open, onOpenChange }: Props) {
             <Label htmlFor="milestone-name">Name</Label>
             <Input
               id="milestone-name"
-              className="tl-input"
+              className="rounded-md border border-input bg-background text-foreground"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Beta launch"
@@ -96,7 +96,7 @@ export function CreateMilestoneDialog({ project, open, onOpenChange }: Props) {
             <Label htmlFor="milestone-description">Description</Label>
             <Textarea
               id="milestone-description"
-              className="tl-input min-h-24"
+              className="rounded-md border border-input bg-background text-foreground min-h-24"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="What does this milestone represent? (optional)"
@@ -107,7 +107,7 @@ export function CreateMilestoneDialog({ project, open, onOpenChange }: Props) {
             <Input
               id="milestone-due"
               type="date"
-              className="tl-input w-auto"
+              className="rounded-md border border-input bg-background text-foreground w-auto"
               value={dueOn}
               onChange={(e) => setDueOn(e.target.value)}
             />
@@ -121,7 +121,7 @@ export function CreateMilestoneDialog({ project, open, onOpenChange }: Props) {
             Cancel
           </Button>
           <Button
-            className="tl-btn-primary border-0"
+            className=" border-0"
             disabled={!name.trim() || submitting}
             onClick={() => void submit()}
           >

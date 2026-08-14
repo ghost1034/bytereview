@@ -25,7 +25,7 @@ export function RulesList({
 }: Props) {
   if (rules.length === 0) {
     return (
-      <div className="tl-card p-8 text-center shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground p-8 text-center shadow-sm">
         <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           No rules yet. Create one or start from a template.
         </p>

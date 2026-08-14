@@ -22,7 +22,7 @@ export function FormPreview({ form }: Props) {
             className="mb-4 h-32 w-full rounded-lg object-cover"
           />
         ) : null}
-        <div className="tl-card space-y-4 p-6 shadow-md">
+        <div className="rounded-lg border border-border bg-card text-card-foreground space-y-4 p-6 shadow-md">
           {form.branding?.logoDataUrl ? (
             <img src={form.branding.logoDataUrl} alt="" className="h-10 w-auto object-contain" />
           ) : null}
@@ -48,7 +48,7 @@ export function FormPreview({ form }: Props) {
               * Required fields
             </p>
           ) : null}
-          <Button type="button" className="tl-btn-primary w-full border-0" disabled>
+          <Button type="button" className=" w-full border-0" disabled>
             Submit
           </Button>
         </div>

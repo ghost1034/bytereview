@@ -103,7 +103,7 @@ export function TimeTrackingPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button className="tl-btn-primary border-0" size="sm" onClick={() => setDialogOpen(true)}><Plus className="mr-1 h-4 w-4" /> Log time</Button>
+          <Button className=" border-0" size="sm" onClick={() => setDialogOpen(true)}><Plus className="mr-1 h-4 w-4" /> Log time</Button>
           <Button variant="outline" size="sm" disabled={readOnly || weekEntries.length === 0} onClick={() => setSubmitOpen(true)}>Submit week</Button>
         </div>
       </div>
@@ -112,14 +112,14 @@ export function TimeTrackingPage() {
         <TabsContent value="week" className="space-y-3">
           <TimesheetWeekNav weekAnchor={weekAnchor} onChange={setWeekAnchor} />
           <TimesheetWeekGrid entries={weekEntries} tasks={tasks} weekAnchor={weekAnchor} weekStart={weekStartPref} readOnly={readOnly} onCellSave={onCellSave} />
-          <div className="tl-card p-3 text-sm shadow-sm">
+          <div className="rounded-lg border border-border bg-card text-card-foreground p-3 text-sm shadow-sm">
             <p>Target: <span className="font-mono tabular-nums">{targetHours}h</span> · Gap: <span className="font-mono tabular-nums">{(targetHours - billableH).toFixed(2)}h</span></p>
             <p>Billable amount: <span className="font-mono tabular-nums">{formatMoney(weekEntries.reduce((s, e) => s + (e.amount ?? 0), 0))}</span></p>
           </div>
         </TabsContent>
         <TabsContent value="entries">
-          <select aria-label="Filter time status" className="tl-input mb-3 w-48" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option>{['draft', 'submitted', 'approved', 'rejected', 'written_off', 'billed'].map((status) => <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>)}</select>
-          <div className="tl-card overflow-hidden shadow-sm">
+          <select aria-label="Filter time status" className="rounded-md border border-input bg-background text-foreground mb-3 w-48" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option>{['draft', 'submitted', 'approved', 'rejected', 'written_off', 'billed'].map((status) => <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>)}</select>
+          <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
             <table className="w-full text-sm">
               <thead><tr className="border-b text-left text-xs" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
                 <th className="px-3 py-2">Date</th><th className="px-3 py-2">Description</th><th className="px-3 py-2 text-right">Hours</th>

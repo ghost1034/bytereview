@@ -91,7 +91,7 @@ export function MyTasksList({ workspaceId, basePath, defaultProjectId }: Props) 
           {sections.map((section) => {
             const collapsed = (query.collapsedSectionIds ?? []).includes(String(section.id))
             return (
-              <section key={section.id} className="tl-card p-4 shadow-sm">
+              <section key={section.id} className="rounded-lg border border-border bg-card text-card-foreground p-4 shadow-sm">
                 <div id={`section:${section.id}`}>
                   <MyTasksSectionHeader
                     sectionId={section.id}

@@ -39,8 +39,6 @@ import {
   useUsersStore,
   useWorkspacesStore,
 } from './stores/entities'
-import './styles/tasklytic.css'
-
 const OnboardingWizard = dynamic(() => import('./features/onboarding/OnboardingWizard').then((module) => module.OnboardingWizard), { ssr: false })
 const ProductTour = dynamic(() => import('./features/onboarding/ProductTour').then((module) => module.ProductTour), { ssr: false })
 
@@ -317,7 +315,7 @@ export function TasklyticProvider({ children }: Props) {
 
   if (waitingOnAuth) {
     return (
-      <div className="tasklytic-root min-h-[320px] px-6 py-8">
+      <div className="tasklytic-root min-h-[320px] bg-background px-6 py-8 font-sans text-foreground">
         <TasklyticLoadingState label="Loading project management…" />
       </div>
     )
@@ -325,7 +323,7 @@ export function TasklyticProvider({ children }: Props) {
 
   if (!bootReady) {
     return (
-      <div className="tasklytic-root min-h-[320px] px-6 py-8">
+      <div className="tasklytic-root min-h-[320px] bg-background px-6 py-8 font-sans text-foreground">
         <TasklyticLoadingState label="Loading your workspace…" />
       </div>
     )

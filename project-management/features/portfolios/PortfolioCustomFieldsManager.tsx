@@ -66,7 +66,7 @@ export function PortfolioCustomFieldsManager({ portfolio }: Props) {
           These fields appear as columns on the Projects tab (values are stored per project in portfolio context).
         </p>
         <div className="mt-3 flex gap-2">
-          <Input className="tl-input max-w-xs" placeholder="Search library…" value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} />
+          <Input className="rounded-md border border-input bg-background text-foreground max-w-xs" placeholder="Search library…" value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} />
           <Button size="sm" onClick={() => setEditorOpen(true)}><Plus className="mr-1 h-4 w-4" />Create field</Button>
         </div>
         <ul className="mt-4 space-y-2">

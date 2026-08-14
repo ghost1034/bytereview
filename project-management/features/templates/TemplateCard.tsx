@@ -18,7 +18,7 @@ export function TemplateCard({ template, loading, onPreview, onUse }: Props) {
   const ruleCount = template.ruleTemplates?.length ?? 0
 
   return (
-    <article className="tl-card flex h-full flex-col p-5 shadow-sm">
+    <article className="rounded-lg border border-border bg-card text-card-foreground flex h-full flex-col p-5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <Badge variant="outline" className="text-xs" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
           {template.category}
@@ -40,7 +40,7 @@ export function TemplateCard({ template, loading, onPreview, onUse }: Props) {
       </p>
       <div className="mt-4 flex gap-2">
         <Button size="sm" variant="outline" onClick={onPreview}>Preview</Button>
-        <Button size="sm" className="tl-btn-primary border-0" disabled={loading} onClick={onUse}>
+        <Button size="sm" className=" border-0" disabled={loading} onClick={onUse}>
           Use template
         </Button>
       </div>

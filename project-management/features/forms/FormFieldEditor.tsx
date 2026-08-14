@@ -28,7 +28,7 @@ export function FormFieldEditor({ field, onChange }: Props) {
           id="field-label"
           value={field.label}
           onChange={(e) => patch({ label: e.target.value })}
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
         />
       </div>
       {(field.type === 'short_text' || field.type === 'long_text') && (
@@ -38,7 +38,7 @@ export function FormFieldEditor({ field, onChange }: Props) {
             id="field-placeholder"
             value={field.placeholder ?? ''}
             onChange={(e) => patch({ placeholder: e.target.value })}
-            className="tl-input"
+            className="rounded-md border border-input bg-background text-foreground"
           />
         </div>
       )}
@@ -91,7 +91,7 @@ function OptionsEditor({
           <Input
             value={o.label}
             onChange={(e) => updateOption(o.id, e.target.value)}
-            className="tl-input"
+            className="rounded-md border border-input bg-background text-foreground"
           />
           <Button type="button" variant="ghost" size="sm" onClick={() => removeOption(o.id)}>
             ×

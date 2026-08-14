@@ -52,7 +52,7 @@ export function AttachmentPreviewModal({ attachment, url, open, onOpenChange }: 
             </p>
             {href ? (
               <Button
-                className="tl-btn-primary border-0"
+                className=" border-0"
                 onClick={() => downloadNamedFile(href, attachment.name)}
               >
                 Download

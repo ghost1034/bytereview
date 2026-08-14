@@ -84,7 +84,7 @@ export function TaskRow({
     >
       <div className="relative z-[15] flex items-center justify-center px-1">
         <Checkbox
-          className="tl-checkbox"
+          className=""
           checked={selected}
           onClick={(e) => {
             e.stopPropagation()

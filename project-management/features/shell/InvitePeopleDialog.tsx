@@ -4,12 +4,12 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  DialogContent,
   Dialog,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { TasklyticDialogContent } from './TasklyticDialogContent'
 
 type Props = {
   open: boolean
@@ -26,7 +26,7 @@ export function InvitePeopleDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <TasklyticDialogContent className="max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="font-sans text-xl">Invite people</DialogTitle>
         </DialogHeader>
@@ -34,16 +34,16 @@ export function InvitePeopleDialog({ open, onOpenChange }: Props) {
           Enter email addresses separated by commas. Full invite delivery ships in a later step.
         </p>
         <Input
-          className="tl-input"
+          className="rounded-md border border-input bg-background text-foreground"
           placeholder="colleague@company.com"
           value={inviteEmails}
           onChange={(e) => setInviteEmails(e.target.value)}
         />
         <DialogFooter>
           <Button variant="ghost" onClick={close}>Cancel</Button>
-          <Button className="tl-btn-primary" onClick={close}>Send invites</Button>
+          <Button className="" onClick={close}>Send invites</Button>
         </DialogFooter>
-      </TasklyticDialogContent>
+      </DialogContent>
     </Dialog>
   )
 }

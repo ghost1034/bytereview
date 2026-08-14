@@ -119,11 +119,11 @@ export function AttachmentListPanel({
       ) : null}
       {allowLink && linkOpen ? (
         <div className="mb-2 flex flex-wrap gap-2">
-          <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" className="tl-input h-8 flex-1 text-sm" />
-          <Input value={linkName} onChange={(e) => setLinkName(e.target.value)} placeholder="Label (optional)" className="tl-input h-8 w-36 text-sm" />
+          <Input value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} placeholder="https://…" className="rounded-md border border-input bg-background text-foreground h-8 flex-1 text-sm" />
+          <Input value={linkName} onChange={(e) => setLinkName(e.target.value)} placeholder="Label (optional)" className="rounded-md border border-input bg-background text-foreground h-8 w-36 text-sm" />
           <Button
             size="sm"
-            className="tl-btn-primary h-8 border-0"
+            className=" h-8 border-0"
             disabled={!linkUrl.trim()}
             onClick={() => {
               void scope.addLink(linkUrl, linkName)

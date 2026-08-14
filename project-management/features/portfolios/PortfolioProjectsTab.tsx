@@ -105,7 +105,7 @@ export function PortfolioProjectsTab({ portfolio, workspaceId }: Props) {
         onBulkRemove={() => void bulkRemove()}
       />
 
-      <div className="tl-card overflow-x-auto shadow-sm">
+      <div className="rounded-lg border border-border bg-card text-card-foreground overflow-x-auto shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>

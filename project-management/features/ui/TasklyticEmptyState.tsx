@@ -46,17 +46,17 @@ export function TasklyticEmptyState({
 }: Props) {
   const cta =
     ctaLabel && onCta ? (
-      <Button className="tl-btn-primary mt-4 border-0" onClick={onCta}>
+      <Button className=" mt-4 border-0" onClick={onCta}>
         {ctaLabel}
       </Button>
     ) : ctaLabel && ctaHref ? (
-      <Button className="tl-btn-primary mt-4 border-0" asChild>
+      <Button className=" mt-4 border-0" asChild>
         <Link href={ctaHref}>{ctaLabel}</Link>
       </Button>
     ) : null
 
   return (
-    <div className={`tl-card flex flex-col items-center px-6 py-10 text-center shadow-sm ${className}`}>
+    <div className={`rounded-lg border border-border bg-card text-card-foreground flex flex-col items-center px-6 py-10 text-center shadow-sm ${className}`}>
       {illustration ?? <DefaultIllustration />}
       <h3 className="font-sans text-xl" style={{ color: 'hsl(var(--foreground))' }}>
         {headline}
