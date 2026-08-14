@@ -41,13 +41,13 @@ export function RecordPaymentDialog({ open, onOpenChange, invoice }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle className="font-serif text-xl">Record payment</DialogTitle><DialogDescription>Apply a manual payment to {invoice.invoiceNumber}. Reversals remain in the audit history.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle className="font-sans text-xl">Record payment</DialogTitle><DialogDescription>Apply a manual payment to {invoice.invoiceNumber}. Reversals remain in the audit history.</DialogDescription></DialogHeader>
         <div className="grid gap-3 py-2">
           <div><Label>Amount</Label><Input value={amount} onChange={(e) => setAmount(e.target.value)} className="tl-input font-mono tabular-nums" /></div>
           <div><Label>Method</Label>
             <Select value={method} onValueChange={(v) => setMethod(v as Payment['method'])}>
               <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 {(['check', 'ach', 'wire', 'card', 'trust_application', 'other'] as const).map((m) => (
                   <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>
                 ))}

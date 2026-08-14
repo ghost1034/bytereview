@@ -42,7 +42,7 @@ export function PortfolioProjectFieldEditor({ portfolioId, projectId, field, cla
           <FieldValueCell field={field} value={stored} users={users} className={className} />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="tl-popover-surface w-64 p-3" align="start">
+      <PopoverContent className="w-64 p-3" align="start">
         <FieldEditorBody field={field} value={value} users={users} onSave={(v) => void save(v)} />
       </PopoverContent>
     </Popover>

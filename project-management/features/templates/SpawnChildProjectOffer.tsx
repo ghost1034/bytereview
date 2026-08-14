@@ -58,10 +58,10 @@ export function SpawnChildProjectOffer({ project, workspaceId }: Props) {
   return (
     <div
       className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3"
-      style={{ borderColor: 'var(--primary-soft)', background: 'var(--primary-soft)' }}
+      style={{ borderColor: 'hsl(var(--primary-soft))', background: 'hsl(var(--primary-soft))' }}
       role="status"
     >
-      <p className="text-sm" style={{ color: 'var(--ink-secondary)' }}>
+      <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {offer.toastMessage}
       </p>
       <div className="flex gap-2">

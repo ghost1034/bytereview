@@ -61,8 +61,8 @@ export function PortfolioCustomFieldsManager({ portfolio }: Props) {
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="font-serif text-lg">Portfolio fields</h3>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <h3 className="font-sans text-lg">Portfolio fields</h3>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           These fields appear as columns on the Projects tab (values are stored per project in portfolio context).
         </p>
         <div className="mt-3 flex gap-2">
@@ -71,24 +71,24 @@ export function PortfolioCustomFieldsManager({ portfolio }: Props) {
         </div>
         <ul className="mt-4 space-y-2">
           {attached.map((f) => f && (
-            <li key={f.id} className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border-subtle)' }}>
+            <li key={f.id} className="flex items-center justify-between rounded-lg border px-3 py-2" style={{ borderColor: 'hsl(var(--border))' }}>
               <span className="flex items-center gap-2 text-sm">
                 <FieldTypeIcon type={f.type} />
                 {f.name}
-                <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>{fieldTypeLabel(f.type)}</span>
+                <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{fieldTypeLabel(f.type)}</span>
               </span>
               <button type="button" onClick={() => void removeField(f.id)} aria-label={`Remove ${f.name}`}>
-                <X className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+                <X className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
               </button>
             </li>
           ))}
-          {!attached.length && <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No portfolio fields yet.</p>}
+          {!attached.length && <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No portfolio fields yet.</p>}
         </ul>
         {available.length > 0 && (
           <ul className="mt-3 space-y-1">
             {available.slice(0, 8).map((f) => (
               <li key={f.id}>
-                <button type="button" className="text-sm underline" style={{ color: 'var(--primary)' }} onClick={() => void addField(f.id)}>
+                <button type="button" className="text-sm underline" style={{ color: 'hsl(var(--primary))' }} onClick={() => void addField(f.id)}>
                   + Add {f.name}
                 </button>
               </li>
@@ -98,8 +98,8 @@ export function PortfolioCustomFieldsManager({ portfolio }: Props) {
       </div>
 
       <div>
-        <h3 className="font-serif text-lg">Linked goals</h3>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>Goals supported by this portfolio appear on the Progress tab.</p>
+        <h3 className="font-sans text-lg">Linked goals</h3>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Goals supported by this portfolio appear on the Progress tab.</p>
         <ul className="mt-3 space-y-1">
           {goals.map((g) => (
             <label key={g.id} className="flex cursor-pointer items-center gap-2 text-sm">
@@ -107,7 +107,7 @@ export function PortfolioCustomFieldsManager({ portfolio }: Props) {
               {g.name}
             </label>
           ))}
-          {!goals.length && <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No goals in workspace.</p>}
+          {!goals.length && <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No goals in workspace.</p>}
         </ul>
       </div>
 

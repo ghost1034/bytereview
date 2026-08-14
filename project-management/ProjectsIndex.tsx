@@ -67,7 +67,7 @@ export function ProjectsIndex() {
   return (
     <div className="space-y-4" data-tour-page="projects">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-2xl">Projects</h1>
+        <h1 className="font-sans text-2xl">Projects</h1>
         <Button className="tl-btn-primary border-0" size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> New project
         </Button>
@@ -82,7 +82,7 @@ export function ProjectsIndex() {
         />
         <Select value={teamFilter} onValueChange={setTeamFilter}>
           <SelectTrigger className="w-36"><SelectValue placeholder="Team" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All teams</SelectItem>
             {teams.map((t) => (
               <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
@@ -91,24 +91,24 @@ export function ProjectsIndex() {
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All statuses</SelectItem>
             {(Object.keys(STATUS_LABELS) as Exclude<ProjectStatus, null>[]).map((key) => (
               <SelectItem key={key} value={key}>{STATUS_LABELS[key]}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--ink-secondary)' }}>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           <input type="checkbox" checked={starredOnly} onChange={(e) => setStarredOnly(e.target.checked)} />
           Starred
         </label>
-        <label className="flex items-center gap-2 text-sm" style={{ color: 'var(--ink-secondary)' }}>
+        <label className="flex items-center gap-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
           Archived
         </label>
-        <div className="flex rounded-lg border p-0.5 text-sm" style={{ borderColor: 'var(--border-subtle)' }}>
-          <button type="button" className="rounded-md px-3 py-1" style={{ background: viewMode === 'grid' ? 'var(--primary-soft)' : undefined }} onClick={() => setViewMode('grid')}>Grid</button>
-          <button type="button" className="rounded-md px-3 py-1" style={{ background: viewMode === 'list' ? 'var(--primary-soft)' : undefined }} onClick={() => setViewMode('list')}>List</button>
+        <div className="flex rounded-lg border p-0.5 text-sm" style={{ borderColor: 'hsl(var(--border))' }}>
+          <button type="button" className="rounded-md px-3 py-1" style={{ background: viewMode === 'grid' ? 'hsl(var(--primary-soft))' : undefined }} onClick={() => setViewMode('grid')}>Grid</button>
+          <button type="button" className="rounded-md px-3 py-1" style={{ background: viewMode === 'list' ? 'hsl(var(--primary-soft))' : undefined }} onClick={() => setViewMode('list')}>List</button>
         </div>
       </div>
 
@@ -129,13 +129,13 @@ export function ProjectsIndex() {
             />
           ))}
           {!filtered.length && (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No projects match your filters.</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No projects match your filters.</p>
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="overflow-x-auto rounded-xl border" style={{ borderColor: 'hsl(var(--border))' }}>
           <table className="w-full text-sm">
-            <thead style={{ background: 'var(--bg-muted)', color: 'var(--ink-muted)' }}>
+            <thead style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}>
               <tr>
                 <th className="px-4 py-2 text-left font-medium">Project</th>
                 <th className="px-4 py-2 text-left font-medium">Team</th>
@@ -147,7 +147,7 @@ export function ProjectsIndex() {
               {filtered.map((p) => {
                 const team = teams.find((t) => t.id === p.teamId)
                 return (
-                  <tr key={p.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <tr key={p.id} className="border-t" style={{ borderColor: 'hsl(var(--border))' }}>
                     <td className="px-4 py-3">
                       <Link href={`/dashboard/project-management/w/${workspaceId}/projects/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
                         <span>{p.iconEmoji}</span>
@@ -163,7 +163,7 @@ export function ProjectsIndex() {
             </tbody>
           </table>
           {!filtered.length && (
-            <p className="p-4 text-sm" style={{ color: 'var(--ink-muted)' }}>No projects match your filters.</p>
+            <p className="p-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No projects match your filters.</p>
           )}
         </div>
       )}

@@ -15,7 +15,7 @@ type Props = {
 /** Colored capacity cell with overload stripe. */
 export function CapacityCell({ cell, onClick, onDropTask, isTimeOff }: Props) {
   const bg = isTimeOff
-    ? 'repeating-linear-gradient(135deg, var(--bg-muted) 0 6px, var(--border-subtle) 6px 12px)'
+    ? 'repeating-linear-gradient(135deg, hsl(var(--surface-muted)) 0 6px, hsl(var(--border)) 6px 12px)'
     : cellBackground(cell.level, cell.ratio)
 
   return (
@@ -35,9 +35,9 @@ export function CapacityCell({ cell, onClick, onDropTask, isTimeOff }: Props) {
             }}
             className="relative h-12 min-w-[72px] rounded-md border text-xs tabular-nums transition-opacity hover:opacity-90"
             style={{
-              borderColor: 'var(--border-subtle)',
+              borderColor: 'hsl(var(--border))',
               background: bg,
-              color: cell.level === 'over' ? 'var(--danger)' : 'var(--ink-secondary)',
+              color: cell.level === 'over' ? 'hsl(var(--destructive))' : 'hsl(var(--foreground-muted))',
             }}
           >
             <span className="block px-1 py-2">
@@ -46,12 +46,12 @@ export function CapacityCell({ cell, onClick, onDropTask, isTimeOff }: Props) {
             {cell.level === 'over' ? (
               <span
                 className="pointer-events-none absolute inset-y-1 right-0 w-1 rounded-full"
-                style={{ background: 'var(--danger)' }}
+                style={{ background: 'hsl(var(--destructive))' }}
               />
             ) : null}
           </button>
         </TooltipTrigger>
-        <TooltipContent className="tl-popover-surface">
+        <TooltipContent>
           <p>{Math.round(cell.ratio * 100)}% utilized · {cell.taskIds.length} task(s)</p>
         </TooltipContent>
       </Tooltip>

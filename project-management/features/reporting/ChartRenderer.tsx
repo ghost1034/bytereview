@@ -48,10 +48,10 @@ export function ChartRenderer({ chart, data, compact, onPointClick }: Props) {
   if (data.kind === 'number') {
     return (
       <div className={`flex flex-col items-center justify-center ${height} p-2`}>
-        <p className="font-serif text-4xl tabular-nums" style={{ color: 'var(--ink-primary)' }}>
+        <p className="font-sans text-4xl tabular-nums" style={{ color: 'hsl(var(--foreground))' }}>
           {Math.round(data.value)}
         </p>
-        <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-xs uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {data.subtitle}
         </p>
       </div>
@@ -105,7 +105,7 @@ export function ChartRenderer({ chart, data, compact, onPointClick }: Props) {
   const cfg = configFromPoints(points)
   if (!points.length) {
     return (
-      <p className={`flex items-center justify-center text-sm italic ${height}`} style={{ color: 'var(--ink-muted)' }}>
+      <p className={`flex items-center justify-center text-sm italic ${height}`} style={{ color: 'hsl(var(--foreground-muted))' }}>
         No data
       </p>
     )
@@ -135,7 +135,7 @@ export function ChartRenderer({ chart, data, compact, onPointClick }: Props) {
                   if (!viewBox || !('cx' in viewBox)) return null
                   return (
                     <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
-                      <tspan className="fill-foreground font-serif text-2xl">{data.total}</tspan>
+                      <tspan className="fill-foreground font-sans text-2xl">{data.total}</tspan>
                     </text>
                   )
                 }}

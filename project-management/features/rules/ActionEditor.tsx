@@ -76,10 +76,10 @@ export function ActionEditor({
   }
 
   return (
-    <div className="grid gap-2 rounded-lg border p-3" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div className="grid gap-2 rounded-lg border p-3" style={{ borderColor: 'hsl(var(--border))' }}>
       <Select value={action.type} onValueChange={(v) => setType(v as RuleAction['type'])}>
         <SelectTrigger><SelectValue /></SelectTrigger>
-        <SelectContent className="tl-popover-surface z-[100]">
+        <SelectContent className="z-[100]">
           {ACTION_TYPES.map((o) => (
             <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
           ))}
@@ -89,7 +89,7 @@ export function ActionEditor({
       {action.type === 'assign_to' && (
         <Select value={action.userId} onValueChange={(userId) => onChange({ ...action, userId })}>
           <SelectTrigger><SelectValue placeholder="Assignee" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value={ROUND_ROBIN_USER_ID}>Round-robin among members</SelectItem>
             {members.map((u) => (
               <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
@@ -111,7 +111,7 @@ export function ActionEditor({
       {action.type === 'move_to_section' && (
         <Select value={action.sectionId} onValueChange={(sectionId) => onChange({ ...action, sectionId })}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {sections.map((s) => (
               <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
             ))}
@@ -122,7 +122,7 @@ export function ActionEditor({
       {action.type === 'add_to_project' && (
         <Select value={action.projectId} onValueChange={(projectId) => onChange({ ...action, projectId })}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
             ))}
@@ -137,7 +137,7 @@ export function ActionEditor({
             onValueChange={(customFieldId) => onChange({ ...action, customFieldId })}
           >
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               {customFields.map((f) => (
                 <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
               ))}
@@ -155,7 +155,7 @@ export function ActionEditor({
       {action.type === 'add_collaborator' && (
         <Select value={action.userId} onValueChange={(userId) => onChange({ ...action, userId })}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {members.map((u) => (
               <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
             ))}
@@ -167,7 +167,7 @@ export function ActionEditor({
         <div className="grid gap-2">
           <Select value={action.userId} onValueChange={(userId) => onChange({ ...action, userId })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               <SelectItem value={ASSIGNEE_USER_ID}>Task assignee</SelectItem>
               {members.map((u) => (
                 <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
@@ -190,7 +190,7 @@ export function ActionEditor({
             value={action.templateName}
             onChange={(e) => onChange({ ...action, templateName: e.target.value })}
           />
-          <Label className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+          <Label className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Supports {'{{taskName}}'}, {'{{assigneeName}}'}, {'{{today}}'}, {'{{dueIn:N}}'}
           </Label>
         </div>
@@ -200,14 +200,14 @@ export function ActionEditor({
         <div className="grid gap-2">
           <Select value={action.recipient} onValueChange={(recipient) => onChange({ ...action, recipient })}>
             <SelectTrigger><SelectValue placeholder="Recipient" /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               <SelectItem value="assignee">Task assignee</SelectItem>
               {members.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
             </SelectContent>
           </Select>
           <Input value={action.subject} onChange={(e) => onChange({ ...action, subject: e.target.value })} placeholder="Subject" />
           <Input value={action.body} onChange={(e) => onChange({ ...action, body: e.target.value })} placeholder="Body" />
-          <Label className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+          <Label className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Supports {'{{taskName}}'}, {'{{assigneeName}}'}, and {'{{dueDate}}'}
           </Label>
         </div>

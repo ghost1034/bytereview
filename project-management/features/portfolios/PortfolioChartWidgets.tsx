@@ -11,7 +11,7 @@ type DonutProps = {
 
 export function PortfolioDonutChart({ data }: DonutProps) {
   const config = Object.fromEntries(
-    data.map((d) => [d.name, { label: d.name, color: d.statusKey ? getProjectStatusColor(d.statusKey as never) : 'var(--primary)' }])
+    data.map((d) => [d.name, { label: d.name, color: d.statusKey ? getProjectStatusColor(d.statusKey as never) : 'hsl(var(--primary))' }])
   )
   return (
     <ChartContainer config={config} className="mx-auto aspect-square h-[200px]">
@@ -19,7 +19,7 @@ export function PortfolioDonutChart({ data }: DonutProps) {
         <ChartTooltip content={<ChartTooltipContent hideLabel />} />
         <Pie data={data} dataKey="value" nameKey="name" innerRadius={50} outerRadius={80} paddingAngle={2}>
           {data.map((entry) => (
-            <Cell key={entry.name} fill={entry.statusKey ? getProjectStatusColor(entry.statusKey as never) : 'var(--primary)'} />
+            <Cell key={entry.name} fill={entry.statusKey ? getProjectStatusColor(entry.statusKey as never) : 'hsl(var(--primary))'} />
           ))}
         </Pie>
       </PieChart>
@@ -32,7 +32,7 @@ type BarProps = {
 }
 
 export function PortfolioBarChart({ data }: BarProps) {
-  const config = { value: { label: 'Projects', color: 'var(--primary)' } }
+  const config = { value: { label: 'Projects', color: 'hsl(var(--primary))' } }
   return (
     <ChartContainer config={config} className="h-[200px] w-full">
       <BarChart data={data} layout="vertical" margin={{ left: 8 }}>
@@ -51,7 +51,7 @@ type LineProps = {
 }
 
 export function PortfolioLineChart({ data }: LineProps) {
-  const config = { count: { label: 'Tasks completed', color: 'var(--accent)' } }
+  const config = { count: { label: 'Tasks completed', color: 'hsl(var(--success))' } }
   return (
     <ChartContainer config={config} className="h-[200px] w-full">
       <LineChart data={data}>
@@ -69,11 +69,11 @@ type NumberProps = { label: string; value: number | string; suffix?: string }
 
 export function PortfolioNumberCard({ label, value, suffix }: NumberProps) {
   return (
-    <div className="tl-card flex flex-col items-center justify-center p-6 text-center shadow-paper-sm">
-      <p className="text-3xl font-serif tabular-nums" style={{ color: 'var(--primary)' }}>
+    <div className="tl-card flex flex-col items-center justify-center p-6 text-center shadow-sm">
+      <p className="text-3xl font-sans tabular-nums" style={{ color: 'hsl(var(--primary))' }}>
         {value}{suffix}
       </p>
-      <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>{label}</p>
+      <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{label}</p>
     </div>
   )
 }

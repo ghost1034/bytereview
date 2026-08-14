@@ -34,12 +34,12 @@ export function MattersPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="font-serif text-2xl">{terms.plural}</h1>
+        <h1 className="font-sans text-2xl">{terms.plural}</h1>
         <Button className="tl-btn-primary border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New {terms.singular.toLowerCase()}</Button>
       </div>
-      <div className="tl-card overflow-hidden shadow-paper-sm">
+      <div className="tl-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">#</th><th className="px-4 py-2">Name</th><th className="px-4 py-2">Client</th>
             <th className="px-4 py-2">Practice</th><th className="px-4 py-2">Attorney</th><th className="px-4 py-2">Status</th>
             <th className="px-4 py-2 text-right">WIP</th><th className="px-4 py-2">Flags</th>
@@ -53,7 +53,7 @@ export function MattersPage() {
               const hours = matterEntries.reduce((s, e) => s + entryHours(e), 0)
               const wip = wipTotal(matterEntries, [])
               return (
-                <tr key={m.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+                <tr key={m.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                   <td className="px-4 py-2 font-mono tabular-nums">{m.matterNumber}</td>
                   <td className="px-4 py-2"><Link className="hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/${terms.route}/${m.id}`}>{project?.name ?? '—'}</Link></td>
                   <td className="px-4 py-2">{client?.name ?? '—'}</td>

@@ -32,8 +32,8 @@ export function ReactionRow({ comment, currentUserId, userById, onToggle }: Prop
                   type="button"
                   className="rounded-full px-2 py-0.5 text-xs transition-colors"
                   style={{
-                    background: active ? 'var(--accent-soft)' : 'var(--bg-elevated)',
-                    border: active ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
+                    background: active ? 'hsl(var(--success-soft))' : 'hsl(var(--card))',
+                    border: active ? '1px solid hsl(var(--success))' : '1px solid hsl(var(--border))',
                   }}
                   onClick={() => onToggle(emoji)}
                 >
@@ -42,7 +42,7 @@ export function ReactionRow({ comment, currentUserId, userById, onToggle }: Prop
                 </button>
               </TooltipTrigger>
               {users.length ? (
-                <TooltipContent className="tl-popover-surface">{names || 'Reactions'}</TooltipContent>
+                <TooltipContent>{names || 'Reactions'}</TooltipContent>
               ) : null}
             </Tooltip>
           )

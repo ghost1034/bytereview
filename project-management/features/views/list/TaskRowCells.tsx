@@ -40,7 +40,7 @@ export function TaskRowCell(props: CellProps) {
   const cfId = parseCustomFieldColumnId(String(column.id))
   if (cfId) {
     const field = props.customFieldMap[cfId] ?? props.projectFields.find((f) => f.id === cfId)
-    if (!field) return <span style={{ color: 'var(--ink-faint)' }}>—</span>
+    if (!field) return <span style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
     return <FieldValueEditor task={task} field={field} compact allFields={props.projectFields} />
   }
 
@@ -55,7 +55,7 @@ export function TaskRowCell(props: CellProps) {
     case 'status': {
       const fieldName = column.id === 'priority' ? 'Priority' : 'Status'
       const field = findFieldByName(props.workspaceId, fieldName)
-      if (!field) return <span style={{ color: 'var(--ink-muted)' }}>—</span>
+      if (!field) return <span style={{ color: 'hsl(var(--foreground-muted))' }}>—</span>
       return <FieldValueEditor task={task} field={field} compact />
     }
     case 'tags':
@@ -93,10 +93,10 @@ function AssigneeCell({ task, users }: { task: Task; users: User[] }) {
           {assignee ? (
             <>
               <UserAvatar userId={assignee.id} size="sm" showPresence={false} />
-              <span className="truncate" style={{ color: 'var(--ink-secondary)' }}>{assignee.name}</span>
+              <span className="truncate" style={{ color: 'hsl(var(--foreground-muted))' }}>{assignee.name}</span>
             </>
           ) : (
-            <span style={{ color: 'var(--ink-muted)' }}>—</span>
+            <span style={{ color: 'hsl(var(--foreground-muted))' }}>—</span>
           )}
         </button>
       </PopoverTrigger>
@@ -113,7 +113,7 @@ function AssigneeCell({ task, users }: { task: Task; users: User[] }) {
           ))}
         </ul>
         {currentUserId ? (
-          <button type="button" className="mt-1 w-full rounded-md px-2 py-1 text-left text-xs" style={{ color: 'var(--primary)' }} onClick={() => void pick(currentUserId)}>
+          <button type="button" className="mt-1 w-full rounded-md px-2 py-1 text-left text-xs" style={{ color: 'hsl(var(--primary))' }} onClick={() => void pick(currentUserId)}>
             Assign to me
           </button>
         ) : null}
@@ -131,7 +131,7 @@ function DueCell({ task }: { task: Task }) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button type="button" className="inline-flex items-center gap-1 text-sm" style={{ color }} onClick={(e) => e.stopPropagation()}>
-          <CalendarIcon className="h-3 w-3" style={{ color: 'var(--ink-faint)' }} />
+          <CalendarIcon className="h-3 w-3" style={{ color: 'hsl(var(--foreground-subtle))' }} />
           {label}
         </button>
       </PopoverTrigger>
@@ -142,11 +142,11 @@ function DueCell({ task }: { task: Task }) {
             { label: 'Tomorrow', date: addDays(startOfToday(), 1) },
             { label: 'Next Monday', date: nextMonday(startOfToday()) },
           ].map((q) => (
-            <button key={q.label} type="button" className="rounded px-2 py-0.5 text-xs hover:bg-[var(--bg-muted)]" onClick={() => currentUserId && void setDue(task.id, { dueOn: toISODate(q.date) }, currentUserId)}>
+            <button key={q.label} type="button" className="rounded px-2 py-0.5 text-xs hover:bg-[hsl(var(--surface-muted))]" onClick={() => currentUserId && void setDue(task.id, { dueOn: toISODate(q.date) }, currentUserId)}>
               {q.label}
             </button>
           ))}
-          <button type="button" className="rounded px-2 py-0.5 text-xs" style={{ color: 'var(--danger)' }} onClick={() => currentUserId && void setDue(task.id, { dueOn: null }, currentUserId)}>
+          <button type="button" className="rounded px-2 py-0.5 text-xs" style={{ color: 'hsl(var(--destructive))' }} onClick={() => currentUserId && void setDue(task.id, { dueOn: null }, currentUserId)}>
             Clear
           </button>
         </div>
@@ -182,7 +182,7 @@ function TagsCell({ task, tags, workspaceId }: { task: Task; tags: Tag[]; worksp
 
 function ProjectsCell({ task, projects }: { task: Task; projects: Project[] }) {
   const chips = task.projectIds.map((id) => projects.find((p) => p.id === id)).filter(Boolean) as Project[]
-  if (!chips.length) return <span style={{ color: 'var(--ink-muted)' }}>—</span>
+  if (!chips.length) return <span style={{ color: 'hsl(var(--foreground-muted))' }}>—</span>
   return (
     <div className="flex flex-wrap gap-0.5">
       {chips.map((p) => (

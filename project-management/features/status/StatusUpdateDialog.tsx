@@ -130,7 +130,7 @@ export function StatusUpdateDialog({ project, currentUserId, open, onOpenChange,
       <button
         type="button"
         className="flex items-center gap-1 text-sm font-medium"
-        style={{ color: 'var(--ink-secondary)' }}
+        style={{ color: 'hsl(var(--foreground-muted))' }}
         onClick={onToggle}
       >
         {sectionOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -142,10 +142,10 @@ export function StatusUpdateDialog({ project, currentUserId, open, onOpenChange,
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface tl-dialog-mobile max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="tl-dialog-mobile max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-2">
-            <DialogTitle className="font-serif">Post status update</DialogTitle>
+            <DialogTitle className="font-sans">Post status update</DialogTitle>
             <MagicButton label={drafting ? 'Drafting…' : 'Draft from activity'} onClick={() => void draftFromActivity()} disabled={drafting} />
           </div>
         </DialogHeader>

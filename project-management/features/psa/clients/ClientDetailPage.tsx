@@ -21,10 +21,10 @@ export function ClientDetailPage({ clientId }: { clientId: string }) {
   if (!workspaceId || !client || client.workspaceId !== workspaceId) return <p>Client not found.</p>
   const ar = invoices.reduce((sum, invoice) => sum + (invoice.amountOutstanding ?? 0), 0)
   return <div className="space-y-5">
-    <div><h1 className="font-serif text-2xl">{client.name}</h1><p className="text-sm" style={{ color: 'var(--ink-muted)' }}>{client.contactName ?? 'No primary contact'} · {client.contactEmail ?? 'No email'}</p></div>
+    <div><h1 className="font-sans text-2xl">{client.name}</h1><p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{client.contactName ?? 'No primary contact'} · {client.contactEmail ?? 'No email'}</p></div>
     <div className="grid gap-3 sm:grid-cols-3"><Metric label="WIP" value={formatMoney(wipTotal(time, expenses))} /><Metric label="Accounts receivable" value={formatMoney(ar)} /><Metric label="Retainer" value={formatMoney(client.retainerBalance ?? 0)} /></div>
-    <div className="tl-card p-4 shadow-paper-sm"><h2 className="mb-3 font-medium">{terms.plural}</h2><div className="space-y-2">{matters.map((matter) => <Link className="flex justify-between rounded-md border p-3 hover:underline" key={matter.id} href={`/dashboard/project-management/w/${workspaceId}/psa/${terms.route}/${matter.id}`}><span>{projects.find((p) => p.id === matter.projectId)?.name ?? matter.matterNumber}</span><span>{matter.status}</span></Link>)}</div></div>
+    <div className="tl-card p-4 shadow-sm"><h2 className="mb-3 font-medium">{terms.plural}</h2><div className="space-y-2">{matters.map((matter) => <Link className="flex justify-between rounded-md border p-3 hover:underline" key={matter.id} href={`/dashboard/project-management/w/${workspaceId}/psa/${terms.route}/${matter.id}`}><span>{projects.find((p) => p.id === matter.projectId)?.name ?? matter.matterNumber}</span><span>{matter.status}</span></Link>)}</div></div>
   </div>
 }
 
-function Metric({ label, value }: { label: string; value: string }) { return <div className="tl-card p-4 shadow-paper-sm"><p className="text-xs uppercase" style={{ color: 'var(--ink-muted)' }}>{label}</p><p className="font-mono text-xl">{value}</p></div> }
+function Metric({ label, value }: { label: string; value: string }) { return <div className="tl-card p-4 shadow-sm"><p className="text-xs uppercase" style={{ color: 'hsl(var(--foreground-muted))' }}>{label}</p><p className="font-mono text-xl">{value}</p></div> }

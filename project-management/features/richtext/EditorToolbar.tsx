@@ -60,7 +60,7 @@ export function EditorToolbar({ onCommand, className }: Props) {
   return (
     <div
       className={`mb-1 flex flex-wrap gap-0.5 rounded-t-lg border border-b-0 p-1 ${className ?? ''}`}
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }}
+      style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}
     >
       {BUTTONS.map(({ command, icon: Icon, label }) => (
         <Button
@@ -89,7 +89,7 @@ export function EditorToolbar({ onCommand, className }: Props) {
             <LinkIcon className="h-3.5 w-3.5" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="tl-popover-surface w-72 p-2" align="start">
+        <PopoverContent className="w-72 p-2" align="start">
           <div className="flex gap-2">
             <Input
               value={linkUrl}

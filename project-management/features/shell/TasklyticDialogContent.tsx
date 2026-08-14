@@ -27,10 +27,7 @@ export const TasklyticDialogContent = forwardRef<ElementRef<typeof DialogContent
           if (typeof ref === 'function') ref(node)
           else if (ref) ref.current = node
         }}
-        // `tl-dialog-surface` supplies Tasklytic surface/ink/border vars (the dialog
-        // is portaled outside `.tasklytic-root`); `bg-background` guarantees an opaque
-        // backdrop even when a caller's inline `var(--bg-elevated)` would otherwise fail.
-        className={cn('tl-dialog-surface bg-background', className)}
+        className={cn('bg-background', className)}
         {...props}
       >
         {children}

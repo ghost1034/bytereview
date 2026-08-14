@@ -64,7 +64,7 @@ export function CreateDashboardDialog({ open, onOpenChange, workspaceId, onCreat
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="font-serif">New dashboard</DialogTitle>
+          <DialogTitle className="font-sans">New dashboard</DialogTitle>
           <DialogDescription>Create a blank reporting dashboard or start from a template.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
@@ -78,7 +78,7 @@ export function CreateDashboardDialog({ open, onOpenChange, workspaceId, onCreat
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="blank">Blank dashboard</SelectItem>
                 {DASHBOARD_TEMPLATES.map((t) => (
                   <SelectItem key={t.id} value={t.id}>

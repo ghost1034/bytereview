@@ -23,7 +23,7 @@ export function EventChip({ task, project, onOpen, onDragStart, compact }: Props
       className={`flex w-full min-w-0 items-center gap-1 truncate rounded px-1 py-0.5 text-left leading-tight ${
         compact ? 'text-[10px]' : 'text-[11px]'
       }`}
-      style={{ background: 'var(--bg-muted)', color: 'var(--ink-secondary)' }}
+      style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
       onClick={(e) => {
         e.stopPropagation()
         onOpen()

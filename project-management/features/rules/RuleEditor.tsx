@@ -141,9 +141,9 @@ export function RuleEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[90vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">{rule ? 'Edit rule' : 'New rule'}</DialogTitle>
+          <DialogTitle className="font-sans text-xl">{rule ? 'Edit rule' : 'New rule'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-5 py-2">
           <div className="grid gap-2">
@@ -154,7 +154,7 @@ export function RuleEditor({
             <Label>Project</Label>
             <Select value={projectId} onValueChange={setProjectId}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.iconEmoji ?? '📁'} {p.name}</SelectItem>
                 ))}

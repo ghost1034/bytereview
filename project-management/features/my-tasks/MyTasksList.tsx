@@ -40,7 +40,7 @@ function SectionDrop({ sectionId, children }: { sectionId: MyTasksSectionId; chi
     <div
       ref={setNodeRef}
       className="rounded-lg"
-      style={{ outline: isOver ? '2px solid var(--primary)' : undefined, outlineOffset: 2 }}
+      style={{ outline: isOver ? '2px solid hsl(var(--primary))' : undefined, outlineOffset: 2 }}
     >
       {children}
     </div>
@@ -91,7 +91,7 @@ export function MyTasksList({ workspaceId, basePath, defaultProjectId }: Props) 
           {sections.map((section) => {
             const collapsed = (query.collapsedSectionIds ?? []).includes(String(section.id))
             return (
-              <section key={section.id} className="tl-card p-4 shadow-paper-sm">
+              <section key={section.id} className="tl-card p-4 shadow-sm">
                 <div id={`section:${section.id}`}>
                   <MyTasksSectionHeader
                     sectionId={section.id}

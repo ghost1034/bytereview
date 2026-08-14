@@ -148,14 +148,14 @@ export function getGoalStatusColor(status: Goal['status']): string {
   switch (status) {
     case 'on_track':
     case 'achieved':
-      return 'var(--accent)'
+      return 'hsl(var(--success))'
     case 'at_risk':
-      return 'var(--warning)'
+      return 'hsl(var(--warning))'
     case 'off_track':
     case 'missed':
-      return 'var(--destructive, #e11d48)'
+      return 'hsl(var(--destructive))'
     default:
-      return 'var(--ink-muted)'
+      return 'hsl(var(--foreground-muted))'
   }
 }
 

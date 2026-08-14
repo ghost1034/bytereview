@@ -69,24 +69,24 @@ export function TaskProjectsField({ task }: Props) {
   return (
     <div className="text-sm">
       <div className="mb-1.5 flex items-center justify-between">
-        <span style={{ color: 'var(--ink-muted)' }}>Projects</span>
+        <span style={{ color: 'hsl(var(--foreground-muted))' }}>Projects</span>
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
-            <button type="button" className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--primary)' }}>
+            <button type="button" className="inline-flex items-center gap-1 text-xs" style={{ color: 'hsl(var(--primary))' }}>
               <Plus className="h-3 w-3" /> Add
             </button>
           </PopoverTrigger>
-          <PopoverContent className="tl-popover-surface w-64 p-2" align="end">
+          <PopoverContent className="w-64 p-2" align="end">
             {pendingProjectId ? (
               <div>
-                <p className="mb-2 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                <p className="mb-2 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   Choose a section
                 </p>
                 <Select onValueChange={(v) => void confirmSection(v)}>
                   <SelectTrigger className="tl-input h-8 text-sm">
                     <SelectValue placeholder="Section…" />
                   </SelectTrigger>
-                  <SelectContent className="tl-popover-surface z-[100]">
+                  <SelectContent className="z-[100]">
                     {sectionsFor(pendingProjectId).map((s) => (
                       <SelectItem key={s.id} value={s.id}>
                         {s.name}
@@ -97,7 +97,7 @@ export function TaskProjectsField({ task }: Props) {
                 <button
                   type="button"
                   className="mt-2 text-xs"
-                  style={{ color: 'var(--ink-muted)' }}
+                  style={{ color: 'hsl(var(--foreground-muted))' }}
                   onClick={() => setPendingProjectId(null)}
                 >
                   Back
@@ -117,7 +117,7 @@ export function TaskProjectsField({ task }: Props) {
                     <li key={p.id}>
                       <button
                         type="button"
-                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--bg-muted)]"
+                        className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[hsl(var(--surface-muted))]"
                         onClick={() => pickProject(p.id)}
                       >
                         <span>{p.iconEmoji ?? '📁'}</span>
@@ -138,7 +138,7 @@ export function TaskProjectsField({ task }: Props) {
               <span
                 key={p.id}
                 className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-                style={{ background: 'var(--bg-muted)', color: 'var(--ink-secondary)' }}
+                style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
               >
                 <span>{p.iconEmoji ?? '📁'}</span>
                 {p.name}
@@ -150,7 +150,7 @@ export function TaskProjectsField({ task }: Props) {
                     <SelectTrigger className="h-5 w-auto gap-0 border-0 bg-transparent px-1 text-xs shadow-none">
                       <SelectValue placeholder="Section" />
                     </SelectTrigger>
-                    <SelectContent className="tl-popover-surface z-[100]">
+                    <SelectContent className="z-[100]">
                       {sectionsFor(p.id).map((s) => (
                         <SelectItem key={s.id} value={s.id}>
                           {s.name}
@@ -170,7 +170,7 @@ export function TaskProjectsField({ task }: Props) {
             ) : null
           )
         ) : (
-          <span className="text-xs" style={{ color: 'var(--ink-faint)' }}>
+          <span className="text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>
             No projects
           </span>
         )}

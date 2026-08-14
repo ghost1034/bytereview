@@ -110,7 +110,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
       <Dialog open={open} onOpenChange={onOpenChange}>
         <TasklyticDialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl">Project settings</DialogTitle>
+            <DialogTitle className="font-sans text-xl">Project settings</DialogTitle>
             <DialogDescription>Manage this project, its members, fields, notifications, and default views.</DialogDescription>
           </DialogHeader>
           <Tabs defaultValue="general">
@@ -149,7 +149,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
                 <Label>Team</Label>
                 <Select value={teamId} onValueChange={setTeamId}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent className="tl-popover-surface z-[100]">
+                  <SelectContent className="z-[100]">
                     {teams.map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                     ))}
@@ -160,7 +160,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
                 <Label>Privacy</Label>
                 <Select value={privacy} onValueChange={(v) => setPrivacy(v as Project['privacy'])}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent className="tl-popover-surface z-[100]">
+                  <SelectContent className="z-[100]">
                     {(Object.keys(PRIVACY_LABELS) as Project['privacy'][]).map((key) => (
                       <SelectItem key={key} value={key}>{PRIVACY_LABELS[key]}</SelectItem>
                     ))}
@@ -201,7 +201,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
                       <ArrowDown className="h-4 w-4" />
                     </Button>
                     <Button type="button" size="sm" variant="ghost" onClick={() => void deleteProjectSection(section.id)}>
-                      <Trash2 className="h-4 w-4" style={{ color: 'var(--danger)' }} />
+                      <Trash2 className="h-4 w-4" style={{ color: 'hsl(var(--destructive))' }} />
                     </Button>
                   </li>
                 ))}
@@ -230,7 +230,7 @@ export function ProjectSettingsDialog({ project, workspaceId, currentUserId, ope
       </Dialog>
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
-        <AlertDialogContent className="tl-dialog-surface">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete project?</AlertDialogTitle>
             <AlertDialogDescription>

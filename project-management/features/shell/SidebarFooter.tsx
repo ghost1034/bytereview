@@ -29,27 +29,27 @@ export function SidebarFooter({ collapsed, currentUser, onInvite, onToggleCollap
   return (
     <div
       className={cn('flex flex-col gap-1 border-t p-2', collapsed && 'items-center')}
-      style={{ borderColor: 'var(--border-subtle)' }}
+      style={{ borderColor: 'hsl(var(--border))' }}
     >
       {collapsed ? (
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="flex h-9 w-9 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:shadow-focus"
+              className="flex h-9 w-9 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               onClick={onInvite}
               aria-label="Invite people"
             >
-              <UserPlus className="h-4 w-4" style={{ color: 'var(--ink-secondary)' }} />
+              <UserPlus className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
             </button>
           </TooltipTrigger>
-          <TooltipContent className="tl-popover-surface" side="right">Invite people</TooltipContent>
+          <TooltipContent side="right">Invite people</TooltipContent>
         </Tooltip>
       ) : (
         <button
           type="button"
-          className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium focus-visible:outline-none focus-visible:shadow-focus"
-          style={{ color: 'var(--ink-secondary)' }}
+          className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+          style={{ color: 'hsl(var(--foreground-muted))' }}
           onClick={onInvite}
           aria-label="Invite people"
         >
@@ -61,7 +61,7 @@ export function SidebarFooter({ collapsed, currentUser, onInvite, onToggleCollap
       <div className={cn('flex items-center gap-2', collapsed && 'flex-col')}>
         <div
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{ background: currentUser?.avatarColor ?? 'var(--primary)' }}
+          style={{ background: currentUser?.avatarColor ?? 'hsl(var(--primary))' }}
           title={currentUser?.name}
           aria-hidden
         >
@@ -70,21 +70,21 @@ export function SidebarFooter({ collapsed, currentUser, onInvite, onToggleCollap
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{currentUser?.name ?? 'User'}</p>
-            <p className="truncate text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="truncate text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {currentUser?.email}
             </p>
           </div>
         )}
         <button
           type="button"
-          className="rounded-lg p-1.5 focus-visible:outline-none focus-visible:shadow-focus"
+          className="rounded-lg p-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           onClick={onToggleCollapse}
         >
           {collapsed ? (
-            <PanelLeftOpen className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+            <PanelLeftOpen className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           ) : (
-            <PanelLeftClose className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+            <PanelLeftClose className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           )}
         </button>
       </div>

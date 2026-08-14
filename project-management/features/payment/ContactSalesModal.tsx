@@ -60,12 +60,12 @@ export function ContactSalesModal({
 
   return (
     <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="tl-dialog-surface max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">{title}</DialogTitle>
+          <DialogTitle className="font-sans text-xl">{title}</DialogTitle>
         </DialogHeader>
         {submitted ? (
-          <p className="py-4 text-sm" style={{ color: 'var(--ink-secondary)' }}>
+          <p className="py-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Thanks — our team will reach out shortly. Your request appears under Settings → Billing inquiries.
           </p>
         ) : (

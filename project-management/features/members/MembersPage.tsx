@@ -58,8 +58,8 @@ export function MembersPage() {
   return (
     <div className="tasklytic-root space-y-4" data-tour-page="members">
       <div>
-        <h1 className="font-serif text-2xl">Members</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <h1 className="font-sans text-2xl">Members</h1>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {rows.length} people in {workspace.name}
         </p>
       </div>

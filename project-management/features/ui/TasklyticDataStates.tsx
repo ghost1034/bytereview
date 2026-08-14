@@ -25,9 +25,9 @@ function DataState({
       className="tl-card flex min-h-40 flex-col items-center justify-center gap-2 px-6 py-8 text-center"
       role={role}
     >
-      <h2 className="font-serif text-lg text-[var(--ink-primary)]">{title}</h2>
+      <h2 className="font-sans text-lg text-[hsl(var(--foreground))]">{title}</h2>
       {description ? (
-        <p className="max-w-md text-sm text-[var(--ink-muted)]">{description}</p>
+        <p className="max-w-md text-sm text-[hsl(var(--foreground-muted))]">{description}</p>
       ) : null}
       {children}
       {actionLabel && onAction ? (

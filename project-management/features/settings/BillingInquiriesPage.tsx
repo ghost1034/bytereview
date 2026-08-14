@@ -24,22 +24,22 @@ export function BillingInquiriesPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="font-serif text-2xl">Billing inquiries</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>Contact-sales requests from upgrade and billing flows.</p>
+        <h1 className="font-sans text-2xl">Billing inquiries</h1>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Contact-sales requests from upgrade and billing flows.</p>
       </div>
       {inquiries.length === 0 ? (
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No billing inquiries yet.</p>
+        <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No billing inquiries yet.</p>
       ) : (
         <ul className="space-y-2">
           {inquiries.map((row) => {
             const user = users.find((u) => u.id === row.userId)
             return (
-              <li key={row.id} className="tl-card p-4 text-sm shadow-paper-sm">
+              <li key={row.id} className="tl-card p-4 text-sm shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="font-medium capitalize">{row.type.replace('_', ' ')}</span>
-                  <span className="text-xs capitalize" style={{ color: 'var(--ink-muted)' }}>{row.status}</span>
+                  <span className="text-xs capitalize" style={{ color: 'hsl(var(--foreground-muted))' }}>{row.status}</span>
                 </div>
-                <p className="mt-1" style={{ color: 'var(--ink-secondary)' }}>
+                <p className="mt-1" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {user?.name ?? row.userId} · {formatDate(row.createdAt)}
                 </p>
                 {row.message && <p className="mt-2">{row.message}</p>}

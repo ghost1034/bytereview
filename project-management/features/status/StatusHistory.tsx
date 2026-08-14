@@ -60,9 +60,9 @@ export function StatusHistory({ project, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[90vh] max-w-xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif">Status update history</DialogTitle>
+          <DialogTitle className="font-sans">Status update history</DialogTitle>
         </DialogHeader>
 
         <div className="grid gap-3 sm:grid-cols-2">
@@ -70,7 +70,7 @@ export function StatusHistory({ project, open, onOpenChange }: Props) {
             <Label>Status</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="all">All statuses</SelectItem>
                 {(Object.keys(STATUS_LABELS) as StatusUpdate['status'][]).map((key) => (
                   <SelectItem key={key} value={key}>{STATUS_LABELS[key]}</SelectItem>
@@ -82,7 +82,7 @@ export function StatusHistory({ project, open, onOpenChange }: Props) {
             <Label>Author</Label>
             <Select value={authorFilter} onValueChange={setAuthorFilter}>
               <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="all">All authors</SelectItem>
                 {authorIds.map((id) => {
                   const user = users.find((u) => u.id === id)
@@ -109,13 +109,13 @@ export function StatusHistory({ project, open, onOpenChange }: Props) {
                   update={update}
                   author={users.find((u) => u.id === update.authorId)}
                 />
-                <p className="mt-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {format(parseISO(update.createdAt), 'PPpp')}
                 </p>
               </div>
             ))
           ) : (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No updates match these filters.</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No updates match these filters.</p>
           )}
         </div>
       </DialogContent>

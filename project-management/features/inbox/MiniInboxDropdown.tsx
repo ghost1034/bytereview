@@ -40,30 +40,30 @@ export function MiniInboxDropdown({ userId, inboxHref }: Omit<Props, 'workspaceI
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={`relative rounded-lg p-2 focus-visible:outline-none focus-visible:shadow-focus${unread > 0 ? ' glow-unread' : ''}`}
+          className={`relative rounded-lg p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background${unread > 0 ? ' ring-1 ring-primary' : ''}`}
           aria-label={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}
         >
-          <Bell className="h-5 w-5" style={{ color: 'var(--ink-secondary)' }} />
+          <Bell className="h-5 w-5" style={{ color: 'hsl(var(--foreground-muted))' }} />
           {unread > 0 ? (
             <span
               className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-white"
-              style={{ background: 'var(--danger)' }}
+              style={{ background: 'hsl(var(--destructive))' }}
             >
               {unread > 9 ? '9+' : unread}
             </span>
           ) : null}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="tl-popover-surface w-80 p-0">
-        <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: 'var(--border-subtle)' }}>
-          <span className="text-sm font-medium" style={{ color: 'var(--ink-primary)' }}>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: 'hsl(var(--border))' }}>
+          <span className="text-sm font-medium" style={{ color: 'hsl(var(--foreground))' }}>
             Notifications
           </span>
           {unread > 0 ? (
             <button
               type="button"
               className="text-xs hover:underline"
-              style={{ color: 'var(--primary)' }}
+              style={{ color: 'hsl(var(--primary))' }}
               onClick={() => void markAllRead(userId)}
             >
               Mark all read
@@ -82,18 +82,18 @@ export function MiniInboxDropdown({ userId, inboxHref }: Omit<Props, 'workspaceI
                   {n.actorId ? (
                     <UserAvatar userId={n.actorId} size="sm" showPresence={false} />
                   ) : (
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--bg-muted)]">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[hsl(var(--surface-muted))]">
                       <Bell className="h-4 w-4" />
                     </span>
                   )}
                   <span className="min-w-0 flex-1">
                     <span
                       className={`line-clamp-2 text-sm${n.unread ? ' font-medium' : ''}`}
-                      style={{ color: 'var(--ink-primary)' }}
+                      style={{ color: 'hsl(var(--foreground))' }}
                     >
                       {notificationTitle(n)}
                     </span>
-                    <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+                    <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                       {formatRelative(n.createdAt)}
                     </span>
                   </span>
@@ -101,7 +101,7 @@ export function MiniInboxDropdown({ userId, inboxHref }: Omit<Props, 'workspaceI
               </DropdownMenuItem>
             ))
           ) : (
-            <p className="px-3 py-6 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="px-3 py-6 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               You&apos;re all caught up.
             </p>
           )}

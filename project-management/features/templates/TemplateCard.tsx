@@ -18,24 +18,24 @@ export function TemplateCard({ template, loading, onPreview, onUse }: Props) {
   const ruleCount = template.ruleTemplates?.length ?? 0
 
   return (
-    <article className="tl-card flex h-full flex-col p-5 shadow-paper-sm">
+    <article className="tl-card flex h-full flex-col p-5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
-        <Badge variant="outline" className="text-xs" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+        <Badge variant="outline" className="text-xs" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
           {template.category}
         </Badge>
         {template.heavy ? (
-          <Badge style={{ background: 'var(--primary-soft)', color: 'var(--primary)' }}>Heavy</Badge>
+          <Badge style={{ background: 'hsl(var(--primary-soft))', color: 'hsl(var(--primary))' }}>Heavy</Badge>
         ) : null}
       </div>
       <p className="mt-3 text-2xl">{template.iconEmoji}</p>
-      <h2 className="mt-2 font-serif text-lg">{template.name}</h2>
-      <p className="mt-1 flex-1 text-sm" style={{ color: 'var(--ink-muted)' }}>{template.description}</p>
+      <h2 className="mt-2 font-sans text-lg">{template.name}</h2>
+      <p className="mt-1 flex-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{template.description}</p>
       {template.heavy ? (
-        <p className="mt-1 text-xs" style={{ color: 'var(--ink-secondary)' }}>
+        <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Heavy template — recommended for executive deal teams
         </p>
       ) : null}
-      <p className="mt-2 text-xs" style={{ color: 'var(--ink-secondary)' }}>
+      <p className="mt-2 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {template.sectionNames.length} sections · {taskCount} tasks · {ruleCount} rules
       </p>
       <div className="mt-4 flex gap-2">

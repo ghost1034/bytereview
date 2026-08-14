@@ -29,7 +29,7 @@ export function TaskExpensesTab({ task }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'hsl(var(--border))' }}>
         <div className="flex gap-3 font-mono tabular-nums">
           <span>{formatMoney(totals.total)} total</span>
           <span>{formatMoney(totals.billable)} billable</span>
@@ -38,10 +38,10 @@ export function TaskExpensesTab({ task }: Props) {
         <Button size="sm" variant="outline" onClick={() => setOpen(true)}><Plus className="mr-1 h-3 w-3" /> Add expense</Button>
       </div>
       {expenses.map((e) => (
-        <div key={e.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div key={e.id} className="flex items-center justify-between rounded border px-3 py-2 text-sm" style={{ borderColor: 'hsl(var(--border))' }}>
           <div>
             <p>{e.description}</p>
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{e.date} · {e.category}</p>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{e.date} · {e.category}</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="font-mono tabular-nums">{formatMoney(expenseDisplayTotal(e))}</span>

@@ -48,7 +48,7 @@ export function MyTasksPage() {
   }, [basePath, defaultProjectId, viewMode, workspaceId])
 
   if (!workspaceId || !currentUserId) {
-    return <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Sign in to view your tasks.</p>
+    return <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Sign in to view your tasks.</p>
   }
 
   return (

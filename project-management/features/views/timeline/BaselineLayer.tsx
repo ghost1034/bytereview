@@ -41,8 +41,8 @@ export function BaselineLayer({ tasks, baseline, taskRowIndex, rangeStart, zoom 
               top: row * ROW_H + 4,
               width: geom.width,
               height: 4,
-              borderColor: 'var(--ink-faint)',
-              background: 'var(--bg-muted)',
+              borderColor: 'hsl(var(--foreground-subtle))',
+              background: 'hsl(var(--surface-muted))',
               opacity: 0.7,
             }}
           />

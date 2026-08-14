@@ -29,7 +29,7 @@ export function MagicButton({ label = 'AI', onClick, disabled, className }: Prop
       className={`gap-1 text-xs ${off ? 'opacity-40' : ''} ${className ?? ''}`}
       onClick={onClick}
     >
-      <Sparkles className="h-3.5 w-3.5" style={{ color: 'var(--primary)' }} />
+      <Sparkles className="h-3.5 w-3.5" style={{ color: 'hsl(var(--primary))' }} />
       {label}
     </Button>
   )

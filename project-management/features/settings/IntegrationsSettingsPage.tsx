@@ -29,7 +29,7 @@ export function IntegrationsSettingsPage() {
       .catch((reason) => setError(reason instanceof Error ? reason.message : 'Integration status is unavailable.'))
   }, [workspaceId])
   return <div className="space-y-4">
-    <div><h1 className="font-serif text-2xl">Production integrations</h1><p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Only providers supported by Tasklytic are listed. Workspace-plan billing remains under Workspace Billing and is not a client-payment integration.</p></div>
+    <div><h1 className="font-sans text-2xl">Production integrations</h1><p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Only providers supported by Tasklytic are listed. Workspace-plan billing remains under Workspace Billing and is not a client-payment integration.</p></div>
     {error ? <p className="tl-card p-4 text-sm" role="alert">{error}</p> : null}
     <div className="grid gap-3 sm:grid-cols-2">
       {items.map((item) => <section className="tl-card p-4" key={item.provider}>

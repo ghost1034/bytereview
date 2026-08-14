@@ -60,7 +60,7 @@ export function CreateTemplateModal({ open, onOpenChange, workspaceId, createdBy
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">{initial ? 'Edit template' : 'Create template'}</DialogTitle>
+          <DialogTitle className="font-sans text-xl">{initial ? 'Edit template' : 'Create template'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="grid gap-1">

@@ -118,11 +118,11 @@ export function TaskNameCell({
 
     task.resourceSubtype === 'milestone' ? (
 
-      <Diamond className="h-3 w-3 shrink-0" style={{ color: 'var(--info)' }} aria-label="Milestone" />
+      <Diamond className="h-3 w-3 shrink-0" style={{ color: 'hsl(var(--info))' }} aria-label="Milestone" />
 
     ) : task.resourceSubtype === 'approval' ? (
 
-      <ShieldCheck className="h-3 w-3 shrink-0" style={{ color: 'var(--warning)' }} aria-label="Approval" />
+      <ShieldCheck className="h-3 w-3 shrink-0" style={{ color: 'hsl(var(--warning))' }} aria-label="Approval" />
 
     ) : null
 
@@ -188,7 +188,7 @@ export function TaskNameCell({
 
           type="button"
 
-          className="shrink-0 rounded p-0.5 hover:bg-[var(--bg-muted)]"
+          className="shrink-0 rounded p-0.5 hover:bg-[hsl(var(--surface-muted))]"
 
           aria-label={expanded ? 'Collapse subtasks' : 'Expand subtasks'}
 
@@ -204,11 +204,11 @@ export function TaskNameCell({
 
           {expanded ? (
 
-            <ChevronDown className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+            <ChevronDown className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
 
           ) : (
 
-            <ChevronRight className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+            <ChevronRight className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
 
           )}
 
@@ -230,7 +230,7 @@ export function TaskNameCell({
 
         style={{
 
-          color: task.completed ? 'var(--ink-muted)' : 'var(--ink-primary)',
+          color: task.completed ? 'hsl(var(--foreground-muted))' : 'hsl(var(--foreground))',
 
           textDecoration: task.completed ? 'line-through' : undefined,
 
@@ -258,7 +258,7 @@ export function TaskNameCell({
 
         {counts.num_open_subtasks > 0 ? (
 
-          <span className="text-[10px]" style={{ color: 'var(--ink-muted)' }} title="Open subtasks">
+          <span className="text-[10px]" style={{ color: 'hsl(var(--foreground-muted))' }} title="Open subtasks">
 
             {counts.num_open_subtasks}
 
@@ -268,19 +268,19 @@ export function TaskNameCell({
 
         {commentCount > 0 ? (
 
-          <MessageSquare className="h-3 w-3" style={{ color: 'var(--ink-faint)' }} aria-label="Comments" />
+          <MessageSquare className="h-3 w-3" style={{ color: 'hsl(var(--foreground-subtle))' }} aria-label="Comments" />
 
         ) : null}
 
         {task.attachmentIds.length > 0 ? (
 
-          <Paperclip className="h-3 w-3" style={{ color: 'var(--ink-faint)' }} aria-label="Attachments" />
+          <Paperclip className="h-3 w-3" style={{ color: 'hsl(var(--foreground-subtle))' }} aria-label="Attachments" />
 
         ) : null}
 
         {task.dependencyIds.length > 0 || task.dependentIds.length > 0 ? (
 
-          <GitBranch className="h-3 w-3" style={{ color: 'var(--ink-faint)' }} aria-label="Dependencies" />
+          <GitBranch className="h-3 w-3" style={{ color: 'hsl(var(--foreground-subtle))' }} aria-label="Dependencies" />
 
         ) : null}
 

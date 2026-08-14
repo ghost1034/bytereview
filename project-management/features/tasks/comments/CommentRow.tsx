@@ -38,7 +38,7 @@ function EditBox({ initialHtml, onSave, onCancel }: EditBoxProps) {
         contentEditable
         suppressContentEditableWarning
         className="min-h-16 rounded-lg border px-3 py-2 text-sm outline-none"
-        style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+        style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
         dangerouslySetInnerHTML={{ __html: initialHtml }}
       />
       <div className="flex gap-2">
@@ -96,8 +96,8 @@ export function CommentRow({ comment, task, author, userById, workspaceUsers, ne
   return (
     <article
       tabIndex={0}
-      className={`rounded-lg p-3 text-sm shadow-paper-sm ${nested ? 'ml-6' : ''}`}
-      style={{ background: 'var(--bg-muted)' }}
+      className={`rounded-lg p-3 text-sm shadow-sm ${nested ? 'ml-6' : ''}`}
+      style={{ background: 'hsl(var(--surface-muted))' }}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return
         if (e.key === 'r') setReplyOpen(true)
@@ -107,7 +107,7 @@ export function CommentRow({ comment, task, author, userById, workspaceUsers, ne
       <div className="mb-1 flex flex-wrap items-center gap-2">
         <span
           className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{ background: author?.avatarColor ?? 'var(--primary)' }}
+          style={{ background: author?.avatarColor ?? 'hsl(var(--primary))' }}
         >
           {(author?.name ?? '?').slice(0, 1).toUpperCase()}
         </span>
@@ -115,36 +115,36 @@ export function CommentRow({ comment, task, author, userById, workspaceUsers, ne
         <TooltipProvider delayDuration={200}>
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+              <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 {formatRelative(comment.createdAt)}
                 {comment.editedAt ? ` · Edited ${formatRelative(comment.editedAt)}` : ''}
               </span>
             </TooltipTrigger>
-            <TooltipContent className="tl-popover-surface">
+            <TooltipContent>
               {format(new Date(comment.createdAt), 'PPpp')}
               {comment.editedAt ? ` · edited ${format(new Date(comment.editedAt), 'PPpp')}` : ''}
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
         {comment.isPinned ? (
-          <span className="rounded px-1.5 py-0.5 text-xs" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+          <span className="rounded px-1.5 py-0.5 text-xs" style={{ background: 'hsl(var(--success-soft))', color: 'hsl(var(--success))' }}>
             📌 Pinned
           </span>
         ) : null}
         <span className="ml-auto flex gap-1">
-          <button type="button" aria-label="Reply" className="rounded p-1 hover:bg-[var(--bg-elevated)]" onClick={() => setReplyOpen((v) => !v)}>
-            <MessageSquareReply className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+          <button type="button" aria-label="Reply" className="rounded p-1 hover:bg-[hsl(var(--card))]" onClick={() => setReplyOpen((v) => !v)}>
+            <MessageSquareReply className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
           </button>
-          <button type="button" aria-label="Pin" className="rounded p-1 hover:bg-[var(--bg-elevated)]" onClick={onPin}>
-            <Pin className="h-3.5 w-3.5" style={{ color: comment.isPinned ? 'var(--accent)' : 'var(--ink-muted)' }} />
+          <button type="button" aria-label="Pin" className="rounded p-1 hover:bg-[hsl(var(--card))]" onClick={onPin}>
+            <Pin className="h-3.5 w-3.5" style={{ color: comment.isPinned ? 'hsl(var(--success))' : 'hsl(var(--foreground-muted))' }} />
           </button>
           {isOwn ? (
             <>
-              <button type="button" aria-label="Edit" className="rounded p-1 hover:bg-[var(--bg-elevated)]" onClick={() => setEditing(true)}>
-                <Pencil className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+              <button type="button" aria-label="Edit" className="rounded p-1 hover:bg-[hsl(var(--card))]" onClick={() => setEditing(true)}>
+                <Pencil className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
               </button>
-              <button type="button" aria-label="Delete" className="rounded p-1 hover:bg-[var(--bg-elevated)]" onClick={() => void onDelete()}>
-                <Trash2 className="h-3.5 w-3.5" style={{ color: 'var(--danger)' }} />
+              <button type="button" aria-label="Delete" className="rounded p-1 hover:bg-[hsl(var(--card))]" onClick={() => void onDelete()}>
+                <Trash2 className="h-3.5 w-3.5" style={{ color: 'hsl(var(--destructive))' }} />
               </button>
             </>
           ) : null}
@@ -156,7 +156,7 @@ export function CommentRow({ comment, task, author, userById, workspaceUsers, ne
       ) : (
         <div
           className="leading-relaxed"
-          style={{ color: 'var(--ink-secondary)' }}
+          style={{ color: 'hsl(var(--foreground-muted))' }}
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
       )}

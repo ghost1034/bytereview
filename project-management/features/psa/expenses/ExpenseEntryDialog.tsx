@@ -137,14 +137,14 @@ export function ExpenseEntryDialog(props: Props) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="font-serif text-xl">{props.expense ? 'Edit expense' : props.mileageMode ? 'Mileage' : 'Add expense'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-sans text-xl">{props.expense ? 'Edit expense' : props.mileageMode ? 'Mileage' : 'Add expense'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
           {props.mileageMode ? (
-            <div className="grid gap-1"><Label>Miles</Label><Input value={miles} onChange={(e) => setMiles(e.target.value)} className="tl-input font-mono tabular-nums" /><p className="text-xs font-mono tabular-nums" style={{ color: 'var(--ink-muted)' }}>@ {formatMoney(rate)}/mi = {formatMoney(baseAmount)}</p></div>
+            <div className="grid gap-1"><Label>Miles</Label><Input value={miles} onChange={(e) => setMiles(e.target.value)} className="tl-input font-mono tabular-nums" /><p className="text-xs font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>@ {formatMoney(rate)}/mi = {formatMoney(baseAmount)}</p></div>
           ) : (
             <>
               <Input type="file" accept="image/*" capture="environment" onChange={(e) => { const f = e.target.files?.[0]; if (f) void onReceipt(f) }} />
-              <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{ocrHint || 'Manual vendor, date, amount, and tax entry remains available when receipt extraction is unavailable.'}</p>
+              <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{ocrHint || 'Manual vendor, date, amount, and tax entry remains available when receipt extraction is unavailable.'}</p>
               <Input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
               <Input placeholder="Tax" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
             </>
@@ -153,7 +153,7 @@ export function ExpenseEntryDialog(props: Props) {
           <Input placeholder="Vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} className="tl-input" />
           <Select value={category} onValueChange={(v) => { setCategory(v as ExpenseCategory); setPassThrough(defaultPassThrough(v)) }}>
             <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">{Object.entries(EXPENSE_CATEGORY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
+            <SelectContent className="z-[100]">{Object.entries(EXPENSE_CATEGORY_LABELS).map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}</SelectContent>
           </Select>
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="tl-input" />
           <div className="flex flex-wrap gap-4">

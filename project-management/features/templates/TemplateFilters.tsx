@@ -29,9 +29,9 @@ export function TemplateFilters({ category, search, onCategoryChange, onSearchCh
             onClick={() => onCategoryChange(cat)}
             className="rounded-full border px-3 py-1 text-sm transition-colors"
             style={{
-              borderColor: category === cat ? 'var(--primary)' : 'var(--border-default)',
-              background: category === cat ? 'var(--primary-soft)' : 'transparent',
-              color: category === cat ? 'var(--primary)' : 'var(--ink-secondary)',
+              borderColor: category === cat ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+              background: category === cat ? 'hsl(var(--primary-soft))' : 'transparent',
+              color: category === cat ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))',
             }}
           >
             {cat === 'all' ? 'All' : cat}

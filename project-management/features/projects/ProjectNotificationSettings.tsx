@@ -34,10 +34,10 @@ export function ProjectNotificationSettings({ project }: { project: Project }) {
   return (
     <div className="space-y-2">
       {OPTIONS.map((option) => (
-        <label key={option.key} className="flex items-start justify-between gap-4 rounded-lg border p-3" style={{ borderColor: 'var(--border-subtle)' }}>
+        <label key={option.key} className="flex items-start justify-between gap-4 rounded-lg border p-3" style={{ borderColor: 'hsl(var(--border))' }}>
           <span>
             <span className="block text-sm font-medium">{option.label}</span>
-            <span className="block text-xs" style={{ color: 'var(--ink-muted)' }}>{option.detail}</span>
+            <span className="block text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{option.detail}</span>
           </span>
           <Switch checked={settings[option.key]} onCheckedChange={(checked) => void setOption(option.key, Boolean(checked))} />
         </label>

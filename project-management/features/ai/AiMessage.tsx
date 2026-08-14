@@ -20,9 +20,9 @@ export function AiMessage({ message, actorId, onApplied }: Props) {
     <div className={`px-3 py-2 ${isUser ? 'text-right' : ''}`}>
       <div
         className={`inline-block max-w-[95%] rounded-2xl px-3 py-2 text-sm ${
-          isUser ? 'tl-btn-primary text-white' : 'tl-card shadow-paper-sm'
+          isUser ? 'tl-btn-primary text-white' : 'tl-card shadow-sm'
         }`}
-        style={isUser ? undefined : { color: 'var(--ink-secondary)' }}
+        style={isUser ? undefined : { color: 'hsl(var(--foreground-muted))' }}
       >
         <p className="whitespace-pre-wrap text-left">{message.content}</p>
       </div>
@@ -31,7 +31,7 @@ export function AiMessage({ message, actorId, onApplied }: Props) {
         <button
           type="button"
           className="mt-1 flex items-center gap-0.5 text-xs"
-          style={{ color: 'var(--ink-faint)' }}
+          style={{ color: 'hsl(var(--foreground-subtle))' }}
           onClick={() => setShowReasoning((v) => !v)}
         >
           {showReasoning ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
@@ -39,7 +39,7 @@ export function AiMessage({ message, actorId, onApplied }: Props) {
         </button>
       ) : null}
       {!isUser && showReasoning && message.reasoning ? (
-        <p className="mt-1 text-left text-xs italic" style={{ color: 'var(--ink-faint)' }}>
+        <p className="mt-1 text-left text-xs italic" style={{ color: 'hsl(var(--foreground-subtle))' }}>
           {message.reasoning}
         </p>
       ) : null}

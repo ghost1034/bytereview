@@ -27,8 +27,8 @@ export function FormListItem({ form, selected, onSelect }: ItemProps) {
       onClick={onSelect}
       className="w-full rounded-lg border p-3 text-left transition-colors"
       style={{
-        borderColor: selected ? 'var(--primary)' : 'var(--border-subtle)',
-        background: selected ? 'var(--primary-soft)' : 'var(--bg-elevated)',
+        borderColor: selected ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+        background: selected ? 'hsl(var(--primary-soft))' : 'hsl(var(--card))',
       }}
     >
       <div className="flex items-start justify-between gap-2">
@@ -37,7 +37,7 @@ export function FormListItem({ form, selected, onSelect }: ItemProps) {
           {form.isPublic ? 'Published' : 'Draft'}
         </Badge>
       </div>
-      <p className="mt-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+      <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {submissions.length} submission{submissions.length === 1 ? '' : 's'}
         {lastSub ? ` · ${formatDistanceToNow(new Date(lastSub.createdAt), { addSuffix: true })}` : ''}
       </p>

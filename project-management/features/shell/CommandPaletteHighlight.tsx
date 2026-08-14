@@ -12,7 +12,7 @@ export function HighlightMatch({ text, query }: { text: string; query: string })
   return (
     <>
       {text.slice(0, idx)}
-      <mark className="rounded-sm bg-[var(--primary-soft)] px-0.5 text-[var(--primary)]">
+      <mark className="rounded-sm bg-[hsl(var(--primary-soft))] px-0.5 text-[hsl(var(--primary))]">
         {text.slice(idx, idx + q.length)}
       </mark>
       {text.slice(idx + q.length)}

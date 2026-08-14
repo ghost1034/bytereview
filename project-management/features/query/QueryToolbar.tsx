@@ -69,7 +69,7 @@ export function QueryToolbar({
   const searchInput =
     searchVariant === 'hero' ? (
       <div className="relative w-full">
-        <Search className="absolute left-3 top-3 h-5 w-5" style={{ color: 'var(--ink-muted)' }} />
+        <Search className="absolute left-3 top-3 h-5 w-5" style={{ color: 'hsl(var(--foreground-muted))' }} />
         <Input
           ref={searchRef}
           value={query.search}
@@ -83,7 +83,7 @@ export function QueryToolbar({
       </div>
     ) : (
       <div className="relative min-w-[180px] flex-1 max-w-sm">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
         <input
           ref={searchRef}
           value={query.search}

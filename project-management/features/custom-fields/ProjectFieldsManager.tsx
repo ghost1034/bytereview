@@ -66,14 +66,14 @@ export function ProjectFieldsManager({ projectId }: Props) {
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="font-serif text-lg">Project fields</h3>
+            <h3 className="font-sans text-lg">Project fields</h3>
             <Button size="sm" onClick={() => setEditorOpen(true)}>
               <Plus className="mr-1 h-4 w-4" />
               Create field
             </Button>
           </div>
           {fields.length === 0 ? (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               No fields on this project yet.
             </p>
           ) : (
@@ -86,12 +86,12 @@ export function ProjectFieldsManager({ projectId }: Props) {
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => void onDrop(field.id)}
                   className="flex items-center gap-2 rounded-lg border px-3 py-2"
-                  style={{ borderColor: 'var(--border-subtle)' }}
+                  style={{ borderColor: 'hsl(var(--border))' }}
                 >
-                  <GripVertical className="h-4 w-4 shrink-0 cursor-grab" style={{ color: 'var(--ink-faint)' }} />
+                  <GripVertical className="h-4 w-4 shrink-0 cursor-grab" style={{ color: 'hsl(var(--foreground-subtle))' }} />
                   <FieldTypeIcon type={field.type} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{field.name}</span>
-                  <label className="flex items-center gap-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                  <label className="flex items-center gap-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                     <Switch
                       checked={getShowOnCard(projectId, field.id)}
                       onCheckedChange={(v) => setShowOnCard(projectId, field.id, Boolean(v))}
@@ -100,11 +100,11 @@ export function ProjectFieldsManager({ projectId }: Props) {
                   </label>
                   <button
                     type="button"
-                    className="rounded p-1 hover:bg-[var(--bg-muted)]"
+                    className="rounded p-1 hover:bg-[hsl(var(--surface-muted))]"
                     title="Remove from project"
                     onClick={() => void removeFieldFromProject(projectId, field.id)}
                   >
-                    <X className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+                    <X className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
                   </button>
                 </li>
               ))}
@@ -112,7 +112,7 @@ export function ProjectFieldsManager({ projectId }: Props) {
           )}
         </div>
         <div>
-          <h3 className="mb-3 font-serif text-lg">Field library</h3>
+          <h3 className="mb-3 font-sans text-lg">Field library</h3>
           <Input
             value={librarySearch}
             onChange={(e) => setLibrarySearch(e.target.value)}
@@ -124,7 +124,7 @@ export function ProjectFieldsManager({ projectId }: Props) {
               <li
                 key={field.id}
                 className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm"
-                style={{ borderColor: 'var(--border-subtle)' }}
+                style={{ borderColor: 'hsl(var(--border))' }}
               >
                 <span className="flex min-w-0 items-center gap-2 truncate">
                   <FieldTypeIcon type={field.type} />

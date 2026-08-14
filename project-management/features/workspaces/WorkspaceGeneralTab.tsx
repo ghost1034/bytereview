@@ -71,7 +71,7 @@ export function WorkspaceGeneralTab({ workspace, currentUser }: Props) {
         <WorkspaceIcon name={name} emoji={iconEmoji} />
         <div>
           <h2 className="font-medium">General</h2>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Workspace identity and defaults</p>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Workspace identity and defaults</p>
         </div>
       </div>
 
@@ -88,10 +88,10 @@ export function WorkspaceGeneralTab({ workspace, currentUser }: Props) {
           <Label>Icon</Label>
           {canEdit ? <EmojiPicker value={iconEmoji} onChange={setIconEmoji} /> : <span className="text-2xl">{iconEmoji}</span>}
         </div>
-        <div className="flex items-center justify-between rounded-lg border p-3" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="flex items-center justify-between rounded-lg border p-3" style={{ borderColor: 'hsl(var(--border))' }}>
           <div>
             <p className="text-sm font-medium">Auto-approve private team join requests</p>
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Skip admin review for private teams</p>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>Skip admin review for private teams</p>
           </div>
           <Switch checked={autoApprove} disabled={!canEdit} onCheckedChange={setAutoApprove} />
         </div>
@@ -102,16 +102,16 @@ export function WorkspaceGeneralTab({ workspace, currentUser }: Props) {
         </AdminOnlyWrap>
       </div>
 
-      <div className="rounded-lg border p-4" style={{ borderColor: 'var(--danger)', background: 'var(--danger-soft, #fef2f2)' }}>
-        <p className="font-medium text-sm" style={{ color: 'var(--danger)' }}>Danger zone</p>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>Permanently delete this workspace and all teams/projects.</p>
+      <div className="rounded-lg border p-4" style={{ borderColor: 'hsl(var(--destructive))', background: 'hsl(var(--destructive-soft))' }}>
+        <p className="font-medium text-sm" style={{ color: 'hsl(var(--destructive))' }}>Danger zone</p>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Permanently delete this workspace and all teams/projects.</p>
         <AdminOnlyWrap allowed={canEdit}>
           <Button variant="outline" className="mt-3" disabled={!canEdit} onClick={() => setDeleteOpen(true)}>Delete workspace</Button>
         </AdminOnlyWrap>
       </div>
 
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent className="tl-dialog-surface">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete workspace?</AlertDialogTitle>
             <AlertDialogDescription>

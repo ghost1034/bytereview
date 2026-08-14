@@ -68,8 +68,8 @@ export const MonthGrid = memo(function MonthGrid({
               className="h-4 flex-1 rounded-sm"
               title={`${format(d, 'MMM d')}: ${count} tasks`}
               style={{
-                background: `color-mix(in srgb, var(--primary) ${Math.round(intensity * 80 + 10)}%, transparent)`,
-                outline: highlightKey === key ? '2px solid var(--primary)' : undefined,
+                background: `color-mix(in srgb, hsl(var(--primary)) ${Math.round(intensity * 80 + 10)}%, transparent)`,
+                outline: highlightKey === key ? '2px solid hsl(var(--primary))' : undefined,
               }}
             />
           )
@@ -78,14 +78,14 @@ export const MonthGrid = memo(function MonthGrid({
 
       <div
         className="overflow-hidden rounded-xl border"
-        style={{ borderColor: 'var(--border-subtle)' }}
+        style={{ borderColor: 'hsl(var(--border))' }}
       >
         <div
           className="grid grid-cols-7 border-b text-center text-[10px] font-semibold uppercase tracking-wide"
           style={{
-            background: 'var(--bg-muted)',
-            color: 'var(--ink-muted)',
-            borderColor: 'var(--border-subtle)',
+            background: 'hsl(var(--surface-muted))',
+            color: 'hsl(var(--foreground-muted))',
+            borderColor: 'hsl(var(--border))',
           }}
         >
           {WEEKDAYS.map((d) => (

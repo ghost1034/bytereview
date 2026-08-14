@@ -30,7 +30,7 @@ export function TaskUndoButton() {
             <Undo2 className="h-4 w-4" />
             Undo
             {count > 0 ? (
-              <span className="text-xs tabular-nums" style={{ color: 'var(--ink-muted)' }}>
+              <span className="text-xs tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 ({count})
               </span>
             ) : null}

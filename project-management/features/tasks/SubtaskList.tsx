@@ -72,7 +72,7 @@ export function SubtaskBreadcrumbs({ task, projectId }: BreadcrumbProps) {
   }
 
   return (
-    <nav className="mb-1 flex items-center gap-1 text-xs" style={{ color: 'var(--ink-muted)' }} aria-label="Task hierarchy">
+    <nav className="mb-1 flex items-center gap-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }} aria-label="Task hierarchy">
       {parent ? (
         <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label="Go up one level" onClick={goUp}>
           <ArrowLeft className="h-3.5 w-3.5" />
@@ -92,7 +92,7 @@ export function SubtaskBreadcrumbs({ task, projectId }: BreadcrumbProps) {
           <span className="opacity-50">›</span>
         </span>
       ))}
-      <span className="truncate font-medium" style={{ color: 'var(--ink-primary)' }}>
+      <span className="truncate font-medium" style={{ color: 'hsl(var(--foreground))' }}>
         {task.name}
       </span>
     </nav>
@@ -132,7 +132,7 @@ function InlineAddRow({
   return (
     <li className="py-0.5" style={{ paddingLeft: depth * SUBTASK_INDENT_PX }}>
       {blocked ? (
-        <p className="py-1 text-xs" style={{ color: 'var(--danger)' }}>
+        <p className="py-1 text-xs" style={{ color: 'hsl(var(--destructive))' }}>
           Maximum depth of {MAX_DEPTH} levels reached.
         </p>
       ) : (
@@ -148,7 +148,7 @@ function InlineAddRow({
             }}
           />
           {error ? (
-            <p className="text-xs" style={{ color: 'var(--danger)' }}>
+            <p className="text-xs" style={{ color: 'hsl(var(--destructive))' }}>
               {error}
             </p>
           ) : null}
@@ -184,7 +184,7 @@ function SubtaskNode({
     return (
       <li
         className="py-1 text-xs font-semibold uppercase tracking-wide"
-        style={{ paddingLeft: depth * SUBTASK_INDENT_PX, color: 'var(--ink-muted)' }}
+        style={{ paddingLeft: depth * SUBTASK_INDENT_PX, color: 'hsl(var(--foreground-muted))' }}
       >
         {item.name.replace(/:$/, '')}
       </li>
@@ -202,7 +202,7 @@ function SubtaskNode({
   return (
     <>
       <li
-        className="group flex h-7 items-center gap-1 rounded-md text-sm hover:bg-[var(--bg-muted)]"
+        className="group flex h-7 items-center gap-1 rounded-md text-sm hover:bg-[hsl(var(--surface-muted))]"
         style={{ paddingLeft: depth * SUBTASK_INDENT_PX }}
         onDragOver={(e) => {
           if (!dragId) return
@@ -244,7 +244,7 @@ function SubtaskNode({
           }}
           style={{
             visibility: hasKids ? 'visible' : 'hidden',
-            outline: dropHint?.taskId === item.id && dropHint.mode === 'child' ? '2px solid var(--accent)' : undefined,
+            outline: dropHint?.taskId === item.id && dropHint.mode === 'child' ? '2px solid hsl(var(--success))' : undefined,
           }}
         >
           {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -254,23 +254,23 @@ function SubtaskNode({
           onClick={() => actorId && void toggleComplete(item.id, actorId)}
           className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border"
           style={{
-            borderColor: item.completed ? 'var(--accent)' : 'var(--border-default)',
-            background: item.completed ? 'var(--accent-soft)' : 'transparent',
+            borderColor: item.completed ? 'hsl(var(--success))' : 'hsl(var(--border))',
+            background: item.completed ? 'hsl(var(--success-soft))' : 'transparent',
           }}
           aria-label={item.completed ? 'Mark incomplete' : 'Mark complete'}
         >
-          {item.completed ? <Check className="h-2.5 w-2.5" style={{ color: 'var(--accent)' }} /> : null}
+          {item.completed ? <Check className="h-2.5 w-2.5" style={{ color: 'hsl(var(--success))' }} /> : null}
         </button>
         <button
           type="button"
           className={`min-w-0 flex-1 truncate text-left ${item.completed ? 'line-through' : ''}`}
-          style={{ color: item.completed ? 'var(--ink-muted)' : 'var(--ink-primary)' }}
+          style={{ color: item.completed ? 'hsl(var(--foreground-muted))' : 'hsl(var(--foreground))' }}
           onClick={() => onOpen(item.id)}
         >
           {item.name}
         </button>
         {progress.total > 0 ? (
-          <span className="shrink-0 text-[10px] tabular-nums" style={{ color: 'var(--ink-muted)' }}>
+          <span className="shrink-0 text-[10px] tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {progress.done}/{progress.total}
           </span>
         ) : null}
@@ -354,7 +354,7 @@ export function SubtaskList({ task }: SubtaskListProps) {
         <button
           type="button"
           className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wide"
-          style={{ color: 'var(--ink-muted)' }}
+          style={{ color: 'hsl(var(--foreground-muted))' }}
           onClick={() => setSectionOpen((o) => !o)}
         >
           {sectionOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -379,7 +379,7 @@ export function SubtaskList({ task }: SubtaskListProps) {
           {dragId ? (
             <li
               className="mb-1 rounded border border-dashed py-1 text-center text-[10px]"
-              style={{ borderColor: 'var(--border-default)', color: 'var(--ink-muted)' }}
+              style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault()
@@ -411,7 +411,7 @@ export function SubtaskList({ task }: SubtaskListProps) {
           ))}
           {rootAdding || children.length === 0 ? (
             depthBlocked ? (
-              <li className="py-1 text-xs" style={{ color: 'var(--danger)' }}>
+              <li className="py-1 text-xs" style={{ color: 'hsl(var(--destructive))' }}>
                 Maximum depth of {MAX_DEPTH} levels reached.
               </li>
             ) : (
@@ -422,7 +422,7 @@ export function SubtaskList({ task }: SubtaskListProps) {
               <button
                 type="button"
                 className="text-xs hover:underline"
-                style={{ color: 'var(--ink-muted)' }}
+                style={{ color: 'hsl(var(--foreground-muted))' }}
                 onClick={() => setRootAdding(true)}
               >
                 + Add subtask

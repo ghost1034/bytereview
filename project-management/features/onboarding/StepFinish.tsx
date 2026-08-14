@@ -23,18 +23,18 @@ export function StepFinish({ companyName, industries, templateCount, inviteCount
 
   return (
     <div className="space-y-4 py-4">
-      <p className="font-serif text-lg text-foreground">
+      <p className="font-sans text-lg text-foreground">
         You&apos;re almost there
       </p>
       {notice ? (
-        <p className="rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--border-default)', color: 'var(--ink-secondary)' }}>
+        <p className="rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
           {notice}
         </p>
       ) : null}
       <ul className="space-y-2">
         {items.map((item) => (
           <li key={item} className="flex items-start gap-2 text-sm text-foreground">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#cc785c]" />
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             {item}
           </li>
         ))}

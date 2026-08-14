@@ -64,11 +64,11 @@ function initials(name: string): string {
 function EmptyIllustration() {
   return (
     <svg width="120" height="80" viewBox="0 0 120 80" aria-hidden className="mx-auto">
-      <circle cx="40" cy="32" r="14" fill="var(--primary-soft)" />
-      <circle cx="68" cy="28" r="11" fill="var(--bg-muted)" />
-      <circle cx="88" cy="36" r="9" fill="var(--bg-muted)" />
-      <rect x="20" y="52" width="80" height="8" rx="4" fill="var(--border-subtle)" />
-      <rect x="32" y="66" width="56" height="6" rx="3" fill="var(--border-subtle)" opacity="0.6" />
+      <circle cx="40" cy="32" r="14" fill="hsl(var(--primary-soft))" />
+      <circle cx="68" cy="28" r="11" fill="hsl(var(--surface-muted))" />
+      <circle cx="88" cy="36" r="9" fill="hsl(var(--surface-muted))" />
+      <rect x="20" y="52" width="80" height="8" rx="4" fill="hsl(var(--border))" />
+      <rect x="32" y="66" width="56" height="6" rx="3" fill="hsl(var(--border))" opacity="0.6" />
     </svg>
   )
 }
@@ -129,7 +129,7 @@ export function MemberTable({
 
   if (rows.length === 0) {
     return (
-      <div className="tl-card flex flex-col items-center gap-4 p-10 text-center shadow-paper-sm">
+      <div className="tl-card flex flex-col items-center gap-4 p-10 text-center shadow-sm">
         <EmptyIllustration />
         <p className="font-medium">No teammates yet</p>
         <AdminOnlyWrap allowed={canManage}>
@@ -163,7 +163,7 @@ export function MemberTable({
         />
         <Select value={roleFilter} onValueChange={setRoleFilter}>
           <SelectTrigger className="w-[130px]"><SelectValue placeholder="Role" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All roles</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
             <SelectItem value="member">Member</SelectItem>
@@ -172,7 +172,7 @@ export function MemberTable({
         </Select>
         <Select value={dateFilter} onValueChange={setDateFilter}>
           <SelectTrigger className="w-[150px]"><SelectValue placeholder="Joined" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">Any time</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>
           </SelectContent>
@@ -186,11 +186,11 @@ export function MemberTable({
       </div>
 
       {selected.size > 0 && canManage && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2" style={{ borderColor: 'hsl(var(--border))' }}>
           <span className="text-sm">{selected.size} selected</span>
           <Select value={bulkRole} onValueChange={(v) => setBulkRole(v as typeof bulkRole)}>
             <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               <SelectItem value="admin">Admin</SelectItem>
               <SelectItem value="member">Member</SelectItem>
               <SelectItem value="guest">Guest</SelectItem>
@@ -203,10 +203,10 @@ export function MemberTable({
         </div>
       )}
 
-      <div className="tl-card overflow-hidden shadow-paper-sm">
+      <div className="tl-card overflow-hidden shadow-sm">
         <Table>
           <TableHeader>
-            <TableRow style={{ background: 'var(--bg-muted)' }}>
+            <TableRow style={{ background: 'hsl(var(--surface-muted))' }}>
               {canManage && (
                 <TableHead className="w-10">
                   <Checkbox
@@ -242,19 +242,19 @@ export function MemberTable({
                       </Avatar>
                     ) : (
                       <Avatar className="h-8 w-8">
-                        <AvatarFallback style={{ background: 'var(--bg-muted)' }}>?</AvatarFallback>
+                        <AvatarFallback style={{ background: 'hsl(var(--surface-muted))' }}>?</AvatarFallback>
                       </Avatar>
                     )}
                     <span className="font-medium">{row.name}</span>
                     {row.pending && <Badge variant="secondary">Pending</Badge>}
                   </div>
                 </TableCell>
-                <TableCell style={{ color: 'var(--ink-secondary)' }}>{row.email}</TableCell>
+                <TableCell style={{ color: 'hsl(var(--foreground-muted))' }}>{row.email}</TableCell>
                 <TableCell className="capitalize">
                   {canManage && !row.pending ? (
                     <Select value={row.role} onValueChange={(v) => onRoleChange(row.key, v as typeof row.role)}>
                       <SelectTrigger className="h-8 w-[120px]"><SelectValue /></SelectTrigger>
-                      <SelectContent className="tl-popover-surface z-[100]">
+                      <SelectContent className="z-[100]">
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="member">Member</SelectItem>
                         <SelectItem value="guest">Guest</SelectItem>
@@ -264,7 +264,7 @@ export function MemberTable({
                     row.pending ? `${row.role} (pending)` : row.role
                   )}
                 </TableCell>
-                <TableCell style={{ color: 'var(--ink-muted)' }}>
+                <TableCell style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {row.joinedAt ? formatDate(row.joinedAt) : '—'}
                 </TableCell>
                 {canManage && (

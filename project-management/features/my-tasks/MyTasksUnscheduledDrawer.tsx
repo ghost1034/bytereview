@@ -36,11 +36,11 @@ export function MyTasksUnscheduledDrawer({ tasks, open, onOpenChange, onDragStar
       {toggleButton}
       {open ? (
         <aside
-          className="fixed right-0 top-0 z-40 flex h-full w-80 flex-col border-l shadow-paper-md"
-          style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+          className="fixed right-0 top-0 z-40 flex h-full w-80 flex-col border-l shadow-md"
+          style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
         >
-          <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: 'var(--border-subtle)' }}>
-            <h3 className="font-serif text-sm">Unscheduled</h3>
+          <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: 'hsl(var(--border))' }}>
+            <h3 className="font-sans text-sm">Unscheduled</h3>
             <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
               <PanelRightClose className="h-4 w-4" />
             </Button>
@@ -58,7 +58,7 @@ export function MyTasksUnscheduledDrawer({ tasks, open, onOpenChange, onDragStar
                   type="button"
                   draggable
                   onDragStart={(e) => onDragStart(task.id, e)}
-                  className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
+                  className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
                   onClick={() => onOpenTask(task.id)}
                 >
                   {task.name}
@@ -66,7 +66,7 @@ export function MyTasksUnscheduledDrawer({ tasks, open, onOpenChange, onDragStar
               </li>
             ))}
             {!filtered.length ? (
-              <p className="px-2 text-sm italic" style={{ color: 'var(--ink-muted)' }}>
+              <p className="px-2 text-sm italic" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 All caught up — no undated tasks.
               </p>
             ) : null}

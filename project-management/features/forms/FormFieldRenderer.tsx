@@ -39,7 +39,7 @@ export function FormFieldRenderer({ field, value, onChange, readOnly, error, dir
       </Label>
       {renderControl(field, value, onChange, readOnly, directUploads)}
       {error ? (
-        <p className="text-xs" style={{ color: 'var(--danger)' }}>
+        <p className="text-xs text-destructive">
           {error}
         </p>
       ) : null}
@@ -114,7 +114,7 @@ function renderControl(
           <SelectTrigger className="tl-input">
             <SelectValue placeholder="Select an option" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {field.options.map((o) => (
               <SelectItem key={o.id} value={o.id}>
                 {o.label}

@@ -40,18 +40,18 @@ export function ProjectAddMemberButton({ project }: Props) {
       <PopoverTrigger asChild>
         <Button size="sm" variant="outline">+ Add members</Button>
       </PopoverTrigger>
-      <PopoverContent className="tl-popover-surface w-56 p-2" align="start">
+      <PopoverContent className="w-56 p-2" align="start">
         {candidates.length ? candidates.map((u) => (
           <button
             key={u.id}
             type="button"
-            className="flex w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
+            className="flex w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
             onClick={() => void addMember(u)}
           >
             {u.name}
           </button>
         )) : (
-          <p className="px-2 py-1 text-xs" style={{ color: 'var(--ink-muted)' }}>All workspace members are already on this project.</p>
+          <p className="px-2 py-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>All workspace members are already on this project.</p>
         )}
       </PopoverContent>
     </Popover>

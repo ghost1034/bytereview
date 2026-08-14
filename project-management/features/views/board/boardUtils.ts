@@ -70,7 +70,7 @@ export function coverColorFromTags(task: Task, tags: Tag[]): string | undefined 
 /** Due-date pill colors based on proximity. */
 export function dueChipStyle(dueOn?: string): { background: string; color: string } {
   if (!dueOn) {
-    return { background: 'var(--bg-muted)', color: 'var(--ink-muted)' }
+    return { background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }
   }
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -79,17 +79,17 @@ export function dueChipStyle(dueOn?: string): { background: string; color: strin
   const diff = Math.round((due.getTime() - today.getTime()) / 86400000)
   if (diff < 0) {
     return {
-      background: 'color-mix(in srgb, var(--danger) 15%, transparent)',
-      color: 'var(--danger)',
+      background: 'color-mix(in srgb, hsl(var(--destructive)) 15%, transparent)',
+      color: 'hsl(var(--destructive))',
     }
   }
   if (diff <= 2) {
     return {
-      background: 'color-mix(in srgb, var(--warning) 15%, transparent)',
-      color: 'var(--warning)',
+      background: 'color-mix(in srgb, hsl(var(--warning)) 15%, transparent)',
+      color: 'hsl(var(--warning))',
     }
   }
-  return { background: 'var(--bg-muted)', color: 'var(--ink-secondary)' }
+  return { background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }
 }
 
 /** Order tasks by persisted section order with fallback to query sort order. */

@@ -19,7 +19,7 @@ export function FormFieldEditor({ field, onChange }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Field settings
       </p>
       <div className="grid gap-2">

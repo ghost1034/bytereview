@@ -80,9 +80,9 @@ export function FieldEditorDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">
+          <DialogTitle className="font-sans text-xl">
             {field ? 'Edit field' : 'Create field'}
           </DialogTitle>
         </DialogHeader>

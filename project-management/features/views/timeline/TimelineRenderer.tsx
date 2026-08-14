@@ -111,7 +111,7 @@ export function TimelineRenderer(props: Props) {
   }, [onScroll, width, rows.length])
 
   return (
-    <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'hsl(var(--border))' }}>
       <div className="max-h-[calc(100vh-240px)] overflow-y-auto">
       <div className="flex" onPointerMove={dnd.onPointerMove} onPointerUp={dnd.onPointerUp}>
         {!railCollapsed ? (
@@ -136,7 +136,7 @@ export function TimelineRenderer(props: Props) {
                 <div
                   key={day.toISOString()}
                   className="pointer-events-none absolute top-0 bottom-0"
-                  style={{ left: dateToX(day, range.start, zoom), width: PX_PER_UNIT[zoom], background: 'var(--bg-sunken)', opacity: 0.4 }}
+                  style={{ left: dateToX(day, range.start, zoom), width: PX_PER_UNIT[zoom], background: 'hsl(var(--surface-muted))', opacity: 0.4 }}
                 />
               ))}
               <DependencyArrow

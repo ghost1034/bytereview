@@ -48,8 +48,8 @@ export function MentionPicker({ users, query, onPick }: Props) {
 
   return (
     <div
-      className="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-lg border shadow-paper-md"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+      className="absolute bottom-full left-0 z-20 mb-1 w-64 overflow-hidden rounded-lg border shadow-md"
+      style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
     >
       <Command shouldFilter={false}>
         <CommandList>
@@ -73,7 +73,7 @@ export function MentionPicker({ users, query, onPick }: Props) {
                     {opt.user.name}
                   </>
                 ) : (
-                  <span className="font-medium" style={{ color: 'var(--accent)' }}>
+                  <span className="font-medium" style={{ color: 'hsl(var(--success))' }}>
                     {opt.label}
                   </span>
                 )}

@@ -28,15 +28,15 @@ export function getProjectStatusColor(status: ProjectStatus | null | undefined):
   switch (status) {
     case 'on_track':
     case 'complete':
-      return 'var(--accent)'
+      return 'hsl(var(--success))'
     case 'at_risk':
-      return 'var(--warning)'
+      return 'hsl(var(--warning))'
     case 'off_track':
-      return 'var(--destructive, #e11d48)'
+      return 'hsl(var(--destructive))'
     case 'on_hold':
-      return 'var(--ink-muted)'
+      return 'hsl(var(--foreground-muted))'
     default:
-      return 'var(--ink-muted)'
+      return 'hsl(var(--foreground-muted))'
   }
 }
 

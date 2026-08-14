@@ -14,12 +14,12 @@ import { validateNumberInput } from '../../lib/customFields/formatValue'
 import { parseISODateLocal, toISODate } from '../../lib/time'
 
 const COLOR_TOKENS: Record<string, string> = {
-  gray: 'var(--ink-muted)',
-  warning: 'var(--warning)',
-  danger: 'var(--danger)',
-  accent: 'var(--accent)',
-  info: 'var(--info)',
-  primary: 'var(--primary)',
+  gray: 'hsl(var(--foreground-muted))',
+  warning: 'hsl(var(--warning))',
+  danger: 'hsl(var(--destructive))',
+  accent: 'hsl(var(--success))',
+  info: 'hsl(var(--info))',
+  primary: 'hsl(var(--primary))',
 }
 
 type Props = {
@@ -77,7 +77,7 @@ export function FieldEditorBody({ field, value, users, onSave }: Props) {
     }
     default:
       return (
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Read-only field
         </p>
       )
@@ -105,7 +105,7 @@ function NumberEditor({ field, value, onSave }: Omit<Props, 'users'>) {
         }}
       />
       {error ? (
-        <p className="text-xs" style={{ color: 'var(--danger)' }}>
+        <p className="text-xs" style={{ color: 'hsl(var(--destructive))' }}>
           {error}
         </p>
       ) : null}
@@ -137,7 +137,7 @@ function DateEditor({ field, value, onSave }: Omit<Props, 'users'>) {
       <button
         type="button"
         className="text-xs"
-        style={{ color: 'var(--danger)' }}
+        style={{ color: 'hsl(var(--destructive))' }}
         onClick={() => onSave({ type: 'date', value: null })}
       >
         Clear

@@ -45,9 +45,9 @@ export function TaskFollowersField({ task }: Props) {
   return (
     <div className="text-sm">
       <div className="mb-1.5 flex items-center justify-between">
-        <span style={{ color: 'var(--ink-muted)' }}>Followers</span>
+        <span style={{ color: 'hsl(var(--foreground-muted))' }}>Followers</span>
         {currentUserId ? (
-          <button type="button" className="text-xs" style={{ color: 'var(--primary)' }} onClick={() => void toggleFollow()}>
+          <button type="button" className="text-xs" style={{ color: 'hsl(var(--primary))' }} onClick={() => void toggleFollow()}>
             {isFollowing ? 'Unfollow' : 'Follow task'}
           </button>
         ) : null}
@@ -59,7 +59,7 @@ export function TaskFollowersField({ task }: Props) {
               <UserAvatar userId={u.id} size="sm" showPresence={false} />
               <button
                 type="button"
-                className="absolute -right-1 -top-1 hidden rounded-full bg-[var(--bg-elevated)] p-0.5 group-hover:block"
+                className="absolute -right-1 -top-1 hidden rounded-full bg-[hsl(var(--card))] p-0.5 group-hover:block"
                 aria-label={`Remove ${u.name}`}
                 onClick={() => currentUserId && void removeFollower(task.id, u.id, currentUserId)}
               >
@@ -73,13 +73,13 @@ export function TaskFollowersField({ task }: Props) {
             <button
               type="button"
               className="flex h-8 w-8 items-center justify-center rounded-full border border-dashed"
-              style={{ borderColor: 'var(--border-default)', color: 'var(--ink-muted)' }}
+              style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}
               aria-label="Add follower"
             >
               <Plus className="h-3.5 w-3.5" />
             </button>
           </PopoverTrigger>
-          <PopoverContent className="tl-popover-surface w-56 p-2" align="start">
+          <PopoverContent className="w-56 p-2" align="start">
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -92,7 +92,7 @@ export function TaskFollowersField({ task }: Props) {
                 <li key={u.id}>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--bg-muted)]"
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[hsl(var(--surface-muted))]"
                     onClick={() => {
                       if (currentUserId) void addFollower(task.id, u.id, currentUserId)
                       setOpen(false)

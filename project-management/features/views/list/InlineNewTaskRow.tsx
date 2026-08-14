@@ -67,7 +67,7 @@ export function InlineNewTaskRow({
       }
     }
     return (
-      <div className="grid items-center border-b px-2" style={{ gridTemplateColumns: gridTemplate, height: LIST_ROW_HEIGHT, borderColor: 'var(--border-subtle)' }}>
+      <div className="grid items-center border-b px-2" style={{ gridTemplateColumns: gridTemplate, height: LIST_ROW_HEIGHT, borderColor: 'hsl(var(--border))' }}>
         <span />
         <span />
         <div className="col-span-full min-w-0 pl-8">
@@ -101,8 +101,8 @@ export function InlineNewTaskRow({
         style={{
           gridTemplateColumns: gridTemplate,
           height: LIST_ROW_HEIGHT,
-          borderColor: 'var(--border-subtle)',
-          color: 'var(--ink-muted)',
+          borderColor: 'hsl(var(--border))',
+          color: 'hsl(var(--foreground-muted))',
         }}
         onClick={() => setLocalActive(true)}
       >
@@ -116,7 +116,7 @@ export function InlineNewTaskRow({
   return (
     <div
       className="grid items-center border-b px-2"
-      style={{ gridTemplateColumns: gridTemplate, height: LIST_ROW_HEIGHT, borderColor: 'var(--border-subtle)' }}
+      style={{ gridTemplateColumns: gridTemplate, height: LIST_ROW_HEIGHT, borderColor: 'hsl(var(--border))' }}
     >
       <span />
       <span />

@@ -45,7 +45,7 @@ export function TasklyticModuleNav() {
   ]
 
   return (
-    <nav className="flex flex-wrap gap-1 rounded-2xl border p-1.5 shadow-paper-sm" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }} aria-label="Project management sections">
+    <nav className="flex flex-wrap gap-1 rounded-2xl border p-1.5 shadow-sm" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }} aria-label="Project management sections">
       {items.map((item) => {
         const Icon = item.icon
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
@@ -55,19 +55,19 @@ export function TasklyticModuleNav() {
             href={item.href}
             className={cn(
               'inline-flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-              active ? 'shadow-paper-sm' : 'hover:opacity-90'
+              active ? 'shadow-sm' : 'hover:opacity-90'
             )}
             style={
               active
-                ? { background: 'var(--primary-soft)', color: 'var(--primary)' }
-                : { color: 'var(--ink-secondary)' }
+                ? { background: 'hsl(var(--primary-soft))', color: 'hsl(var(--primary))' }
+                : { color: 'hsl(var(--foreground-muted))' }
             }
             aria-current={active ? 'page' : undefined}
           >
             <Icon className="h-4 w-4" strokeWidth={1.5} />
             <span>{item.label}</span>
             {item.badge ? (
-              <span className="rounded-full px-1.5 text-[10px] font-semibold" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>
+              <span className="rounded-full px-1.5 text-[10px] font-semibold" style={{ background: 'hsl(var(--warning-soft))', color: 'hsl(var(--warning))' }}>
                 {item.badge}
               </span>
             ) : null}

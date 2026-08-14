@@ -50,13 +50,13 @@ export function TaskRowActions({ task, projectId, sections, onOpen, dragListener
     <div className="pointer-events-none absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
       <button
         type="button"
-        className="cursor-grab rounded p-1 hover:bg-[var(--bg-muted)] active:cursor-grabbing"
+        className="cursor-grab rounded p-1 hover:bg-[hsl(var(--surface-muted))] active:cursor-grabbing"
         aria-label="Drag task"
         {...dragAttributes}
         {...dragListeners}
         onClick={(e) => e.stopPropagation()}
       >
-        <GripVertical className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+        <GripVertical className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -76,7 +76,7 @@ export function TaskRowActions({ task, projectId, sections, onOpen, dragListener
               <DropdownMenuSubTrigger>
                 <FolderInput className="mr-2 h-3.5 w-3.5" /> Move to section
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="tl-popover-surface z-[100] max-h-64 overflow-y-auto">
+              <DropdownMenuSubContent className="z-[100] max-h-64 overflow-y-auto">
                 {sections.map((section) => (
                   <DropdownMenuItem
                     key={section.id}

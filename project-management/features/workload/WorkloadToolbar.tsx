@@ -88,7 +88,7 @@ export function WorkloadToolbar(props: Props) {
         {preset === 'custom' ? (
           <div className="flex items-center gap-2">
             <Input type="date" className="h-9 w-36 text-sm" value={customStart} onChange={(e) => onCustomStartChange(e.target.value)} />
-            <span style={{ color: 'var(--ink-muted)' }}>–</span>
+            <span style={{ color: 'hsl(var(--foreground-muted))' }}>–</span>
             <Input type="date" className="h-9 w-36 text-sm" value={customEnd} onChange={(e) => onCustomEndChange(e.target.value)} />
           </div>
         ) : null}
@@ -97,7 +97,7 @@ export function WorkloadToolbar(props: Props) {
       <div className="flex flex-wrap items-center gap-2">
         <Select value={scopeMode} onValueChange={(v) => onScopeModeChange(v as WorkloadScopeMode)}>
           <SelectTrigger className="h-9 w-36"><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All projects</SelectItem>
             <SelectItem value="team">By team</SelectItem>
             <SelectItem value="project">By project</SelectItem>
@@ -106,7 +106,7 @@ export function WorkloadToolbar(props: Props) {
         {scopeMode === 'team' ? (
           <Select value={teamId ?? ''} onValueChange={(v) => onTeamChange(v || undefined)}>
             <SelectTrigger className="h-9 w-48"><SelectValue placeholder="Team" /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               {teams.map((t) => (
                 <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
               ))}
@@ -116,7 +116,7 @@ export function WorkloadToolbar(props: Props) {
         {scopeMode === 'project' ? (
           <Select value={projectId ?? ''} onValueChange={(v) => onProjectChange(v || undefined)}>
             <SelectTrigger className="h-9 w-48"><SelectValue placeholder="Project" /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
               ))}
@@ -126,7 +126,7 @@ export function WorkloadToolbar(props: Props) {
 
         <Select value={scale} onValueChange={(v) => onScaleChange(v as TimeScale)}>
           <SelectTrigger className="h-9 w-32"><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="day">Day</SelectItem>
             <SelectItem value="week">Week</SelectItem>
             <SelectItem value="month">Month</SelectItem>
@@ -136,12 +136,12 @@ export function WorkloadToolbar(props: Props) {
 
         <Select value={groupBy} onValueChange={(value) => onGroupByChange(value as WorkloadGroupBy)}>
           <SelectTrigger className="h-9 w-36" aria-label="Group workload by"><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]"><SelectItem value="person">Person</SelectItem><SelectItem value="team">Team</SelectItem><SelectItem value="project">Project</SelectItem></SelectContent>
+          <SelectContent className="z-[100]"><SelectItem value="person">Person</SelectItem><SelectItem value="team">Team</SelectItem><SelectItem value="project">Project</SelectItem></SelectContent>
         </Select>
 
         <Select value={effortFieldId ?? '__default__'} onValueChange={(value) => onEffortFieldChange(value === '__default__' ? undefined : value)}>
           <SelectTrigger className="h-9 w-48" aria-label="Effort field"><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]"><SelectItem value="__default__">Automatic estimate</SelectItem>{effortFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.name}</SelectItem>)}</SelectContent>
+          <SelectContent className="z-[100]"><SelectItem value="__default__">Automatic estimate</SelectItem>{effortFields.map((field) => <SelectItem key={field.id} value={field.id}>{field.name}</SelectItem>)}</SelectContent>
         </Select>
 
         <div className="ml-auto flex gap-2">

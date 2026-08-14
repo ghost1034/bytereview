@@ -41,12 +41,12 @@ export function SnoozeMenu({ notificationId, onSnoozed, trigger }: Props) {
           </Button>
         )}
       </PopoverTrigger>
-      <PopoverContent className="tl-popover-surface w-56 p-2" align="end">
+      <PopoverContent className="w-56 p-2" align="end">
         <ul className="space-y-1">
           <li>
             <button
               type="button"
-              className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
+              className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
               onClick={() => void apply(snoozePresetLaterToday())}
             >
               Later today
@@ -55,7 +55,7 @@ export function SnoozeMenu({ notificationId, onSnoozed, trigger }: Props) {
           <li>
             <button
               type="button"
-              className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
+              className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
               onClick={() => void apply(snoozePresetTomorrow())}
             >
               Tomorrow morning
@@ -64,7 +64,7 @@ export function SnoozeMenu({ notificationId, onSnoozed, trigger }: Props) {
           <li>
             <button
               type="button"
-              className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
+              className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
               onClick={() => void apply(snoozePresetNextWeek())}
             >
               Next week
@@ -75,17 +75,17 @@ export function SnoozeMenu({ notificationId, onSnoozed, trigger }: Props) {
           <PopoverTrigger asChild>
             <button
               type="button"
-              className="mt-1 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
+              className="mt-1 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
             >
               Custom date…
             </button>
           </PopoverTrigger>
-          <PopoverContent className="tl-popover-surface w-fit p-2" align="start">
+          <PopoverContent className="w-fit p-2" align="start">
             <Calendar mode="single" selected={customDate} onSelect={setCustomDate} />
             <input
               type="time"
               className="mt-2 w-full rounded-md border px-2 py-1 text-sm"
-              style={{ borderColor: 'var(--border-subtle)' }}
+              style={{ borderColor: 'hsl(var(--border))' }}
               value={customTime}
               onChange={(e) => setCustomTime(e.target.value)}
             />

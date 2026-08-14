@@ -84,9 +84,9 @@ export function CreateFormDialog({ open, onOpenChange, workspaceId, onCreated }:
 
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v) }}>
-      <DialogContent className="tl-dialog-surface max-w-lg">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">New form</DialogTitle>
+          <DialogTitle className="font-sans text-xl">New form</DialogTitle>
           <DialogDescription>Create a project intake form with starter title and details fields.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4 py-2">
@@ -98,7 +98,7 @@ export function CreateFormDialog({ open, onOpenChange, workspaceId, onCreated }:
             <Label>Project</Label>
             <Select value={projectId || projects[0]?.id} onValueChange={setProjectId}>
               <SelectTrigger className="tl-input"><SelectValue placeholder="Select project" /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>{p.iconEmoji ?? '📁'} {p.name}</SelectItem>
                 ))}

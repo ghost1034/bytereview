@@ -59,7 +59,7 @@ export function SaveProjectAsTemplateModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">Save as template</DialogTitle>
+          <DialogTitle className="font-sans text-xl">Save as template</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="grid gap-1">

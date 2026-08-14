@@ -66,8 +66,8 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
 
   return (
     <Card
-      className="tl-card shadow-paper-sm transition-shadow hover:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_25%,transparent),0_4px_20px_color-mix(in_srgb,var(--primary)_8%,transparent)]"
-      style={{ borderColor: 'var(--border-subtle)' }}
+      className="tl-card shadow-sm transition-shadow hover:border-primary hover:shadow-md"
+      style={{ borderColor: 'hsl(var(--border))' }}
     >
       <CardHeader className="pb-2 pt-3">
         <CardTitle className="text-sm font-medium">{proposal.title}</CardTitle>
@@ -75,7 +75,7 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
       <CardContent className="pb-2">
         <pre
           className="max-h-32 overflow-auto whitespace-pre-wrap rounded-lg p-2 text-xs"
-          style={{ background: 'var(--bg-sunken)', color: 'var(--ink-secondary)' }}
+          style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
         >
           {proposal.preview}
         </pre>
@@ -83,7 +83,7 @@ export function AiProposalCard({ proposal, actorId, onApplied, onDismiss }: Prop
           <Textarea aria-label="Editable proposal JSON" className="mt-2 min-h-32 font-mono text-xs" value={draftPayload} onChange={(event) => setDraftPayload(event.target.value)} />
         ) : null}
         {feedback ? (
-          <p className="mt-2 text-xs" style={{ color: 'var(--ink-muted)' }}>
+          <p className="mt-2 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {feedback}
           </p>
         ) : null}

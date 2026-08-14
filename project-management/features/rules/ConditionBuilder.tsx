@@ -58,7 +58,7 @@ export function ConditionBuilder({
         </Button>
       </div>
       {conditions.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>No conditions — rule runs for every matching trigger.</p>
+        <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>No conditions — rule runs for every matching trigger.</p>
       ) : (
         conditions.map((clause, index) => {
           const fieldDef = fieldDefs.find((f) => f.id === clause.field) ?? fieldDefs[0]
@@ -76,7 +76,7 @@ export function ConditionBuilder({
                 }}
               >
                 <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[100]">
+                <SelectContent className="z-[100]">
                   {fieldDefs.map((f) => (
                     <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
                   ))}
@@ -87,7 +87,7 @@ export function ConditionBuilder({
                 onValueChange={(op) => updateRow(index, { op: op as Condition['op'] })}
               >
                 <SelectTrigger className="h-8 w-[90px]"><SelectValue /></SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[100]">
+                <SelectContent className="z-[100]">
                   {ops.map((op) => (
                     <SelectItem key={op} value={op}>{op}</SelectItem>
                   ))}

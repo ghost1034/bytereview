@@ -45,7 +45,7 @@ export function StepInviteTeammates({
           placeholder="alex@company.com, sam@company.com"
           rows={3}
           className="w-full rounded-md border px-3 py-2 text-sm tl-input"
-          style={{ borderColor: 'var(--border-default)', background: 'var(--bg-elevated)' }}
+          style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
         />
       </div>
       <div className="grid gap-2">
@@ -54,7 +54,7 @@ export function StepInviteTeammates({
           <SelectTrigger className="tl-input">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="member">Member</SelectItem>
             <SelectItem value="admin">Admin</SelectItem>
             <SelectItem value="guest">Guest</SelectItem>

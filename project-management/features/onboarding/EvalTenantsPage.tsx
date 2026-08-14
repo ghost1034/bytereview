@@ -10,8 +10,8 @@ export function EvalTenantsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-serif text-2xl">Evaluation tenants</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <h1 className="font-sans text-2xl">Evaluation tenants</h1>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Sales, CS, and Support fixtures — not visible to customers.
         </p>
       </div>

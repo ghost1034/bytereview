@@ -16,8 +16,8 @@ export function WorkloadPage() {
   return (
     <div className="space-y-4" data-tour-page="workload">
       <div>
-        <h1 className="font-serif text-2xl">Workload</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <h1 className="font-sans text-2xl">Workload</h1>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Per-person capacity across your projects — spot overload before it becomes a blocker.
         </p>
       </div>

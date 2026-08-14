@@ -11,7 +11,6 @@ type Options = {
   onQuickAdd?: () => void
   onCollapseSidebar?: () => void
   onExpandSidebar?: () => void
-  onToggleTheme?: () => void
   onToggleTimer?: () => void
   onShowShortcuts?: () => void
   onOpenCommand?: () => void
@@ -24,7 +23,6 @@ export function useGlobalHotkeys(options: Options = {}) {
     onQuickAdd,
     onCollapseSidebar,
     onExpandSidebar,
-    onToggleTheme,
     onToggleTimer,
     onShowShortcuts,
     onOpenCommand,
@@ -69,12 +67,6 @@ export function useGlobalHotkeys(options: Options = {}) {
         return
       }
 
-      if (e.key.toLowerCase() === 't' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
-        e.preventDefault()
-        onToggleTheme?.()
-        return
-      }
-
       if (e.key === 'c' && !e.metaKey && !e.ctrlKey && onQuickAdd) {
         e.preventDefault()
         onQuickAdd()
@@ -101,5 +93,5 @@ export function useGlobalHotkeys(options: Options = {}) {
 
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [onCollapseSidebar, onExpandSidebar, onOpenCommand, onQuickAdd, onShowShortcuts, onToggleTheme, onToggleTimer, router, workspaceId])
+  }, [onCollapseSidebar, onExpandSidebar, onOpenCommand, onQuickAdd, onShowShortcuts, onToggleTimer, router, workspaceId])
 }

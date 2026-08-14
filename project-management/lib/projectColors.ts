@@ -1,11 +1,11 @@
 import { PROJECT_COLORS, type ProjectColorToken } from './colors'
 
 const BRAND_MAP: Record<string, string> = {
-  primary: 'var(--primary)',
-  accent: 'var(--accent)',
-  warning: 'var(--warning)',
-  danger: 'var(--danger)',
-  info: 'var(--info)',
+  primary: 'hsl(var(--primary))',
+  accent: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  danger: 'hsl(var(--destructive))',
+  info: 'hsl(var(--info))',
 }
 
 const MUTED_MAP: Record<string, string> = {
@@ -24,13 +24,13 @@ export function projectColorValue(color: string): string {
 
 /** Soft background for project icon tiles. */
 export function projectColorSoft(color: string): string {
-  if (color === 'primary') return 'var(--primary-soft)'
-  if (color === 'accent') return 'var(--accent-soft)'
-  if (color === 'warning') return 'var(--warning-soft)'
-  if (color === 'danger') return 'var(--danger-soft)'
-  if (color === 'info') return 'var(--info-soft)'
+  if (color === 'primary') return 'hsl(var(--primary-soft))'
+  if (color === 'accent') return 'hsl(var(--success-soft))'
+  if (color === 'warning') return 'hsl(var(--warning-soft))'
+  if (color === 'danger') return 'hsl(var(--destructive-soft))'
+  if (color === 'info') return 'hsl(var(--info-soft))'
   const base = MUTED_MAP[color]
-  return base ? `${base}33` : 'var(--primary-soft)'
+  return base ? `${base}33` : 'hsl(var(--primary-soft))'
 }
 
 export { PROJECT_COLORS, type ProjectColorToken }

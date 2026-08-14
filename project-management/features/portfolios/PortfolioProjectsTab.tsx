@@ -105,7 +105,7 @@ export function PortfolioProjectsTab({ portfolio, workspaceId }: Props) {
         onBulkRemove={() => void bulkRemove()}
       />
 
-      <div className="tl-card overflow-x-auto shadow-paper-sm">
+      <div className="tl-card overflow-x-auto shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -135,7 +135,7 @@ export function PortfolioProjectsTab({ portfolio, workspaceId }: Props) {
                   <TableCell>
                     <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggleSelect(p.id)} />
                   </TableCell>
-                  <TableCell><GripVertical className="h-4 w-4 cursor-grab" style={{ color: 'var(--ink-muted)' }} /></TableCell>
+                  <TableCell><GripVertical className="h-4 w-4 cursor-grab" style={{ color: 'hsl(var(--foreground-muted))' }} /></TableCell>
                   <TableCell>
                     <Link href={`/dashboard/project-management/w/${workspaceId}/projects/${p.id}`} className="flex items-center gap-2 hover:underline">
                       <span>{p.iconEmoji ?? '📁'}</span>
@@ -151,8 +151,8 @@ export function PortfolioProjectsTab({ portfolio, workspaceId }: Props) {
                   </TableCell>
                   <TableCell>
                     <div className="flex min-w-[100px] items-center gap-2">
-                      <div className="h-1.5 flex-1 rounded-full" style={{ background: 'var(--bg-muted)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--accent)' }} />
+                      <div className="h-1.5 flex-1 rounded-full" style={{ background: 'hsl(var(--surface-muted))' }}>
+                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'hsl(var(--success))' }} />
                       </div>
                       <span className="text-xs tabular-nums">{pct}%</span>
                     </div>

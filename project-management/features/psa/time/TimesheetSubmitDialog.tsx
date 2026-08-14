@@ -69,8 +69,8 @@ export function TimesheetSubmitDialog(props: Props) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <TasklyticDialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle className="font-serif text-xl">Submit timesheet</DialogTitle></DialogHeader>
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>{props.periodStart} — {props.periodEnd}</p>
+        <DialogHeader><DialogTitle className="font-sans text-xl">Submit timesheet</DialogTitle></DialogHeader>
+        <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{props.periodStart} — {props.periodEnd}</p>
         <p className="font-mono tabular-nums text-sm">{total.toFixed(2)}h total · {billable.toFixed(2)}h billable</p>
         <div className="grid gap-1"><Label>Notes (optional)</Label><Input value={notes} onChange={(e) => setNotes(e.target.value)} className="tl-input" /></div>
         <DialogFooter>

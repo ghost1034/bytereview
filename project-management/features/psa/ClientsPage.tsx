@@ -30,12 +30,12 @@ export function ClientsPage() {
   return (
     <div className="space-y-4" data-tour-page="clients">
       <div className="flex items-center justify-between">
-        <h1 className="font-serif text-2xl">Clients</h1>
+        <h1 className="font-sans text-2xl">Clients</h1>
         <Button className="tl-btn-primary border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New client</Button>
       </div>
-      <div className="tl-card overflow-hidden shadow-paper-sm">
+      <div className="tl-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Name</th><th className="px-4 py-2">Type</th><th className="px-4 py-2">Matters</th>
             <th className="px-4 py-2 text-right">WIP</th><th className="px-4 py-2 text-right">AR</th><th className="px-4 py-2 text-right">Retainer</th><th className="px-4 py-2" />
           </tr></thead>
@@ -47,7 +47,7 @@ export function ClientsPage() {
               const wip = wipTotal(clientEntries, clientExp)
               const ar = invoices.filter((i) => i.clientId === c.id).reduce((s, i) => s + (i.amountOutstanding ?? 0), 0)
               return (
-                <tr key={c.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+                <tr key={c.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                   <td className="px-4 py-2 font-medium"><Link className="hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/clients/${c.id}`}>{c.name}</Link></td>
                   <td className="px-4 py-2">{c.type}</td>
                   <td className="px-4 py-2">{clientMatters}</td>

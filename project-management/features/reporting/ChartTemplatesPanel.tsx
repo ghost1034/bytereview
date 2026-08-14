@@ -12,7 +12,7 @@ type Props = {
 export function ChartTemplatesPanel({ onPick }: Props) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Start from template
       </p>
       <div className="grid gap-2 sm:grid-cols-2">
@@ -20,8 +20,8 @@ export function ChartTemplatesPanel({ onPick }: Props) {
           <button
             key={template.id}
             type="button"
-            className="rounded-lg border p-3 text-left transition-colors hover:bg-[var(--bg-muted)]"
-            style={{ borderColor: 'var(--border-subtle)' }}
+            className="rounded-lg border p-3 text-left transition-colors hover:bg-[hsl(var(--surface-muted))]"
+            style={{ borderColor: 'hsl(var(--border))' }}
             onClick={() =>
               onPick({
                 ...template.draft,
@@ -31,7 +31,7 @@ export function ChartTemplatesPanel({ onPick }: Props) {
             }
           >
             <p className="text-sm font-medium">{template.title}</p>
-            <p className="mt-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {template.description}
             </p>
           </button>

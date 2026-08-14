@@ -163,10 +163,10 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
 
   return (
     <div
-      className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-xl border px-4 py-2 shadow-paper-md"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+      className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-xl border px-4 py-2 shadow-md"
+      style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
     >
-      <span className="text-sm font-medium" style={{ color: 'var(--ink-primary)' }}>
+      <span className="text-sm font-medium" style={{ color: 'hsl(var(--foreground))' }}>
         {ids.length} selected
       </span>
       <Button size="sm" variant="outline" onClick={() => void bulkComplete()}>
@@ -182,7 +182,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
           <ul className="max-h-48 overflow-y-auto">
             {users.map((u) => (
               <li key={u.id}>
-                <button type="button" className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--bg-muted)]" onClick={() => void bulkAssign(u.id)}>
+                <button type="button" className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[hsl(var(--surface-muted))]" onClick={() => void bulkAssign(u.id)}>
                   <UserAvatar userId={u.id} size="sm" showPresence={false} />
                   {u.name}
                 </button>
@@ -218,7 +218,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
               <li key={s.id}>
                 <button
                   type="button"
-                  className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
+                  className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
                   onClick={() => void bulkMoveSection(s.id)}
                 >
                   {s.name}
@@ -238,7 +238,7 @@ export function BulkActionsBar({ selected, workspaceId, currentProjectId, onClea
           <ul className="max-h-48 overflow-y-auto">
             {projects.filter((p) => p.id !== currentProjectId).map((p) => (
               <li key={p.id}>
-                <button type="button" className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]" onClick={() => void bulkAddProject(p.id)}>
+                <button type="button" className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]" onClick={() => void bulkAddProject(p.id)}>
                   {p.name}
                 </button>
               </li>

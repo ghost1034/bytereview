@@ -176,14 +176,14 @@ export function SearchPage() {
   const recentSuggestions = recentSearches.slice(0, 5)
 
   if (!workspaceId) {
-    return <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Select a workspace to search.</p>
+    return <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Select a workspace to search.</p>
   }
 
   return (
     <div className="space-y-4" data-tour-page="search">
       <div>
-        <h1 className="font-serif text-2xl">My Searches</h1>
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <h1 className="font-sans text-2xl">My Searches</h1>
+        <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Find tasks, projects, goals, and people with recursive filters and saved searches.
         </p>
       </div>
@@ -209,7 +209,7 @@ export function SearchPage() {
           goalCount={goalResults.length}
           peopleCount={peopleResults.length}
         />
-        <label className="flex items-center gap-1.5 text-sm" style={{ color: 'var(--ink-secondary)' }}>
+        <label className="flex items-center gap-1.5 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           <input
             type="checkbox"
             checked={includeArchived}
@@ -218,12 +218,12 @@ export function SearchPage() {
           Include archived
         </label>
         {currentUserId ? <SavedSearchControls workspaceId={workspaceId} userId={currentUserId} query={query} viewType={view} /> : null}
-        {tab === 'tasks' ? <div className="ml-auto flex rounded-lg border p-0.5" style={{ borderColor: 'var(--border-subtle)' }}>
+        {tab === 'tasks' ? <div className="ml-auto flex rounded-lg border p-0.5" style={{ borderColor: 'hsl(var(--border))' }}>
           {(['list', 'board', 'chart'] as SearchView[]).map((mode) => <Button key={mode} variant={view === mode ? 'secondary' : 'ghost'} size="sm" className="h-7 capitalize" onClick={() => setView(mode)}>{mode}</Button>)}
         </div> : null}
       </div>
 
-      {workspaceSearches.length ? <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border-subtle)' }}><p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Pinned workspace searches</p><div className="flex flex-wrap gap-2">{workspaceSearches.map((saved) => <Button key={saved.id} variant="outline" size="sm" onClick={() => setQuery(migrateViewQuery(saved.query ?? { ...DEFAULT_VIEW_QUERY, filters: saved.filters as ViewQuery['filters'], filterExpression: saved.filterExpression }))}>{saved.name} ({savedSearchLiveCount(saved, workspaceTasks, currentUserId)})</Button>)}</div></div> : null}
+      {workspaceSearches.length ? <div className="rounded-xl border p-3" style={{ borderColor: 'hsl(var(--border))' }}><p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>Pinned workspace searches</p><div className="flex flex-wrap gap-2">{workspaceSearches.map((saved) => <Button key={saved.id} variant="outline" size="sm" onClick={() => setQuery(migrateViewQuery(saved.query ?? { ...DEFAULT_VIEW_QUERY, filters: saved.filters as ViewQuery['filters'], filterExpression: saved.filterExpression }))}>{saved.name} ({savedSearchLiveCount(saved, workspaceTasks, currentUserId)})</Button>)}</div></div> : null}
 
       {isActiveQuery ? (
         tab === 'tasks' && view === 'board' ? <SearchResultsBoard tasks={taskResults.map((row) => row.task)} projects={workspaceProjects} />
@@ -234,13 +234,13 @@ export function SearchPage() {
             tags={tags.filter((t) => t.workspaceId === workspaceId)}
           />
       ) : (
-        <div className="rounded-xl border px-6 py-12 text-center" style={{ borderColor: 'var(--border-subtle)' }}>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <div className="rounded-xl border px-6 py-12 text-center" style={{ borderColor: 'hsl(var(--border))' }}>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Type in the search box or add filters to find work across this workspace.
           </p>
           {recentSuggestions.length ? (
             <div className="mt-4">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 Recent searches
               </p>
               <div className="flex flex-wrap justify-center gap-2">
@@ -249,7 +249,7 @@ export function SearchPage() {
                     key={term}
                     type="button"
                     className="rounded-full border px-3 py-1 text-sm hover:opacity-90"
-                    style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-secondary)' }}
+                    style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}
                     onClick={() => {
                       setQuery({ ...query, search: term })
                       recordSearch(term)
@@ -265,8 +265,8 @@ export function SearchPage() {
       )}
 
       {!hasResults && isActiveQuery ? (
-        <div className="rounded-xl border px-6 py-8 text-center" style={{ borderColor: 'var(--border-subtle)' }}>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <div className="rounded-xl border px-6 py-8 text-center" style={{ borderColor: 'hsl(var(--border))' }}>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             No results match your search.
           </p>
           {recentSuggestions.length ? (
@@ -276,7 +276,7 @@ export function SearchPage() {
                   key={term}
                   type="button"
                   className="rounded-full border px-3 py-1 text-sm"
-                  style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-secondary)' }}
+                  style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}
                   onClick={() => setQuery({ ...query, search: term })}
                 >
                   Try: {term}

@@ -38,13 +38,13 @@ export const WeekGrid = memo(function WeekGrid({
   const bars = layoutMultiDayBars(tasks, days, 0)
 
   return (
-    <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'hsl(var(--border))' }}>
       <div
         className="grid grid-cols-7 border-b text-center text-[10px] font-semibold uppercase tracking-wide"
         style={{
-          background: 'var(--bg-muted)',
-          color: 'var(--ink-muted)',
-          borderColor: 'var(--border-subtle)',
+          background: 'hsl(var(--surface-muted))',
+          color: 'hsl(var(--foreground-muted))',
+          borderColor: 'hsl(var(--border))',
         }}
       >
         {WEEKDAYS.map((d, i) => (

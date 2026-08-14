@@ -38,9 +38,9 @@ export function RecommendedFieldsPanel({ workspaceId, projectId, canCreateGlobal
   }
 
   return (
-    <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }}>
+    <div className="rounded-xl border p-4" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}>
       <h3 className="text-sm font-semibold">Recommended fields</h3>
-      <p className="mt-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+      <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Common fields used by high-performing teams.
       </p>
       <ul className="mt-3 space-y-2">
@@ -50,7 +50,7 @@ export function RecommendedFieldsPanel({ workspaceId, projectId, canCreateGlobal
             <li key={spec.name} className="flex items-center justify-between gap-2 text-sm">
               <div>
                 <span className="font-medium">{spec.name}</span>
-                <span className="ml-2 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                <span className="ml-2 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {fieldTypeLabel(spec.type)}
                 </span>
               </div>

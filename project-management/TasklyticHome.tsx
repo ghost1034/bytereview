@@ -48,7 +48,7 @@ export function TasklyticHome() {
   if (booting) {
     return (
       <div className="flex min-h-[240px] items-center justify-center">
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Loading your workspace…
         </p>
       </div>
@@ -81,9 +81,9 @@ export function TasklyticHome() {
 
   return (
     <div className="space-y-6" data-tour-page="home">
-      <div className="bg-aurora rounded-2xl p-6 shadow-paper-sm">
-        <h1 className="font-serif text-3xl">Good day{user ? `, ${user.name.split(' ')[0]}` : ''}</h1>
-        <p className="mt-2 max-w-prose text-sm" style={{ color: 'var(--ink-secondary)' }}>
+      <div className="bg-surface-muted rounded-2xl p-6 shadow-sm">
+        <h1 className="font-sans text-3xl">Good day{user ? `, ${user.name.split(' ')[0]}` : ''}</h1>
+        <p className="mt-2 max-w-prose text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {workspace?.name ?? 'Your workspace'} — projects, tasks, and goals in one calm place.
         </p>
         <Button className="tl-btn-primary mt-4 border-0" onClick={() => setCreateOpen(true)}>
@@ -102,8 +102,8 @@ export function TasklyticHome() {
 
       {starredProjects.length > 0 ? (
         <section>
-          <h2 className="mb-3 flex items-center gap-2 font-serif text-lg">
-            <Star className="h-4 w-4" fill="var(--warning)" stroke="var(--warning)" />
+          <h2 className="mb-3 flex items-center gap-2 font-sans text-lg">
+            <Star className="h-4 w-4" fill="hsl(var(--warning))" stroke="hsl(var(--warning))" />
             Starred
           </h2>
           <div className="flex flex-wrap gap-4">
@@ -113,13 +113,13 @@ export function TasklyticHome() {
       ) : null}
 
       <section>
-        <h2 className="mb-3 font-serif text-lg">Your projects</h2>
+        <h2 className="mb-3 font-sans text-lg">Your projects</h2>
         {otherProjects.length ? (
           <div className="flex flex-wrap gap-4">
             {otherProjects.map(renderProjectCard)}
           </div>
         ) : starredProjects.length ? (
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             All projects are starred. Unstar a project to move it here.
           </p>
         ) : (

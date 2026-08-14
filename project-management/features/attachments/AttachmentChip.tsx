@@ -76,27 +76,27 @@ export function AttachmentChip({
   return (
     <div
       className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${compact ? 'text-xs' : 'text-sm'}`}
-      style={{ background: 'var(--bg-muted)' }}
+      style={{ background: 'hsl(var(--surface-muted))' }}
     >
       {thumb ? (
         <button type="button" onClick={onPreview} className="shrink-0 overflow-hidden rounded">
           <Image unoptimized src={previewUrl} alt="" width={32} height={32} className="h-8 w-8 object-cover" />
         </button>
       ) : (
-        <span style={{ color: 'var(--ink-muted)' }}>
+        <span style={{ color: 'hsl(var(--foreground-muted))' }}>
           <CategoryIcon attachment={attachment} />
         </span>
       )}
       <button
         type="button"
         className="min-w-0 flex-1 truncate text-left"
-        style={{ color: 'var(--ink-secondary)' }}
+        style={{ color: 'hsl(var(--foreground-muted))' }}
         onClick={onPreview}
       >
         {attachment.name}
       </button>
       {!compact ? (
-        <span className="shrink-0 text-xs" style={{ color: 'var(--ink-faint)' }}>
+        <span className="shrink-0 text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>
           {formatFileSize(attachment.size)}
         </span>
       ) : null}
@@ -106,7 +106,7 @@ export function AttachmentChip({
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="tl-popover-surface" align="end">
+        <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onPreview}>
             <Eye className="mr-2 h-4 w-4" /> Preview
           </DropdownMenuItem>

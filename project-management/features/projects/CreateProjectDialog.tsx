@@ -98,7 +98,7 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: Props) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">
+          <DialogTitle className="font-sans text-xl">
             Create project {step > 1 ? `(step ${step} of 3)` : ''}
           </DialogTitle>
           <DialogDescription>Choose a starting point, project details, and the views your team will use.</DialogDescription>
@@ -138,7 +138,7 @@ export function CreateProjectDialog({ open, onOpenChange, workspaceId }: Props) 
           />
         )}
         {userTemplates.length > 0 && step === 1 && (
-          <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {userTemplates.length} saved workspace template{userTemplates.length === 1 ? '' : 's'} available in settings.
           </p>
         )}

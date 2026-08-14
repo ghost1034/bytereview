@@ -36,10 +36,10 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse,
       <TasklyticDialogContent className="max-w-2xl" aria-describedby={undefined}>
         <Tabs defaultValue="overview">
           <DialogHeader>
-            <DialogTitle className="font-serif text-xl">
+            <DialogTitle className="font-sans text-xl">
               {template.iconEmoji} {template.name}
             </DialogTitle>
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>{template.description}</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{template.description}</p>
           </DialogHeader>
 
           <TabsList className="mt-2 w-full justify-start overflow-x-auto">
@@ -71,7 +71,7 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse,
                 const count = specs.filter((s) => s.sectionIndex === idx).length
                 return (
                   <li key={name}>
-                    {name} <span style={{ color: 'var(--ink-muted)' }}>({count} tasks)</span>
+                    {name} <span style={{ color: 'hsl(var(--foreground-muted))' }}>({count} tasks)</span>
                   </li>
                 )
               })}
@@ -81,14 +81,14 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse,
           <TabsContent value="fields" className="max-h-64 overflow-y-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left" style={{ color: 'var(--ink-muted)' }}>
+                <tr className="text-left" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   <th className="py-1">Field</th>
                   <th className="py-1">Type</th>
                 </tr>
               </thead>
               <tbody>
                 {(template.recommendedFields ?? []).map((f) => (
-                  <tr key={f.name} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <tr key={f.name} className="border-t" style={{ borderColor: 'hsl(var(--border))' }}>
                     <td className="py-1">{f.name}</td>
                     <td className="py-1">{f.reuseGlobalName ? `global · ${f.type}` : f.type}</td>
                   </tr>
@@ -100,14 +100,14 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse,
           <TabsContent value="tasks" className="max-h-64 overflow-y-auto">
             <ul className="space-y-1 text-sm">
               {previewTasks.map((t) => (
-                <li key={`${t.name}-${t.sectionIndex}`} style={{ color: 'var(--ink-secondary)' }}>
+                <li key={`${t.name}-${t.sectionIndex}`} style={{ color: 'hsl(var(--foreground-muted))' }}>
                   · {t.name}
                   {t.assigneeRole ? ` — ${t.assigneeRole}` : ''}
                   {t.relativeDueDays != null ? ` (D+${t.relativeDueDays})` : ''}
                 </li>
               ))}
               {specs.length > 20 ? (
-                <li className="text-xs" style={{ color: 'var(--ink-muted)' }}>+ {specs.length - 20} more tasks</li>
+                <li className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>+ {specs.length - 20} more tasks</li>
               ) : null}
             </ul>
           </TabsContent>
@@ -115,25 +115,25 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse,
           <TabsContent value="rules" className="max-h-64 overflow-y-auto">
             <ul className="space-y-2 text-sm">
               {(template.ruleTemplates ?? []).map((r) => (
-                <li key={r.name} className="rounded border p-2" style={{ borderColor: 'var(--border-subtle)' }}>
+                <li key={r.name} className="rounded border p-2" style={{ borderColor: 'hsl(var(--border))' }}>
                   <strong>{r.name}</strong>
-                  <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{r.trigger.type}</p>
+                  <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{r.trigger.type}</p>
                 </li>
               ))}
             </ul>
           </TabsContent>
 
           {placeholderRoles.length ? <TabsContent value="roles" className="max-h-64 space-y-3 overflow-y-auto">
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Resolve placeholder roles before creating the project. Unresolved roles remain visible as task tags.</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Resolve placeholder roles before creating the project. Unresolved roles remain visible as task tags.</p>
             {placeholderRoles.map((role) => <label key={role} className="grid grid-cols-[140px_1fr] items-center gap-2 text-sm"><span>{role}</span><Select value={roleAssignments[role] ?? '__unassigned__'} onValueChange={(value) => onRoleAssignmentChange(role, value === '__unassigned__' ? '' : value)}><SelectTrigger aria-label={`Resolve role ${role}`}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="__unassigned__">Leave unassigned</SelectItem>{users.map((user) => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}</SelectContent></Select></label>)}
           </TabsContent> : null}
 
           {hasForms && (
             <TabsContent value="forms" className="max-h-64 overflow-y-auto text-sm">
               {(template.formTemplates ?? []).map((f) => (
-                <div key={f.name} className="mb-3 rounded border p-3" style={{ borderColor: 'var(--border-subtle)' }}>
+                <div key={f.name} className="mb-3 rounded border p-3" style={{ borderColor: 'hsl(var(--border))' }}>
                   <p className="font-medium">{f.name}</p>
-                  <ul className="mt-1 list-disc pl-5" style={{ color: 'var(--ink-secondary)' }}>
+                  <ul className="mt-1 list-disc pl-5" style={{ color: 'hsl(var(--foreground-muted))' }}>
                     {f.fields.map((field) => (
                       <li key={field.id}>{field.label}{field.required ? ' *' : ''}</li>
                     ))}
@@ -148,9 +148,9 @@ export function TemplatePreviewDialog({ template, open, loading, onClose, onUse,
               <div className="grid gap-2 sm:grid-cols-2">
                 {(template.dashboardTemplates ?? []).flatMap((d) =>
                   d.charts.map((c) => (
-                    <div key={c.title} className="rounded border p-3 text-sm" style={{ borderColor: 'var(--border-subtle)' }}>
+                    <div key={c.title} className="rounded border p-3 text-sm" style={{ borderColor: 'hsl(var(--border))' }}>
                       <p className="font-medium">{c.title}</p>
-                      <p className="text-xs capitalize" style={{ color: 'var(--ink-muted)' }}>{c.type} chart</p>
+                      <p className="text-xs capitalize" style={{ color: 'hsl(var(--foreground-muted))' }}>{c.type} chart</p>
                     </div>
                   ))
                 )}

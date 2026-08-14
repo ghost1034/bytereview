@@ -88,7 +88,7 @@ export function TeamSettingsTab({ team, workspace, currentUser }: Props) {
           <Label>Privacy</Label>
           <Select value={privacy} disabled={!canEdit} onValueChange={(v) => setPrivacy(v as Team['privacy'])}>
             <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               <SelectItem value="public">Public</SelectItem>
               <SelectItem value="private">Private</SelectItem>
               <SelectItem value="secret">Secret</SelectItem>

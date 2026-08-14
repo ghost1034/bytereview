@@ -15,7 +15,7 @@ export function SavedTemplatesPanel({ onEdit }: Props) {
 
   if (!templates.length) {
     return (
-      <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         No saved templates yet. Save a project as a template or create one below.
       </p>
     )
@@ -24,10 +24,10 @@ export function SavedTemplatesPanel({ onEdit }: Props) {
   return (
     <ul className="space-y-2">
       {templates.map((t) => (
-        <li key={t.id} className="tl-card flex items-center justify-between p-4 shadow-paper-sm">
+        <li key={t.id} className="tl-card flex items-center justify-between p-4 shadow-sm">
           <div>
             <p className="font-medium">{t.iconEmoji ?? t.defaults.iconEmoji ?? '📋'} {t.name}</p>
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {t.sectionNames.length} sections · {t.taskTemplates.length} task templates
             </p>
           </div>

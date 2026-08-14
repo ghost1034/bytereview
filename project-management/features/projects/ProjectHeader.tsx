@@ -121,11 +121,11 @@ export function ProjectHeader({
                 onChange={(e) => setName(e.target.value)}
                 onBlur={() => void saveName()}
                 onKeyDown={(e) => e.key === 'Enter' && void saveName()}
-                className="tl-input h-9 font-serif text-xl"
+                className="tl-input h-9 font-sans text-xl"
                 aria-label="Project name"
               />
             ) : (
-              <button type="button" disabled={!canEdit} className="text-left font-serif text-2xl hover:opacity-80 disabled:cursor-default" onClick={() => setEditing(true)}>
+              <button type="button" disabled={!canEdit} className="text-left font-sans text-2xl hover:opacity-80 disabled:cursor-default" onClick={() => setEditing(true)}>
                 {project.name}
               </button>
             )}
@@ -146,7 +146,7 @@ export function ProjectHeader({
             aria-label={starred ? 'Unstar project' : 'Star project'}
             onClick={() => void toggleStarProject(project.id, currentUserId, starredIds)}
           >
-            <Star className="h-4 w-4" fill={starred ? 'var(--warning)' : 'none'} stroke="var(--warning)" />
+            <Star className="h-4 w-4" fill={starred ? 'hsl(var(--warning))' : 'none'} stroke="hsl(var(--warning))" />
           </Button>
           <Button variant="outline" size="sm" onClick={() => void share()}>
             <Share2 className="mr-1 h-4 w-4" /> Share
@@ -157,7 +157,7 @@ export function ProjectHeader({
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="tl-popover-surface" align="end">
+            <DropdownMenuContent align="end">
               {canEdit ? <DropdownMenuItem onClick={() => onSettingsOpenChange(true)}>Edit details</DropdownMenuItem> : null}
               {canEdit ? <DropdownMenuItem onClick={() => setTemplateOpen(true)}>
                 <LayoutTemplate className="mr-2 h-4 w-4" /> Save as template
@@ -194,7 +194,7 @@ export function ProjectHeader({
       <ApplyBundleDialog open={bundleOpen} onOpenChange={setBundleOpen} projectId={project.id} workspaceId={workspaceId} actorId={currentUserId} />
 
       <AlertDialog open={confirmArchive} onOpenChange={setConfirmArchive}>
-        <AlertDialogContent className="tl-dialog-surface tl-dialog-mobile">
+        <AlertDialogContent className="tl-dialog-mobile">
           <AlertDialogHeader>
             <AlertDialogTitle>Archive project?</AlertDialogTitle>
             <AlertDialogDescription>

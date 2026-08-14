@@ -117,9 +117,9 @@ export function MessageComposer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-w-lg">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif">{isEdit ? 'Edit message' : 'New message'}</DialogTitle>
+          <DialogTitle className="font-sans">{isEdit ? 'Edit message' : 'New message'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">

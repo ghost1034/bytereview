@@ -125,8 +125,8 @@ export function RichTextBlock({ html, onChange, placeholder, minHeight = 'min-h-
         suppressContentEditableWarning
         role="textbox"
         aria-multiline="true"
-        className={`tl-rich-editor rounded-lg border p-2 text-sm outline-none tl-input empty:before:text-[var(--ink-faint)] empty:before:content-[attr(data-placeholder)] ${minHeight}`}
-        style={{ color: 'var(--ink-primary)' }}
+        className={`tl-rich-editor rounded-lg border p-2 text-sm outline-none tl-input empty:before:text-[hsl(var(--foreground-subtle))] empty:before:content-[attr(data-placeholder)] ${minHeight}`}
+        style={{ color: 'hsl(var(--foreground))' }}
         data-placeholder={placeholder}
         onBlur={sync}
         onInput={sync}

@@ -68,7 +68,7 @@ export function ReportingHomePage() {
   return (
     <div className="space-y-4" data-tour-page="reporting">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-2xl">Reporting</h1>
+        <h1 className="font-sans text-2xl">Reporting</h1>
         <Button className="tl-btn-primary gap-2 border-0" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />
           New dashboard
@@ -77,7 +77,7 @@ export function ReportingHomePage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           <Input
             className="pl-9"
             placeholder="Search dashboards"
@@ -89,7 +89,7 @@ export function ReportingHomePage() {
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Owner" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All owners</SelectItem>
             {users.map((u) => (
               <SelectItem key={u.id} value={u.id}>
@@ -102,7 +102,7 @@ export function ReportingHomePage() {
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder="Created" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">Any date</SelectItem>
             <SelectItem value="7d">Last 7 days</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>

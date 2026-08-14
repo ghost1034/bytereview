@@ -90,18 +90,18 @@ export function ProjectOverview({ project }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="tl-card p-4 shadow-paper-sm">
+      <div className="tl-card p-4 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-sm font-medium">Completion</span>
-          <span className="text-sm tabular-nums" style={{ color: 'var(--ink-muted)' }}>{progress}%</span>
+          <span className="text-sm tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{progress}%</span>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-4">
-          <section className="tl-card p-5 shadow-paper-sm">
-            <h2 className="font-serif text-lg">Project brief</h2>
+          <section className="tl-card p-5 shadow-sm">
+            <h2 className="font-sans text-lg">Project brief</h2>
             <div className="mt-3">
               <BriefRichEditor
                 html={briefHtml}
@@ -114,18 +114,18 @@ export function ProjectOverview({ project }: Props) {
             </div>
           </section>
 
-          <section className="tl-card p-5 shadow-paper-sm">
-            <h2 className="font-serif text-lg">Project roles</h2>
+          <section className="tl-card p-5 shadow-sm">
+            <h2 className="font-sans text-lg">Project roles</h2>
             <table className="mt-3 w-full text-sm">
               <thead>
-                <tr style={{ color: 'var(--ink-muted)' }}>
+                <tr style={{ color: 'hsl(var(--foreground-muted))' }}>
                   <th className="pb-2 text-left font-medium">Name</th>
                   <th className="pb-2 text-left font-medium">Role</th>
                 </tr>
               </thead>
               <tbody>
                 {members.map((m) => (
-                  <tr key={m.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <tr key={m.id} className="border-t" style={{ borderColor: 'hsl(var(--border))' }}>
                     <td className="py-2">{m.name}</td>
                     <td className="py-2">
                       <Input
@@ -140,26 +140,26 @@ export function ProjectOverview({ project }: Props) {
             </table>
           </section>
 
-          <section className="tl-card p-5 shadow-paper-sm">
-            <h2 className="font-serif text-lg">Documents</h2>
-            <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <section className="tl-card p-5 shadow-sm">
+            <h2 className="font-sans text-lg">Documents</h2>
+            <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Upload files (up to {projectFiles.maxMb} MB each).
             </p>
             <AttachmentListPanel scope={projectFiles} allowLink={false} allowCloudDrive={false} />
           </section>
 
-          <section className="tl-card p-5 shadow-paper-sm">
+          <section className="tl-card p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="font-serif text-lg">Key resources</h2>
+              <h2 className="font-sans text-lg">Key resources</h2>
               <Button size="sm" variant="outline" onClick={() => void addResource()}>
                 <Plus className="mr-1 h-4 w-4" /> Add link
               </Button>
             </div>
-            <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Bookmarks to external pages (docs, sites). Enter a title and a URL.
             </p>
             {(project.keyResources ?? []).length === 0 ? (
-              <p className="mt-3 text-sm" style={{ color: 'var(--ink-muted)' }}>No resources yet.</p>
+              <p className="mt-3 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No resources yet.</p>
             ) : (
               <ul className="mt-3 space-y-2">
                 {(project.keyResources ?? []).map((r) => (
@@ -185,9 +185,9 @@ export function ProjectOverview({ project }: Props) {
             )}
           </section>
 
-          <section className="tl-card p-5 shadow-paper-sm">
+          <section className="tl-card p-5 shadow-sm">
             <div className="flex items-center justify-between">
-              <h2 className="font-serif text-lg">Milestones</h2>
+              <h2 className="font-sans text-lg">Milestones</h2>
               <Button size="sm" variant="outline" onClick={() => setMilestoneDialogOpen(true)}>
                 <Plus className="mr-1 h-4 w-4" /> Add milestone
               </Button>
@@ -197,17 +197,17 @@ export function ProjectOverview({ project }: Props) {
                 <div
                   key={m.id}
                   className="flex items-start gap-2 rounded-lg px-3 py-2 text-sm"
-                  style={{ background: 'var(--bg-muted)' }}
+                  style={{ background: 'hsl(var(--surface-muted))' }}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="font-medium">{m.name}</div>
                     {m.notes ? (
-                      <p className="mt-0.5 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                      <p className="mt-0.5 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                         {m.notes}
                       </p>
                     ) : null}
                     {m.dueOn ? (
-                      <p className="mt-0.5 text-xs tabular-nums" style={{ color: 'var(--ink-secondary)' }}>
+                      <p className="mt-0.5 text-xs tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>
                         {formatDate(m.dueOn)}
                       </p>
                     ) : null}
@@ -224,7 +224,7 @@ export function ProjectOverview({ project }: Props) {
                   </Button>
                 </div>
               )) : (
-                <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No milestones yet.</p>
+                <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No milestones yet.</p>
               )}
             </div>
             <CreateMilestoneDialog
@@ -234,58 +234,58 @@ export function ProjectOverview({ project }: Props) {
             />
           </section>
 
-          <section className="tl-card p-5 shadow-paper-sm">
-            <h2 className="font-serif text-lg">Recent activity</h2>
+          <section className="tl-card p-5 shadow-sm">
+            <h2 className="font-sans text-lg">Recent activity</h2>
             <ul className="mt-3 space-y-2">
               {activity.length ? activity.map((a) => (
-                <li key={a.id} className="text-sm" style={{ color: 'var(--ink-secondary)' }}>
+                <li key={a.id} className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   <span className="capitalize">{a.type.replace(/_/g, ' ')}</span>
-                  <span className="ml-2 text-xs" style={{ color: 'var(--ink-muted)' }}>{formatRelative(a.createdAt)}</span>
+                  <span className="ml-2 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{formatRelative(a.createdAt)}</span>
                 </li>
               )) : (
-                <li className="text-sm" style={{ color: 'var(--ink-muted)' }}>No activity yet.</li>
+                <li className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No activity yet.</li>
               )}
             </ul>
           </section>
         </div>
 
         <div className="space-y-4">
-          <section className="tl-card p-5 shadow-paper-sm">
-            <h2 className="font-serif text-lg">Status</h2>
+          <section className="tl-card p-5 shadow-sm">
+            <h2 className="font-sans text-lg">Status</h2>
             <div className="mt-3">
               <StatusUpdateComposer project={project} currentUserId={currentUserId} />
             </div>
           </section>
 
-          <section className="tl-card p-5 shadow-paper-sm">
-            <h2 className="font-serif text-lg">Members</h2>
+          <section className="tl-card p-5 shadow-sm">
+            <h2 className="font-sans text-lg">Members</h2>
             <MemberAvatarStack users={members} />
             <div className="mt-3">
               <ProjectAddMemberButton project={project} />
             </div>
           </section>
 
-          <section className="tl-card p-5 shadow-paper-sm">
-            <h2 className="font-serif text-lg">Project details</h2>
+          <section className="tl-card p-5 shadow-sm">
+            <h2 className="font-sans text-lg">Project details</h2>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between gap-2">
-                <dt style={{ color: 'var(--ink-muted)' }}>Team</dt>
+                <dt style={{ color: 'hsl(var(--foreground-muted))' }}>Team</dt>
                 <dd>{team?.name ?? '—'}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt style={{ color: 'var(--ink-muted)' }}>Owner</dt>
+                <dt style={{ color: 'hsl(var(--foreground-muted))' }}>Owner</dt>
                 <dd>{owner?.name ?? '—'}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt style={{ color: 'var(--ink-muted)' }}>Default view</dt>
+                <dt style={{ color: 'hsl(var(--foreground-muted))' }}>Default view</dt>
                 <dd>{VIEW_LABELS[project.defaultView]}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt style={{ color: 'var(--ink-muted)' }}>Privacy</dt>
+                <dt style={{ color: 'hsl(var(--foreground-muted))' }}>Privacy</dt>
                 <dd>{PRIVACY_LABELS[project.privacy]}</dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt style={{ color: 'var(--ink-muted)' }}>Start</dt>
+                <dt style={{ color: 'hsl(var(--foreground-muted))' }}>Start</dt>
                 <dd>
                   <Input
                     type="date"
@@ -296,7 +296,7 @@ export function ProjectOverview({ project }: Props) {
                 </dd>
               </div>
               <div className="flex justify-between gap-2">
-                <dt style={{ color: 'var(--ink-muted)' }}>Due</dt>
+                <dt style={{ color: 'hsl(var(--foreground-muted))' }}>Due</dt>
                 <dd>
                   <Input
                     type="date"

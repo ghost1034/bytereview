@@ -25,13 +25,13 @@ export function TaskCompleteCell({ task }: Props) {
             type="button"
             aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
             title={task.completed ? 'Mark incomplete' : 'Mark complete'}
-            className="flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors hover:ring-2 hover:ring-[var(--accent)]/30"
+            className="flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors hover:ring-2 hover:ring-[hsl(var(--success))]/30"
             style={{
-              borderColor: 'var(--accent)',
-              background: task.completed ? 'var(--accent)' : 'var(--bg-elevated)',
+              borderColor: 'hsl(var(--success))',
+              background: task.completed ? 'hsl(var(--success))' : 'hsl(var(--card))',
               boxShadow: task.completed
                 ? undefined
-                : '0 0 0 1px color-mix(in srgb, var(--accent) 15%, transparent)',
+                : '0 0 0 1px color-mix(in srgb, hsl(var(--success)) 15%, transparent)',
             }}
             onClick={(e) => {
               e.stopPropagation()
@@ -39,7 +39,7 @@ export function TaskCompleteCell({ task }: Props) {
             }}
           >
             {task.completed ? (
-              <Check className="h-3 w-3" strokeWidth={3} style={{ color: 'var(--bg-elevated)' }} />
+              <Check className="h-3 w-3" strokeWidth={3} style={{ color: 'hsl(var(--card))' }} />
             ) : null}
           </button>
         </TooltipTrigger>

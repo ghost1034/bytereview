@@ -43,30 +43,30 @@ export function TrustPage() {
 
   return (
     <div className="space-y-4" data-tour-page="trust">
-      <h1 className="font-serif text-2xl">Trust accounting</h1>
-      {canTrust && <div className="tl-card grid gap-3 p-4 shadow-paper-sm md:grid-cols-4">
+      <h1 className="font-sans text-2xl">Trust accounting</h1>
+      {canTrust && <div className="tl-card grid gap-3 p-4 shadow-sm md:grid-cols-4">
         <Select value={clientId} onValueChange={setClientId}>
           <SelectTrigger className="tl-input"><SelectValue placeholder="Client" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+          <SelectContent className="z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
         </Select>
         <Select value={type} onValueChange={(v) => setType(v as 'deposit' | 'withdrawal')}>
           <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]"><SelectItem value="deposit">Deposit</SelectItem><SelectItem value="withdrawal">Withdrawal</SelectItem></SelectContent>
+          <SelectContent className="z-[100]"><SelectItem value="deposit">Deposit</SelectItem><SelectItem value="withdrawal">Withdrawal</SelectItem></SelectContent>
         </Select>
         <Input placeholder="Amount" value={amount} onChange={(e) => setAmount(e.target.value)} className="tl-input font-mono tabular-nums" />
         <Button className="tl-btn-primary border-0" onClick={() => void record()}><Plus className="mr-1 h-4 w-4" /> Record</Button>
       </div>}
-      <div className="tl-card overflow-hidden shadow-paper-sm">
+      <div className="tl-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Client</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2">Alert</th>
           </tr></thead>
           <tbody>
             {clients.map((c) => (
-              <tr key={c.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+              <tr key={c.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                 <td className="px-4 py-2">{c.name}</td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(c.retainerBalance ?? 0, c.defaultCurrency)}</td>
-                <td className="px-4 py-2 text-sm" style={{ color: (c.retainerBalance ?? 0) < (workspace?.billingSettings?.trustLowBalanceThreshold ?? LOW_BALANCE_THRESHOLD) ? 'var(--danger)' : 'var(--ink-muted)' }}>
+                <td className="px-4 py-2 text-sm" style={{ color: (c.retainerBalance ?? 0) < (workspace?.billingSettings?.trustLowBalanceThreshold ?? LOW_BALANCE_THRESHOLD) ? 'hsl(var(--destructive))' : 'hsl(var(--foreground-muted))' }}>
                   {(c.retainerBalance ?? 0) < (workspace?.billingSettings?.trustLowBalanceThreshold ?? LOW_BALANCE_THRESHOLD) ? 'Low balance — request top-up' : 'OK'}
                 </td>
               </tr>
@@ -74,14 +74,14 @@ export function TrustPage() {
           </tbody>
         </table>
       </div>
-      <div className="tl-card overflow-hidden shadow-paper-sm">
+      <div className="tl-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Date</th><th className="px-4 py-2">Type</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2 text-right">Balance</th><th className="px-4 py-2" />
           </tr></thead>
           <tbody>
             {txs.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((t) => (
-              <tr key={t.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+              <tr key={t.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                 <td className="px-4 py-2 font-mono tabular-nums">{t.createdAt.slice(0, 10)}</td>
                 <td className="px-4 py-2">{t.type}</td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(t.amount, t.currency)}</td>

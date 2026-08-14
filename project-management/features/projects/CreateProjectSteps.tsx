@@ -39,29 +39,29 @@ export function CreateProjectChooseStep({ mode, templateId, onModeChange, onTemp
           <button
             key={card.id}
             type="button"
-            className="tl-card p-4 text-left shadow-paper-sm transition hover:shadow-paper-md"
-            style={mode === card.id ? { borderColor: 'var(--primary)' } : undefined}
+            className="tl-card p-4 text-left shadow-sm transition hover:shadow-md"
+            style={mode === card.id ? { borderColor: 'hsl(var(--primary))' } : undefined}
             onClick={() => onModeChange(card.id)}
           >
             <p className="font-medium">{card.title}</p>
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>{card.desc}</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{card.desc}</p>
           </button>
         ))}
       </div>
       {mode === 'template' && (
-        <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="max-h-48 space-y-2 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'hsl(var(--border))' }}>
           {BUSINESS_TEMPLATES.map((t) => (
             <button
               key={t.id}
               type="button"
-              className="flex w-full items-start gap-2 rounded-lg p-2 text-left hover:bg-[var(--bg-muted)]"
-              style={templateId === t.id ? { background: 'var(--primary-soft)' } : undefined}
+              className="flex w-full items-start gap-2 rounded-lg p-2 text-left hover:bg-[hsl(var(--surface-muted))]"
+              style={templateId === t.id ? { background: 'hsl(var(--primary-soft))' } : undefined}
               onClick={() => onTemplateChange(t.id)}
             >
               <span className="text-lg">{t.icon}</span>
               <span>
                 <span className="block text-sm font-medium">{t.name}</span>
-                <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>{t.category}</span>
+                <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{t.category}</span>
               </span>
             </button>
           ))}
@@ -92,9 +92,9 @@ type DetailsProps = {
 export function CreateProjectDetailsStep(props: DetailsProps) {
   if (!props.teams.length) {
     return (
-      <p className="py-4 text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="py-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         You need a team first.{' '}
-        <Link href={`/dashboard/project-management/w/${props.workspaceId}/teams/new`} className="underline" style={{ color: 'var(--primary)' }}>
+        <Link href={`/dashboard/project-management/w/${props.workspaceId}/teams/new`} className="underline" style={{ color: 'hsl(var(--primary))' }}>
           Create a team
         </Link>
       </p>
@@ -123,7 +123,7 @@ export function CreateProjectDetailsStep(props: DetailsProps) {
         <Label>Team</Label>
         <Select value={props.teamId} onValueChange={props.onTeamChange}>
           <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {props.teams.map((t) => (
               <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
             ))}
@@ -134,7 +134,7 @@ export function CreateProjectDetailsStep(props: DetailsProps) {
         <Label>Privacy</Label>
         <Select value={props.privacy} onValueChange={props.onPrivacyChange}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="public_to_team">Public to team</SelectItem>
             <SelectItem value="private_to_members">Private to members</SelectItem>
             <SelectItem value="public_to_workspace">Public to workspace</SelectItem>

@@ -53,21 +53,21 @@ export function TaskDueDateField({ task }: Props) {
 
   return (
     <div className="flex items-center justify-between gap-4 text-sm">
-      <span style={{ color: 'var(--ink-muted)' }}>{isMilestone ? 'Milestone date' : 'Due date'}</span>
+      <span style={{ color: 'hsl(var(--foreground-muted))' }}>{isMilestone ? 'Milestone date' : 'Due date'}</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button type="button" className="inline-flex items-center gap-1.5 font-medium">
-            <CalendarIcon className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+            <CalendarIcon className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
             {label}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="tl-popover-surface w-fit p-3" align="end">
+        <PopoverContent className="w-fit p-3" align="end">
           <div className="mb-2 flex flex-wrap gap-1">
             {QUICK.map((q) => (
               <button
                 key={q.label}
                 type="button"
-                className="rounded-md px-2 py-1 text-xs hover:bg-[var(--bg-muted)]"
+                className="rounded-md px-2 py-1 text-xs hover:bg-[hsl(var(--surface-muted))]"
                 onClick={() => void apply({ dueOn: toISODate(q.fn()) })}
               >
                 {q.label}
@@ -75,8 +75,8 @@ export function TaskDueDateField({ task }: Props) {
             ))}
             <button
               type="button"
-              className="rounded-md px-2 py-1 text-xs hover:bg-[var(--bg-muted)]"
-              style={{ color: 'var(--danger)' }}
+              className="rounded-md px-2 py-1 text-xs hover:bg-[hsl(var(--surface-muted))]"
+              style={{ color: 'hsl(var(--destructive))' }}
               onClick={() => void apply({ startOn: null, dueOn: null, dueAt: null })}
             >
               Clear
@@ -92,7 +92,7 @@ export function TaskDueDateField({ task }: Props) {
           ) : null}
           {showStart && !isMilestone ? (
             <div className="mb-2">
-              <p className="mb-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+              <p className="mb-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 Start
               </p>
               <Calendar
@@ -102,7 +102,7 @@ export function TaskDueDateField({ task }: Props) {
               />
             </div>
           ) : null}
-          <p className="mb-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+          <p className="mb-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {isMilestone ? 'Date' : 'Due'}
           </p>
           <Calendar
@@ -118,7 +118,7 @@ export function TaskDueDateField({ task }: Props) {
           </div>
           {showTime && task.dueOn ? (
             <div className="mt-2 flex items-center gap-2">
-              <Clock className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+              <Clock className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
               <Input
                 type="time"
                 className="tl-input h-8 w-28 text-sm"

@@ -142,9 +142,9 @@ export function ChartBuilderModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-w-4xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
-          <DialogTitle className="font-serif">{initial ? 'Edit chart' : 'Add chart'}</DialogTitle>
+          <DialogTitle className="font-sans">{initial ? 'Edit chart' : 'Add chart'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
           <Tabs defaultValue="source">
@@ -155,7 +155,7 @@ export function ChartBuilderModal({
             </TabsList>
             <TabsContent value="source" className="space-y-4 pt-4">
               {fixedProjectId ? (
-                <p className="rounded-lg border p-3 text-sm" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+                <p className="rounded-lg border p-3 text-sm" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
                   This chart is scoped to the current project.
                 </p>
               ) : <ChartSourcePicker
@@ -182,8 +182,8 @@ export function ChartBuilderModal({
               <ChartVisualizationStep draft={draft} onChange={patch} />
             </TabsContent>
           </Tabs>
-          <div className="tl-card flex flex-col p-3 shadow-paper-sm">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+          <div className="tl-card flex flex-col p-3 shadow-sm">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Live preview
             </p>
             <div className="min-h-[220px] flex-1">

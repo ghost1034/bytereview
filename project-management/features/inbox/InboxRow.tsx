@@ -41,9 +41,9 @@ export function InboxRow({
     <div
       className={cn(
         'group flex cursor-pointer items-start gap-3 border-b px-3 py-3 transition-colors',
-        active && 'bg-[var(--bg-muted)]'
+        active && 'bg-[hsl(var(--surface-muted))]'
       )}
-      style={{ borderColor: 'var(--border-subtle)' }}
+      style={{ borderColor: 'hsl(var(--border))' }}
       onClick={() => onSelect(notification.id)}
       role="button"
       tabIndex={0}
@@ -63,9 +63,9 @@ export function InboxRow({
         ) : (
           <span
             className="flex h-8 w-8 items-center justify-center rounded-full"
-            style={{ background: 'var(--bg-muted)' }}
+            style={{ background: 'hsl(var(--surface-muted))' }}
           >
-            <Bell className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+            <Bell className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           </span>
         )}
       </span>
@@ -73,19 +73,19 @@ export function InboxRow({
         <div className="flex items-start gap-2">
           <p
             className={cn('truncate text-sm', notification.unread && 'font-medium')}
-            style={{ color: 'var(--ink-primary)' }}
+            style={{ color: 'hsl(var(--foreground))' }}
           >
             {title}
           </p>
           {notification.unread ? (
             <span
               className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: 'var(--accent)' }}
+              style={{ background: 'hsl(var(--success))' }}
               aria-label="Unread"
             />
           ) : null}
         </div>
-        <p className="truncate text-xs" style={{ color: 'var(--ink-secondary)' }}>
+        <p className="truncate text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {resourceName}
           {breadcrumb ? ` · ${breadcrumb}` : ''}
         </p>
@@ -96,7 +96,7 @@ export function InboxRow({
         ) : null}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="text-xs whitespace-nowrap" style={{ color: 'var(--ink-muted)' }}>
+        <span className="text-xs whitespace-nowrap" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {formatRelative(notification.createdAt)}
         </span>
         <div className="flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">

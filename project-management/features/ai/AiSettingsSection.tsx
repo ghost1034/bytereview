@@ -29,7 +29,7 @@ export function AiSettingsSection() {
 
   return (
     <div className="space-y-4 p-4 text-sm">
-      <p style={{ color: 'var(--ink-muted)' }}>
+      <p style={{ color: 'hsl(var(--foreground-muted))' }}>
         Tasklytic AI uses server-managed Google Vertex AI credentials. Only permission-checked workspace context is sent, and every proposed mutation requires your confirmation.
       </p>
       <div className="flex items-center justify-between gap-3">
@@ -47,7 +47,7 @@ export function AiSettingsSection() {
           void persist({ model: selected })
         }}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {modelOptions.map((option) => (
               <SelectItem key={option.id} value={option.id}>{option.label}</SelectItem>
             ))}

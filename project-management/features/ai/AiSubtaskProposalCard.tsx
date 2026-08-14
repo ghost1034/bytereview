@@ -62,8 +62,8 @@ export function AiSubtaskProposalCard({ proposalId, title, payload, actorId, onA
   return (
     <Card
       key={proposalId}
-      className="tl-card shadow-paper-sm transition-shadow hover:shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary)_25%,transparent)]"
-      style={{ borderColor: 'var(--border-subtle)' }}
+      className="tl-card shadow-sm transition-shadow hover:border-primary hover:shadow-md"
+      style={{ borderColor: 'hsl(var(--border))' }}
     >
       <CardHeader className="pb-2 pt-3">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
@@ -72,10 +72,10 @@ export function AiSubtaskProposalCard({ proposalId, title, payload, actorId, onA
         {payload.names.map((name, i) => (
           <label key={name} className="flex cursor-pointer items-start gap-2 text-sm">
             <Checkbox checked={Boolean(selected[i])} onCheckedChange={() => toggle(i)} />
-            <span style={{ color: 'var(--ink-secondary)' }}>{name}</span>
+            <span style={{ color: 'hsl(var(--foreground-muted))' }}>{name}</span>
           </label>
         ))}
-        {feedback ? <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{feedback}</p> : null}
+        {feedback ? <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{feedback}</p> : null}
       </CardContent>
       {status !== 'done' ? (
         <CardFooter className="gap-2 pb-3">

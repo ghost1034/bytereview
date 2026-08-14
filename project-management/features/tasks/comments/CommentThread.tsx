@@ -46,7 +46,7 @@ export function CommentThread({ task, userById, workspaceUsers }: Props) {
 
   if (!roots.length) {
     return (
-      <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         No comments yet. Start the conversation.
       </p>
     )

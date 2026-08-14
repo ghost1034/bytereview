@@ -69,12 +69,12 @@ export function CalendarUnscheduledDrawer({
       {toggleButton}
       {open ? (
         <aside
-          className="fixed right-0 top-0 z-40 flex h-full w-80 flex-col border-l shadow-paper-md print:hidden"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          className="fixed right-0 top-0 z-40 flex h-full w-80 flex-col border-l shadow-md print:hidden"
+          style={{ borderColor: 'hsl(var(--border))' }}
         >
-          <div className="border-b p-4" style={{ borderColor: 'var(--border-subtle)' }}>
-            <h2 className="font-serif text-lg">Unscheduled</h2>
-            <p className="mt-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+          <div className="border-b p-4" style={{ borderColor: 'hsl(var(--border))' }}>
+            <h2 className="font-sans text-lg">Unscheduled</h2>
+            <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Drag tasks onto the calendar to set a due date.
             </p>
             <input
@@ -113,7 +113,7 @@ export function CalendarUnscheduledDrawer({
           </div>
           <ul className="flex-1 overflow-y-auto p-2">
             {filtered.length === 0 ? (
-              <li className="p-4 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
+              <li className="p-4 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 {unscheduled.length === 0 ? 'All tasks have due dates.' : 'No matches.'}
               </li>
             ) : (
@@ -149,7 +149,7 @@ function DrawerItem({
       draggable
       onDragStart={(e) => onDragStart(task.id, e)}
       className="mb-2 w-full rounded-lg px-3 py-2 text-left text-sm"
-      style={{ background: 'var(--bg-muted)' }}
+      style={{ background: 'hsl(var(--surface-muted))' }}
       onClick={onClick}
     >
       {task.name}

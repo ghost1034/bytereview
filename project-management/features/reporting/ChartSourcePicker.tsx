@@ -32,7 +32,7 @@ export function ChartSourcePicker({ draft, onChange, projects, portfolios, teams
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {reportingSources().map((source) => (
               <SelectItem key={source.id} value={source.id}>{source.label}</SelectItem>
             ))}
@@ -54,7 +54,7 @@ export function ChartSourcePicker({ draft, onChange, projects, portfolios, teams
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="workspace">Across the workspace</SelectItem>
             <SelectItem value="portfolio">Specific portfolio</SelectItem>
             <SelectItem value="team">Specific team</SelectItem>
@@ -68,7 +68,7 @@ export function ChartSourcePicker({ draft, onChange, projects, portfolios, teams
           <SelectTrigger>
             <SelectValue placeholder="Project" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
@@ -82,7 +82,7 @@ export function ChartSourcePicker({ draft, onChange, projects, portfolios, teams
           <SelectTrigger>
             <SelectValue placeholder="Portfolio" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {portfolios.map((p) => (
               <SelectItem key={p.id} value={p.id}>
                 {p.name}
@@ -96,7 +96,7 @@ export function ChartSourcePicker({ draft, onChange, projects, portfolios, teams
           <SelectTrigger>
             <SelectValue placeholder="Team" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {teams.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.name}
@@ -110,7 +110,7 @@ export function ChartSourcePicker({ draft, onChange, projects, portfolios, teams
           <SelectTrigger>
             <SelectValue placeholder="Saved view" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {savedViews.map((v) => (
               <SelectItem key={v.id} value={v.id}>
                 {v.name}

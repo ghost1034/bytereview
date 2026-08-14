@@ -218,7 +218,7 @@ export function TasklyticProvider({ children }: Props) {
             id: userId,
             name: firebaseName,
             email: firebaseEmail,
-            avatarColor: '#cc785c',
+            avatarColor: '#0f172a',
             role: 'member',
             onboarding: {
               completed: true,

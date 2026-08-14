@@ -47,17 +47,17 @@ export function HomeOnboardingChecklist({ workspaceId, onCreateProject, onQuickA
   }
 
   return (
-    <div className="tl-card relative p-4 shadow-paper-sm">
+    <div className="tl-card relative p-4 shadow-sm">
       <button
         type="button"
-        className="absolute right-2 top-2 rounded p-1 focus-visible:shadow-focus"
+        className="absolute right-2 top-2 rounded p-1 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         aria-label="Dismiss checklist"
         onClick={() => setDismissed(true)}
       >
-        <X className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+        <X className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
       </button>
-      <h2 className="font-serif text-lg">Getting started</h2>
-      <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <h2 className="font-sans text-lg">Getting started</h2>
+      <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Three small steps to make this workspace yours.
       </p>
       <ol className="mt-4 space-y-2">
@@ -66,8 +66,8 @@ export function HomeOnboardingChecklist({ workspaceId, onCreateProject, onQuickA
             <span
               className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
               style={{
-                background: done[step.id] ? 'var(--accent-soft)' : 'var(--bg-muted)',
-                color: done[step.id] ? 'var(--accent)' : 'var(--ink-muted)',
+                background: done[step.id] ? 'hsl(var(--success-soft))' : 'hsl(var(--surface-muted))',
+                color: done[step.id] ? 'hsl(var(--success))' : 'hsl(var(--foreground-muted))',
               }}
             >
               {done[step.id] ? <Check className="h-3 w-3" /> : null}

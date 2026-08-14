@@ -26,7 +26,7 @@ function TaskChip({ label, onRemove }: { label: string; onRemove: () => void }) 
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-      style={{ background: 'var(--bg-muted)', color: 'var(--ink-secondary)' }}
+      style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
     >
       {label}
       <button type="button" onClick={onRemove} aria-label="Remove">
@@ -79,14 +79,14 @@ export function DependenciesSection({ task }: Props) {
 
   return (
     <section className="mt-6">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Dependencies
       </p>
 
       <div className="space-y-3 text-sm">
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <span style={{ color: 'var(--ink-muted)' }}>Blocked by</span>
+            <span style={{ color: 'hsl(var(--foreground-muted))' }}>Blocked by</span>
             <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" onClick={() => setPicker('blocked-by')}>
               <Plus className="h-3 w-3" /> Add
             </Button>
@@ -101,14 +101,14 @@ export function DependenciesSection({ task }: Props) {
                 />
               ))
             ) : (
-              <span className="text-xs" style={{ color: 'var(--ink-faint)' }}>No predecessors</span>
+              <span className="text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>No predecessors</span>
             )}
           </div>
         </div>
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <span style={{ color: 'var(--ink-muted)' }}>Blocking</span>
+            <span style={{ color: 'hsl(var(--foreground-muted))' }}>Blocking</span>
             <Button variant="ghost" size="sm" className="h-7 gap-1 px-2" onClick={() => setPicker('blocking')}>
               <Plus className="h-3 w-3" /> Add
             </Button>
@@ -123,7 +123,7 @@ export function DependenciesSection({ task }: Props) {
                 />
               ))
             ) : (
-              <span className="text-xs" style={{ color: 'var(--ink-faint)' }}>Not blocking other tasks</span>
+              <span className="text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>Not blocking other tasks</span>
             )}
           </div>
         </div>
@@ -131,10 +131,10 @@ export function DependenciesSection({ task }: Props) {
 
       {picker ? (
         <div
-          className="mt-3 rounded-lg border p-3 shadow-paper-sm"
-          style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+          className="mt-3 rounded-lg border p-3 shadow-sm"
+          style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
         >
-          <div className="mb-2 flex items-center gap-2 text-xs font-medium" style={{ color: 'var(--ink-secondary)' }}>
+          <div className="mb-2 flex items-center gap-2 text-xs font-medium" style={{ color: 'hsl(var(--foreground-muted))' }}>
             <ArrowRight className="h-3 w-3" />
             {picker === 'blocked-by' ? 'Search task to wait on' : 'Search task that waits on this'}
           </div>
@@ -157,7 +157,7 @@ export function DependenciesSection({ task }: Props) {
               <li key={t.id}>
                 <button
                   type="button"
-                  className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
+                  className="w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
                   onClick={() => void pickTask(t)}
                 >
                   {t.name}
@@ -165,11 +165,11 @@ export function DependenciesSection({ task }: Props) {
               </li>
             ))}
             {!candidates.length ? (
-              <li className="px-2 py-1 text-xs" style={{ color: 'var(--ink-muted)' }}>No matching tasks</li>
+              <li className="px-2 py-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>No matching tasks</li>
             ) : null}
           </ul>
           {error ? (
-            <p className="mt-2 text-xs" style={{ color: 'var(--danger)' }}>{error}</p>
+            <p className="mt-2 text-xs" style={{ color: 'hsl(var(--destructive))' }}>{error}</p>
           ) : null}
           <Button variant="ghost" size="sm" className="mt-2" onClick={() => { setPicker(null); setError(null) }}>
             Cancel

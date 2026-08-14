@@ -26,7 +26,7 @@ function ListRow({ goal, depth, workspaceId }: { goal: Goal; depth: number; work
   )
 
   return (
-    <tr className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+    <tr className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
       <td className="py-3 pr-4">
         <Link
           href={`/dashboard/project-management/w/${workspaceId}/goals/${goal.id}`}
@@ -36,15 +36,15 @@ function ListRow({ goal, depth, workspaceId }: { goal: Goal; depth: number; work
           {goal.name}
         </Link>
       </td>
-      <td className="py-3 pr-4 text-sm" style={{ color: 'var(--ink-secondary)' }}>{owner?.name ?? '—'}</td>
+      <td className="py-3 pr-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{owner?.name ?? '—'}</td>
       <td className="py-3 pr-4 min-w-[140px]">
         <GoalProgressBar percent={percent} status={goal.status} />
       </td>
       <td className="py-3 pr-4"><GoalStatusPill status={goal.status} /></td>
-      <td className="py-3 pr-4 text-sm whitespace-nowrap" style={{ color: 'var(--ink-muted)' }}>
+      <td className="py-3 pr-4 text-sm whitespace-nowrap" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {goal.timeFrame.start} – {goal.timeFrame.end}
       </td>
-      <td className="py-3 text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <td className="py-3 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {lastUpdate ? formatRelative(lastUpdate.createdAt) : '—'}
       </td>
     </tr>
@@ -57,10 +57,10 @@ export function GoalsListView({ goals, workspaceId }: Props) {
   const rows = flattenGoalTree(tree)
 
   return (
-    <div className="tl-card overflow-x-auto shadow-paper-sm">
+    <div className="tl-card overflow-x-auto shadow-sm">
       <table className="w-full text-left text-sm">
         <thead>
-          <tr className="border-b text-xs uppercase tracking-wide" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <tr className="border-b text-xs uppercase tracking-wide" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="py-2 pr-4 font-medium">Goal</th>
             <th className="py-2 pr-4 font-medium">Owner</th>
             <th className="py-2 pr-4 font-medium">Progress</th>

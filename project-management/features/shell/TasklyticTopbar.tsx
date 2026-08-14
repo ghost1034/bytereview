@@ -1,19 +1,12 @@
 'use client'
 
 /**
- * TasklyticTopbar — breadcrumbs, search, create menu, notifications, theme, help, account.
+ * TasklyticTopbar — breadcrumbs, search, create menu, notifications, help, and account.
  */
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Menu,
-  Moon,
-  Monitor,
-  Plus,
-  Search,
-  Sun,
-} from 'lucide-react'
+import { Menu, Plus, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,7 +17,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore, useUiStore } from '../../stores/auth'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
-import type { TasklyticTheme } from '../../hooks/useTasklyticTheme'
 import { CreateProjectDialog } from '../projects/CreateProjectDialog'
 import { CreatePortfolioDialog } from '../portfolios/CreatePortfolioDialog'
 import { CreateFormDialog } from '../forms/CreateFormDialog'
@@ -43,22 +35,8 @@ type Props = {
   onShortcuts: () => void
   onRestartTour: () => void
   onRestartSetup?: () => void
-  theme?: TasklyticTheme
-  onThemeCycle?: () => void
   timerOpen?: boolean
   onTimerOpenChange?: (open: boolean) => void
-}
-
-const THEME_ICONS: Record<TasklyticTheme, typeof Sun> = {
-  light: Sun,
-  dark: Moon,
-  system: Monitor,
-}
-
-const THEME_LABELS: Record<TasklyticTheme, string> = {
-  light: 'Light',
-  dark: 'Dark',
-  system: 'System',
 }
 
 export function TasklyticTopbar({
@@ -67,8 +45,6 @@ export function TasklyticTopbar({
   onShortcuts,
   onRestartTour,
   onRestartSetup,
-  theme = 'system',
-  onThemeCycle,
   timerOpen,
   onTimerOpenChange,
 }: Props) {
@@ -87,7 +63,6 @@ export function TasklyticTopbar({
   const [feedbackOpen, setFeedbackOpen] = useState(false)
 
   const inboxHref = workspaceId ? `/dashboard/project-management/w/${workspaceId}/inbox` : '#'
-  const ThemeIcon = THEME_ICONS[theme]
   const pageTitle = breadcrumbs.length ? breadcrumbs[breadcrumbs.length - 1]?.label : 'Tasklytic'
 
   return (
@@ -96,40 +71,40 @@ export function TasklyticTopbar({
         data-tour="topbar"
         className="flex h-[52px] shrink-0 items-center gap-2 border-b px-3 backdrop-blur-md lg:px-4"
         style={{
-          borderColor: 'var(--border-subtle)',
-          background: 'color-mix(in srgb, var(--bg-base) 80%, transparent)',
+          borderColor: 'hsl(var(--border))',
+          background: 'color-mix(in srgb, hsl(var(--background)) 80%, transparent)',
         }}
       >
         {showMenuButton ? (
           <button
             type="button"
-            className="rounded-lg p-2 lg:hidden focus-visible:outline-none focus-visible:shadow-focus"
+            className="rounded-lg p-2 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Open navigation"
             onClick={onMenuClick}
           >
-            <Menu className="h-5 w-5" style={{ color: 'var(--ink-secondary)' }} />
+            <Menu className="h-5 w-5" style={{ color: 'hsl(var(--foreground-muted))' }} />
           </button>
         ) : null}
 
         <nav className="hidden min-w-0 flex-1 items-center gap-1 text-sm lg:flex" aria-label="Breadcrumb">
           {breadcrumbs.length === 0 ? (
-            <span className="truncate font-medium" style={{ color: 'var(--ink-primary)' }}>Tasklytic</span>
+            <span className="truncate font-medium" style={{ color: 'hsl(var(--foreground))' }}>Tasklytic</span>
           ) : (
             breadcrumbs.map((crumb, i) => (
               <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-1">
-                {i > 0 && <span style={{ color: 'var(--ink-faint)' }}>/</span>}
+                {i > 0 && <span style={{ color: 'hsl(var(--foreground-subtle))' }}>/</span>}
                 {crumb.href ? (
                   <Link
                     href={crumb.href}
-                    className="truncate hover:underline focus-visible:outline-none focus-visible:shadow-focus"
-                    style={{ color: i === breadcrumbs.length - 1 ? 'var(--ink-primary)' : 'var(--ink-muted)' }}
+                    className="truncate hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    style={{ color: i === breadcrumbs.length - 1 ? 'hsl(var(--foreground))' : 'hsl(var(--foreground-muted))' }}
                   >
                     {crumb.label}
                   </Link>
                 ) : (
                   <span
                     className="truncate font-medium"
-                    style={{ color: i === breadcrumbs.length - 1 ? 'var(--ink-primary)' : 'var(--ink-muted)' }}
+                    style={{ color: i === breadcrumbs.length - 1 ? 'hsl(var(--foreground))' : 'hsl(var(--foreground-muted))' }}
                   >
                     {crumb.label}
                   </span>
@@ -139,7 +114,7 @@ export function TasklyticTopbar({
           )}
         </nav>
 
-        <span className="min-w-0 flex-1 truncate text-sm font-medium lg:hidden" style={{ color: 'var(--ink-primary)' }}>
+        <span className="min-w-0 flex-1 truncate text-sm font-medium lg:hidden" style={{ color: 'hsl(var(--foreground))' }}>
           {pageTitle}
         </span>
 
@@ -149,12 +124,12 @@ export function TasklyticTopbar({
           type="button"
           className={cn(
             'hidden flex-1 items-center gap-2 rounded-lg border px-3 py-1.5 text-sm lg:flex',
-            'max-w-[480px] focus-visible:outline-none focus-visible:shadow-focus'
+            'max-w-[480px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
           )}
           style={{
-            borderColor: 'var(--border-subtle)',
-            background: 'var(--bg-muted)',
-            color: 'var(--ink-muted)',
+            borderColor: 'hsl(var(--border))',
+            background: 'hsl(var(--surface-muted))',
+            color: 'hsl(var(--foreground-muted))',
           }}
           onClick={() => setCommandOpen(true)}
           aria-label="Open search"
@@ -165,11 +140,11 @@ export function TasklyticTopbar({
 
         <button
           type="button"
-          className="rounded-lg p-2 lg:hidden focus-visible:outline-none focus-visible:shadow-focus"
+          className="rounded-lg p-2 lg:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label="Search"
           onClick={() => setCommandOpen(true)}
         >
-          <Search className="h-5 w-5" style={{ color: 'var(--ink-secondary)' }} />
+          <Search className="h-5 w-5" style={{ color: 'hsl(var(--foreground-muted))' }} />
         </button>
 
         <DropdownMenu>
@@ -179,7 +154,7 @@ export function TasklyticTopbar({
               Create
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="tl-popover-surface" align="end">
+          <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setTaskOpen(true)}>Task</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setProjectOpen(true)}>Project</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setFormOpen(true)}>Form</DropdownMenuItem>
@@ -188,7 +163,7 @@ export function TasklyticTopbar({
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <div className={cn(timerRunning && 'glow-pulse rounded-lg')}>
+        <div className={cn(timerRunning && 'bg-primary-soft rounded-lg')}>
           <RunningTimerChip open={timerOpen} onOpenChange={onTimerOpenChange} />
         </div>
 
@@ -197,15 +172,6 @@ export function TasklyticTopbar({
             <MiniInboxDropdown userId={currentUserId} inboxHref={inboxHref} />
           </div>
         ) : null}
-
-        <button
-          type="button"
-          className="hidden rounded-lg p-2 focus-visible:outline-none focus-visible:shadow-focus lg:block"
-          aria-label={`Theme: ${THEME_LABELS[theme]}. Click to cycle.`}
-          onClick={() => onThemeCycle?.()}
-        >
-          <ThemeIcon className="h-5 w-5" style={{ color: 'var(--ink-secondary)' }} />
-        </button>
 
         <div className="hidden lg:block">
           <HelpMenu
@@ -216,7 +182,7 @@ export function TasklyticTopbar({
           />
         </div>
 
-        <AccountMenu theme={theme} onThemeCycle={onThemeCycle} compact={false} />
+        <AccountMenu compact={false} />
       </header>
 
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />

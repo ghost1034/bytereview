@@ -22,14 +22,14 @@ export function orderTasksInSection(tasks: Task[], orderIds: string[] | undefine
 
 /** Short due label (MMM d) with semantic color token. */
 export function dueDisplay(task: Task): { label: string; color: string } {
-  if (!task.dueOn) return { label: '—', color: 'var(--ink-muted)' }
+  if (!task.dueOn) return { label: '—', color: 'hsl(var(--foreground-muted))' }
   const label = format(new Date(task.dueOn), 'MMM d')
-  if (task.completed) return { label, color: 'var(--ink-muted)' }
+  if (task.completed) return { label, color: 'hsl(var(--foreground-muted))' }
   const due = new Date(task.dueOn)
   const today = startOfToday()
-  if (due < today) return { label, color: 'var(--danger)' }
-  if (isToday(due)) return { label, color: 'var(--warning)' }
-  return { label, color: 'var(--ink-secondary)' }
+  if (due < today) return { label, color: 'hsl(var(--destructive))' }
+  if (isToday(due)) return { label, color: 'hsl(var(--warning))' }
+  return { label, color: 'hsl(var(--foreground-muted))' }
 }
 
 type BuildRowsInput = {

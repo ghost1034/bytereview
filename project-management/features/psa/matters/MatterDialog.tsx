@@ -97,16 +97,16 @@ export function MatterDialog({ open, onOpenChange, workspaceId, teamId }: Props)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="font-serif text-xl">New {terms.singular.toLowerCase()}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-sans text-xl">New {terms.singular.toLowerCase()}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
           <div><Label>{terms.singular} name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="tl-input" /></div>
           <div><Label>{terms.singular} number</Label><Input value={matterNumber} onChange={(e) => setMatterNumber(e.target.value)} className="tl-input" /></div>
           <Select value={clientId} onValueChange={setClientId}>
             <SelectTrigger className="tl-input"><SelectValue placeholder="Client" /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+            <SelectContent className="z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
           </Select>
           <Input placeholder="Practice area" value={practiceArea} onChange={(e) => setPracticeArea(e.target.value)} className="tl-input" />
-          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="tl-input"><SelectValue placeholder="Rate card" /></SelectTrigger><SelectContent className="tl-popover-surface z-[100]"><SelectItem value="none">Client / workspace default</SelectItem>{rateCards.map((card) => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
+          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="tl-input"><SelectValue placeholder="Rate card" /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="none">Client / workspace default</SelectItem>{rateCards.map((card) => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
           <div className="grid grid-cols-2 gap-2"><Input placeholder="Budget hours" value={budgetHours} onChange={(event) => setBudgetHours(event.target.value)} /><Input placeholder="Budget amount" value={budgetAmount} onChange={(event) => setBudgetAmount(event.target.value)} /></div>
           <label className="flex items-center gap-2 text-sm"><Switch checked={utbms} onCheckedChange={setUtbms} /> UTBMS codes</label>
           <label className="flex items-center gap-2 text-sm"><Switch checked={trust} onCheckedChange={setTrust} /> Trust accounting</label>

@@ -35,7 +35,7 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Form settings
       </p>
       <div className="grid gap-2">
@@ -50,7 +50,7 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
         <Label>Target project</Label>
         <Select value={form.projectId} onValueChange={(v) => onChange({ projectId: v, defaultSectionId: undefined })}>
           <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {projects.map((p) => (
               <SelectItem key={p.id} value={p.id}>{p.iconEmoji ?? '📁'} {p.name}</SelectItem>
             ))}
@@ -61,7 +61,7 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
         <Label>Default section</Label>
         <Select value={form.defaultSectionId ?? '__none'} onValueChange={(v) => onChange({ defaultSectionId: v === '__none' ? undefined : v })}>
           <SelectTrigger className="tl-input"><SelectValue placeholder="First section" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="__none">First section</SelectItem>
             {projectSections.map((s) => (
               <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
@@ -73,7 +73,7 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
         <Label>Default assignee</Label>
         <Select value={form.defaultAssigneeId ?? '__none'} onValueChange={(v) => onChange({ defaultAssigneeId: v === '__none' ? undefined : v })}>
           <SelectTrigger className="tl-input"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="__none">Unassigned</SelectItem>
             {members.map((u) => (
               <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
@@ -85,7 +85,7 @@ export function FormConfigPanel({ form, projects, sections, members, onChange }:
         <Label>Task title field</Label>
         <Select value={form.taskTitleFieldId ?? '__none'} onValueChange={(v) => onChange({ taskTitleFieldId: v === '__none' ? undefined : v })}>
           <SelectTrigger className="tl-input"><SelectValue placeholder="First field" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="__none">First field</SelectItem>
             {form.fields.map((f) => (
               <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>

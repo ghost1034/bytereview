@@ -42,16 +42,16 @@ export function WorkspaceResetPanel() {
   }
 
   return (
-    <div className="tl-card space-y-3 border p-4 shadow-paper-sm" style={{ borderColor: 'var(--danger)' }}>
-      <h2 className="font-medium" style={{ color: 'var(--danger)' }}>
+    <div className="tl-card space-y-3 border p-4 shadow-sm" style={{ borderColor: 'hsl(var(--destructive))' }}>
+      <h2 className="font-medium" style={{ color: 'hsl(var(--destructive))' }}>
         Reset workspace content
       </h2>
-      <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Deletes all projects, tasks, goals, and portfolios. Members, billing, and integrations are preserved.
         A fresh starter project is provisioned afterward.
       </p>
       {done ? (
-        <p className="text-sm" style={{ color: 'var(--primary)' }}>
+        <p className="text-sm" style={{ color: 'hsl(var(--primary))' }}>
           Workspace reset. Your starter project is ready.
         </p>
       ) : (
@@ -65,7 +65,7 @@ export function WorkspaceResetPanel() {
           <DialogHeader>
             <DialogTitle>Reset workspace</DialogTitle>
           </DialogHeader>
-          <p className="text-sm" style={{ color: 'var(--ink-secondary)' }}>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Type <strong>{confirmText}</strong> to confirm.
           </p>
           <Input value={phrase} onChange={(e) => setPhrase(e.target.value)} className="tl-input" />

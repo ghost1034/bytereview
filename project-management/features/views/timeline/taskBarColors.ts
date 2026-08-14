@@ -6,8 +6,8 @@ import { findFieldByName } from '../../custom-fields/useProjectFields'
 import type { ColorBy } from './types'
 
 const PALETTE = [
-  'var(--primary)',
-  'var(--accent)',
+  'hsl(var(--primary))',
+  'hsl(var(--success))',
   '#7c6a5d',
   '#5d7c6a',
   '#6a5d7c',
@@ -31,14 +31,14 @@ export function taskBarColor(
   users: User[],
   tags: Tag[]
 ): string {
-  if (task.completed) return 'var(--ink-faint)'
+  if (task.completed) return 'hsl(var(--foreground-subtle))'
   if (colorBy === 'section') {
     const sid = task.sectionIdByProject[project.id] ?? sections[0]?.id
     const idx = sections.findIndex((s) => s.id === sid)
-    return idx >= 0 ? PALETTE[idx % PALETTE.length] : 'var(--primary)'
+    return idx >= 0 ? PALETTE[idx % PALETTE.length] : 'hsl(var(--primary))'
   }
   if (colorBy === 'assignee') {
-    return task.assigneeId ? hashColor(task.assigneeId) : 'var(--ink-muted)'
+    return task.assigneeId ? hashColor(task.assigneeId) : 'hsl(var(--foreground-muted))'
   }
   if (colorBy === 'tag') {
     const tid = task.tagIds[0]
@@ -50,5 +50,5 @@ export function taskBarColor(
     const val = task.customFieldValues[field.id]
     if (val?.type === 'dropdown' && val.value) return hashColor(String(val.value))
   }
-  return 'var(--primary)'
+  return 'hsl(var(--primary))'
 }

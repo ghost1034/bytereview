@@ -31,15 +31,15 @@ export function MyTasksDuePopover({ task }: Props) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs hover:bg-[var(--bg-muted)]"
-          style={{ color: task.dueOn ? 'var(--ink-secondary)' : 'var(--ink-faint)' }}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs hover:bg-[hsl(var(--surface-muted))]"
+          style={{ color: task.dueOn ? 'hsl(var(--foreground-muted))' : 'hsl(var(--foreground-subtle))' }}
           onClick={(e) => e.stopPropagation()}
         >
           <CalendarIcon className="h-3 w-3" />
           {task.dueOn ? formatDate(task.dueOn) : 'No date'}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="tl-popover-surface w-fit p-2" align="end">
+      <PopoverContent className="w-fit p-2" align="end">
         <div className="mb-2 flex flex-wrap gap-1">
           {[
             { label: 'Today', date: startOfToday() },
@@ -48,7 +48,7 @@ export function MyTasksDuePopover({ task }: Props) {
             <button
               key={q.label}
               type="button"
-              className="rounded-md px-2 py-1 text-xs hover:bg-[var(--bg-muted)]"
+              className="rounded-md px-2 py-1 text-xs hover:bg-[hsl(var(--surface-muted))]"
               onClick={() => void apply(toISODate(q.date))}
             >
               {q.label}
@@ -56,8 +56,8 @@ export function MyTasksDuePopover({ task }: Props) {
           ))}
           <button
             type="button"
-            className="rounded-md px-2 py-1 text-xs hover:bg-[var(--bg-muted)]"
-            style={{ color: 'var(--danger)' }}
+            className="rounded-md px-2 py-1 text-xs hover:bg-[hsl(var(--surface-muted))]"
+            style={{ color: 'hsl(var(--destructive))' }}
             onClick={() => void apply(null)}
           >
             Clear

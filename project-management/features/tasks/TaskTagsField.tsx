@@ -15,7 +15,7 @@ export function TaskTagsField({ task }: Props) {
 
   return (
     <div className="text-sm">
-      <p className="mb-1.5" style={{ color: 'var(--ink-muted)' }}>
+      <p className="mb-1.5" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Tags
       </p>
       <TagPicker

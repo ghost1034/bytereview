@@ -34,7 +34,7 @@ export function TaskTitleField({ task }: Props) {
         ref={inputRef}
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        className="mb-4 border-0 px-0 font-serif text-2xl font-medium shadow-none focus-visible:ring-0"
+        className="mb-4 border-0 px-0 font-sans text-2xl font-medium shadow-none focus-visible:ring-0"
         autoFocus
         onBlur={() => void save()}
         onKeyDown={(e) => {
@@ -51,8 +51,8 @@ export function TaskTitleField({ task }: Props) {
   return (
     <button
       type="button"
-      className="mb-4 w-full text-left font-serif text-2xl font-medium leading-tight"
-      style={{ color: task.completed ? 'var(--ink-muted)' : 'var(--ink-primary)' }}
+      className="mb-4 w-full text-left font-sans text-2xl font-medium leading-tight"
+      style={{ color: task.completed ? 'hsl(var(--foreground-muted))' : 'hsl(var(--foreground))' }}
       onClick={() => {
         setEditing(true)
         requestAnimationFrame(() => inputRef.current?.focus())

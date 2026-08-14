@@ -52,8 +52,8 @@ export function TaskDetailFooter({ task, onClose, onOpenTask }: Props) {
   }
 
   return (
-    <footer className="flex items-center justify-between border-t px-4 py-3" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}>
-      <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>
+    <footer className="flex items-center justify-between border-t px-4 py-3" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}>
+      <p className="text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>
         {creator ? `Created by ${creator.name} on ${formatDate(task.createdAt)}` : `Created ${formatDate(task.createdAt)}`}
       </p>
       <div className="flex items-center gap-1">
@@ -66,7 +66,7 @@ export function TaskDetailFooter({ task, onClose, onOpenTask }: Props) {
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="tl-popover-surface" align="end">
+        <DropdownMenuContent align="end">
           {task.completed ? (
             <DropdownMenuItem
               onClick={() => {

@@ -62,7 +62,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
   if (!goal || goal.workspaceId !== workspaceId) {
     return (
       <div className="tl-card p-8 text-center">
-        <p style={{ color: 'var(--ink-muted)' }}>Goal not found.</p>
+        <p style={{ color: 'hsl(var(--foreground-muted))' }}>Goal not found.</p>
         <Link href={`/dashboard/project-management/w/${workspaceId}/goals`} className="mt-2 inline-block text-sm underline">
           Back to goals
         </Link>
@@ -77,7 +77,7 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="tl-card flex flex-wrap items-start gap-6 p-6 shadow-paper-sm">
+      <div className="tl-card flex flex-wrap items-start gap-6 p-6 shadow-sm">
         <GoalProgressRing percent={percent} status={goal.status} />
         <div className="min-w-0 flex-1 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -85,9 +85,9 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
             {isProjectDriven ? <Badge variant="outline">Project-driven</Badge> : null}
             {isAutoProgress ? <Badge variant="secondary">Auto progress</Badge> : null}
           </div>
-          <h1 className="font-serif text-3xl">{goal.name}</h1>
-          {goal.description ? <p style={{ color: 'var(--ink-secondary)' }}>{goal.description}</p> : null}
-          <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <h1 className="font-sans text-3xl">{goal.name}</h1>
+          {goal.description ? <p style={{ color: 'hsl(var(--foreground-muted))' }}>{goal.description}</p> : null}
+          <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             <span className="flex items-center gap-2">
               <Avatar className="h-6 w-6">
                 <AvatarFallback style={{ background: owner?.avatarColor }}>{owner?.name?.[0]}</AvatarFallback>
@@ -132,14 +132,14 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
                   if (!p) return null
                   const pct = getProjectCompletionPercent(pid)
                   return (
-                    <li key={pid} className="flex items-center justify-between rounded-lg p-2 text-sm" style={{ background: 'var(--bg-muted)' }}>
+                    <li key={pid} className="flex items-center justify-between rounded-lg p-2 text-sm" style={{ background: 'hsl(var(--surface-muted))' }}>
                       <Link href={`/dashboard/project-management/w/${workspaceId}/projects/${p.id}`}>{p.iconEmoji ?? '📁'} {p.name}</Link>
                       <span className="tabular-nums">{pct}% complete</span>
                     </li>
                   )
                 })}
               </ul>
-            ) : <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No linked projects.</p>}
+            ) : <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No linked projects.</p>}
           </Section>
         </TabsContent>
         <TabsContent value="updates" className="mt-4">
@@ -147,20 +147,20 @@ export function GoalDetailPage({ goalId, workspaceId }: Props) {
         </TabsContent>
         <TabsContent value="subgoals" className="mt-4 space-y-2">
           {children.map((c) => (
-            <Link key={c.id} href={`/dashboard/project-management/w/${workspaceId}/goals/${c.id}`} className="block rounded-lg p-3 text-sm" style={{ background: 'var(--bg-muted)' }}>
+            <Link key={c.id} href={`/dashboard/project-management/w/${workspaceId}/goals/${c.id}`} className="block rounded-lg p-3 text-sm" style={{ background: 'hsl(var(--surface-muted))' }}>
               {c.name}
             </Link>
           ))}
-          {!children.length && <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No sub-goals.</p>}
+          {!children.length && <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No sub-goals.</p>}
         </TabsContent>
         <TabsContent value="activity" className="mt-4">
           <ul className="space-y-2 text-sm">
             {updates.map((u) => (
-              <li key={u.id} className="rounded-lg p-2" style={{ background: 'var(--bg-muted)' }}>
+              <li key={u.id} className="rounded-lg p-2" style={{ background: 'hsl(var(--surface-muted))' }}>
                 Status update: {u.title} — {u.status.replace(/_/g, ' ')}
               </li>
             ))}
-            {!updates.length && <p style={{ color: 'var(--ink-muted)' }}>No activity yet.</p>}
+            {!updates.length && <p style={{ color: 'hsl(var(--foreground-muted))' }}>No activity yet.</p>}
           </ul>
         </TabsContent>
       </Tabs>

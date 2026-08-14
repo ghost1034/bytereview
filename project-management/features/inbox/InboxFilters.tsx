@@ -44,7 +44,7 @@ export function InboxFilters({
   }
 
   return (
-    <div className="space-y-3 border-b px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div className="space-y-3 border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Tabs value={viewTab} onValueChange={(v) => onViewTab(v as InboxViewTab)}>
           <TabsList>
@@ -83,7 +83,7 @@ export function InboxFilters({
                   <Badge
                     variant={active ? 'default' : 'outline'}
                     className="cursor-pointer font-normal"
-                    style={active ? { background: 'var(--primary)', color: 'var(--bg-elevated)' } : undefined}
+                    style={active ? { background: 'hsl(var(--primary))', color: 'hsl(var(--card))' } : undefined}
                   >
                     {label}
                   </Badge>

@@ -109,7 +109,7 @@ export function ManualTimeEntryDialog(props: Props) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="font-serif text-xl">{props.entry ? 'Edit time' : 'Add time'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-sans text-xl">{props.entry ? 'Edit time' : 'Add time'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="grid gap-1"><Label>Date</Label><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="tl-input" /></div>
           <div className="grid grid-cols-2 gap-3">
@@ -119,12 +119,12 @@ export function ManualTimeEntryDialog(props: Props) {
           <div className="grid gap-1"><Label>Description</Label><Input value={description} onChange={(e) => setDescription(e.target.value)} className="tl-input" /></div>
           <Select value={activityCode || '__none'} onValueChange={(v) => setActivityCode(v === '__none' ? '' : v)}>
             <SelectTrigger className="tl-input"><SelectValue placeholder="Activity code" /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               <SelectItem value="__none">No code</SelectItem>
               {UTBMS_ACTIVITY_CODES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code} — {c.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <div className="flex justify-between text-sm"><span style={{ color: 'var(--ink-muted)' }}>{ctx.rate.label}</span><span className="font-mono tabular-nums">{formatMoney(previewRate, ctx.rate.currency)}/hr</span></div>
+          <div className="flex justify-between text-sm"><span style={{ color: 'hsl(var(--foreground-muted))' }}>{ctx.rate.label}</span><span className="font-mono tabular-nums">{formatMoney(previewRate, ctx.rate.currency)}/hr</span></div>
           <Input placeholder="Rate override (optional)" value={rateOverride} onChange={(e) => setRateOverride(e.target.value)} className="tl-input font-mono tabular-nums" />
           <div className="flex items-center gap-2"><Switch checked={billable} onCheckedChange={setBillable} /><Label>Billable</Label><span className="ml-auto font-mono tabular-nums text-sm">{formatMoney(previewAmt)}</span></div>
         </div>

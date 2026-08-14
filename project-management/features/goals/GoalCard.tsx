@@ -40,10 +40,10 @@ export function GoalCard({
 
   return (
     <div
-      className="tl-card rounded-lg p-3 shadow-paper-sm transition-shadow hover:shadow-paper-md"
+      className="tl-card rounded-lg p-3 shadow-sm transition-shadow hover:shadow-md"
       style={{
         marginLeft: depth * 16,
-        outline: selected ? '2px solid var(--primary)' : undefined,
+        outline: selected ? '2px solid hsl(var(--primary))' : undefined,
         borderLeft: `3px solid ${accent}`,
       }}
       draggable={draggable}

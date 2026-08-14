@@ -24,7 +24,7 @@ export function TimerBanner() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2 text-sm" style={{ background: 'var(--accent-soft)', borderColor: 'var(--border-subtle)' }} role="status" aria-live="polite">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2 text-sm" style={{ background: 'hsl(var(--success-soft))', borderColor: 'hsl(var(--border))' }} role="status" aria-live="polite">
         <span>You have a running timer on <strong>{task?.name ?? 'a task'}</strong> · {formatElapsed(elapsed)}</span>
         <div className="flex gap-1">
           <Button size="sm" variant="ghost" onClick={() => setTransitionOpen(true)}>Save</Button>

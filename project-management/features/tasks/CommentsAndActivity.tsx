@@ -17,16 +17,16 @@ export function CommentsAndActivity({ task }: Props) {
   const activityCount = useActivityStore((s) => s.list().filter((a) => a.taskId === task.id).length)
 
   return (
-    <section className="mt-6 border-t pt-4" style={{ borderColor: 'var(--border-subtle)' }}>
+    <section className="mt-6 border-t pt-4" style={{ borderColor: 'hsl(var(--border))' }}>
       <Tabs defaultValue="comments">
         <TabsList
           className="mb-3 h-auto w-full gap-1 rounded-lg p-1"
-          style={{ background: 'var(--bg-muted)' }}
+          style={{ background: 'hsl(var(--surface-muted))' }}
         >
-          <TabsTrigger value="comments" className="flex-1 capitalize data-[state=active]:shadow-paper-sm">
+          <TabsTrigger value="comments" className="flex-1 capitalize data-[state=active]:shadow-sm">
             Comments{commentCount ? ` (${commentCount})` : ''}
           </TabsTrigger>
-          <TabsTrigger value="activity" className="flex-1 capitalize data-[state=active]:shadow-paper-sm">
+          <TabsTrigger value="activity" className="flex-1 capitalize data-[state=active]:shadow-sm">
             Activity{activityCount ? ` (${activityCount})` : ''}
           </TabsTrigger>
         </TabsList>

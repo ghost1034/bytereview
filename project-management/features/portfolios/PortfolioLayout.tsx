@@ -56,11 +56,11 @@ export function PortfolioLayout({ portfolio, workspaceId, currentUserId, activeT
                 key={tab.id}
                 href={href}
                 className="relative pb-1 text-sm font-medium transition-colors"
-                style={{ color: active ? 'var(--primary)' : 'var(--ink-secondary)' }}
+                style={{ color: active ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))' }}
               >
                 {tab.label}
                 {active && (
-                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full" style={{ background: 'var(--primary)' }} />
+                  <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full" style={{ background: 'hsl(var(--primary))' }} />
                 )}
               </Link>
             )
@@ -72,16 +72,16 @@ export function PortfolioLayout({ portfolio, workspaceId, currentUserId, activeT
         <div className="flex items-start gap-3">
           <div
             className="flex h-12 w-12 items-center justify-center rounded-xl text-xl"
-            style={{ background: 'var(--primary-soft)' }}
+            style={{ background: 'hsl(var(--primary-soft))' }}
           >
             {portfolio.iconEmoji ?? '📊'}
           </div>
           <div>
-            <h1 className="font-serif text-2xl">{portfolio.name}</h1>
+            <h1 className="font-sans text-2xl">{portfolio.name}</h1>
             {portfolio.description && (
-              <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>{portfolio.description}</p>
+              <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{portfolio.description}</p>
             )}
-            <p className="mt-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {owner?.name ?? 'Owner'} · {portfolio.projectIds.length} project{portfolio.projectIds.length === 1 ? '' : 's'}
             </p>
           </div>

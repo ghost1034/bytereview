@@ -59,7 +59,7 @@ export function RunningTimerChip({ open, onOpenChange }: Props) {
       <Popover open={open} onOpenChange={onOpenChange}>
         <PopoverTrigger asChild>
           {running ? (
-            <Button variant="secondary" size="sm" className="gap-1 font-mono tabular-nums glow-pulse" aria-live="polite">
+            <Button variant="secondary" size="sm" className="gap-1 font-mono tabular-nums bg-primary-soft" aria-live="polite">
               ▶ {task?.name?.slice(0, 20) ?? 'Timer'} · {formatElapsed(elapsed)}
             </Button>
           ) : (
@@ -68,7 +68,7 @@ export function RunningTimerChip({ open, onOpenChange }: Props) {
             </Button>
           )}
         </PopoverTrigger>
-        <PopoverContent className="tl-popover-surface w-80" align="end">
+        <PopoverContent className="w-80" align="end">
           {running ? (
             <div className="space-y-3">
               <div>
@@ -91,7 +91,7 @@ export function RunningTimerChip({ open, onOpenChange }: Props) {
               <p className="font-medium">Quick start timer</p>
               <Select value={selectedTaskId} onValueChange={setSelectedTaskId}>
                 <SelectTrigger><SelectValue placeholder="What are you working on?" /></SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[120]">
+                <SelectContent className="z-[120]">
                   {tasks.map((row) => <SelectItem key={row.id} value={row.id}>{row.name}</SelectItem>)}
                 </SelectContent>
               </Select>

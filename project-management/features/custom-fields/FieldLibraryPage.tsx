@@ -96,8 +96,8 @@ export function FieldLibraryPage({ project, onAddToProject }: Props = {}) {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl">{project ? 'Add fields' : 'Field library'}</h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <h1 className="font-sans text-2xl">{project ? 'Add fields' : 'Field library'}</h1>
+          <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {project
               ? `Add global fields from ${workspace?.name ?? 'workspace'} to ${project.name}.`
               : 'Create and manage custom fields for your workspace.'}
@@ -116,7 +116,7 @@ export function FieldLibraryPage({ project, onAddToProject }: Props = {}) {
 
       <div className="flex flex-wrap gap-2">
         <div className="relative max-w-md flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--ink-muted)' }} />
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'hsl(var(--foreground-muted))' }} />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -136,10 +136,10 @@ export function FieldLibraryPage({ project, onAddToProject }: Props = {}) {
         </Button>
       </div>
 
-      <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'hsl(var(--border))' }}>
         <div
           className="grid grid-cols-[1.2fr_1fr_0.7fr_1fr_0.6fr_0.8fr] gap-2 border-b px-4 py-2 text-[10px] font-semibold uppercase tracking-wide"
-          style={{ background: 'var(--bg-muted)', color: 'var(--ink-muted)' }}
+          style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
         >
           <span>Name</span>
           <span>Type</span>
@@ -149,7 +149,7 @@ export function FieldLibraryPage({ project, onAddToProject }: Props = {}) {
           <span className="text-right">Actions</span>
         </div>
         {filtered.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <p className="px-4 py-8 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             No fields yet. Create one to get started.
           </p>
         ) : (
@@ -161,7 +161,7 @@ export function FieldLibraryPage({ project, onAddToProject }: Props = {}) {
               <div
                 key={field.id}
                 className="grid grid-cols-[1.2fr_1fr_0.7fr_1fr_0.6fr_0.8fr] items-center gap-2 border-b px-4 py-3 text-sm last:border-0"
-                style={{ borderColor: 'var(--border-subtle)' }}
+                style={{ borderColor: 'hsl(var(--border))' }}
               >
                 <button
                   type="button"
@@ -174,17 +174,17 @@ export function FieldLibraryPage({ project, onAddToProject }: Props = {}) {
                   <FieldTypeIcon type={field.type} />
                   <span className="truncate">{field.name}</span>
                   {field.isGlobal ? (
-                    <span className="text-xs font-normal" style={{ color: 'var(--ink-muted)' }}>
+                    <span className="text-xs font-normal" style={{ color: 'hsl(var(--foreground-muted))' }}>
                       Global
                     </span>
                   ) : null}
                 </button>
-                <span style={{ color: 'var(--ink-secondary)' }}>{fieldTypeLabel(field.type)}</span>
-                <span style={{ color: 'var(--ink-muted)' }}>{usage} project(s)</span>
-                <span className="truncate" style={{ color: 'var(--ink-secondary)' }}>
+                <span style={{ color: 'hsl(var(--foreground-muted))' }}>{fieldTypeLabel(field.type)}</span>
+                <span style={{ color: 'hsl(var(--foreground-muted))' }}>{usage} project(s)</span>
+                <span className="truncate" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {creator?.name ?? '—'}
                 </span>
-                <span style={{ color: 'var(--ink-muted)' }}>{field.notify ? 'Yes' : '—'}</span>
+                <span style={{ color: 'hsl(var(--foreground-muted))' }}>{field.notify ? 'Yes' : '—'}</span>
                 <div className="flex justify-end gap-1">
                   {project ? (
                     <Button
@@ -223,7 +223,7 @@ export function FieldLibraryPage({ project, onAddToProject }: Props = {}) {
       />
 
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(o) => !o && setDeleteTarget(null)}>
-        <AlertDialogContent className="tl-dialog-surface">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleteTarget?.name}?</AlertDialogTitle>
             <AlertDialogDescription>

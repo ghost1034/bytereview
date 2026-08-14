@@ -47,7 +47,7 @@ export function ActionList({
         </Button>
       </div>
       {actions.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>Add at least one action.</p>
+        <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>Add at least one action.</p>
       ) : (
         actions.map((action, index) => (
           <div key={index} className="flex gap-2">

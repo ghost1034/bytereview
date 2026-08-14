@@ -18,7 +18,7 @@ export function BoardDragPreview({ task, tags, density }: Props) {
   const dueStyle = dueChipStyle(task.dueOn)
 
   return (
-    <div className={`tl-card shadow-paper-md ${compact ? 'p-2' : 'p-3'}`}>
+    <div className={`tl-card shadow-md ${compact ? 'p-2' : 'p-3'}`}>
       {cover ? (
         <div className="-mx-3 -mt-3 mb-2 h-1 rounded-t-xl" style={{ background: cover }} />
       ) : null}
@@ -27,7 +27,7 @@ export function BoardDragPreview({ task, tags, density }: Props) {
         {task.assigneeId ? (
           <UserAvatar userId={task.assigneeId} size="sm" showPresence={false} />
         ) : (
-          <span className="text-[10px]" style={{ color: 'var(--ink-faint)' }}>
+          <span className="text-[10px]" style={{ color: 'hsl(var(--foreground-subtle))' }}>
             +
           </span>
         )}

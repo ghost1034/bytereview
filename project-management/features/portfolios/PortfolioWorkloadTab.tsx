@@ -13,10 +13,10 @@ type Props = {
 
 export function PortfolioWorkloadTab({ portfolio, workspaceId }: Props) {
   return (
-    <div className="tl-card flex flex-col items-center p-10 text-center shadow-paper-sm">
-      <Users className="mb-3 h-10 w-10" style={{ color: 'var(--primary)' }} />
-      <h3 className="font-serif text-lg">Portfolio workload</h3>
-      <p className="mt-2 max-w-md text-sm" style={{ color: 'var(--ink-muted)' }}>
+    <div className="tl-card flex flex-col items-center p-10 text-center shadow-sm">
+      <Users className="mb-3 h-10 w-10" style={{ color: 'hsl(var(--primary))' }} />
+      <h3 className="font-sans text-lg">Portfolio workload</h3>
+      <p className="mt-2 max-w-md text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Cross-project workload for <strong>{portfolio.name}</strong> will be available in the Workload module (step 25).
         Use the workspace workload view in the meantime.
       </p>

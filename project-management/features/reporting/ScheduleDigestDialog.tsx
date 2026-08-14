@@ -61,9 +61,9 @@ export function ScheduleDigestDialog({ open, onOpenChange, dashboard }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="font-serif">Schedule digest</DialogTitle>
+          <DialogTitle className="font-sans">Schedule digest</DialogTitle>
         </DialogHeader>
-        <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           The server generates a current PNG snapshot and delivers it at the next scheduled run.
         </p>
         <div className="space-y-4 py-2">
@@ -73,7 +73,7 @@ export function ScheduleDigestDialog({ open, onOpenChange, dashboard }: Props) {
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="daily">Daily</SelectItem>
                 <SelectItem value="weekly_mon">Weekly (Monday)</SelectItem>
                 <SelectItem value="monthly_1st">Monthly (1st)</SelectItem>

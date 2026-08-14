@@ -44,10 +44,10 @@ export function BillingRatesPanel({ workspaceId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="tl-card grid gap-3 p-4 shadow-paper-sm md:grid-cols-3 lg:grid-cols-7">
+      <div className="tl-card grid gap-3 p-4 shadow-sm md:grid-cols-3 lg:grid-cols-7">
         <Select value={scope} onValueChange={(v) => setScope(v as BillingRateScope)}>
           <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">{(['workspace', 'role', 'user_default', 'client', 'project', 'matter', 'team'] as const).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+          <SelectContent className="z-[100]">{(['workspace', 'role', 'user_default', 'client', 'project', 'matter', 'team'] as const).map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
         </Select>
         <Input aria-label="Rate target ID" placeholder={scope === 'user_default' ? 'User ID' : ['client', 'project', 'matter', 'team'].includes(scope) ? 'Scope ID' : 'Optional target'} value={targetId} onChange={(e) => setTargetId(e.target.value)} className="tl-input" />
         <Input placeholder="Role" value={role} onChange={(e) => setRole(e.target.value)} className="tl-input" />
@@ -56,14 +56,14 @@ export function BillingRatesPanel({ workspaceId }: Props) {
         <Input aria-label="Effective from" type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} className="tl-input" />
         <Button className="tl-btn-primary border-0" onClick={() => void create()}>Add rate</Button>
       </div>
-      <div className="tl-card overflow-hidden shadow-paper-sm">
+      <div className="tl-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Scope</th><th className="px-4 py-2">Target</th><th className="px-4 py-2">Role</th><th className="px-4 py-2 text-right">Rate</th><th className="px-4 py-2">Effective</th>
           </tr></thead>
           <tbody>
             {rates.map((r) => (
-              <tr key={r.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+              <tr key={r.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                 <td className="px-4 py-2">{r.scope}</td>
                 <td className="px-4 py-2 font-mono text-xs">{r.scopeId ?? r.userId ?? '—'}</td>
                 <td className="px-4 py-2">{r.role ?? '—'}</td>

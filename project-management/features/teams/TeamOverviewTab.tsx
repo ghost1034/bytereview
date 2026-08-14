@@ -65,7 +65,7 @@ export function TeamOverviewTab({ team, workspace, currentUser, workspaceId }: P
       <div className="flex items-start gap-3">
         <TeamIcon name={team.name} emoji={team.iconEmoji} className="h-10 w-10 text-xl" />
         <div className="min-w-0 flex-1">
-          <p className="text-sm capitalize" style={{ color: 'var(--ink-muted)' }}>{team.privacy} team</p>
+          <p className="text-sm capitalize" style={{ color: 'hsl(var(--foreground-muted))' }}>{team.privacy} team</p>
           {team.description && <p className="mt-2 text-sm">{team.description}</p>}
         </div>
       </div>
@@ -91,7 +91,7 @@ export function TeamOverviewTab({ team, workspace, currentUser, workspaceId }: P
       <div>
         <h3 className="mb-2 text-sm font-medium">Pinned projects</h3>
         {pinned.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No pinned projects yet.</p>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No pinned projects yet.</p>
         ) : (
           <ul className="space-y-2">
             {pinned.map((project) => (
@@ -102,9 +102,9 @@ export function TeamOverviewTab({ team, workspace, currentUser, workspaceId }: P
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={() => { if (dragId) void reorderPinned(dragId, project.id); setDragId(null) }}
                 className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
-                style={{ borderColor: 'var(--border-subtle)' }}
+                style={{ borderColor: 'hsl(var(--border))' }}
               >
-                {canManage && <GripVertical className="h-4 w-4 shrink-0" style={{ color: 'var(--ink-faint)' }} />}
+                {canManage && <GripVertical className="h-4 w-4 shrink-0" style={{ color: 'hsl(var(--foreground-subtle))' }} />}
                 <span>{project.iconEmoji ?? '📁'}</span>
                 <span className="font-medium">{project.name}</span>
               </li>
@@ -123,11 +123,11 @@ export function TeamOverviewTab({ team, workspace, currentUser, workspaceId }: P
       <div>
         <h3 className="mb-2 text-sm font-medium">Recent activity</h3>
         {activity.length === 0 ? (
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Activity will appear as your team works.</p>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Activity will appear as your team works.</p>
         ) : (
           <ul className="space-y-2">
             {activity.map((event) => (
-              <li key={event.id} className="text-sm" style={{ color: 'var(--ink-secondary)' }}>
+              <li key={event.id} className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 {String(event.details.action ?? event.type)} · {formatRelative(event.createdAt)}
               </li>
             ))}

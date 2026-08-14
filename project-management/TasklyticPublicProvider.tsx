@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { hydrateTasklytic } from '@/project-management/stores/hydrate'
 import { usesTasklyticBackend } from '@/project-management/lib/forms/publicFormApi'
-import '@/project-management/styles/tasklytic.css'
+import '@/project-management/styles/tasklytic-public.css'
 
 /** Minimal provider for public Tasklytic routes (no auth shell). */
 export function TasklyticPublicProvider({ children }: { children: ReactNode }) {
@@ -16,11 +16,11 @@ export function TasklyticPublicProvider({ children }: { children: ReactNode }) {
 
   if (!ready) {
     return (
-      <div className="tasklytic-root flex min-h-screen items-center justify-center">
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Loading…</p>
+      <div className="tasklytic-public-root flex min-h-screen items-center justify-center">
+        <p className="text-sm text-foreground-muted">Loading…</p>
       </div>
     )
   }
 
-  return <div className="tasklytic-root">{children}</div>
+  return <div className="tasklytic-public-root">{children}</div>
 }

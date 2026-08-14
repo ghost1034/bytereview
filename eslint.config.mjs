@@ -105,6 +105,7 @@ const eslintConfig = [
     files: [
       'app/dashboard/**/*.{ts,tsx}',
       'app/(general)/**/*.{ts,tsx}',
+      'app/project-management/**/*.{ts,tsx}',
       'components/layout/**/*.{ts,tsx}',
       'components/marketing/**/*.{ts,tsx}',
       'components/workflow/**/*.{ts,tsx}',
@@ -118,6 +119,7 @@ const eslintConfig = [
       'components/subscription/**/*.{ts,tsx}',
       'components/cpe/**/*.{ts,tsx}',
       'components/pages/**/*.{ts,tsx}',
+      'project-management/**/*.{ts,tsx}',
     ],
     ignores: [
       'app/dashboard/inkwise/**/*.{ts,tsx}',

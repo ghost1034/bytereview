@@ -40,7 +40,7 @@ export function CustomizeMenu({ query, onChange, showDensity = true, showHideFie
           Customize
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="tl-popover-surface w-52">
+      <DropdownMenuContent align="start" className="w-52">
         <DropdownMenuLabel>Display</DropdownMenuLabel>
         <DropdownMenuCheckboxItem
           checked={showCompleted}

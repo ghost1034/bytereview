@@ -39,7 +39,7 @@ export function PortfolioPage({ portfolioId, tab }: Props) {
 
   if (!workspaceId || !currentUserId) return null
   if (!portfolio || portfolio.workspaceId !== workspaceId) {
-    return <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Portfolio not found.</p>
+    return <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Portfolio not found.</p>
   }
 
   return (

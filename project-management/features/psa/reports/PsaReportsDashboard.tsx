@@ -68,16 +68,16 @@ export function PsaReportsDashboard({ workspaceId }: Props) {
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="tl-card p-4 shadow-paper-sm">
-      <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>{label}</p>
-      <p className="font-serif text-2xl font-mono tabular-nums">{value}</p>
+    <div className="tl-card p-4 shadow-sm">
+      <p className="text-xs uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>{label}</p>
+      <p className="font-sans text-2xl font-mono tabular-nums">{value}</p>
     </div>
   )
 }
 
 function ChartSection({ title, data }: { title: string; data: { label: string; value: number }[] }) {
   return (
-    <div className="tl-card p-4 shadow-paper-sm">
+    <div className="tl-card p-4 shadow-sm">
       <h3 className="mb-3 font-medium">{title}</h3>
       <ChartContainer config={chartCfg} className="h-[220px] w-full">
         <BarChart data={data} margin={{ left: 8, right: 8, top: 8, bottom: 0 }}>

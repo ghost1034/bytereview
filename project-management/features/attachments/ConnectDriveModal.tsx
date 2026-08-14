@@ -35,10 +35,10 @@ export function ConnectDriveModal({ provider, message, open, onOpenChange, files
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Select files from {label}</DialogTitle>
-          <DialogDescription style={{ color: 'var(--ink-muted)' }}>
+          <DialogDescription style={{ color: 'hsl(var(--foreground-muted))' }}>
             {message ?? 'Selected files are copied into private workspace storage so later credential revocation cannot remove local records.'}
           </DialogDescription>
         </DialogHeader>
@@ -47,9 +47,9 @@ export function ConnectDriveModal({ provider, message, open, onOpenChange, files
           {visible.map((file) => <label className="flex min-h-11 items-center gap-3 rounded-md px-2 py-2 hover:bg-muted" key={file.id}>
             <input type="checkbox" checked={selected.has(file.id)} onChange={() => setSelected((old) => { const next = new Set(old); if (next.has(file.id)) next.delete(file.id); else next.add(file.id); return next })} />
             <span className="min-w-0 flex-1 truncate text-sm">{file.name}</span>
-            <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>{file.size ? `${Math.ceil(file.size / 1024)} KB` : ''}</span>
+            <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{file.size ? `${Math.ceil(file.size / 1024)} KB` : ''}</span>
           </label>)}
-          {!loading && visible.length === 0 ? <p className="py-8 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>No selectable files.</p> : null}
+          {!loading && visible.length === 0 ? <p className="py-8 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No selectable files.</p> : null}
           {loading ? <p className="py-8 text-center text-sm" aria-live="polite">Loading Drive files…</p> : null}
         </div>
         <div className="flex justify-end gap-2">

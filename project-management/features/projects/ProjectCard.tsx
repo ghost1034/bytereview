@@ -59,7 +59,7 @@ export function ProjectCard({ project, href, starred, currentUserId, onToggleSta
               onToggleStar()
             }}
           >
-            <Star className="h-4 w-4" fill={starred ? 'var(--warning)' : 'none'} stroke="var(--warning)" />
+            <Star className="h-4 w-4" fill={starred ? 'hsl(var(--warning))' : 'none'} stroke="hsl(var(--warning))" />
           </button>
         ) : null}
         <DropdownMenu>
@@ -73,7 +73,7 @@ export function ProjectCard({ project, href, starred, currentUserId, onToggleSta
               <MoreHorizontal className="h-4 w-4" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="tl-popover-surface" align="end">
+          <DropdownMenuContent align="end">
             {onToggleStar ? (
               <DropdownMenuItem onClick={(e) => { e.preventDefault(); onToggleStar() }}>
                 <Star className="mr-2 h-4 w-4" /> {starred ? 'Unstar' : 'Star'}
@@ -91,7 +91,7 @@ export function ProjectCard({ project, href, starred, currentUserId, onToggleSta
       </div>
       <Link
         href={href}
-        className="tl-card block p-4 shadow-paper-sm transition hover:-translate-y-0.5 hover:shadow-paper-md"
+        className="tl-card block p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
       >
         <div className="mb-3 flex items-start">
           <div
@@ -102,18 +102,18 @@ export function ProjectCard({ project, href, starred, currentUserId, onToggleSta
           </div>
         </div>
         <h3 className="font-medium">{project.name}</h3>
-        <p className="mt-1 text-xs" style={{ color: 'var(--ink-muted)' }}>
+        <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {team?.name ?? 'Team'} · {project.memberIds.length} members
         </p>
         <div className="mt-4 flex items-center gap-2">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: 'var(--bg-muted)' }}>
-            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'var(--accent)' }} />
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full" style={{ background: 'hsl(var(--surface-muted))' }}>
+            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: 'hsl(var(--success))' }} />
           </div>
-          <span className="text-xs tabular-nums" style={{ color: 'var(--ink-muted)' }}>{pct}%</span>
+          <span className="text-xs tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{pct}%</span>
         </div>
         <div className="mt-3 flex items-center justify-between gap-2">
           <ProjectStatusPill status={project.status} />
-          {due && <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>Due {due}</span>}
+          {due && <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>Due {due}</span>}
         </div>
       </Link>
     </div>

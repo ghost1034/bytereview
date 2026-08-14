@@ -164,10 +164,10 @@ export function WorkloadView({ workspaceId, portfolioProjectIds, defaultTeamId }
       {!matrix.hasEstimateField ? (
         <div
           className="flex items-start gap-2 rounded-lg border px-3 py-2 text-sm"
-          style={{ borderColor: 'var(--warning)', background: 'color-mix(in srgb, var(--warning) 12%, transparent)' }}
+          style={{ borderColor: 'hsl(var(--warning))', background: 'color-mix(in srgb, hsl(var(--warning)) 12%, transparent)' }}
         >
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'var(--warning)' }} />
-          <p style={{ color: 'var(--ink-secondary)' }}>
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: 'hsl(var(--warning))' }} />
+          <p style={{ color: 'hsl(var(--foreground-muted))' }}>
             No effort field detected — using default estimates. Add a numeric custom field named
             Estimate to your projects for accurate workload.
           </p>

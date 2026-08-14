@@ -26,7 +26,7 @@ export function AiMessageList({ thread, actorId, typing }: Props) {
     <ScrollArea className="flex-1 px-1">
       <div className="py-2">
         {empty ? (
-          <p className="px-4 py-8 text-center text-sm" style={{ color: 'var(--ink-faint)' }}>
+          <p className="px-4 py-8 text-center text-sm" style={{ color: 'hsl(var(--foreground-subtle))' }}>
             Ask for summaries, status drafts, subtask suggestions, or workspace questions.
           </p>
         ) : (

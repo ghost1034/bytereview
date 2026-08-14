@@ -59,7 +59,7 @@ export function ChartFiltersStep({ draft, onChange, customFields, members, secti
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               <SelectItem value="count">Count</SelectItem>
               <SelectItem value="sum">Sum</SelectItem>
               <SelectItem value="avg">Average</SelectItem>
@@ -73,7 +73,7 @@ export function ChartFiltersStep({ draft, onChange, customFields, members, secti
               <SelectTrigger>
                 <SelectValue placeholder="Field" />
               </SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 {measureFields.map((f) => (
                   <SelectItem key={f.id} value={f.id}>
                     {f.label}
@@ -92,7 +92,7 @@ export function ChartFiltersStep({ draft, onChange, customFields, members, secti
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 {dateFields.map((f) => (
                   <SelectItem key={f.id} value={f.id}>
                     {f.label}
@@ -110,7 +110,7 @@ export function ChartFiltersStep({ draft, onChange, customFields, members, secti
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="day">Day</SelectItem>
                 <SelectItem value="week">Week</SelectItem>
                 <SelectItem value="month">Month</SelectItem>
@@ -126,7 +126,7 @@ export function ChartFiltersStep({ draft, onChange, customFields, members, secti
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               {groupFields.map((f) => (
                 <SelectItem key={f.id} value={f.id}>
                   {f.label}

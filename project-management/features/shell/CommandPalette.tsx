@@ -20,7 +20,7 @@ type FlatItem = {
   label: string
   href?: string
   group: string
-  action?: 'quickAdd' | 'createProject' | 'toggleTheme' | 'signOut'
+  action?: 'quickAdd' | 'createProject' | 'signOut'
 }
 
 export function CommandPalette() {
@@ -81,7 +81,6 @@ export function CommandPalette() {
     const actions: FlatItem[] = [
       { label: 'Create task', group: 'Actions', action: 'quickAdd' },
       { label: 'Create project', group: 'Actions', action: 'createProject' },
-      { label: 'Toggle theme', group: 'Actions', action: 'toggleTheme' },
       { label: 'Sign out', group: 'Actions', action: 'signOut' },
     ]
     actions
@@ -109,10 +108,6 @@ export function CommandPalette() {
     }
     if (item.action === 'createProject') {
       dispatchShellAction('createProject')
-      return
-    }
-    if (item.action === 'toggleTheme') {
-      dispatchShellAction('toggleTheme')
       return
     }
     if (item.action === 'signOut') {
@@ -152,9 +147,9 @@ export function CommandPalette() {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent aria-describedby={undefined} className="tl-dialog-surface max-w-[600px] gap-0 overflow-hidden p-0">
-        <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
-          <Search className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+      <DialogContent aria-describedby={undefined} className="max-w-[600px] gap-0 overflow-hidden p-0">
+        <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
+          <Search className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           <input
             autoFocus
             value={query}
@@ -162,14 +157,14 @@ export function CommandPalette() {
             onKeyDown={onInputKeyDown}
             placeholder="Search project management…"
             className="w-full bg-transparent text-sm outline-none focus-visible:ring-0"
-            style={{ color: 'var(--ink-primary)' }}
+            style={{ color: 'hsl(var(--foreground))' }}
             aria-label="Search project management"
           />
         </div>
         <div ref={listRef} className="max-h-80 overflow-y-auto p-2">
           {grouped.map(({ title, items }) => (
             <div key={title} className="mb-3">
-              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'var(--ink-muted)' }}>
+              <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 {title}
               </p>
               {items.map((item) => {
@@ -182,10 +177,10 @@ export function CommandPalette() {
                     data-index={index}
                     onClick={() => void runItem(item)}
                     onMouseEnter={() => setActiveIndex(index)}
-                    className={cn('flex w-full rounded-lg px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:shadow-focus')}
+                    className={cn('flex w-full rounded-lg px-3 py-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background')}
                     style={{
-                      color: 'var(--ink-secondary)',
-                      background: active ? 'var(--bg-muted)' : 'transparent',
+                      color: 'hsl(var(--foreground-muted))',
+                      background: active ? 'hsl(var(--surface-muted))' : 'transparent',
                     }}
                   >
                     <HighlightMatch text={item.label} query={query} />
@@ -195,7 +190,7 @@ export function CommandPalette() {
             </div>
           ))}
           {!flatItems.length && (
-            <p className="px-3 py-6 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="px-3 py-6 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {query ? 'No results' : 'Type to search…'}
             </p>
           )}

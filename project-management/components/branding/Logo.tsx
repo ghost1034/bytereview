@@ -8,13 +8,13 @@ export function TasklyticLogo({ compact }: Props) {
     <div className="flex items-center gap-2">
       <div
         className="flex h-8 w-8 items-center justify-center rounded-lg text-white"
-        style={{ background: 'var(--primary)' }}
+        style={{ background: 'hsl(var(--primary))' }}
         aria-hidden
       >
         <Check className="h-4 w-4" strokeWidth={2.5} />
       </div>
       {!compact && (
-        <span className="font-serif text-lg font-medium tracking-tight" style={{ color: 'var(--ink-primary)' }}>
+        <span className="font-sans text-lg font-medium tracking-tight" style={{ color: 'hsl(var(--foreground))' }}>
           Tasklytic
         </span>
       )}

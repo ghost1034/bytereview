@@ -48,8 +48,8 @@ export function ExpensesPage() {
     <div className="space-y-4" data-tour-page="expenses">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl">Expenses</h1>
-          <p className="text-sm font-mono tabular-nums" style={{ color: 'var(--ink-muted)' }}>
+          <h1 className="font-sans text-2xl">Expenses</h1>
+          <p className="text-sm font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {formatMoney(total)} total · {formatMoney(billable)} billable · {formatMoney(reimb)} reimbursable
           </p>
         </div>
@@ -57,7 +57,7 @@ export function ExpensesPage() {
           <DropdownMenuTrigger asChild>
             <Button className="tl-btn-primary border-0" size="sm"><Plus className="mr-1 h-4 w-4" /> Add expense <ChevronDown className="ml-1 h-3 w-3" /></Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="tl-popover-surface" align="end">
+          <DropdownMenuContent align="end">
             <DropdownMenuItem onClick={() => setDialogOpen(true)}>Manual entry</DropdownMenuItem>
             <DropdownMenuItem onClick={() => setMileageOpen(true)}>Mileage</DropdownMenuItem>
           </DropdownMenuContent>
@@ -67,17 +67,17 @@ export function ExpensesPage() {
         <TabsList><TabsTrigger value="mine">My expenses</TabsTrigger><TabsTrigger value="reports">My reports</TabsTrigger>{canApprove && <TabsTrigger value="approve">To approve</TabsTrigger>}</TabsList>
         <TabsContent value="mine">
           <select aria-label="Filter expense status" className="tl-input mb-3 w-48" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}><option value="all">All statuses</option>{['draft', 'submitted', 'approved', 'rejected', 'reimbursed', 'written_off', 'billed'].map((status) => <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>)}</select>
-          <div className="tl-card overflow-hidden shadow-paper-sm">
+          <div className="tl-card overflow-hidden shadow-sm">
             <table className="w-full text-sm">
-              <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+              <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
                 <th className="px-4 py-2">Date</th><th className="px-4 py-2">Description</th><th className="px-4 py-2">Category</th>
                 <th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2">Flags</th><th className="px-4 py-2">Status</th>
               </tr></thead>
               <tbody>
                 {myExpenses.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center" style={{ color: 'var(--ink-muted)' }}>No expenses yet.</td></tr>
+                  <tr><td colSpan={6} className="px-4 py-8 text-center" style={{ color: 'hsl(var(--foreground-muted))' }}>No expenses yet.</td></tr>
                 ) : filteredExpenses.sort((a, b) => b.date.localeCompare(a.date)).map((e) => (
-                  <tr key={e.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <tr key={e.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                     <td className="px-4 py-2 font-mono tabular-nums">{e.date}</td>
                     <td className="px-4 py-2">{e.description}</td>
                     <td className="px-4 py-2">{EXPENSE_CATEGORY_LABELS[e.category as keyof typeof EXPENSE_CATEGORY_LABELS] ?? e.category}</td>

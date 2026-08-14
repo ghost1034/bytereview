@@ -90,7 +90,7 @@ export function CalendarView({ project, basePath }: Props) {
       />
 
       {!hasDatedTasks ? (
-        <p className="mb-4 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <p className="mb-4 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Drag tasks from the unscheduled drawer or click a day to add one.
         </p>
       ) : null}

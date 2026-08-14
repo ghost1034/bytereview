@@ -23,23 +23,23 @@ export function WorkspaceBillingTab({ workspace, currentUser }: Props) {
     <div className="mx-auto max-w-xl space-y-6">
       <div>
         <h2 className="font-medium">Billing</h2>
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Plan and seat usage for {workspace.name}</p>
+        <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Plan and seat usage for {workspace.name}</p>
       </div>
 
-      <div className="tl-card space-y-4 p-5 shadow-paper-sm">
+      <div className="tl-card space-y-4 p-5 shadow-sm">
         <div className="flex items-center justify-between">
-          <span className="font-serif text-lg capitalize">{plan.tier} plan</span>
+          <span className="font-sans text-lg capitalize">{plan.tier} plan</span>
           <Badge variant="secondary">{seatsUsed} / {plan.seatLimit} seats</Badge>
         </div>
         {plan.renewsAt && (
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Renews {plan.renewsAt}</p>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Renews {plan.renewsAt}</p>
         )}
-        <div className="h-2 overflow-hidden rounded-full" style={{ background: 'var(--bg-muted)' }}>
+        <div className="h-2 overflow-hidden rounded-full" style={{ background: 'hsl(var(--surface-muted))' }}>
           <div
             className="h-full rounded-full"
             style={{
               width: `${Math.min(100, (seatsUsed / plan.seatLimit) * 100)}%`,
-              background: seatsUsed >= plan.seatLimit ? 'var(--danger)' : 'var(--primary)',
+              background: seatsUsed >= plan.seatLimit ? 'hsl(var(--destructive))' : 'hsl(var(--primary))',
             }}
           />
         </div>

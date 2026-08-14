@@ -41,7 +41,7 @@ function ChipRow({
             className={cn(
               'rounded-full border px-3 py-1 text-sm transition-colors',
               selected
-                ? 'border-[#cc785c] bg-[#f5e5de] font-medium text-[#9a4f37]'
+                ? 'border-primary bg-primary-soft font-medium text-primary-soft-foreground'
                 : 'border-border text-foreground hover:bg-muted',
             )}
           >
@@ -95,7 +95,7 @@ function MultiChipRow({
               className={cn(
                 'rounded-full border px-3 py-1 text-sm transition-colors',
                 selected
-                  ? 'border-[#cc785c] bg-[#f5e5de] font-medium text-[#9a4f37]'
+                  ? 'border-primary bg-primary-soft font-medium text-primary-soft-foreground'
                   : 'border-border text-foreground hover:bg-muted',
                 disabled && 'cursor-not-allowed opacity-40 hover:bg-transparent',
               )}

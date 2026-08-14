@@ -5,7 +5,7 @@
  */
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import type { Task, User } from '../../../types'
-import { CRITICAL_PATH_COLOR, CRITICAL_PATH_GLOW, HEADER_H, ROW_H } from './constants'
+import { CRITICAL_PATH_COLOR, HEADER_H, ROW_H } from './constants'
 import type { TimelineRow } from './types'
 
 type Props = {
@@ -34,15 +34,15 @@ export function TimelineLeftRail({
   return (
     <div
       className="sticky left-0 z-20 shrink-0 border-r"
-      style={{ width, borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }}
+      style={{ width, borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}
     >
       <div
         className="border-b px-3 text-[10px] font-semibold uppercase tracking-wide"
         style={{
           height: HEADER_H,
           lineHeight: `${HEADER_H}px`,
-          color: 'var(--ink-muted)',
-          borderColor: 'var(--border-subtle)',
+          color: 'hsl(var(--foreground-muted))',
+          borderColor: 'hsl(var(--border))',
         }}
       >
         Task
@@ -57,9 +57,9 @@ export function TimelineLeftRail({
               className="flex w-full items-center gap-1 truncate border-b px-2 text-left text-xs font-semibold uppercase"
               style={{
                 height: ROW_H,
-                borderColor: 'var(--border-subtle)',
-                background: 'var(--bg-elevated)',
-                color: 'var(--ink-muted)',
+                borderColor: 'hsl(var(--border))',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground-muted))',
               }}
               onClick={() => onToggleSection?.(row.sectionId)}
             >
@@ -76,9 +76,9 @@ export function TimelineLeftRail({
               style={{
                 height: ROW_H,
                 lineHeight: `${ROW_H}px`,
-                borderColor: 'var(--border-subtle)',
-                background: 'var(--bg-elevated)',
-                color: 'var(--ink-muted)',
+                borderColor: 'hsl(var(--border))',
+                background: 'hsl(var(--card))',
+                color: 'hsl(var(--foreground-muted))',
               }}
             >
               {row.label}
@@ -96,17 +96,15 @@ export function TimelineLeftRail({
             className="flex items-center gap-1 border-b px-2 text-sm"
             style={{
               height: ROW_H,
-              borderColor: 'var(--border-subtle)',
-              background: critical ? 'color-mix(in srgb, var(--bg-muted) 88%, rgba(229,57,53,0.12))' : undefined,
+              borderColor: 'hsl(var(--border))',
+              background: critical ? 'hsl(var(--destructive-soft))' : undefined,
             }}
           >
             {critical ? (
               <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full ring-1"
+                className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-background"
                 style={{
                   background: CRITICAL_PATH_COLOR,
-                  boxShadow: `0 0 5px ${CRITICAL_PATH_GLOW}`,
-                  borderColor: '#ffffff',
                 }}
                 title="Critical path"
                 aria-hidden
@@ -121,7 +119,7 @@ export function TimelineLeftRail({
               onClick={() => onOpenTask(task.id)}
             >
               {(task.dependencyIds.length > 0 || task.dependentIds.length > 0) && (
-                <span className="mr-1 text-[10px]" style={{ color: 'var(--ink-muted)' }}>
+                <span className="mr-1 text-[10px]" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   ↳
                 </span>
               )}
@@ -131,7 +129,7 @@ export function TimelineLeftRail({
               <button
                 type="button"
                 className="shrink-0 text-[10px] font-medium"
-                style={{ color: 'var(--primary)' }}
+                style={{ color: 'hsl(var(--primary))' }}
                 onClick={() => onAddDate(task.id)}
               >
                 <Plus className="mr-0.5 inline h-3 w-3" />

@@ -1,6 +1,6 @@
 'use client'
 
-/** DropdownMenuContent with Tasklytic portal surface styling. */
+/** DropdownMenuContent compatibility wrapper retaining Tasklytic's overlay order. */
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from 'react'
 import { DropdownMenuContent } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
@@ -11,7 +11,7 @@ export const TasklyticDropdownMenuContent = forwardRef<ElementRef<typeof Dropdow
   ({ className, ...props }, ref) => (
     <DropdownMenuContent
       ref={ref}
-      className={cn('tl-popover-surface z-[100]', className)}
+      className={cn('z-[100]', className)}
       {...props}
     />
   )

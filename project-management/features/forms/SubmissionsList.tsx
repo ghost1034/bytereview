@@ -25,7 +25,7 @@ export function SubmissionsList({ form }: Props) {
 
   if (!submissions.length) {
     return (
-      <p className="text-sm py-8 text-center" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-sm py-8 text-center" style={{ color: 'hsl(var(--foreground-muted))' }}>
         No submissions yet. Share the public link to collect responses.
       </p>
     )
@@ -33,10 +33,10 @@ export function SubmissionsList({ form }: Props) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
-      <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'hsl(var(--border))' }}>
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left text-xs" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+            <tr className="border-b text-left text-xs" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
               <th className="p-3 font-medium">Submitted</th>
               <th className="p-3 font-medium">Submitter</th>
               <th className="p-3 font-medium">Task</th>
@@ -61,7 +61,7 @@ export function SubmissionsList({ form }: Props) {
       {selected ? (
         <SubmissionDetail form={form} sub={selected} submitter={submitterLabel(selected, userById)} workspaceId={workspaceId ?? ''} />
       ) : (
-        <p className="text-sm p-4" style={{ color: 'var(--ink-muted)' }}>Select a row to view all answers.</p>
+        <p className="text-sm p-4" style={{ color: 'hsl(var(--foreground-muted))' }}>Select a row to view all answers.</p>
       )}
     </div>
   )
@@ -86,8 +86,8 @@ function SubmissionRow({
     <tr
       className="cursor-pointer border-b"
       style={{
-        borderColor: 'var(--border-subtle)',
-        background: selected ? 'var(--primary-soft)' : undefined,
+        borderColor: 'hsl(var(--border))',
+        background: selected ? 'hsl(var(--primary-soft))' : undefined,
       }}
       onClick={onSelect}
     >
@@ -98,7 +98,7 @@ function SubmissionRow({
           <Link
             href={`/dashboard/project-management/w/${workspaceId}/projects/${form.projectId}?task=${sub.taskId}`}
             className="underline"
-            style={{ color: 'var(--primary)' }}
+            style={{ color: 'hsl(var(--primary))' }}
             onClick={(e) => e.stopPropagation()}
           >
             View task
@@ -107,7 +107,7 @@ function SubmissionRow({
           '—'
         )}
       </td>
-      <td className="p-3 max-w-xs truncate" style={{ color: 'var(--ink-secondary)' }}>
+      <td className="p-3 max-w-xs truncate" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {answerSnippet(form, sub.answers)}
       </td>
     </tr>
@@ -126,8 +126,8 @@ function SubmissionDetail({
   workspaceId: string
 }) {
   return (
-    <div className="tl-card space-y-3 p-4 shadow-paper-sm">
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+    <div className="tl-card space-y-3 p-4 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Submission detail
       </p>
       <p className="text-sm"><strong>Submitter:</strong> {submitter}</p>
@@ -136,7 +136,7 @@ function SubmissionDetail({
         <Link
           href={`/dashboard/project-management/w/${workspaceId}/projects/${form.projectId}?task=${sub.taskId}`}
           className="text-sm underline"
-          style={{ color: 'var(--primary)' }}
+          style={{ color: 'hsl(var(--primary))' }}
         >
           Open created task
         </Link>
@@ -145,7 +145,7 @@ function SubmissionDetail({
         {form.fields.map((f) => (
           <div key={f.id}>
             <dt className="font-medium">{f.label}</dt>
-            <dd style={{ color: 'var(--ink-secondary)' }}>{answerText(f, sub.answers[f.id])}</dd>
+            <dd style={{ color: 'hsl(var(--foreground-muted))' }}>{answerText(f, sub.answers[f.id])}</dd>
           </div>
         ))}
       </dl>

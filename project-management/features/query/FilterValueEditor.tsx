@@ -30,7 +30,7 @@ export function FilterValueEditor({ clause, fieldDef, ctx, onChange }: Props) {
         <SelectTrigger className="h-8 w-[120px]">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="tl-popover-surface z-[100]">
+        <SelectContent className="z-[100]">
           <SelectItem value="true">Yes</SelectItem>
           <SelectItem value="false">No</SelectItem>
         </SelectContent>
@@ -44,7 +44,7 @@ export function FilterValueEditor({ clause, fieldDef, ctx, onChange }: Props) {
         <SelectTrigger className="h-8 min-w-[140px]">
           <SelectValue placeholder="Select…" />
         </SelectTrigger>
-        <SelectContent className="tl-popover-surface z-[100]">
+        <SelectContent className="z-[100]">
           <SelectItem value="__me__">Me</SelectItem>
           {ctx.members.map((m) => (
             <SelectItem key={m.id} value={m.id}>
@@ -62,7 +62,7 @@ export function FilterValueEditor({ clause, fieldDef, ctx, onChange }: Props) {
         <SelectTrigger className="h-8 min-w-[140px]">
           <SelectValue placeholder="Section…" />
         </SelectTrigger>
-        <SelectContent className="tl-popover-surface z-[100]">
+        <SelectContent className="z-[100]">
           {ctx.sections.map((s) => (
             <SelectItem key={s.id} value={s.id}>
               {s.name}
@@ -79,7 +79,7 @@ export function FilterValueEditor({ clause, fieldDef, ctx, onChange }: Props) {
         <SelectTrigger className="h-8 min-w-[140px]">
           <SelectValue placeholder="Due…" />
         </SelectTrigger>
-        <SelectContent className="tl-popover-surface z-[100]">
+        <SelectContent className="z-[100]">
           <SelectItem value="__overdue__">Overdue</SelectItem>
           <SelectItem value="__today__">Today</SelectItem>
           <SelectItem value="__this_week__">This week</SelectItem>
@@ -107,7 +107,7 @@ export function FilterValueEditor({ clause, fieldDef, ctx, onChange }: Props) {
         <SelectTrigger className="h-8 min-w-[140px]">
           <SelectValue placeholder="Option…" />
         </SelectTrigger>
-        <SelectContent className="tl-popover-surface z-[100]">
+        <SelectContent className="z-[100]">
           {cf?.options?.map((o) => (
             <SelectItem key={o.id} value={o.id}>
               {o.label}

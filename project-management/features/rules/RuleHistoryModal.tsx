@@ -41,25 +41,25 @@ export function RuleHistoryModal({ rule, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[80vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[80vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif text-lg">History — {rule.name}</DialogTitle>
+          <DialogTitle className="font-sans text-lg">History — {rule.name}</DialogTitle>
         </DialogHeader>
         {loading ? (
-          <p className="py-4 text-sm" style={{ color: 'var(--ink-muted)' }}>Loading run history…</p>
+          <p className="py-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Loading run history…</p>
         ) : entries.length === 0 ? (
-          <p className="py-4 text-sm" style={{ color: 'var(--ink-muted)' }}>No runs recorded yet.</p>
+          <p className="py-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No runs recorded yet.</p>
         ) : (
-          <ul className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+          <ul className="divide-y" style={{ borderColor: 'hsl(var(--border))' }}>
             {entries.map((e) => (
               <li key={e.id} className="py-3 text-sm">
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-medium">{e.taskName}</span>
-                  <span className="shrink-0 text-xs" style={{ color: 'var(--ink-muted)' }}>
+                  <span className="shrink-0 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                     {formatRelative(e.createdAt)}
                   </span>
                 </div>
-                <p className="mt-1 text-xs" style={{ color: 'var(--ink-secondary)' }}>
+                <p className="mt-1 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {e.actionsApplied.join(', ') || ('status' in e ? e.status : 'No actions')}
                 </p>
                 {'failure' in e && e.failure ? (

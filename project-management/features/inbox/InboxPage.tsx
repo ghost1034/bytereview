@@ -108,15 +108,15 @@ export function InboxPage() {
 
   return (
     <div className="flex h-[calc(100vh-52px)] flex-col" data-tour-page="inbox">
-      <div className="border-b px-4 py-4" style={{ borderColor: 'var(--border-subtle)' }}>
-        <h1 className="font-serif text-2xl" style={{ color: 'var(--ink-primary)' }}>
+      <div className="border-b px-4 py-4" style={{ borderColor: 'hsl(var(--border))' }}>
+        <h1 className="font-sans text-2xl" style={{ color: 'hsl(var(--foreground))' }}>
           Inbox
         </h1>
       </div>
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         <div
           className="relative flex min-h-0 w-full flex-col lg:w-[440px] lg:shrink-0 lg:border-r"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          style={{ borderColor: 'hsl(var(--border))' }}
         >
           <InboxFilters
             userId={currentUserId}
@@ -142,7 +142,7 @@ export function InboxPage() {
           />
           <InboxBulkBar userId={currentUserId} selected={checked} onClear={() => setChecked(new Set())} />
         </div>
-        <div className="hidden min-h-0 flex-1 lg:block" style={{ background: 'var(--bg-base)' }}>
+        <div className="hidden min-h-0 flex-1 lg:block" style={{ background: 'hsl(var(--background))' }}>
           <InboxPreviewPane workspaceId={workspaceId ?? ''} notification={selected} />
         </div>
       </div>

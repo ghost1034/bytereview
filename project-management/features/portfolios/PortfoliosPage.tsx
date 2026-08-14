@@ -73,7 +73,7 @@ export function PortfoliosPage() {
   return (
     <div className="space-y-4" data-tour-page="portfolios">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-2xl">Portfolios</h1>
+        <h1 className="font-sans text-2xl">Portfolios</h1>
         <Button className="tl-btn-primary border-0" size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="mr-1 h-4 w-4" /> New portfolio
         </Button>
@@ -81,7 +81,7 @@ export function PortfoliosPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[180px] flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+          <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
           <Input
             className="tl-input pl-8"
             placeholder="Search portfolios…"
@@ -91,7 +91,7 @@ export function PortfoliosPage() {
         </div>
         <Select value={filters.ownerId} onValueChange={(v) => setFilters((f) => ({ ...f, ownerId: v }))}>
           <SelectTrigger className="tl-input w-[140px]"><SelectValue placeholder="Owner" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All owners</SelectItem>
             {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}
           </SelectContent>
@@ -101,7 +101,7 @@ export function PortfoliosPage() {
           onValueChange={(v) => setFilters((f) => ({ ...f, status: v === 'all' ? 'all' : (v as PortfolioListFilters['status']) }))}
         >
           <SelectTrigger className="tl-input w-[130px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All statuses</SelectItem>
             <SelectItem value="on_track">On track</SelectItem>
             <SelectItem value="at_risk">At risk</SelectItem>
@@ -112,17 +112,17 @@ export function PortfoliosPage() {
         </Select>
         <Select value={filters.timePeriod} onValueChange={(v) => setFilters((f) => ({ ...f, timePeriod: v as PortfolioListFilters['timePeriod'] }))}>
           <SelectTrigger className="tl-input w-[130px]"><SelectValue placeholder="Period" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All time</SelectItem>
             <SelectItem value="30d">Last 30 days</SelectItem>
             <SelectItem value="90d">Last 90 days</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex rounded-lg border p-0.5" style={{ borderColor: 'var(--border-subtle)' }}>
-          <button type="button" className="rounded p-1.5" style={{ background: viewMode === 'grid' ? 'var(--primary-soft)' : undefined }} onClick={() => setViewMode('grid')} aria-label="Grid view">
+        <div className="flex rounded-lg border p-0.5" style={{ borderColor: 'hsl(var(--border))' }}>
+          <button type="button" className="rounded p-1.5" style={{ background: viewMode === 'grid' ? 'hsl(var(--primary-soft))' : undefined }} onClick={() => setViewMode('grid')} aria-label="Grid view">
             <LayoutGrid className="h-4 w-4" />
           </button>
-          <button type="button" className="rounded p-1.5" style={{ background: viewMode === 'table' ? 'var(--primary-soft)' : undefined }} onClick={() => setViewMode('table')} aria-label="Table view">
+          <button type="button" className="rounded p-1.5" style={{ background: viewMode === 'table' ? 'hsl(var(--primary-soft))' : undefined }} onClick={() => setViewMode('table')} aria-label="Table view">
             <List className="h-4 w-4" />
           </button>
         </div>
@@ -134,7 +134,7 @@ export function PortfoliosPage() {
             {filtered.map((p) => <PortfolioCard key={p.id} portfolio={p} workspaceId={workspaceId} />)}
           </div>
         ) : (
-          <div className="tl-card overflow-hidden shadow-paper-sm">
+          <div className="tl-card overflow-hidden shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -159,7 +159,7 @@ export function PortfoliosPage() {
                       <TableCell>{owner?.name ?? '—'}</TableCell>
                       <TableCell>{p.projectIds.length}</TableCell>
                       <TableCell>
-                        <span className="rounded-full px-2 py-0.5 text-xs capitalize" style={{ background: `${getProjectStatusColor(health.inferredStatus)}22`, color: getProjectStatusColor(health.inferredStatus) }}>
+                        <span className="rounded-full px-2 py-0.5 text-xs capitalize" style={{ background: `color-mix(in srgb, ${getProjectStatusColor(health.inferredStatus)} 14%, transparent)`, color: getProjectStatusColor(health.inferredStatus) }}>
                           {formatProjectStatus(health.inferredStatus)}
                         </span>
                       </TableCell>

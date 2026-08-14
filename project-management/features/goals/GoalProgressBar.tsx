@@ -23,7 +23,7 @@ export function GoalProgressBar({ percent, status = 'on_track', showLabel = true
         style={{ ['--progress-color' as string]: color }}
       />
       {showLabel ? (
-        <span className="text-xs tabular-nums font-medium min-w-[2.5rem] text-right" style={{ color: 'var(--ink-secondary)' }}>
+        <span className="text-xs tabular-nums font-medium min-w-[2.5rem] text-right" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {percent}%
         </span>
       ) : null}

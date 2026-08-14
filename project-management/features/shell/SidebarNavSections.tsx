@@ -60,7 +60,7 @@ export function SidebarNavSections({
         {sectionLabel(
           'Insights',
           <CollapsibleTrigger asChild>
-            <button type="button" className="rounded p-0.5 focus-visible:outline-none focus-visible:shadow-focus" aria-label="Toggle insights">
+            <button type="button" className="rounded p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" aria-label="Toggle insights">
               {insightsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
           </CollapsibleTrigger>
@@ -82,7 +82,7 @@ export function SidebarNavSections({
         {sectionLabel(
           'PSA',
           <CollapsibleTrigger asChild>
-            <button type="button" className="rounded p-0.5 focus-visible:outline-none focus-visible:shadow-focus" aria-label="Toggle PSA section">
+            <button type="button" className="rounded p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background" aria-label="Toggle PSA section">
               {psaOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
             </button>
           </CollapsibleTrigger>

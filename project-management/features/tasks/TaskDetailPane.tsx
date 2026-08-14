@@ -69,8 +69,8 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
       <>
         <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" aria-hidden="true" />
         <aside
-          className="fixed inset-0 z-50 flex flex-col lg:inset-y-0 lg:left-auto lg:w-full lg:max-w-[640px] lg:border-l tl-task-detail-pane tl-dialog-surface tasklytic-root"
-          style={{ borderColor: 'var(--border-subtle)' }}
+          className="fixed inset-0 z-50 flex flex-col lg:inset-y-0 lg:left-auto lg:w-full lg:max-w-[640px] lg:border-l tasklytic-root"
+          style={{ borderColor: 'hsl(var(--border))' }}
           role="dialog"
           aria-label="Loading task"
           aria-busy="true"
@@ -104,15 +104,15 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
       data-tour-page="tasks"
       className={
         mode === 'fullscreen'
-          ? 'flex h-full min-h-screen w-full flex-col tl-task-detail-pane tl-dialog-surface tasklytic-root'
-          : 'fixed inset-0 z-50 flex h-full w-full flex-col border-l shadow-paper-lg lg:inset-y-0 lg:left-auto lg:max-w-[640px] tl-task-detail-pane tl-dialog-surface tasklytic-root'
+          ? 'flex h-full min-h-screen w-full flex-col tasklytic-root'
+          : 'fixed inset-0 z-50 flex h-full w-full flex-col border-l shadow-lg lg:inset-y-0 lg:left-auto lg:max-w-[640px] tasklytic-root'
       }
-      style={{ borderColor: 'var(--border-subtle)' }}
+      style={{ borderColor: 'hsl(var(--border))' }}
       role="dialog"
       aria-modal={mode === 'overlay'}
       aria-label={`Task: ${task.name}`}
     >
-      <div className="sticky top-0 z-10 border-b" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}>
+      <div className="sticky top-0 z-10 border-b" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}>
         <TaskHeaderRow
           task={task}
           onClose={close}
@@ -125,7 +125,7 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
         <div className="mb-3 flex justify-end"><TaskTrackTimerButton task={task} /></div>
         <TaskTitleField task={task} />
         <div className="grid gap-6 lg:grid-cols-[minmax(0,240px)_minmax(0,1fr)]">
-          <div className="space-y-4 border-b pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="space-y-4 border-b pb-4 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-4" style={{ borderColor: 'hsl(var(--border))' }}>
             <TaskAssigneeField task={task} />
             <TaskDueDateField task={task} />
             <TaskProjectsField task={task} />

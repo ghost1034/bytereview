@@ -32,9 +32,9 @@ export function InboxBulkBar({ userId, selected, onClear }: Props) {
   return (
     <div
       className="absolute bottom-0 left-0 right-0 z-20 flex flex-wrap items-center gap-2 border-t px-4 py-2"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+      style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
     >
-      <span className="text-sm font-medium" style={{ color: 'var(--ink-primary)' }}>
+      <span className="text-sm font-medium" style={{ color: 'hsl(var(--foreground))' }}>
         {ids.length} selected
       </span>
       <Button size="sm" variant="outline" onClick={() => void runAll(markRead)}>

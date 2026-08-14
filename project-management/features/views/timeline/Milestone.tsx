@@ -5,7 +5,7 @@
  */
 import { Check } from 'lucide-react'
 import type { Task } from '../../../types'
-import { CRITICAL_PATH_COLOR, CRITICAL_PATH_GLOW } from './constants'
+import { CRITICAL_PATH_COLOR } from './constants'
 
 type Props = {
   task: Task
@@ -33,20 +33,19 @@ export function Milestone({ task, x, rowTop, color, critical, onOpen }: Props) {
         <polygon
           points="7,1 13,7 7,13 1,7"
           fill={critical ? CRITICAL_PATH_COLOR : color}
-          stroke={critical ? '#ffffff' : overdue ? 'var(--danger)' : 'var(--border-strong)'}
+          stroke={critical ? 'hsl(var(--background))' : overdue ? 'hsl(var(--destructive))' : 'hsl(var(--border-strong))'}
           strokeWidth={critical ? 2.5 : 1}
-          style={critical ? { filter: `drop-shadow(0 0 4px ${CRITICAL_PATH_GLOW})` } : undefined}
         />
       </svg>
       {critical ? (
         <span
-          className="absolute -left-1 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-1 ring-white"
+          className="absolute -left-1 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-1 ring-background"
           style={{ background: CRITICAL_PATH_COLOR }}
           aria-hidden
         />
       ) : null}
       {task.completed ? (
-        <Check className="absolute inset-0 m-auto h-2.5 w-2.5" style={{ color: 'var(--ink-inverse)' }} />
+        <Check className="absolute inset-0 m-auto h-2.5 w-2.5" style={{ color: 'hsl(var(--primary-foreground))' }} />
       ) : null}
     </button>
   )

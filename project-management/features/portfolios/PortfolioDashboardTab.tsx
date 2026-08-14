@@ -33,16 +33,16 @@ export function PortfolioDashboardTab({ portfolio }: Props) {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
-        <section className="tl-card p-4 shadow-paper-sm md:col-span-1">
+        <section className="tl-card p-4 shadow-sm md:col-span-1">
           <h3 className="mb-2 font-medium">Projects by status</h3>
           {donutData.length ? <PortfolioDonutChart data={donutData} /> : (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No projects yet.</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No projects yet.</p>
           )}
         </section>
-        <section className="tl-card p-4 shadow-paper-sm md:col-span-1">
+        <section className="tl-card p-4 shadow-sm md:col-span-1">
           <h3 className="mb-2 font-medium">Projects by owner</h3>
           {ownerBars.length ? <PortfolioBarChart data={ownerBars} /> : (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No projects yet.</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No projects yet.</p>
           )}
         </section>
         <PortfolioNumberCard label="Average % complete" value={avgPct} suffix="%" />

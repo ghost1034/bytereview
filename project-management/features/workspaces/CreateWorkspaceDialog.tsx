@@ -98,9 +98,9 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) reset() }}>
-      <DialogContent className="tl-dialog-surface max-w-lg">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">Create workspace</DialogTitle>
+          <DialogTitle className="font-sans text-xl">Create workspace</DialogTitle>
         </DialogHeader>
 
         {step === 1 ? (
@@ -128,7 +128,7 @@ export function CreateWorkspaceDialog({ open, onOpenChange }: Props) {
               onChange={(e) => setInviteEmails(e.target.value)}
               rows={5}
             />
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Invites queue to Pending Emails until an email provider is configured.
             </p>
           </div>

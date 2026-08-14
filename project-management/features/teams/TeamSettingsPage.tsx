@@ -33,7 +33,7 @@ export function TeamSettingsPage({ teamId }: { teamId?: string | null } = {}) {
     <div className="tasklytic-root space-y-4">
       <div className="flex items-center gap-2">
         <TeamIcon name={team.name} emoji={team.iconEmoji} />
-        <h1 className="font-serif text-2xl">{team.name} settings</h1>
+        <h1 className="font-sans text-2xl">{team.name} settings</h1>
       </div>
       <TeamSettingsTab team={team} workspace={workspace} currentUser={currentUser} />
     </div>

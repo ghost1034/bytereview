@@ -30,7 +30,7 @@ export function CommentsTab({ task }: Props) {
 
   return (
     <div className="space-y-4">
-      <p className="text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-xs font-medium" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {count} comment{count === 1 ? '' : 's'}
       </p>
       <CommentComposer task={task} workspaceUsers={workspaceUsers} />

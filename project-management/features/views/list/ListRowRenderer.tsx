@@ -47,7 +47,7 @@ export function ListRowRenderer(props: ListRowRendererProps) {
 
   if (row.kind === 'empty') {
     return (
-      <div className="px-4 py-12 text-center font-serif text-lg" style={{ color: 'var(--ink-secondary)' }}>
+      <div className="px-4 py-12 text-center font-sans text-lg" style={{ color: 'hsl(var(--foreground-muted))' }}>
         This project is a blank canvas — add a section, then start adding tasks.
       </div>
     )
@@ -112,7 +112,7 @@ export function ListRowRenderer(props: ListRowRendererProps) {
           variant="ghost"
           size="sm"
           className="text-xs"
-          style={{ color: 'var(--primary)' }}
+          style={{ color: 'hsl(var(--primary))' }}
           onClick={() => {
             void findOrCreateEmptySection(project.id).then((section) => {
               props.onSectionAdded(section.id)

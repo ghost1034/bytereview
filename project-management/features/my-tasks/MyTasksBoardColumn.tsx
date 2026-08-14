@@ -36,16 +36,16 @@ export function MyTasksBoardColumn({
     <div
       className="flex w-72 shrink-0 flex-col rounded-xl border"
       style={{
-        borderColor: isOver ? 'var(--primary)' : 'var(--border-subtle)',
-        background: 'var(--bg-muted)',
+        borderColor: isOver ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+        background: 'hsl(var(--surface-muted))',
       }}
     >
-      <div className="flex items-center gap-2 border-b px-3 py-2" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="flex items-center gap-2 border-b px-3 py-2" style={{ borderColor: 'hsl(var(--border))' }}>
         <button type="button" onClick={onToggleCollapse}>
           {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
-        <h3 className="font-serif text-sm font-medium">{label}</h3>
-        <span className="text-xs tabular-nums" style={{ color: 'var(--ink-muted)' }}>
+        <h3 className="font-sans text-sm font-medium">{label}</h3>
+        <span className="text-xs tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {tasks.length}
         </span>
       </div>

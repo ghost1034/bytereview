@@ -51,14 +51,14 @@ export function PortfolioStatusComposer({ portfolio, currentUserId }: Props) {
         <Button size="sm" variant="outline" onClick={() => setDialogOpen(true)}>Update status</Button>
       </div>
       {!latest ? (
-        <p className="mt-3 text-sm italic" style={{ color: 'var(--ink-muted)' }}>
+        <p className="mt-3 text-sm italic" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Share a portfolio-wide status update with stakeholders.
         </p>
       ) : (
         <div className="mt-3 space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>Latest update</p>
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>Latest update</p>
           <StatusUpdateCard update={latest} author={author} compact />
-          <button type="button" className="text-xs underline" style={{ color: 'var(--primary)' }} onClick={() => setHistoryOpen(true)}>
+          <button type="button" className="text-xs underline" style={{ color: 'hsl(var(--primary))' }} onClick={() => setHistoryOpen(true)}>
             View all updates
           </button>
         </div>

@@ -92,9 +92,9 @@ export function PortfolioAddProjectsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif">Add work to portfolio</DialogTitle>
+          <DialogTitle className="font-sans">Add work to portfolio</DialogTitle>
         </DialogHeader>
         {creating ? (
           <div className="grid gap-3 py-2">
@@ -106,21 +106,21 @@ export function PortfolioAddProjectsDialog({
               <Label>Team</Label>
               <Select value={teamId} onValueChange={setTeamId}>
                 <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[100]">
+                <SelectContent className="z-[100]">
                   {teams.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
           </div>
         ) : (
-          <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="max-h-48 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'hsl(var(--border))' }}>
             {projects.length ? projects.map((p) => (
               <label key={p.id} className="flex cursor-pointer items-center gap-2 text-sm">
                 <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggle(p.id)} />
                 <span>{p.iconEmoji ?? '📁'} {p.name}</span>
               </label>
             )) : (
-              <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>All workspace projects are already in this portfolio.</p>
+              <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>All workspace projects are already in this portfolio.</p>
             )}
           </div>
         )}

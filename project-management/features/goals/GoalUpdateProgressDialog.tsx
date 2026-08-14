@@ -69,9 +69,9 @@ export function GoalUpdateProgressDialog({ goal, currentUserId, open, onOpenChan
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif">Update progress</DialogTitle>
+          <DialogTitle className="font-sans">Update progress</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="flex items-center justify-between">

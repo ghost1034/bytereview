@@ -16,7 +16,7 @@ export function HighlightText({ text, query }: Props) {
     <>
       {parts.map((part, i) =>
         part.bold ? (
-          <strong key={i} style={{ color: 'var(--ink-primary)' }}>
+          <strong key={i} style={{ color: 'hsl(var(--foreground))' }}>
             {part.text}
           </strong>
         ) : (

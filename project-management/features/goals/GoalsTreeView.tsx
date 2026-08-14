@@ -24,7 +24,7 @@ function ProjectChips({ projectIds, projects }: { projectIds: string[]; projects
         <span
           key={p.id}
           className="rounded-full px-2 py-0.5 text-[10px]"
-          style={{ background: 'var(--bg-muted)', color: 'var(--ink-secondary)' }}
+          style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
         >
           {p.iconEmoji ?? '📁'} {p.name}
         </span>

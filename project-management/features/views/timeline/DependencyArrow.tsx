@@ -9,7 +9,7 @@ import {
   ContextMenuItem,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
-import { CRITICAL_PATH_COLOR, CRITICAL_PATH_GLOW } from './constants'
+import { CRITICAL_PATH_COLOR } from './constants'
 
 type Arrow = {
   fromId: string
@@ -41,13 +41,13 @@ export function DependencyArrow({
     <svg className="pointer-events-none absolute inset-0 z-[4]" width={width} height={height} aria-hidden>
       <defs>
         <marker id="tl-dep-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-          <path d="M0,0 L6,3 L0,6 Z" fill="var(--ink-muted)" />
+          <path d="M0,0 L6,3 L0,6 Z" fill="hsl(var(--foreground-muted))" />
         </marker>
         <marker id="tl-dep-arrow-crit" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
           <path d="M0,0 L6,3 L0,6 Z" fill={CRITICAL_PATH_COLOR} />
         </marker>
         <marker id="tl-dep-arrow-warn" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-          <path d="M0,0 L6,3 L0,6 Z" fill="var(--danger)" />
+          <path d="M0,0 L6,3 L0,6 Z" fill="hsl(var(--destructive))" />
         </marker>
       </defs>
       {arrows.map(({ fromId, toId, path, conflict }) => {
@@ -55,12 +55,12 @@ export function DependencyArrow({
         const critical = !conflict && criticalIds.has(fromId) && criticalIds.has(toId)
         const hovered = hoveredEdge === key
         const stroke = conflict
-          ? 'var(--danger)'
+          ? 'hsl(var(--destructive))'
           : critical
             ? CRITICAL_PATH_COLOR
             : hovered
-              ? 'var(--primary)'
-              : 'var(--ink-muted)'
+              ? 'hsl(var(--primary))'
+              : 'hsl(var(--foreground-muted))'
         const strokeWidth = conflict ? 2 : critical ? 3 : hovered ? 2 : 1.5
         const markerEnd = conflict
           ? 'url(#tl-dep-arrow-warn)'
@@ -84,11 +84,6 @@ export function DependencyArrow({
                   strokeDasharray={conflict ? '5 4' : undefined}
                   strokeLinejoin="round"
                   strokeLinecap="round"
-                  style={
-                    critical
-                      ? { filter: `drop-shadow(0 0 3px ${CRITICAL_PATH_GLOW})` }
-                      : undefined
-                  }
                   markerEnd={markerEnd}
                 >
                   <title>
@@ -100,7 +95,7 @@ export function DependencyArrow({
                 <path d={path} fill="none" stroke="transparent" strokeWidth={12} />
               </g>
             </ContextMenuTrigger>
-            <ContextMenuContent className="tl-popover-surface">
+            <ContextMenuContent>
               <ContextMenuItem onClick={() => onRemove(fromId, toId)}>Remove dependency</ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>

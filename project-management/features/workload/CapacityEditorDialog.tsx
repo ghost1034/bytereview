@@ -55,7 +55,7 @@ export function CapacityEditorDialog({ open, onOpenChange, users, canEdit }: Pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[80vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit capacity</DialogTitle>
         </DialogHeader>
@@ -64,7 +64,7 @@ export function CapacityEditorDialog({ open, onOpenChange, users, canEdit }: Pro
             const draft = drafts[user.id]
             if (!draft) return null
             return (
-              <div key={user.id} className="rounded-lg border p-3" style={{ borderColor: 'var(--border-subtle)' }}>
+              <div key={user.id} className="rounded-lg border p-3" style={{ borderColor: 'hsl(var(--border))' }}>
                 <p className="text-sm font-medium">{user.name}</p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   <div>

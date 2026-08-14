@@ -45,7 +45,7 @@ export function buildTourSteps({ workspaceId, projectId, taskId }: TourStepOptio
       section: 'Start',
       target: '[data-tour="topbar"]',
       title: 'Search, create, and stay current',
-      body: 'The top bar gives you global search, quick creation, a running timer, notifications, themes, keyboard shortcuts, help, and account controls from every page.',
+      body: 'The top bar gives you global search, quick creation, a running timer, notifications, keyboard shortcuts, help, and account controls from every page.',
     },
     {
       id: 'projects',

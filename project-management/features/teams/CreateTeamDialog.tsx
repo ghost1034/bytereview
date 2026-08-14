@@ -79,9 +79,9 @@ export function CreateTeamDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => { onOpenChange(next); if (!next) reset() }}>
-      <DialogContent className="tl-dialog-surface max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">Create team</DialogTitle>
+          <DialogTitle className="font-sans text-xl">Create team</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <div className="grid gap-2">
@@ -100,7 +100,7 @@ export function CreateTeamDialog({
             <Label>Privacy</Label>
             <Select value={privacy} onValueChange={(v) => setPrivacy(v as Team['privacy'])}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="public">Public — anyone can join</SelectItem>
                 <SelectItem value="private">Private — request to join</SelectItem>
                 <SelectItem value="secret">Secret — hidden from non-members</SelectItem>

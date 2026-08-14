@@ -45,8 +45,8 @@ export function FormFieldRow({
     <div
       className="flex items-center gap-2 rounded-lg border p-2 text-sm cursor-pointer"
       style={{
-        borderColor: selected ? 'var(--primary)' : 'var(--border-subtle)',
-        background: selected ? 'var(--primary-soft)' : 'var(--bg-elevated)',
+        borderColor: selected ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+        background: selected ? 'hsl(var(--primary-soft))' : 'hsl(var(--card))',
       }}
       onClick={onSelect}
       role="button"
@@ -55,7 +55,7 @@ export function FormFieldRow({
     >
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium">{field.label}</p>
-        <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {TYPE_LABELS[field.type]}
           {field.required ? ' · Required' : ''}
           {isTitleField ? ' · Task title' : ''}

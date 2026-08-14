@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/tooltip'
 import { formatDate } from '../../../lib/time'
 import type { Task, User } from '../../../types'
-import { CRITICAL_PATH_COLOR, CRITICAL_PATH_GLOW, ROW_H } from './constants'
+import { CRITICAL_PATH_COLOR, ROW_H } from './constants'
 import type { DragMode } from './useTimelineDnd'
 
 type Props = {
@@ -68,18 +68,15 @@ export function TaskBar({
                 opacity: task.completed ? 0.55 : 1,
                 outline: critical ? `2px solid ${CRITICAL_PATH_COLOR}` : undefined,
                 outlineOffset: critical ? 1 : undefined,
-                boxShadow: critical
-                  ? `0 0 0 1px ${CRITICAL_PATH_COLOR}, 0 0 10px ${CRITICAL_PATH_GLOW}`
-                  : undefined,
-                border: overdue && !critical ? '1px solid var(--danger)' : undefined,
+                border: overdue && !critical ? '1px solid hsl(var(--destructive))' : undefined,
               }}
               onPointerDown={(e) => onPointerDown(e, 'move')}
               onDoubleClick={onOpen}
             >
               {critical ? (
                 <span
-                  className="absolute -left-2 top-1/2 z-[1] h-3 w-3 -translate-y-1/2 rounded-full ring-2 ring-white"
-                  style={{ background: CRITICAL_PATH_COLOR, boxShadow: `0 0 6px ${CRITICAL_PATH_GLOW}` }}
+                  className="absolute -left-2 top-1/2 z-[1] h-3 w-3 -translate-y-1/2 rounded-full ring-2 ring-background"
+                  style={{ background: CRITICAL_PATH_COLOR }}
                   aria-hidden
                 />
               ) : null}
@@ -98,9 +95,9 @@ export function TaskBar({
                   type="button"
                   className="absolute -right-2 top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full text-[10px]"
                   style={{
-                    background: linkActive ? 'var(--primary)' : 'var(--bg-elevated)',
-                    color: linkActive ? 'var(--ink-inverse)' : 'var(--ink-secondary)',
-                    border: '1px solid var(--border-subtle)',
+                    background: linkActive ? 'hsl(var(--primary))' : 'hsl(var(--card))',
+                    color: linkActive ? 'hsl(var(--primary-foreground))' : 'hsl(var(--foreground-muted))',
+                    border: '1px solid hsl(var(--border))',
                   }}
                   onPointerDown={(e) => onPointerDown(e, 'link')}
                   aria-label="Drag to create dependency"
@@ -115,7 +112,7 @@ export function TaskBar({
             </div>
           </div>
         </TooltipTrigger>
-        <TooltipContent side="top" className="tl-popover-surface text-xs">
+        <TooltipContent side="top" className="text-xs">
           <p className="font-medium">{task.name}</p>
           {task.startOn ? <p>Start: {formatDate(task.startOn)}</p> : null}
           {task.dueOn ? <p>Due: {formatDate(task.dueOn)}</p> : null}

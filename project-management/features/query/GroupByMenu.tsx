@@ -39,7 +39,7 @@ export function GroupByMenu({ query, onChange, customFields = [] }: Props) {
           Group: {currentLabel}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="tl-popover-surface" align="start">
+      <DropdownMenuContent align="start">
         {GROUP_BY_OPTIONS.map((g) => (
           <DropdownMenuItem key={g.key} onClick={() => pick(g.key)}>
             {g.label}

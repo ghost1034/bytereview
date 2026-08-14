@@ -31,7 +31,7 @@ export function GoalStatusPill({ status, editable, onChange }: Props) {
   const pill = (
     <span
       className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize"
-      style={{ background: `${color}22`, color }}
+      style={{ background: `color-mix(in srgb, ${color} 14%, transparent)`, color }}
     >
       {formatGoalStatus(status)}
     </span>
@@ -40,11 +40,11 @@ export function GoalStatusPill({ status, editable, onChange }: Props) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className="rounded-full focus-visible:outline-none focus-visible:shadow-focus">
+        <button type="button" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background">
           {pill}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="tl-popover-surface" align="start">
+      <DropdownMenuContent align="start">
         {EDITABLE.map((key) => (
           <DropdownMenuItem key={key} onClick={() => onChange(key)}>
             {formatGoalStatus(key)}

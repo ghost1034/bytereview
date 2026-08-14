@@ -21,9 +21,9 @@ const SIZE: Record<NonNullable<Props['size']>, string> = {
 }
 
 const DOT: Record<PresenceState, string> = {
-  active: 'bg-[var(--accent)]',
-  idle: 'bg-[var(--warning)]',
-  offline: 'bg-[var(--ink-faint)]',
+  active: 'bg-[hsl(var(--success))]',
+  idle: 'bg-[hsl(var(--warning))]',
+  offline: 'bg-[hsl(var(--foreground-subtle))]',
 }
 
 export function UserAvatar({ userId, size = 'md', showPresence = true, className }: Props) {
@@ -42,7 +42,7 @@ export function UserAvatar({ userId, size = 'md', showPresence = true, className
       {showPresence ? (
         <span
           className={cn(
-            'absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[var(--bg-elevated)]',
+            'absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-[hsl(var(--card))]',
             DOT[presence]
           )}
           aria-label={`Presence: ${presence}`}

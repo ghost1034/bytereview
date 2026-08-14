@@ -1,6 +1,6 @@
 'use client'
 
-/** AI panel header — aurora background, pause toggle, settings access. */
+/** AI panel header — muted shared surface, pause toggle, settings access. */
 import { Pause, Play, Settings2, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
@@ -22,14 +22,14 @@ export function AiPanelHeader({ onClose, onOpenSettings }: Props) {
 
   return (
     <header
-      className="flex shrink-0 items-center justify-between border-b px-3 py-2.5 bg-aurora"
-      style={{ borderColor: 'var(--border-subtle)' }}
+      className="flex shrink-0 items-center justify-between border-b px-3 py-2.5 bg-surface-muted"
+      style={{ borderColor: 'hsl(var(--border))' }}
     >
       <div className="flex min-w-0 items-center gap-2">
-        <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'var(--primary)' }} />
+        <Sparkles className="h-4 w-4 shrink-0" style={{ color: 'hsl(var(--primary))' }} />
         <div className="min-w-0">
-          <p className="truncate font-serif text-sm font-medium">Tasklytic AI</p>
-          <p className="truncate text-[10px]" style={{ color: 'var(--ink-muted)' }}>
+          <p className="truncate font-sans text-sm font-medium">Tasklytic AI</p>
+          <p className="truncate text-[10px]" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {providerLabel}
           </p>
         </div>

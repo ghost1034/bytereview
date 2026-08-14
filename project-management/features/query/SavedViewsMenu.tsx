@@ -135,13 +135,13 @@ export function SavedViewsMenu({ projectId, viewType, query, onChange }: Props) 
             <ChevronDown className="ml-1 h-3 w-3" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="tl-popover-surface w-64">
+        <DropdownMenuContent align="start" className="w-64">
           <DropdownMenuLabel>Project views</DropdownMenuLabel>
           {projectViews.length ? (
             projectViews.map((view) => (
               <DropdownMenuItem key={view.id} onClick={() => loadView(view)} className="justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-1 truncate">
-                  {defaultId === view.id ? <Star className="h-3 w-3 shrink-0" style={{ color: 'var(--primary)' }} /> : null}
+                  {defaultId === view.id ? <Star className="h-3 w-3 shrink-0" style={{ color: 'hsl(var(--primary))' }} /> : null}
                   {view.name}
                 </span>
                 <span className="flex shrink-0 gap-0.5">
@@ -154,7 +154,7 @@ export function SavedViewsMenu({ projectId, viewType, query, onChange }: Props) 
                       openRename(view)
                     }}
                   >
-                    <Pencil className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+                    <Pencil className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
                   </button>
                   <button
                     type="button"
@@ -165,7 +165,7 @@ export function SavedViewsMenu({ projectId, viewType, query, onChange }: Props) 
                       setDefaultSavedView(projectId, viewType, view.id)
                     }}
                   >
-                    <Star className="h-3.5 w-3.5" style={{ color: defaultId === view.id ? 'var(--primary)' : 'var(--ink-muted)' }} />
+                    <Star className="h-3.5 w-3.5" style={{ color: defaultId === view.id ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))' }} />
                   </button>
                   <button
                     type="button"
@@ -177,7 +177,7 @@ export function SavedViewsMenu({ projectId, viewType, query, onChange }: Props) 
                       if (defaultId === view.id) setDefaultSavedView(projectId, viewType, null)
                     }}
                   >
-                    <Trash2 className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+                    <Trash2 className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
                   </button>
                 </span>
               </DropdownMenuItem>

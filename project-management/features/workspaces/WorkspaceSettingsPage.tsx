@@ -67,8 +67,8 @@ export function WorkspaceSettingsPage() {
   return (
     <div className="tasklytic-root space-y-4">
       <div>
-        <h1 className="font-serif text-2xl">Workspace settings</h1>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>{workspace.name}</p>
+        <h1 className="font-sans text-2xl">Workspace settings</h1>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{workspace.name}</p>
       </div>
 
       <Tabs defaultValue="general">
@@ -98,7 +98,7 @@ export function WorkspaceSettingsPage() {
           <WorkspaceBillingTab workspace={workspace} currentUser={currentUser} />
         </TabsContent>
         <TabsContent value="security" className="mt-4">
-          <div className="tl-card flex items-center justify-between p-4"><div><Label htmlFor="public-forms">Allow public form sharing</Label><p className="text-sm" style={{ color: 'var(--ink-muted)' }}>When disabled, published forms require workspace authentication.</p></div><Switch id="public-forms" checked={workspace.settings?.allowPublicForms !== false} disabled={!workspace.adminIds.includes(currentUserId ?? '')} onCheckedChange={(checked) => void useWorkspacesStore.getState().update(workspace.id, { settings: { ...workspace.settings, allowPublicForms: checked } })} /></div>
+          <div className="tl-card flex items-center justify-between p-4"><div><Label htmlFor="public-forms">Allow public form sharing</Label><p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>When disabled, published forms require workspace authentication.</p></div><Switch id="public-forms" checked={workspace.settings?.allowPublicForms !== false} disabled={!workspace.adminIds.includes(currentUserId ?? '')} onCheckedChange={(checked) => void useWorkspacesStore.getState().update(workspace.id, { settings: { ...workspace.settings, allowPublicForms: checked } })} /></div>
         </TabsContent>
       </Tabs>
 

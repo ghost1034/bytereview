@@ -26,7 +26,7 @@ export function TimeAxis({ rangeStart, rangeEnd, zoom, todayX, onPanStart, onWhe
   return (
     <div
       className="relative border-b select-none"
-      style={{ height: HEADER_H, borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }}
+      style={{ height: HEADER_H, borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}
       onPointerDown={(e) => {
         if (e.button === 0) onPanStart(e.clientX)
       }}
@@ -47,14 +47,14 @@ export function TimeAxis({ rangeStart, rangeEnd, zoom, todayX, onPanStart, onWhe
               left,
               width: w,
               height: HEADER_H,
-              borderColor: 'var(--border-subtle)',
-              background: weekend ? 'var(--bg-sunken)' : undefined,
+              borderColor: 'hsl(var(--border))',
+              background: weekend ? 'hsl(var(--surface-muted))' : undefined,
             }}
           >
-            <span className="truncate px-1 pt-1 text-[9px] font-medium" style={{ color: 'var(--ink-muted)' }}>
+            <span className="truncate px-1 pt-1 text-[9px] font-medium" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {coarseLabel(tick, zoom)}
             </span>
-            <span className="truncate px-1 text-[10px] font-semibold" style={{ color: 'var(--ink-secondary)' }}>
+            <span className="truncate px-1 text-[10px] font-semibold" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {fineLabel(tick, zoom)}
             </span>
           </div>
@@ -62,11 +62,11 @@ export function TimeAxis({ rangeStart, rangeEnd, zoom, todayX, onPanStart, onWhe
       })}
       <div
         className="pointer-events-none absolute top-0 bottom-0 z-10 w-0.5"
-        style={{ left: todayX, background: 'var(--primary)' }}
+        style={{ left: todayX, background: 'hsl(var(--primary))' }}
       >
         <span
           className="absolute -top-0 left-1 rounded px-1 text-[9px] font-semibold"
-          style={{ background: 'var(--primary)', color: 'var(--ink-inverse)' }}
+          style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
         >
           Today
         </span>

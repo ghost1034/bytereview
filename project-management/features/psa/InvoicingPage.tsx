@@ -40,22 +40,22 @@ export function InvoicingPage() {
     <div className="space-y-4" data-tour-page="invoicing">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl">Invoicing</h1>
-          <p className="text-sm font-mono tabular-nums" style={{ color: 'var(--ink-muted)' }}>{Object.entries(outstanding).map(([currency, amount]) => formatMoney(amount, currency)).join(' + ') || formatMoney(0, workspace?.defaultCurrency)} outstanding · {invoices.length} invoices</p>
+          <h1 className="font-sans text-2xl">Invoicing</h1>
+          <p className="text-sm font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{Object.entries(outstanding).map(([currency, amount]) => formatMoney(amount, currency)).join(' + ') || formatMoney(0, workspace?.defaultCurrency)} outstanding · {invoices.length} invoices</p>
         </div>
         {canBill && <Button className="tl-btn-primary border-0" size="sm" onClick={() => setWizardOpen(true)}><Plus className="mr-1 h-4 w-4" /> Generate invoice</Button>}
       </div>
-      <div className="tl-card overflow-hidden shadow-paper-sm">
+      <div className="tl-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">Invoice #</th><th className="px-4 py-2">Client</th><th className="px-4 py-2">Status</th>
             <th className="px-4 py-2">Due</th><th className="px-4 py-2 text-right">Total</th><th className="px-4 py-2 text-right">Outstanding</th><th className="px-4 py-2" />
           </tr></thead>
           <tbody>
             {invoices.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-8 text-center" style={{ color: 'var(--ink-muted)' }}>No invoices yet.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center" style={{ color: 'hsl(var(--foreground-muted))' }}>No invoices yet.</td></tr>
             ) : invoices.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((inv) => (
-              <tr key={inv.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+              <tr key={inv.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                 <td className="px-4 py-2 font-medium"><Link className="hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/invoicing/${inv.id}`}>{inv.invoiceNumber}</Link></td>
                 <td className="px-4 py-2">{inv.clientName}</td>
                 <td className="px-4 py-2"><Badge variant="outline">{STATUS_LABELS[inv.status] ?? inv.status}</Badge></td>

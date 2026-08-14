@@ -29,5 +29,4 @@ export const ZOOM_LABELS: Record<ZoomLevel, string> = {
 }
 
 /** Critical-path highlight — distinct from section/assignee bar colors. */
-export const CRITICAL_PATH_COLOR = '#E53935'
-export const CRITICAL_PATH_GLOW = 'rgba(229, 57, 53, 0.5)'
+export const CRITICAL_PATH_COLOR = 'hsl(var(--destructive))'

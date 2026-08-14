@@ -26,7 +26,7 @@ export function AiInputArea({ scope, disabled, onSend }: Props) {
   }
 
   return (
-    <footer className="shrink-0 border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+    <footer className="shrink-0 border-t" style={{ borderColor: 'hsl(var(--border))' }}>
       <AiContextChips scope={scope} />
       <div className="flex flex-wrap gap-1.5 px-3 pb-2">
         {chips.map((c) => (
@@ -35,7 +35,7 @@ export function AiInputArea({ scope, disabled, onSend }: Props) {
             type="button"
             disabled={disabled}
             className="rounded-full px-2.5 py-1 text-xs transition-colors hover:opacity-90 disabled:opacity-40"
-            style={{ background: 'var(--bg-sunken)', color: 'var(--ink-secondary)' }}
+            style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
             onClick={() => onSend(c)}
           >
             {c}

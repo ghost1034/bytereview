@@ -107,15 +107,15 @@ export function SectionHeaderRow({
       style={{
         top: LIST_ROW_HEIGHT,
         height: LIST_ROW_HEIGHT,
-        borderColor: 'var(--border-subtle)',
-        background: 'var(--bg-elevated)',
+        borderColor: 'hsl(var(--border))',
+        background: 'hsl(var(--card))',
         transform: CSS.Transform.toString(sortable.transform),
         transition: sortable.transition,
       }}
     >
       {isSectionGroup && section ? (
         <button type="button" className="cursor-grab p-1" {...sortable.attributes} {...sortable.listeners}>
-          <GripVertical className="h-3.5 w-3.5" style={{ color: 'var(--ink-faint)' }} />
+          <GripVertical className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-subtle))' }} />
         </button>
       ) : (
         <span className="w-6" />
@@ -132,16 +132,16 @@ export function SectionHeaderRow({
       <span style={{ width: LIST_COMPLETE_COLUMN_WIDTH, flexShrink: 0 }} aria-hidden />
       <button type="button" onClick={onToggleCollapse} aria-label={collapsed ? 'Expand' : 'Collapse'}>
         {collapsed ? (
-          <ChevronRight className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+          <ChevronRight className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
         ) : (
-          <ChevronDown className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+          <ChevronDown className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
         )}
       </button>
       {editing && section ? (
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="h-7 max-w-xs font-serif text-sm"
+          className="h-7 max-w-xs font-sans text-sm"
           autoFocus
           onBlur={() => void saveName()}
           onKeyDown={(e) => {
@@ -155,14 +155,14 @@ export function SectionHeaderRow({
       ) : (
         <button
           type="button"
-          className="font-serif text-sm font-medium"
-          style={{ color: 'var(--ink-primary)' }}
+          className="font-sans text-sm font-medium"
+          style={{ color: 'hsl(var(--foreground))' }}
           onDoubleClick={() => section && setEditing(true)}
         >
           {label}
         </button>
       )}
-      <span className="text-xs tabular-nums" style={{ color: 'var(--ink-muted)' }}>
+      <span className="text-xs tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {taskCount}
       </span>
       <Button type="button" variant="ghost" size="icon" className="ml-auto h-7 w-7" onClick={onAddTask}>

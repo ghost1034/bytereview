@@ -35,7 +35,7 @@ export function ColumnCustomizer({ userId, projectId, columns }: Props) {
           Customize
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="tl-popover-surface w-52">
+      <DropdownMenuContent align="end" className="w-52">
         <DropdownMenuLabel>Columns</DropdownMenuLabel>
         {columns.map((col) => (
           <DropdownMenuCheckboxItem

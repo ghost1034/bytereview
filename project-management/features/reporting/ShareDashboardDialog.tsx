@@ -60,7 +60,7 @@ export function ShareDashboardDialog({ open, onOpenChange, dashboard }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle className="font-serif">Share dashboard</DialogTitle>
+          <DialogTitle className="font-sans">Share dashboard</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           <div className="space-y-2">
@@ -69,7 +69,7 @@ export function ShareDashboardDialog({ open, onOpenChange, dashboard }: Props) {
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="private">Private</SelectItem>
                 <SelectItem value="people">Specific people</SelectItem>
                 <SelectItem value="workspace">Workspace</SelectItem>
@@ -77,8 +77,8 @@ export function ShareDashboardDialog({ open, onOpenChange, dashboard }: Props) {
             </Select>
           </div>
           {visibility === 'people' ? (
-            <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3" style={{ borderColor: 'var(--border-subtle)' }}>
-              <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>
+            <div className="max-h-48 space-y-2 overflow-y-auto rounded-md border p-3" style={{ borderColor: 'hsl(var(--border))' }}>
+              <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-xs font-medium" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 <span>Person</span><span>Viewer</span><span>Editor</span>
               </div>
               {users.filter((user) => user.id !== dashboard.ownerId).map((user) => (

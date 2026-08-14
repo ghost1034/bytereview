@@ -116,18 +116,18 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-lg">
-        <DialogHeader><DialogTitle className="font-serif text-xl">Generate invoice — step {step}/5</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-sans text-xl">Generate invoice — step {step}/5</DialogTitle></DialogHeader>
         {step === 1 && (
           <div className="grid gap-3 py-2">
             <Label>Client</Label>
             <Select value={clientId} onValueChange={setClientId}>
               <SelectTrigger className="tl-input"><SelectValue placeholder="Select client" /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+              <SelectContent className="z-[100]">{clients.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
         )}
         {step === 2 && (
-          <div className="grid gap-3 py-2"><Label>Billing scope</Label><Select value={billingScope} onValueChange={setBillingScope}><SelectTrigger className="tl-input"><SelectValue /></SelectTrigger><SelectContent className="tl-popover-surface z-[100]"><SelectItem value="all">All open work for client</SelectItem>{matters.filter((matter) => matter.clientId === clientId).map((matter) => <SelectItem key={matter.id} value={`matter:${matter.id}`}>Matter {matter.matterNumber}</SelectItem>)}{projects.filter((project) => project.clientId === clientId && !matters.some((matter) => matter.projectId === project.id)).map((project) => <SelectItem key={project.id} value={`project:${project.id}`}>{project.name}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-3 py-2"><Label>Billing scope</Label><Select value={billingScope} onValueChange={setBillingScope}><SelectTrigger className="tl-input"><SelectValue /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="all">All open work for client</SelectItem>{matters.filter((matter) => matter.clientId === clientId).map((matter) => <SelectItem key={matter.id} value={`matter:${matter.id}`}>Matter {matter.matterNumber}</SelectItem>)}{projects.filter((project) => project.clientId === clientId && !matters.some((matter) => matter.projectId === project.id)).map((project) => <SelectItem key={project.id} value={`project:${project.id}`}>{project.name}</SelectItem>)}</SelectContent></Select></div>
         )}
         {step === 3 && (
           <div className="grid grid-cols-2 gap-3 py-2">
@@ -146,7 +146,7 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
           </div>
         )}
         {step === 5 && <div className="grid gap-3 py-2"><div><Label>Due date</Label><Input type="date" value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></div><div><Label>Invoice notes</Label><Input value={notes} onChange={(event) => setNotes(event.target.value)} /></div><p className="text-sm">Create a draft invoice. Submit and deliver it from the invoice detail page.</p></div>}
-        {error && <p role="alert" className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
+        {error && <p role="alert" className="text-sm" style={{ color: 'hsl(var(--destructive))' }}>{error}</p>}
         <DialogFooter>
           {step > 1 && <Button variant="ghost" onClick={() => setStep((s) => s - 1)}>Back</Button>}
           {step < 5 ? (

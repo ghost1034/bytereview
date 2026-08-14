@@ -62,9 +62,9 @@ export function MyTasksSummary({ workspaceId }: Props) {
   }
 
   return (
-    <section className="tl-card p-4 shadow-paper-sm">
+    <section className="tl-card p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="font-serif text-lg">My Tasks</h2>
+        <h2 className="font-sans text-lg">My Tasks</h2>
         <Button variant="link" size="sm" asChild className="h-auto p-0 text-xs">
           <Link href={basePath}>View all</Link>
         </Button>
@@ -76,8 +76,8 @@ export function MyTasksSummary({ workspaceId }: Props) {
             type="button"
             className="rounded-full px-3 py-1 text-xs font-medium"
             style={{
-              background: tab === t.id ? 'var(--primary-soft)' : 'var(--bg-muted)',
-              color: tab === t.id ? 'var(--primary)' : 'var(--ink-secondary)',
+              background: tab === t.id ? 'hsl(var(--primary-soft))' : 'hsl(var(--surface-muted))',
+              color: tab === t.id ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))',
             }}
             onClick={() => setTab(t.id)}
           >
@@ -98,7 +98,7 @@ export function MyTasksSummary({ workspaceId }: Props) {
                 {t.name}
               </button>
               {t.dueOn ? (
-                <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+                <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {formatDate(t.dueOn)}
                 </span>
               ) : null}
@@ -106,7 +106,7 @@ export function MyTasksSummary({ workspaceId }: Props) {
           ))}
         </ul>
       ) : (
-        <p className="text-sm italic" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-sm italic" style={{ color: 'hsl(var(--foreground-muted))' }}>
           A quiet inbox. A good day to start something.
         </p>
       )}

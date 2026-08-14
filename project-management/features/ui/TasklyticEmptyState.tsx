@@ -22,12 +22,12 @@ type Props = {
 function DefaultIllustration() {
   return (
     <svg width="120" height="88" viewBox="0 0 120 88" fill="none" aria-hidden="true" className="mx-auto mb-4">
-      <rect x="8" y="12" width="104" height="64" rx="12" fill="var(--primary-soft)" stroke="var(--border-subtle)" />
-      <rect x="20" y="28" width="48" height="6" rx="3" fill="var(--primary)" opacity="0.35" />
-      <rect x="20" y="42" width="72" height="4" rx="2" fill="var(--ink-faint)" opacity="0.4" />
-      <rect x="20" y="52" width="56" height="4" rx="2" fill="var(--ink-faint)" opacity="0.25" />
-      <circle cx="92" cy="52" r="14" fill="var(--primary)" opacity="0.2" />
-      <path d="M88 52l3 3 6-6" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="8" y="12" width="104" height="64" rx="12" fill="hsl(var(--primary-soft))" stroke="hsl(var(--border))" />
+      <rect x="20" y="28" width="48" height="6" rx="3" fill="hsl(var(--primary))" opacity="0.35" />
+      <rect x="20" y="42" width="72" height="4" rx="2" fill="hsl(var(--foreground-subtle))" opacity="0.4" />
+      <rect x="20" y="52" width="56" height="4" rx="2" fill="hsl(var(--foreground-subtle))" opacity="0.25" />
+      <circle cx="92" cy="52" r="14" fill="hsl(var(--primary))" opacity="0.2" />
+      <path d="M88 52l3 3 6-6" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -56,17 +56,17 @@ export function TasklyticEmptyState({
     ) : null
 
   return (
-    <div className={`tl-card flex flex-col items-center px-6 py-10 text-center shadow-paper-sm ${className}`}>
+    <div className={`tl-card flex flex-col items-center px-6 py-10 text-center shadow-sm ${className}`}>
       {illustration ?? <DefaultIllustration />}
-      <h3 className="font-serif text-xl" style={{ color: 'var(--ink-primary)' }}>
+      <h3 className="font-sans text-xl" style={{ color: 'hsl(var(--foreground))' }}>
         {headline}
       </h3>
-      <p className="mt-2 max-w-sm text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="mt-2 max-w-sm text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {subhead}
       </p>
       {cta}
       {learnMoreHref ? (
-        <Link href={learnMoreHref} className="mt-3 text-xs underline" style={{ color: 'var(--primary)' }}>
+        <Link href={learnMoreHref} className="mt-3 text-xs underline" style={{ color: 'hsl(var(--primary))' }}>
           {learnMoreLabel}
         </Link>
       ) : null}

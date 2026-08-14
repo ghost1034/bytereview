@@ -24,7 +24,7 @@ export function MobileTaskDetailBar({ task, currentUserId, onClose, onFocusComme
   return (
     <div
       className="sticky bottom-0 flex items-center gap-2 border-t px-3 py-2 lg:hidden"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+      style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
       role="toolbar"
       aria-label="Task actions"
     >
@@ -47,7 +47,7 @@ export function MobileTaskDetailBar({ task, currentUserId, onClose, onFocusComme
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="tl-popover-surface" align="end">
+        <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={onClose}>Close</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

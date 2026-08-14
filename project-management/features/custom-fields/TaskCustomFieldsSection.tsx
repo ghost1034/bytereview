@@ -25,18 +25,18 @@ export function TaskCustomFieldsSection({ task }: Props) {
   return (
     <div className="text-sm">
       <div className="mb-1.5 flex items-center justify-between">
-        <span style={{ color: 'var(--ink-muted)' }}>Fields</span>
+        <span style={{ color: 'hsl(var(--foreground-muted))' }}>Fields</span>
         <button
           type="button"
           className="text-xs font-medium"
-          style={{ color: 'var(--primary)' }}
+          style={{ color: 'hsl(var(--primary))' }}
           onClick={() => setFieldEditorOpen(true)}
         >
           + Add field
         </button>
       </div>
       {taskFields.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>
+        <p className="text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>
           No custom fields yet.
         </p>
       ) : (
@@ -45,11 +45,11 @@ export function TaskCustomFieldsSection({ task }: Props) {
             const missing = isRequiredFieldEmpty(task, field, taskFields)
             return (
               <div key={field.id} className="flex items-start justify-between gap-4">
-                <span className="flex items-center gap-1" style={{ color: 'var(--ink-muted)' }}>
+                <span className="flex items-center gap-1" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {field.name}
                   {missing ? (
                     <span title="Required">
-                      <AlertTriangle className="h-3 w-3" style={{ color: 'var(--warning)' }} />
+                      <AlertTriangle className="h-3 w-3" style={{ color: 'hsl(var(--warning))' }} />
                     </span>
                   ) : null}
                 </span>

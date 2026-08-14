@@ -54,12 +54,12 @@ export function CalendarToolbar({
         </Button>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="ghost" size="sm" className="ml-1 gap-1.5 font-serif text-lg">
+            <Button variant="ghost" size="sm" className="ml-1 gap-1.5 font-sans text-lg">
               <CalendarIcon className="h-4 w-4" />
               {label}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="tl-popover-surface w-fit p-0" align="start">
+          <PopoverContent className="w-fit p-0" align="start">
             <Calendar
               mode="single"
               selected={cursor}
@@ -83,15 +83,15 @@ export function CalendarToolbar({
           <Printer className="h-4 w-4" />
           Print
         </Button>
-        <div className="flex rounded-lg border p-0.5" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="flex rounded-lg border p-0.5" style={{ borderColor: 'hsl(var(--border))' }}>
           {(['month', 'week'] as const).map((m) => (
             <button
               key={m}
               type="button"
               className="rounded-md px-3 py-1 text-xs font-medium capitalize"
               style={{
-                background: mode === m ? 'var(--primary-soft)' : 'transparent',
-                color: mode === m ? 'var(--primary)' : 'var(--ink-secondary)',
+                background: mode === m ? 'hsl(var(--primary-soft))' : 'transparent',
+                color: mode === m ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))',
               }}
               onClick={() => onModeChange(m)}
             >

@@ -116,7 +116,7 @@ export function BoardView({ project, basePath }: Props) {
   if (sections.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
-        <p className="font-serif text-lg">Add a section to start.</p>
+        <p className="font-sans text-lg">Add a section to start.</p>
         <Button className="mt-4 gap-1.5" onClick={() => void addSection()}>
           <Plus className="h-4 w-4" />
           Add section
@@ -159,7 +159,7 @@ export function BoardView({ project, basePath }: Props) {
                 <div key={lane.key} className="flex min-h-0 flex-1 flex-col overflow-hidden">
                   <div
                     className="mb-1 flex shrink-0 items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide"
-                    style={{ color: 'var(--ink-muted)' }}
+                    style={{ color: 'hsl(var(--foreground-muted))' }}
                   >
                     {lane.label}
                     <span className="font-normal normal-case">({lane.tasks.length})</span>

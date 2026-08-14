@@ -12,11 +12,11 @@ const STATUS_KEYS: Exclude<ProjectStatus, null>[] = [
 ]
 
 const STATUS_STYLES: Record<Exclude<ProjectStatus, null>, { bg: string; color: string }> = {
-  on_track: { bg: 'var(--accent-soft)', color: 'var(--accent)' },
-  at_risk: { bg: 'var(--warning-soft)', color: 'var(--warning)' },
-  off_track: { bg: 'var(--danger-soft)', color: 'var(--danger)' },
-  on_hold: { bg: 'var(--bg-muted)', color: 'var(--ink-muted)' },
-  complete: { bg: 'var(--info-soft)', color: 'var(--info)' },
+  on_track: { bg: 'hsl(var(--success-soft))', color: 'hsl(var(--success))' },
+  at_risk: { bg: 'hsl(var(--warning-soft))', color: 'hsl(var(--warning))' },
+  off_track: { bg: 'hsl(var(--destructive-soft))', color: 'hsl(var(--destructive))' },
+  on_hold: { bg: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' },
+  complete: { bg: 'hsl(var(--info-soft))', color: 'hsl(var(--info))' },
 }
 
 type Props = {
@@ -40,7 +40,7 @@ export function StatusSegmentPicker({ value, onChange }: Props) {
               background: style.bg,
               color: style.color,
               opacity: active ? 1 : 0.55,
-              outline: active ? '2px solid var(--primary)' : 'none',
+              outline: active ? '2px solid hsl(var(--primary))' : 'none',
             }}
             onClick={() => onChange(key)}
           >

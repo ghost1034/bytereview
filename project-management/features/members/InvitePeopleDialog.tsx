@@ -87,17 +87,17 @@ export function InvitePeopleDialog({
         if (!next) reset()
       }}
     >
-      <DialogContent className="tl-dialog-surface max-w-lg">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">Invite people</DialogTitle>
+          <DialogTitle className="font-sans text-xl">Invite people</DialogTitle>
         </DialogHeader>
         {results.length > 0 ? (
           <ul className="space-y-2 py-2">
             {results.map((row) => (
               <li key={row.email} className="flex items-center gap-2 text-sm">
-                <Mail className="h-4 w-4 shrink-0" style={{ color: row.ok ? 'var(--accent)' : 'var(--danger)' }} />
+                <Mail className="h-4 w-4 shrink-0" style={{ color: row.ok ? 'hsl(var(--success))' : 'hsl(var(--destructive))' }} />
                 <span className="min-w-0 flex-1 truncate">{row.email}</span>
-                <span style={{ color: 'var(--ink-muted)' }}>
+                <span style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {row.ok
                     ? row.emailSent
                       ? 'Email sent'
@@ -123,7 +123,7 @@ export function InvitePeopleDialog({
               <Label>Role</Label>
               <Select value={role} onValueChange={(v) => setRole(v as WorkspaceInvitation['role'])}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[100]">
+                <SelectContent className="z-[100]">
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="member">Member</SelectItem>
                   <SelectItem value="guest">Guest</SelectItem>
@@ -135,7 +135,7 @@ export function InvitePeopleDialog({
                 <Label>Starting team (optional)</Label>
                 <Select value={teamId} onValueChange={setTeamId}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent className="tl-popover-surface z-[100]">
+                  <SelectContent className="z-[100]">
                     <SelectItem value="none">None</SelectItem>
                     {teams.map((t) => (
                       <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>

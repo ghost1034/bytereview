@@ -96,8 +96,8 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
     toast({
       title: 'Task created',
       description: task.name,
-      className: 'tl-toast tl-popover-surface border-l-4',
-      style: { borderLeftColor: '#6b8e5a' },
+      className: 'tl-toast border-l-4',
+      style: { borderLeftColor: 'hsl(var(--success))' },
       action: (
         <ToastAction altText="Open task" onClick={() => openTask(task.id)}>
           Open task
@@ -109,9 +109,9 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif">Quick add task</DialogTitle>
+          <DialogTitle className="font-sans">Quick add task</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-2">
           <div className="grid gap-2">
@@ -133,7 +133,7 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
               <SelectTrigger className="tl-input">
                 <SelectValue placeholder="Unassigned" />
               </SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="__none">Unassigned</SelectItem>
                 {currentUserId ? (
                   <SelectItem value={currentUserId}>Me</SelectItem>
@@ -163,7 +163,7 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
               <SelectTrigger className="tl-input">
                 <SelectValue placeholder="No project" />
               </SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="__none">No project</SelectItem>
                 {projects.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
@@ -181,7 +181,7 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
                 <SelectTrigger className="tl-input">
                   <SelectValue placeholder="Section" />
                 </SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[100]">
+                <SelectContent className="z-[100]">
                   {sections.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
                       {s.name}

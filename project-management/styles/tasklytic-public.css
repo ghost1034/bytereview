@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;500;600&display=swap');
+
+/**
+ * Client-facing public form identity. This subtree intentionally owns its
+ * warm palette so it cannot leak into authenticated Tasklytic surfaces.
+ */
+.tasklytic-public-root {
+  --background: 48 33% 97%;
+  --surface: 45 33% 94%;
+  --surface-muted: 42 35% 91%;
+  --surface-raised: 0 0% 100%;
+  --card: 0 0% 100%;
+  --card-foreground: 60 2% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 60 2% 10%;
+  --foreground: 60 2% 10%;
+  --foreground-muted: 43 7% 35%;
+  --foreground-subtle: 42 7% 61%;
+  --primary: 14 52% 58%;
+  --primary-foreground: 48 33% 97%;
+  --primary-soft: 17 53% 92%;
+  --primary-soft-foreground: 14 48% 41%;
+  --secondary: 42 35% 91%;
+  --secondary-foreground: 60 2% 10%;
+  --muted: 42 35% 91%;
+  --muted-foreground: 43 7% 35%;
+  --accent: 42 35% 91%;
+  --accent-foreground: 60 2% 10%;
+  --destructive: 5 50% 49%;
+  --destructive-foreground: 0 0% 100%;
+  --destructive-soft: 4 51% 90%;
+  --success: 100 23% 45%;
+  --success-foreground: 0 0% 100%;
+  --success-soft: 88 27% 89%;
+  --warning: 39 54% 53%;
+  --warning-foreground: 60 2% 10%;
+  --warning-soft: 40 56% 90%;
+  --info: 202 21% 45%;
+  --info-soft: 207 17% 89%;
+  --border: 42 29% 87%;
+  --border-strong: 41 16% 67%;
+  --input: 42 29% 82%;
+  --ring: 14 52% 58%;
+
+  min-height: 100vh;
+  color: hsl(var(--foreground));
+  background: hsl(var(--background));
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+.tasklytic-public-root .tasklytic-public-heading {
+  font-family: Fraunces, Georgia, serif;
+}
+
+.tasklytic-public-root .tasklytic-public-card {
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: 0.75rem;
+  box-shadow:
+    0 6px 20px -4px rgb(26 26 25 / 0.12),
+    0 0 0 1px rgb(26 26 25 / 0.06);
+}
+
+.tasklytic-public-root .tasklytic-public-primary {
+  min-height: 2.25rem;
+  border: 0;
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(14 48% 47%));
+  color: hsl(var(--primary-foreground));
+  box-shadow: 0 8px 24px hsl(var(--primary) / 0.28);
+}
+
+.tasklytic-public-root .tasklytic-public-primary:hover {
+  background: hsl(14 48% 47%);
+}

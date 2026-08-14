@@ -73,7 +73,7 @@ export function GoalStatusUpdateComposer({ goal, currentUserId }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="space-y-3 rounded-lg p-3" style={{ background: 'var(--bg-muted)' }}>
+        <div className="space-y-3 rounded-lg p-3" style={{ background: 'hsl(var(--surface-muted))' }}>
           <div className="space-y-2">
             <Label>Status</Label>
             <StatusSegmentPicker value={status} onChange={setStatus} />
@@ -110,7 +110,7 @@ export function GoalStatusUpdateComposer({ goal, currentUserId }: Props) {
       )}
       {updates.length > 1 ? (
         <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>History</p>
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>History</p>
           {updates.slice(1).map((u) => (
             <StatusUpdateCard key={u.id} update={u} author={users.find((x) => x.id === u.authorId)} compact />
           ))}

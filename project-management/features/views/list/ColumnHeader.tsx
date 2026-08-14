@@ -55,9 +55,9 @@ export function ColumnHeader({
       style={{
         gridTemplateColumns: gridTemplate,
         height: 36,
-        background: 'var(--bg-muted)',
-        color: 'var(--ink-muted)',
-        borderColor: 'var(--border-subtle)',
+        background: 'hsl(var(--surface-muted))',
+        color: 'hsl(var(--foreground-muted))',
+        borderColor: 'hsl(var(--border))',
       }}
     >
       <div className="flex items-center justify-center px-1">
@@ -98,7 +98,7 @@ export function ColumnHeader({
             <button
               type="button"
               aria-label={`Resize ${col.label}`}
-              className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[var(--primary)]"
+              className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-[hsl(var(--primary))]"
               onMouseDown={(e) => {
                 e.preventDefault()
                 onResizeStart(col.id as ListColumnId, e.clientX, col.width)

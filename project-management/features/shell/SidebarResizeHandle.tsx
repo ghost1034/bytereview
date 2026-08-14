@@ -47,7 +47,7 @@ export function SidebarResizeHandle({ width, collapsed, onWidthChange }: Props) 
       aria-valuenow={width}
       aria-label="Resize sidebar"
       onPointerDown={onPointerDown}
-      className="absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none hover:bg-[var(--primary)]/30"
+      className="absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none hover:bg-[hsl(var(--primary))]/30"
     />
   )
 }

@@ -21,7 +21,7 @@ export function TeamJoinRequestsPanel({ team, workspace, reviewerId }: Props) {
   if (requests.length === 0) return null
 
   return (
-    <div className="space-y-2 rounded-lg border p-4" style={{ borderColor: 'var(--border-subtle)', background: 'var(--primary-soft)' }}>
+    <div className="space-y-2 rounded-lg border p-4" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--primary-soft))' }}>
       <p className="text-sm font-medium">Pending join requests</p>
       {requests.map((req) => {
         const user = users.find((u) => u.id === req.userId)

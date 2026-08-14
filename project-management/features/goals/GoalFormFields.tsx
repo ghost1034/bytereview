@@ -28,7 +28,7 @@ export function GoalMultiCheck({
 }) {
   return (
     <GoalFormField label={label}>
-      <div className="max-h-28 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="max-h-28 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'hsl(var(--border))' }}>
         {items.map((item) => (
           <label key={item.id} className="flex cursor-pointer items-center gap-2 text-sm">
             <input type="checkbox" checked={selected.includes(item.id)} onChange={() => onToggle(item.id)} />

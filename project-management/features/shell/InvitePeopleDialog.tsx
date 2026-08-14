@@ -28,9 +28,9 @@ export function InvitePeopleDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">Invite people</DialogTitle>
+          <DialogTitle className="font-sans text-xl">Invite people</DialogTitle>
         </DialogHeader>
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Enter email addresses separated by commas. Full invite delivery ships in a later step.
         </p>
         <Input

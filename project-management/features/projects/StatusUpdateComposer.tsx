@@ -50,7 +50,7 @@ export function StatusUpdateComposer({ project, currentUserId }: Props) {
         <div className="flex flex-wrap items-center gap-2">
           <ProjectStatusPill status={project.status} />
           {statusDue ? (
-            <Badge variant="outline" className="gap-1 text-xs" style={{ color: 'var(--warning)', borderColor: 'var(--warning)' }}>
+            <Badge variant="outline" className="gap-1 text-xs" style={{ color: 'hsl(var(--warning))', borderColor: 'hsl(var(--warning))' }}>
               <AlertCircle className="h-3 w-3" /> Status due
             </Badge>
           ) : null}
@@ -61,19 +61,19 @@ export function StatusUpdateComposer({ project, currentUserId }: Props) {
       </div>
 
       {!latest ? (
-        <p className="mt-3 text-sm italic" style={{ color: 'var(--ink-muted)' }}>
+        <p className="mt-3 text-sm italic" style={{ color: 'hsl(var(--foreground-muted))' }}>
           What&apos;s the status? Share an update with your team.
         </p>
       ) : (
         <div className="mt-3 space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Latest update
           </p>
           <StatusUpdateCard update={latest} author={author} compact />
           <button
             type="button"
             className="text-xs underline"
-            style={{ color: 'var(--primary)' }}
+            style={{ color: 'hsl(var(--primary))' }}
             onClick={() => setHistoryOpen(true)}
           >
             View all updates

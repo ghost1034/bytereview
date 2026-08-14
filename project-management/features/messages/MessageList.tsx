@@ -41,18 +41,18 @@ export function MessageList({ messages, selectedId, onSelect, userById, basePath
         type="button"
         className="w-full rounded-lg p-3 text-left text-sm transition-colors"
         style={{
-          background: active ? 'var(--accent-soft)' : 'var(--bg-muted)',
-          border: active ? '1px solid var(--accent)' : '1px solid transparent',
+          background: active ? 'hsl(var(--success-soft))' : 'hsl(var(--surface-muted))',
+          border: active ? '1px solid hsl(var(--success))' : '1px solid transparent',
         }}
         onClick={() => onSelect(message.id)}
       >
         <div className="flex items-start gap-2">
           {message.isAnnouncement ? (
-            <Pin className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: 'var(--accent)' }} />
+            <Pin className="mt-0.5 h-3.5 w-3.5 shrink-0" style={{ color: 'hsl(var(--success))' }} />
           ) : null}
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">{message.title}</p>
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {author?.name ?? 'Unknown'} · {formatRelative(message.createdAt)}
               {message.editedAt ? ' · edited' : ''}
             </p>
@@ -67,7 +67,7 @@ export function MessageList({ messages, selectedId, onSelect, userById, basePath
           role="link"
           tabIndex={0}
           className="mt-1 inline-block text-xs underline"
-          style={{ color: 'var(--ink-muted)' }}
+          style={{ color: 'hsl(var(--foreground-muted))' }}
           onClick={(e) => void copyPermalink(message.id, e)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -85,7 +85,7 @@ export function MessageList({ messages, selectedId, onSelect, userById, basePath
 
   if (!messages.length) {
     return (
-      <p className="p-4 text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="p-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         No messages yet. Start the conversation.
       </p>
     )
@@ -95,7 +95,7 @@ export function MessageList({ messages, selectedId, onSelect, userById, basePath
     <div className="space-y-4 p-2">
       {pinned.length ? (
         <section>
-          <p className="mb-2 px-1 text-xs font-medium uppercase" style={{ color: 'var(--ink-muted)' }}>
+          <p className="mb-2 px-1 text-xs font-medium uppercase" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Announcements
           </p>
           <div className="space-y-2">{pinned.map(renderRow)}</div>
@@ -103,7 +103,7 @@ export function MessageList({ messages, selectedId, onSelect, userById, basePath
       ) : null}
       <section>
         {pinned.length ? (
-          <p className="mb-2 px-1 text-xs font-medium uppercase" style={{ color: 'var(--ink-muted)' }}>
+          <p className="mb-2 px-1 text-xs font-medium uppercase" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Messages
           </p>
         ) : null}

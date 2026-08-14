@@ -29,7 +29,7 @@ export function InboxList({
   if (!notifications.length) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-        <p className="font-serif text-lg" style={{ color: 'var(--ink-primary)' }}>
+        <p className="font-sans text-lg" style={{ color: 'hsl(var(--foreground))' }}>
           {emptyMessage}
         </p>
       </div>
@@ -44,7 +44,7 @@ export function InboxList({
         <section key={group.key}>
           <h3
             className="sticky top-0 z-10 px-4 py-2 text-xs font-semibold uppercase tracking-wide"
-            style={{ background: 'var(--bg-base)', color: 'var(--ink-muted)' }}
+            style={{ background: 'hsl(var(--background))', color: 'hsl(var(--foreground-muted))' }}
           >
             {group.label}
           </h3>

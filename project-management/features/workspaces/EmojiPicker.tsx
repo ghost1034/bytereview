@@ -76,8 +76,8 @@ export function EmojiPicker({ value, onChange, size = 'md' }: Props) {
             aria-label={LABELS[emoji] ?? emoji}
             className="rounded-md border px-2 py-1 text-lg transition"
             style={{
-              borderColor: value === emoji ? 'var(--primary)' : 'var(--border-subtle)',
-              background: value === emoji ? 'var(--primary-soft)' : 'var(--bg-elevated)',
+              borderColor: value === emoji ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+              background: value === emoji ? 'hsl(var(--primary-soft))' : 'hsl(var(--card))',
             }}
             onClick={() => onChange(emoji)}
           >

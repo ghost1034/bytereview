@@ -53,7 +53,7 @@ export function TaskAssigneeField({ task }: Props) {
 
   return (
     <div className="flex items-center justify-between gap-4 text-sm">
-      <span style={{ color: 'var(--ink-muted)' }}>Assignee</span>
+      <span style={{ color: 'hsl(var(--foreground-muted))' }}>Assignee</span>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button type="button" className="flex items-center gap-2 font-medium">
@@ -63,11 +63,11 @@ export function TaskAssigneeField({ task }: Props) {
                 {assignee.name}
               </>
             ) : (
-              <span style={{ color: 'var(--ink-muted)' }}>Unassigned</span>
+              <span style={{ color: 'hsl(var(--foreground-muted))' }}>Unassigned</span>
             )}
           </button>
         </PopoverTrigger>
-        <PopoverContent className="tl-popover-surface w-64 p-2" align="end">
+        <PopoverContent className="w-64 p-2" align="end">
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -78,8 +78,8 @@ export function TaskAssigneeField({ task }: Props) {
           {currentUserId ? (
             <button
               type="button"
-              className="mt-2 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
-              style={{ color: 'var(--primary)' }}
+              className="mt-2 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
+              style={{ color: 'hsl(var(--primary))' }}
               onClick={() => void pick(currentUserId)}
             >
               Assign to me
@@ -87,7 +87,7 @@ export function TaskAssigneeField({ task }: Props) {
           ) : null}
           {!query && recents.length ? (
             <div className="mt-2">
-              <p className="px-2 text-xs font-medium uppercase" style={{ color: 'var(--ink-faint)' }}>
+              <p className="px-2 text-xs font-medium uppercase" style={{ color: 'hsl(var(--foreground-subtle))' }}>
                 Recent
               </p>
               {recents.map((u) =>
@@ -95,7 +95,7 @@ export function TaskAssigneeField({ task }: Props) {
                   <button
                     key={u.id}
                     type="button"
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--bg-muted)]"
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[hsl(var(--surface-muted))]"
                     onClick={() => void pick(u.id)}
                   >
                     <UserAvatar userId={u.id} size="sm" showPresence={false} />
@@ -110,7 +110,7 @@ export function TaskAssigneeField({ task }: Props) {
               <li key={u.id}>
                 <button
                   type="button"
-                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[var(--bg-muted)]"
+                  className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-[hsl(var(--surface-muted))]"
                   onClick={() => void pick(u.id)}
                 >
                   <UserAvatar userId={u.id} size="sm" showPresence={false} />
@@ -122,8 +122,8 @@ export function TaskAssigneeField({ task }: Props) {
           {task.assigneeId ? (
             <button
               type="button"
-              className="mt-2 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
-              style={{ color: 'var(--ink-muted)' }}
+              className="mt-2 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
+              style={{ color: 'hsl(var(--foreground-muted))' }}
               onClick={() => void pick(undefined)}
             >
               Clear assignee

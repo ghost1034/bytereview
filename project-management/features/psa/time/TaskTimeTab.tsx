@@ -34,7 +34,7 @@ export function TaskTimeTab({ task }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm" style={{ borderColor: 'hsl(var(--border))' }}>
         <div className="flex flex-wrap gap-3">
           <span><strong className="font-mono tabular-nums">{totals.total.toFixed(2)}h</strong> logged</span>
           <span className="font-mono tabular-nums">{formatMoney(totals.amount)} billable</span>
@@ -45,15 +45,15 @@ export function TaskTimeTab({ task }: Props) {
           <TaskTrackTimerButton task={task} />
         </div>
       </div>
-      <div className="overflow-x-auto rounded-md border" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="overflow-x-auto rounded-md border" style={{ borderColor: 'hsl(var(--border))' }}>
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left text-xs" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <thead><tr className="border-b text-left text-xs" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-3 py-2">Date</th><th className="px-3 py-2">Description</th><th className="px-3 py-2 text-right">Hours</th>
             <th className="px-3 py-2 text-right">Rate</th><th className="px-3 py-2 text-right">Amount</th><th className="px-3 py-2">Bill</th><th className="px-3 py-2">Status</th><th className="px-3 py-2" />
           </tr></thead>
           <tbody>
             {entries.length === 0 ? (
-              <tr><td colSpan={8} className="px-3 py-6 text-center" style={{ color: 'var(--ink-muted)' }}>No time on this task yet.</td></tr>
+              <tr><td colSpan={8} className="px-3 py-6 text-center" style={{ color: 'hsl(var(--foreground-muted))' }}>No time on this task yet.</td></tr>
             ) : entries.sort((a, b) => b.date.localeCompare(a.date)).map((e) => (
               <TimeEntryRow key={e.id} entry={e} onSubmit={(id) => void update(id, { status: 'submitted', submittedAt: new Date().toISOString() })} onDelete={(id) => void remove(id)} />
             ))}

@@ -84,8 +84,8 @@ export function DashboardPage({ workspaceId, dashboardId, basePath, returnHref, 
 
   if (!dashboard || dashboard.workspaceId !== workspaceId || !dataCtx || !canView) {
     return (
-      <div className="tl-card p-8 text-center shadow-paper-sm">
-        <p style={{ color: 'var(--ink-muted)' }}>Dashboard not found.</p>
+      <div className="tl-card p-8 text-center shadow-sm">
+        <p style={{ color: 'hsl(var(--foreground-muted))' }}>Dashboard not found.</p>
       </div>
     )
   }
@@ -137,7 +137,7 @@ export function DashboardPage({ workspaceId, dashboardId, basePath, returnHref, 
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <Input
-          className="max-w-md border-0 bg-transparent font-serif text-2xl shadow-none focus-visible:ring-0"
+          className="max-w-md border-0 bg-transparent font-sans text-2xl shadow-none focus-visible:ring-0"
           value={title}
           readOnly={!canEdit}
           onChange={(e) => setTitle(e.target.value)}
@@ -221,9 +221,9 @@ export function DashboardPage({ workspaceId, dashboardId, basePath, returnHref, 
             onDeleteChart={(id) => void deleteChart(id)}
           />
         ) : (
-          <div className="tl-card p-12 text-center shadow-paper-sm">
-            <p className="font-serif text-lg">This dashboard is waiting for its first chart</p>
-            <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <div className="tl-card p-12 text-center shadow-sm">
+            <p className="font-sans text-lg">This dashboard is waiting for its first chart</p>
+            <p className="mt-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Add a chart or pick a recommended template to get started.
             </p>
             {canEdit ? (

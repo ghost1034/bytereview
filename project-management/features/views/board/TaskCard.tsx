@@ -75,7 +75,7 @@ export function TaskCard({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.45 : 1 }}
-      className={`tl-card mb-2 cursor-grab shadow-paper-sm active:cursor-grabbing ${compact ? 'p-2' : 'p-3'}`}
+      className={`tl-card mb-2 cursor-grab shadow-sm active:cursor-grabbing ${compact ? 'p-2' : 'p-3'}`}
       {...attributes}
       {...listeners}
     >
@@ -97,7 +97,7 @@ export function TaskCard({
           {task.assigneeId ? (
             <UserAvatar userId={task.assigneeId} size="sm" showPresence={false} />
           ) : (
-            <span className="text-[10px]" style={{ color: 'var(--ink-faint)' }}>
+            <span className="text-[10px]" style={{ color: 'hsl(var(--foreground-subtle))' }}>
               +
             </span>
           )}
@@ -122,22 +122,22 @@ export function TaskCard({
               </span>
             ))}
             {taskTags.length > 3 ? (
-              <span className="text-[10px]" style={{ color: 'var(--ink-muted)' }}>
+              <span className="text-[10px]" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 +{taskTags.length - 3}
               </span>
             ) : null}
           </div>
         ) : null}
         {!compact && progress.total > 0 ? (
-          <p className="mt-1.5 text-[10px]" style={{ color: 'var(--ink-muted)' }}>
+          <p className="mt-1.5 text-[10px]" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {progress.done}/{progress.total} subtasks
           </p>
         ) : null}
         {!compact && cardFields.length > 0 ? (
-          <div className="mt-2 space-y-1 border-t pt-2" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="mt-2 space-y-1 border-t pt-2" style={{ borderColor: 'hsl(var(--border))' }}>
             {cardFields.map((field) => (
               <div key={field.id} className="flex items-center gap-2 text-xs">
-                <span className="w-16 shrink-0 truncate" style={{ color: 'var(--ink-muted)' }}>
+                <span className="w-16 shrink-0 truncate" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {field.name}
                 </span>
                 <FieldValueCell
@@ -152,7 +152,7 @@ export function TaskCard({
           </div>
         ) : null}
         {!compact ? (
-          <div className="mt-2 flex items-center gap-2 text-[10px]" style={{ color: 'var(--ink-faint)' }}>
+          <div className="mt-2 flex items-center gap-2 text-[10px]" style={{ color: 'hsl(var(--foreground-subtle))' }}>
             {progress.total > 0 ? <GitBranch className="h-3 w-3" aria-hidden /> : null}
             {commentCount > 0 ? (
               <span className="inline-flex items-center gap-0.5">

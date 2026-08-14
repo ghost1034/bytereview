@@ -75,13 +75,11 @@ function ViewHarness() {
 }
 
 function HotkeyHarness() {
-  const [themeCount, setThemeCount] = useState(0)
   const [timerCount, setTimerCount] = useState(0)
   useGlobalHotkeys({
-    onToggleTheme: () => setThemeCount((count) => count + 1),
     onToggleTimer: () => setTimerCount((count) => count + 1),
   })
-  return <><output aria-label="Theme count">{themeCount}</output><output aria-label="Timer count">{timerCount}</output></>
+  return <output aria-label="Timer count">{timerCount}</output>
 }
 
 describe('Phase 4 desktop and mobile browser gate', () => {
@@ -255,13 +253,11 @@ describe('Phase 4 desktop and mobile browser gate', () => {
     for (const action of ['Save', 'Discard', 'Cancel']) await expect.element(page.getByRole('button', { name: action })).toBeVisible()
   })
 
-  it('keeps T for theme and uses Shift+T for timer control', async () => {
+  it('leaves host theme shortcuts alone and uses Shift+T for timer control', async () => {
     const screen = render(<HotkeyHarness />)
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 't' }))
-    await expect.element(screen.getByLabelText('Theme count')).toHaveTextContent('1')
     await expect.element(screen.getByLabelText('Timer count')).toHaveTextContent('0')
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'T', shiftKey: true }))
-    await expect.element(screen.getByLabelText('Theme count')).toHaveTextContent('1')
     await expect.element(screen.getByLabelText('Timer count')).toHaveTextContent('1')
   })
 })

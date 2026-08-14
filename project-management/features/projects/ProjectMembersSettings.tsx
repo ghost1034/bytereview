@@ -38,14 +38,14 @@ export function ProjectMembersSettings({ project }: { project: Project }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {members.length} of {workspace?.memberIds.length ?? members.length} workspace members
         </p>
         <ProjectAddMemberButton project={project} />
       </div>
       <ul className="space-y-2">
         {members.map((member) => (
-          <li key={member.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-2" style={{ borderColor: 'var(--border-subtle)' }}>
+          <li key={member.id} className="flex flex-wrap items-center gap-2 rounded-lg border p-2" style={{ borderColor: 'hsl(var(--border))' }}>
             <UserAvatar userId={member.id} size="sm" />
             <span className="min-w-32 flex-1 truncate text-sm font-medium">{member.name}</span>
             <Input

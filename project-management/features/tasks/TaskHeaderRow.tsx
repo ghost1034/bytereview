@@ -95,31 +95,31 @@ export function TaskHeaderRow({ task, onClose, onCopyLink, fullScreenHref }: Pro
       onClick={() => void onCompleteClick()}
       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-transform hover:scale-105"
       style={{
-        borderColor: task.completed ? 'var(--accent)' : 'var(--border-default)',
-        background: task.completed ? 'var(--accent-soft)' : 'transparent',
+        borderColor: task.completed ? 'hsl(var(--success))' : 'hsl(var(--border))',
+        background: task.completed ? 'hsl(var(--success-soft))' : 'transparent',
       }}
       aria-label={task.completed ? 'Mark incomplete' : 'Mark complete'}
     >
       {task.resourceSubtype === 'milestone' ? (
-        <Diamond className="h-4 w-4" style={{ color: task.completed ? 'var(--accent)' : 'var(--ink-muted)' }} />
+        <Diamond className="h-4 w-4" style={{ color: task.completed ? 'hsl(var(--success))' : 'hsl(var(--foreground-muted))' }} />
       ) : (
-        <Check className="h-4 w-4" style={{ color: task.completed ? 'var(--accent)' : 'var(--ink-muted)' }} />
+        <Check className="h-4 w-4" style={{ color: task.completed ? 'hsl(var(--success))' : 'hsl(var(--foreground-muted))' }} />
       )}
     </button>
   )
 
   return (
-    <header className="border-b px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+    <header className="border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
       <div className="flex items-start gap-2">
         {isApproval ? (
           <Popover>
             <PopoverTrigger asChild>{completeButton}</PopoverTrigger>
-            <PopoverContent className="tl-popover-surface w-48 p-1" align="start">
+            <PopoverContent className="w-48 p-1" align="start">
               {APPROVAL_ACTIONS.map((a) => (
                 <button
                   key={a.status}
                   type="button"
-                  className="flex w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--bg-muted)]"
+                  className="flex w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
                   onClick={() => void onApproval(a.status)}
                 >
                   {a.label}
@@ -135,11 +135,11 @@ export function TaskHeaderRow({ task, onClose, onCopyLink, fullScreenHref }: Pro
           <div className="flex flex-wrap items-center gap-1.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button type="button" className="rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: 'var(--bg-muted)' }}>
+                <button type="button" className="rounded-md px-2 py-0.5 text-xs font-medium" style={{ background: 'hsl(var(--surface-muted))' }}>
                   {SUBTYPES.find((s) => s.value === task.resourceSubtype)?.label ?? 'Task'}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="tl-popover-surface" align="start">
+              <DropdownMenuContent align="start">
                 {SUBTYPES.map((s) => (
                   <DropdownMenuItem key={s.value} onClick={() => void onSubtype(s.value)}>
                     {s.label}
@@ -164,7 +164,7 @@ export function TaskHeaderRow({ task, onClose, onCopyLink, fullScreenHref }: Pro
 
         <div className="flex shrink-0 items-center gap-0.5">
           <Button variant="ghost" size="icon" aria-label="Like" onClick={() => void onLike()}>
-            <Heart className="h-4 w-4" fill={liked ? 'currentColor' : 'none'} style={{ color: liked ? 'var(--danger)' : undefined }} />
+            <Heart className="h-4 w-4" fill={liked ? 'currentColor' : 'none'} style={{ color: liked ? 'hsl(var(--destructive))' : undefined }} />
             {task.likedByIds.length ? (
               <span className="ml-0.5 text-xs">{task.likedByIds.length}</span>
             ) : null}
@@ -173,7 +173,7 @@ export function TaskHeaderRow({ task, onClose, onCopyLink, fullScreenHref }: Pro
             <Copy className="h-4 w-4" />
           </Button>
           {copied ? (
-            <span className="text-xs" style={{ color: 'var(--accent)' }}>
+            <span className="text-xs" style={{ color: 'hsl(var(--success))' }}>
               Copied
             </span>
           ) : null}

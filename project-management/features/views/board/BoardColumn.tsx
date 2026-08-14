@@ -57,18 +57,18 @@ export function BoardColumn({
       <button
         type="button"
         className="flex h-full w-12 shrink-0 flex-col items-center self-stretch rounded-2xl py-3"
-        style={{ background: 'var(--bg-muted)' }}
+        style={{ background: 'hsl(var(--surface-muted))' }}
         onClick={onToggleCollapse}
         title={`Expand ${section.name}`}
       >
-        <ChevronRight className="mb-2 h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+        <ChevronRight className="mb-2 h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
         <span
           className="text-xs font-medium [writing-mode:vertical-rl]"
-          style={{ color: 'var(--ink-secondary)' }}
+          style={{ color: 'hsl(var(--foreground-muted))' }}
         >
           {section.name}
         </span>
-        <span className="mt-2 text-[10px]" style={{ color: overWip ? 'var(--danger)' : 'var(--ink-muted)' }}>
+        <span className="mt-2 text-[10px]" style={{ color: overWip ? 'hsl(var(--destructive))' : 'hsl(var(--foreground-muted))' }}>
           {wipLabel}
         </span>
       </button>
@@ -79,8 +79,8 @@ export function BoardColumn({
     <div
       className="flex h-full min-h-0 w-72 shrink-0 flex-col rounded-2xl p-2"
       style={{
-        background: 'var(--bg-muted)',
-        outline: overWip ? '2px solid var(--danger)' : isOver ? '2px solid var(--primary)' : undefined,
+        background: 'hsl(var(--surface-muted))',
+        outline: overWip ? '2px solid hsl(var(--destructive))' : isOver ? '2px solid hsl(var(--primary))' : undefined,
       }}
     >
       <BoardColumnHeader
@@ -106,7 +106,7 @@ export function BoardColumn({
             </div>
           ) : null}
           {tasks.length === 0 && !adding ? (
-            <p className="py-6 text-center text-xs" style={{ color: 'var(--ink-faint)' }}>
+            <p className="py-6 text-center text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>
               Drag cards here
             </p>
           ) : (

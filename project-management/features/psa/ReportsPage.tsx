@@ -13,7 +13,7 @@ export function ReportsPage() {
   if (!workspaceId) return null
   return (
     <div className="space-y-4" data-tour-page="psa-reports">
-      <h1 className="font-serif text-2xl">PSA reporting</h1>
+      <h1 className="font-sans text-2xl">PSA reporting</h1>
       <Tabs defaultValue="dashboard">
         <TabsList><TabsTrigger value="dashboard">Dashboards</TabsTrigger><TabsTrigger value="rates">Billing rates</TabsTrigger></TabsList>
         <TabsContent value="dashboard"><PsaReportsDashboard workspaceId={workspaceId} /></TabsContent>

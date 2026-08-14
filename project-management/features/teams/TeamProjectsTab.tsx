@@ -17,7 +17,7 @@ export function TeamProjectsTab({ team, workspaceId }: Props) {
 
   if (projects.length === 0) {
     return (
-      <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         No projects in this team yet. Projects from step 06 will appear here.
       </p>
     )

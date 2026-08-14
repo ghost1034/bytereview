@@ -1,9 +1,6 @@
 'use client'
 
-/**
- * PopoverContent for Tasklytic — portaled menus need tl-popover-surface tokens
- * because Radix renders outside `.tasklytic-root`.
- */
+/** PopoverContent compatibility wrapper using the shared surface primitive. */
 import { forwardRef, type ComponentPropsWithoutRef, type ElementRef } from 'react'
 import { PopoverContent } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
@@ -14,7 +11,7 @@ export const TasklyticPopoverContent = forwardRef<ElementRef<typeof PopoverConte
   ({ className, ...props }, ref) => (
     <PopoverContent
       ref={ref}
-      className={cn('tl-popover-surface text-popover-foreground', className)}
+      className={cn('text-popover-foreground', className)}
       {...props}
     />
   )

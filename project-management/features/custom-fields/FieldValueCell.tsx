@@ -8,12 +8,12 @@ import { formatNumberDisplay } from '../../lib/customFields/formatValue'
 import { getTaskFieldValue } from '../../lib/customFields/fieldValues'
 
 const COLOR_TOKENS: Record<string, string> = {
-  gray: 'var(--ink-muted)',
-  warning: 'var(--warning)',
-  danger: 'var(--danger)',
-  accent: 'var(--accent)',
-  info: 'var(--info)',
-  primary: 'var(--primary)',
+  gray: 'hsl(var(--foreground-muted))',
+  warning: 'hsl(var(--warning))',
+  danger: 'hsl(var(--destructive))',
+  accent: 'hsl(var(--success))',
+  info: 'hsl(var(--info))',
+  primary: 'hsl(var(--primary))',
 }
 
 function resolveColor(token: string): string {
@@ -42,13 +42,13 @@ function PeopleAvatars({ ids, users }: { ids: string[]; users: User[] }) {
           key={u.id}
           title={u.name}
           className="inline-flex h-5 w-5 items-center justify-center rounded-full border text-[9px] text-white"
-          style={{ background: u.avatarColor, borderColor: 'var(--bg-elevated)' }}
+          style={{ background: u.avatarColor, borderColor: 'hsl(var(--card))' }}
         >
           {u.name.slice(0, 1)}
         </span>
       ))}
       {picked.length > 3 ? (
-        <span className="pl-2 text-xs" style={{ color: 'var(--ink-muted)' }}>
+        <span className="pl-2 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           +{picked.length - 3}
         </span>
       ) : null}
@@ -71,7 +71,7 @@ export function FieldValueCell({ field, value, task, allFields, users = [], clas
 
   if (!resolved) {
     return (
-      <span className={className} style={{ color: 'var(--ink-faint)' }}>
+      <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>
         —
       </span>
     )
@@ -80,7 +80,7 @@ export function FieldValueCell({ field, value, task, allFields, users = [], clas
   switch (field.type) {
     case 'text':
       if (resolved.type !== 'text' || !resolved.value) {
-        return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+        return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       }
       return (
         <span className={`truncate text-sm ${className ?? ''}`} title={resolved.value}>
@@ -90,7 +90,7 @@ export function FieldValueCell({ field, value, task, allFields, users = [], clas
 
     case 'number':
       if (resolved.type !== 'number') {
-        return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+        return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       }
       return (
         <span className={`block text-right text-sm tabular-nums ${className ?? ''}`}>
@@ -100,7 +100,7 @@ export function FieldValueCell({ field, value, task, allFields, users = [], clas
 
     case 'date':
       if (resolved.type !== 'date' || !resolved.value) {
-        return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+        return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       }
       return (
         <span className={`text-sm ${className ?? ''}`}>
@@ -113,23 +113,23 @@ export function FieldValueCell({ field, value, task, allFields, users = [], clas
 
     case 'people': {
       if (resolved.type !== 'people' || !resolved.value.length) {
-        return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+        return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       }
       return <PeopleAvatars ids={resolved.value} users={users} />
     }
 
     case 'dropdown': {
       if (resolved.type !== 'dropdown' || !resolved.value) {
-        return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+        return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       }
       const option = field.options?.find((o) => o.id === resolved.value)
-      if (!option) return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+      if (!option) return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       return <OptionChip label={option.label} color={option.color} />
     }
 
     case 'multi_select': {
       if (resolved.type !== 'multi_select' || !resolved.value.length) {
-        return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+        return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       }
       return (
         <span className={`flex flex-wrap gap-1 ${className ?? ''}`}>
@@ -144,18 +144,18 @@ export function FieldValueCell({ field, value, task, allFields, users = [], clas
 
     case 'checkbox':
       if (resolved.type !== 'checkbox') {
-        return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+        return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       }
       return (
         <span
           className={`inline-flex items-center gap-1.5 text-xs ${className ?? ''}`}
-          style={{ color: resolved.value ? 'var(--accent)' : 'var(--ink-muted)' }}
+          style={{ color: resolved.value ? 'hsl(var(--success))' : 'hsl(var(--foreground-muted))' }}
         >
           <span
             className="inline-block h-3.5 w-3.5 rounded border"
             style={{
-              borderColor: resolved.value ? 'var(--accent)' : 'var(--border-default)',
-              background: resolved.value ? 'var(--accent-soft)' : 'transparent',
+              borderColor: resolved.value ? 'hsl(var(--success))' : 'hsl(var(--border))',
+              background: resolved.value ? 'hsl(var(--success-soft))' : 'transparent',
             }}
             aria-hidden
           />
@@ -165,24 +165,24 @@ export function FieldValueCell({ field, value, task, allFields, users = [], clas
 
     case 'formula':
       if (resolved.type !== 'formula' || resolved.value == null) {
-        return <span className={className} style={{ color: 'var(--ink-faint)' }}>—</span>
+        return <span className={className} style={{ color: 'hsl(var(--foreground-subtle))' }}>—</span>
       }
       if (typeof resolved.value === 'string') {
         return (
-          <span className={`text-xs ${className ?? ''}`} style={{ color: 'var(--danger)' }} title={resolved.value}>
+          <span className={`text-xs ${className ?? ''}`} style={{ color: 'hsl(var(--destructive))' }} title={resolved.value}>
             Error
           </span>
         )
       }
       return (
-        <span className={`block text-right text-sm tabular-nums ${className ?? ''}`} style={{ color: 'var(--ink-secondary)' }}>
+        <span className={`block text-right text-sm tabular-nums ${className ?? ''}`} style={{ color: 'hsl(var(--foreground-muted))' }}>
           {formatNumberDisplay({ ...field, numberFormat: 'plain' }, resolved.value)}
         </span>
       )
 
     default:
       return (
-        <span className={className} style={{ color: 'var(--ink-muted)' }}>
+        <span className={className} style={{ color: 'hsl(var(--foreground-muted))' }}>
           —
         </span>
       )

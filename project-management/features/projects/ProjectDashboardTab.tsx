@@ -68,11 +68,11 @@ export function ProjectDashboardTab({ project, basePath }: Props) {
   }
 
   return (
-    <div className="tl-card flex flex-col items-center gap-3 p-10 text-center shadow-paper-sm">
-      <BarChart3 className="h-9 w-9" style={{ color: 'var(--ink-faint)' }} />
+    <div className="tl-card flex flex-col items-center gap-3 p-10 text-center shadow-sm">
+      <BarChart3 className="h-9 w-9" style={{ color: 'hsl(var(--foreground-subtle))' }} />
       <div>
-        <p className="font-serif text-lg">Build a project dashboard</p>
-        <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <p className="font-sans text-lg">Build a project dashboard</p>
+        <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Charts created here stay attached to {project.name}.
         </p>
       </div>

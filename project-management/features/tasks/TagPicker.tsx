@@ -73,7 +73,7 @@ export function TagPicker({ workspaceId, selectedIds, onAdd, onRemove }: Props) 
           <button
             type="button"
             className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
-            style={{ color: 'var(--primary)', background: 'var(--bg-muted)' }}
+            style={{ color: 'hsl(var(--primary))', background: 'hsl(var(--surface-muted))' }}
           >
             <Plus className="h-3 w-3" /> Add tag
           </button>
@@ -108,8 +108,8 @@ export function TagPicker({ workspaceId, selectedIds, onAdd, onRemove }: Props) 
           {query.trim() && !filtered.some((t) => t.name.toLowerCase() === query.trim().toLowerCase()) ? (
             <button
               type="button"
-              className="mt-2 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[var(--bg-muted)]"
-              style={{ color: 'var(--primary)' }}
+              className="mt-2 w-full rounded-md px-2 py-1.5 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
+              style={{ color: 'hsl(var(--primary))' }}
               onClick={() => void createTag()}
             >
               Create &quot;{query.trim()}&quot;

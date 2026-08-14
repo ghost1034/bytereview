@@ -97,7 +97,7 @@ export function ListView({ project, basePath }: Props) {
         userId={currentUserId}
         columns={data.columns}
       />
-      <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="overflow-hidden rounded-xl border" style={{ borderColor: 'hsl(var(--border))' }}>
         <div ref={scrollRef} className="max-h-[calc(100vh-16rem)] overflow-auto">
           <div style={{ minWidth: data.gridMinWidth }}>
             <ColumnHeader

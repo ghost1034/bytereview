@@ -30,13 +30,13 @@ export function HelpMenu({ onFeedback, onShortcuts, onRestartTour, onRestartSetu
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="rounded-lg p-2 focus-visible:outline-none focus-visible:shadow-focus"
+          className="rounded-lg p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label="Help"
         >
-          <HelpCircle className="h-5 w-5" style={{ color: 'var(--ink-secondary)' }} />
+          <HelpCircle className="h-5 w-5" style={{ color: 'hsl(var(--foreground-muted))' }} />
         </button>
       </PopoverTrigger>
-      <PopoverContent className="tl-popover-surface w-56 p-1" align="end">
+      <PopoverContent className="w-56 p-1" align="end">
         {items.map((item) => {
           const Icon = item.icon
           if ('href' in item) {
@@ -44,8 +44,8 @@ export function HelpMenu({ onFeedback, onShortcuts, onRestartTour, onRestartSetu
               <a
                 key={item.label}
                 href={item.href}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-[var(--bg-muted)] focus-visible:outline-none focus-visible:shadow-focus"
-                style={{ color: 'var(--ink-secondary)' }}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-[hsl(var(--surface-muted))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                style={{ color: 'hsl(var(--foreground-muted))' }}
               >
                 <Icon className="h-4 w-4" /> {item.label}
               </a>
@@ -55,8 +55,8 @@ export function HelpMenu({ onFeedback, onShortcuts, onRestartTour, onRestartSetu
             <button
               key={item.label}
               type="button"
-              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-[var(--bg-muted)] focus-visible:outline-none focus-visible:shadow-focus"
-              style={{ color: 'var(--ink-secondary)' }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm hover:bg-[hsl(var(--surface-muted))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              style={{ color: 'hsl(var(--foreground-muted))' }}
               onClick={item.onClick}
             >
               <Icon className="h-4 w-4" /> {item.label}

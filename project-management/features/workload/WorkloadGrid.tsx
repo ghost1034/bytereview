@@ -49,13 +49,13 @@ export function WorkloadGrid({
     return groups
   }, [])
   return (
-    <div className="tl-card overflow-x-auto shadow-paper-sm">
+    <div className="tl-card overflow-x-auto shadow-sm">
       <table className="w-full min-w-max text-left text-sm">
         <thead>
-          <tr className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+          <tr className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
             <th
-              className="sticky left-0 z-10 bg-[var(--bg-elevated)] px-3 py-2 font-medium"
-              style={{ color: 'var(--ink-secondary)' }}
+              className="sticky left-0 z-10 bg-[hsl(var(--card))] px-3 py-2 font-medium"
+              style={{ color: 'hsl(var(--foreground-muted))' }}
             >
               Person
             </th>
@@ -63,7 +63,7 @@ export function WorkloadGrid({
               <th
                 key={b.key}
                 className="px-1 py-2 text-center text-xs font-medium"
-                style={{ color: 'var(--ink-secondary)' }}
+                style={{ color: 'hsl(var(--foreground-muted))' }}
               >
                 {b.label}
               </th>
@@ -72,14 +72,14 @@ export function WorkloadGrid({
         </thead>
         <tbody>
           {groupedRows.flatMap((group) => [
-            ...(groupBy !== 'person' ? [<tr key={`group-${group.label}`}><th colSpan={buckets.length + 1} className="bg-[var(--bg-muted)] px-3 py-1 text-xs font-semibold">{group.label}</th></tr>] : []),
+            ...(groupBy !== 'person' ? [<tr key={`group-${group.label}`}><th colSpan={buckets.length + 1} className="bg-[hsl(var(--surface-muted))] px-3 py-1 text-xs font-semibold">{group.label}</th></tr>] : []),
             ...group.rows.map((row) => <WorkloadRow key={`${group.label}-${row.userId}`} row={row} buckets={buckets} onCellClick={onCellClick} onDropTaskOnRow={onDropTaskOnRow} onDropTaskOnCell={onDropTaskOnCell} onPersonClick={onPersonClick} />),
           ])}
         </tbody>
       </table>
       <p
         className="border-t px-3 py-2 text-xs"
-        style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}
+        style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}
       >
         {range.start} – {range.end} · drag tasks from a cell dialog to reassign or reschedule
       </p>

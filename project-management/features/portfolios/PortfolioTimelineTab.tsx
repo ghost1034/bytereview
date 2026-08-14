@@ -40,7 +40,7 @@ function ProjectTimelineBlock({
   if (!project) return null
 
   return (
-    <div className="border-t pt-3" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div className="border-t pt-3" style={{ borderColor: 'hsl(var(--border))' }}>
       <TimelineRenderer
         project={project}
         tasks={tasks}
@@ -89,7 +89,7 @@ export function PortfolioTimelineTab({ portfolio, workspaceId }: Props) {
 
   if (!linked.length) {
     return (
-      <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Add projects to see a portfolio-wide timeline.
       </p>
     )
@@ -101,11 +101,11 @@ export function PortfolioTimelineTab({ portfolio, workspaceId }: Props) {
         if (!p) return null
         const isCollapsed = collapsed.has(p.id)
         return (
-          <section key={p.id} className="tl-card overflow-hidden shadow-paper-sm">
+          <section key={p.id} className="tl-card overflow-hidden shadow-sm">
             <button
               type="button"
               className="flex w-full items-center gap-2 px-4 py-3 text-left"
-              style={{ background: `${p.color === 'primary' ? 'var(--primary-soft)' : 'var(--bg-muted)'}` }}
+              style={{ background: `${p.color === 'primary' ? 'hsl(var(--primary-soft))' : 'hsl(var(--surface-muted))'}` }}
               onClick={() => toggle(p.id)}
             >
               {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}

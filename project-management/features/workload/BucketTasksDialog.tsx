@@ -52,16 +52,16 @@ export function BucketTasksDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[80vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{userLabel}</DialogTitle>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {bucket.label} · drag tasks onto another row or cell to rebalance
           </p>
         </DialogHeader>
         <ul className="space-y-2">
           {bucketTasks.length === 0 ? (
-            <li className="py-6 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <li className="py-6 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               No tasks in this period.
             </li>
           ) : (
@@ -74,10 +74,10 @@ export function BucketTasksDialog({
                   e.dataTransfer.effectAllowed = 'move'
                 }}
                 className="rounded-md border p-3"
-                style={{ borderColor: 'var(--border-subtle)' }}
+                style={{ borderColor: 'hsl(var(--border))' }}
               >
                 <div className="flex items-start gap-2">
-                  <GripVertical className="mt-0.5 h-4 w-4 shrink-0 cursor-grab" style={{ color: 'var(--ink-muted)' }} />
+                  <GripVertical className="mt-0.5 h-4 w-4 shrink-0 cursor-grab" style={{ color: 'hsl(var(--foreground-muted))' }} />
                   <div className="min-w-0 flex-1 space-y-2">
                     <p className="text-sm font-medium">{task.name}</p>
                     <div className="flex gap-2"><Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => router.push(`/dashboard/project-management/w/${task.workspaceId}/projects/${task.projectIds[0]}?task=${task.id}`)}>Open</Button></div>
@@ -92,7 +92,7 @@ export function BucketTasksDialog({
                       }}
                     >
                       <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent className="tl-popover-surface z-[100]">
+                      <SelectContent className="z-[100]">
                         <SelectItem value={UNASSIGNED_USER_ID}>Unassigned</SelectItem>
                         {users.map((u) => (
                           <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
@@ -100,7 +100,7 @@ export function BucketTasksDialog({
                       </SelectContent>
                     </Select>
                     <div className="flex items-center gap-2">
-                      <Calendar className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+                      <Calendar className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
                       <Input
                         type="date"
                         className="h-8 text-xs"

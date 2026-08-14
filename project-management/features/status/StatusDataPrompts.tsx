@@ -14,9 +14,9 @@ export function StatusDataPrompts({ digest, tasksAdded }: Props) {
   return (
     <div
       className="rounded-lg p-3 text-xs space-y-1"
-      style={{ background: 'var(--bg-muted)', color: 'var(--ink-secondary)' }}
+      style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
     >
-      <p className="font-medium" style={{ color: 'var(--ink-primary)' }}>
+      <p className="font-medium" style={{ color: 'hsl(var(--foreground))' }}>
         This week at a glance
       </p>
       <p>Tasks completed this week: {digest.tasksCompleted.length}</p>
@@ -26,7 +26,7 @@ export function StatusDataPrompts({ digest, tasksAdded }: Props) {
         {milestoneNames || digest.upcomingDue.slice(0, 3).map((t) => t.name).join(', ') || 'None'}
       </p>
       {digest.tasksOverdue.length ? (
-        <p style={{ color: 'var(--danger)' }}>Overdue tasks: {digest.tasksOverdue.length}</p>
+        <p style={{ color: 'hsl(var(--destructive))' }}>Overdue tasks: {digest.tasksOverdue.length}</p>
       ) : null}
     </div>
   )

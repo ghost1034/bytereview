@@ -1,8 +1,8 @@
 'use client'
 
-/** Account dropdown — workspace settings, theme cycle, and sign out (delegated to CPAAutomation). */
+/** Account dropdown — workspace settings and sign out (delegated to CPAAutomation). */
 import Link from 'next/link'
-import { LogOut, Moon, Settings, Sun } from 'lucide-react'
+import { LogOut, Settings } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,16 +15,11 @@ import { Button } from '@/components/ui/button'
 import { useAuth } from '@/contexts/AuthContext'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import { useCurrentUser } from '../../hooks/useCurrentUser'
-import type { TasklyticTheme } from '../../hooks/useTasklyticTheme'
 import { UserAvatar } from './UserAvatar'
 
-type Props = {
-  theme?: TasklyticTheme
-  onThemeCycle?: () => void
-  compact?: boolean
-}
+type Props = { compact?: boolean }
 
-export function AccountMenu({ theme = 'system', onThemeCycle, compact }: Props) {
+export function AccountMenu({ compact }: Props) {
   const user = useCurrentUser()
   const { workspaceId } = useWorkspaceContext()
   const { signOut } = useAuth()
@@ -34,8 +29,6 @@ export function AccountMenu({ theme = 'system', onThemeCycle, compact }: Props) 
   const settingsHref = workspaceId
     ? `/dashboard/project-management/w/${workspaceId}/settings`
     : '/dashboard/project-management'
-
-  const themeLabel = theme === 'light' ? 'Light' : theme === 'dark' ? 'Dark' : 'System'
 
   return (
     <DropdownMenu>
@@ -47,7 +40,7 @@ export function AccountMenu({ theme = 'system', onThemeCycle, compact }: Props) 
           ) : null}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="tl-popover-surface w-56">
+      <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
           <p className="font-medium">{user.name}</p>
           <p className="text-xs font-normal text-muted-foreground">{user.email}</p>
@@ -59,11 +52,6 @@ export function AccountMenu({ theme = 'system', onThemeCycle, compact }: Props) 
             Settings
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={onThemeCycle}>
-          {theme === 'dark' ? <Moon className="mr-2 h-4 w-4" /> : <Sun className="mr-2 h-4 w-4" />}
-          Theme: {themeLabel}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void signOut()}>
           <LogOut className="mr-2 h-4 w-4" />
           Sign out

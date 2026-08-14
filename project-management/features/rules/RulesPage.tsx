@@ -88,7 +88,7 @@ export function RulesPage() {
   return (
     <div className="space-y-4" data-tour-page="rules">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-2xl">Rules</h1>
+        <h1 className="font-sans text-2xl">Rules</h1>
         <div className="flex items-center gap-2">
           <RuleLibrary onSelect={openTemplate} />
           <Button className="tl-btn-primary gap-2 border-0" onClick={openNew}>
@@ -99,10 +99,10 @@ export function RulesPage() {
 
       {projects.length > 1 && (
         <div className="flex items-center gap-2">
-          <Label className="text-sm" style={{ color: 'var(--ink-muted)' }}>Project</Label>
+          <Label className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Project</Label>
           <Select value={filterProjectId} onValueChange={setFilterProjectId}>
             <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               <SelectItem value="all">All projects</SelectItem>
               {projects.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
@@ -139,11 +139,11 @@ export function RulesPage() {
       <RuleHistoryModal rule={historyRule} open={Boolean(historyRule)} onOpenChange={(o) => !o && setHistoryRule(null)} />
 
       <Dialog open={Boolean(deleteRule)} onOpenChange={(o) => !o && setDeleteRule(null)}>
-        <DialogContent className="tl-dialog-surface max-w-sm">
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Delete rule?</DialogTitle>
           </DialogHeader>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             &ldquo;{deleteRule?.name}&rdquo; will be permanently removed.
           </p>
           <DialogFooter>

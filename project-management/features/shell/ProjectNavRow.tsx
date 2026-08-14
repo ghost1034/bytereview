@@ -93,39 +93,39 @@ export function ProjectNavRow({
           <Link
             href={href}
             onClick={onNavigate}
-            className="flex h-9 w-9 items-center justify-center rounded-lg text-sm focus-visible:outline-none focus-visible:shadow-focus"
-            style={active ? { background: 'var(--primary-soft)' } : undefined}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            style={active ? { background: 'hsl(var(--primary-soft))' } : undefined}
             aria-current={active ? 'page' : undefined}
             aria-label={project.name}
           >
             <span>{project.iconEmoji ?? '📁'}</span>
           </Link>
         </TooltipTrigger>
-        <TooltipContent className="tl-popover-surface" side="right">{project.name}</TooltipContent>
+        <TooltipContent side="right">{project.name}</TooltipContent>
       </Tooltip>
     )
   }
 
   return (
     <>
-      <div className="group flex items-center gap-1 rounded-lg pr-1 hover:bg-[var(--bg-muted)]">
+      <div className="group flex items-center gap-1 rounded-lg pr-1 hover:bg-[hsl(var(--surface-muted))]">
         <Link
           href={href}
           onClick={onNavigate}
           className={cn(
-            'flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm focus-visible:outline-none focus-visible:shadow-focus'
+            'flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background'
           )}
           style={
             active
-              ? { background: 'var(--primary-soft)', color: 'var(--primary)' }
-              : { color: 'var(--ink-secondary)' }
+              ? { background: 'hsl(var(--primary-soft))', color: 'hsl(var(--primary))' }
+              : { color: 'hsl(var(--foreground-muted))' }
           }
           aria-current={active ? 'page' : undefined}
           aria-label={project.name}
         >
           <span
             className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-xs"
-            style={{ background: 'var(--bg-muted)' }}
+            style={{ background: 'hsl(var(--surface-muted))' }}
           >
             {project.iconEmoji ?? (
               <span
@@ -138,23 +138,23 @@ export function ProjectNavRow({
         </Link>
         <button
           type="button"
-          className="rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-focus"
+          className="rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           aria-label={starred ? 'Unstar project' : 'Star project'}
           onClick={onStar}
         >
-          <Star className="h-3.5 w-3.5" fill={starred ? 'var(--warning)' : 'none'} stroke="var(--warning)" />
+          <Star className="h-3.5 w-3.5" fill={starred ? 'hsl(var(--warning))' : 'none'} stroke="hsl(var(--warning))" />
         </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
               type="button"
-              className="rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:shadow-focus"
+              className="rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               aria-label={`${project.name} menu`}
             >
-              <MoreHorizontal className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+              <MoreHorizontal className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="tl-popover-surface" align="start">
+          <DropdownMenuContent align="start">
             <DropdownMenuItem
               onClick={() => {
                 setRenameValue(project.name)
@@ -180,7 +180,7 @@ export function ProjectNavRow({
       <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
         <TasklyticDialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="font-serif text-lg">Rename project</DialogTitle>
+            <DialogTitle className="font-sans text-lg">Rename project</DialogTitle>
           </DialogHeader>
           <Input
             className="tl-input"

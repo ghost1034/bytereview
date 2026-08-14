@@ -32,13 +32,13 @@ function Stat({
   tone?: 'danger'
 }) {
   return (
-    <div className="tl-card px-4 py-3 shadow-paper-sm">
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+    <div className="tl-card px-4 py-3 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         {label}
       </p>
       <p
         className="mt-1 text-2xl font-semibold tabular-nums"
-        style={{ color: tone === 'danger' ? 'var(--danger)' : 'var(--ink-primary)' }}
+        style={{ color: tone === 'danger' ? 'hsl(var(--destructive))' : 'hsl(var(--foreground))' }}
       >
         {value}
       </p>

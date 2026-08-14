@@ -24,8 +24,8 @@ export function TimeOffBand({ bucket, timeOff }: Props) {
     <span
       className="ml-2 inline-block rounded px-1.5 py-0.5 text-[10px] uppercase tracking-wide"
       style={{
-        background: 'repeating-linear-gradient(135deg, var(--bg-muted) 0 4px, var(--border-subtle) 4px 8px)',
-        color: 'var(--ink-muted)',
+        background: 'repeating-linear-gradient(135deg, hsl(var(--surface-muted)) 0 4px, hsl(var(--border)) 4px 8px)',
+        color: 'hsl(var(--foreground-muted))',
       }}
     >
       Time off

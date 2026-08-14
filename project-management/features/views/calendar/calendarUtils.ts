@@ -115,5 +115,5 @@ export function layoutMultiDayBars(
 
 /** Chip accent color from project. */
 export function chipColor(project: Project): string {
-  return project.color || 'var(--primary)'
+  return project.color || 'hsl(var(--primary))'
 }

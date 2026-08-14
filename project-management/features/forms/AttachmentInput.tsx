@@ -78,7 +78,7 @@ export function AttachmentInput({ fieldId, value, onChange, readOnly, required, 
         </p>
       ) : null}
       {files.map((f, i) => (
-        <p key={i} className="text-xs" style={{ color: 'var(--ink-secondary)' }}>
+        <p key={i} className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {f.name} ({Math.round(f.size / 1024)} KB)
         </p>
       ))}

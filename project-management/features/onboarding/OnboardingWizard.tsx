@@ -273,7 +273,7 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-2xl bg-background">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">{STEP_LABELS[step]}</DialogTitle>
+          <DialogTitle className="font-sans text-xl">{STEP_LABELS[step]}</DialogTitle>
           <Progress value={progress} className="mt-2 h-1" />
           <StepIndicator steps={indicatorSteps} currentStep={stepIndex} className="mt-4" />
         </DialogHeader>
@@ -355,7 +355,7 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
             <div className="flex gap-2">
               {step === 'about' ? (
                 <Button
-                  className="border-0 bg-[#cc785c] text-white hover:bg-[#b05d40]"
+                  className="border-0 bg-primary text-primary-foreground hover:bg-primary/90"
                   disabled={saving || industries.length === 0}
                   onClick={async () => {
                     await markStep('about')
@@ -367,7 +367,7 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
               ) : null}
               {step === 'templates' ? (
                 <Button
-                  className="border-0 bg-[#cc785c] text-white hover:bg-[#b05d40]"
+                  className="border-0 bg-primary text-primary-foreground hover:bg-primary/90"
                   disabled={saving}
                   onClick={async () => {
                     await markStep('templates')
@@ -379,7 +379,7 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
               ) : null}
               {step === 'invite' ? (
                 <Button
-                  className="border-0 bg-[#cc785c] text-white hover:bg-[#b05d40]"
+                  className="border-0 bg-primary text-primary-foreground hover:bg-primary/90"
                   disabled={saving}
                   onClick={() => void sendInvites()}
                 >
@@ -391,7 +391,7 @@ export function OnboardingWizard({ open, onOpenChange, replay = false }: Props) 
                 </Button>
               ) : null}
               {step === 'finish' ? (
-                <Button className="border-0 bg-[#cc785c] text-white hover:bg-[#b05d40]" disabled={saving} onClick={() => void finish()}>
+                <Button className="border-0 bg-primary text-primary-foreground hover:bg-primary/90" disabled={saving} onClick={() => void finish()}>
                   {saving ? 'Setting up…' : 'Finish setup'}
                 </Button>
               ) : null}

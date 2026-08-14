@@ -36,7 +36,7 @@ export function MultiDayBar({
       style={{
         gridColumn: `span ${span}`,
         background: color,
-        color: 'var(--ink-inverse)',
+        color: 'hsl(var(--primary-foreground))',
         borderTopLeftRadius: radiusLeft,
         borderBottomLeftRadius: radiusLeft,
         borderTopRightRadius: radiusRight,

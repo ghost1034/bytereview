@@ -49,7 +49,7 @@ export function AiContextChips({ scope, onClear }: Props) {
   const label = labelForScope(scope)
   return (
     <div className="flex flex-wrap gap-1.5 px-3 pt-2">
-      <Badge variant="secondary" className="gap-1 rounded-full bg-aurora/40 pr-1">
+      <Badge variant="secondary" className="gap-1 rounded-full bg-surface-muted/40 pr-1">
         <span className="max-w-[200px] truncate">{label}</span>
         {onClear ? (
           <button type="button" aria-label="Clear context" onClick={onClear} className="rounded-full p-0.5 hover:bg-black/5">

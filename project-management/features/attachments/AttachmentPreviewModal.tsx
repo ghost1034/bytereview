@@ -30,7 +30,7 @@ export function AttachmentPreviewModal({ attachment, url, open, onOpenChange }: 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[90vh] max-w-3xl overflow-auto">
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-auto">
         <DialogHeader>
           <DialogTitle className="truncate pr-6">{attachment.name}</DialogTitle>
         </DialogHeader>
@@ -41,13 +41,13 @@ export function AttachmentPreviewModal({ attachment, url, open, onOpenChange }: 
           <embed src={href} type="application/pdf" className="h-[70vh] w-full rounded-lg" />
         ) : null}
         {isLink && href ? (
-          <a href={href} target="_blank" rel="noopener noreferrer" className="break-all text-sm" style={{ color: 'var(--primary)' }}>
+          <a href={href} target="_blank" rel="noopener noreferrer" className="break-all text-sm" style={{ color: 'hsl(var(--primary))' }}>
             {href}
           </a>
         ) : null}
         {!isImage && !isPdf && !isLink ? (
           <div className="space-y-3 py-6 text-center">
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               No preview available for this file type.
             </p>
             {href ? (

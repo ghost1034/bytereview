@@ -27,7 +27,7 @@ export function BillingSettingsPage() {
   usePageMeta({ breadcrumbs: [{ label: 'Settings' }, { label: 'Billing' }] })
   if (!workspaceId || !workspace) return null
   return <div className="space-y-4" data-tour-page="billing-settings">
-    <div><h1 className="font-serif text-2xl">Billing settings</h1><p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Rates, invoice controls, approval routing, budgets, and FX overrides.</p></div>
+    <div><h1 className="font-sans text-2xl">Billing settings</h1><p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Rates, invoice controls, approval routing, budgets, and FX overrides.</p></div>
     <Tabs defaultValue="rates">
       <TabsList className="flex h-auto flex-wrap justify-start">
         <TabsTrigger value="rates">Rates</TabsTrigger><TabsTrigger value="cards">Rate cards</TabsTrigger>

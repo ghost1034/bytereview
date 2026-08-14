@@ -44,9 +44,9 @@ export function ChartVisualizationStep({ draft, onChange }: Props) {
               key={type.id}
               type="button"
               className={`rounded-lg border px-3 py-2 text-sm transition-colors ${
-                draft.type === type.id ? 'border-[var(--primary)] bg-[var(--primary-soft)]' : ''
+                draft.type === type.id ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary-soft))]' : ''
               }`}
-              style={{ borderColor: draft.type === type.id ? undefined : 'var(--border-subtle)' }}
+              style={{ borderColor: draft.type === type.id ? undefined : 'hsl(var(--border))' }}
               onClick={() => onChange({ type: type.id })}
             >
               {type.label}
@@ -66,7 +66,7 @@ export function ChartVisualizationStep({ draft, onChange }: Props) {
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               <SelectItem value="0">All</SelectItem>
               <SelectItem value="5">Top 5</SelectItem>
               <SelectItem value="10">Top 10</SelectItem>

@@ -57,8 +57,8 @@ export function FormEditor({ form: initial }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-serif text-xl">{draft.name}</h2>
-          <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+          <h2 className="font-sans text-xl">{draft.name}</h2>
+          <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {draft.fields.length} fields · {draft.isPublic ? 'Published' : 'Draft'}
             {draft.publicSlug ? ` · slug ${draft.publicSlug}` : ''}
           </p>

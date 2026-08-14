@@ -28,7 +28,7 @@ export function MyTasksHeader({ workspaceId, userId, viewMode, layout, onUpdateL
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-2xl">My Tasks</h1>
+        <h1 className="font-sans text-2xl">My Tasks</h1>
         <MyTasksCustomizeDrawer
           workspaceId={workspaceId}
           userId={userId}
@@ -36,7 +36,7 @@ export function MyTasksHeader({ workspaceId, userId, viewMode, layout, onUpdateL
           onUpdate={onUpdateLayout}
         />
       </div>
-      <nav className="flex flex-wrap gap-4 border-b pb-1" style={{ borderColor: 'var(--border-subtle)' }}>
+      <nav className="flex flex-wrap gap-4 border-b pb-1" style={{ borderColor: 'hsl(var(--border))' }}>
         {VIEW_TABS.map((tab) => {
           const href = tab.id === 'list' ? base : `${base}?view=${tab.id}`
           const active = viewMode === tab.id
@@ -45,13 +45,13 @@ export function MyTasksHeader({ workspaceId, userId, viewMode, layout, onUpdateL
               key={tab.id}
               href={href}
               className="relative pb-2 text-sm font-medium transition-colors"
-              style={{ color: active ? 'var(--primary)' : 'var(--ink-secondary)' }}
+              style={{ color: active ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))' }}
             >
               {tab.label}
               {active ? (
                 <span
                   className="absolute inset-x-0 -bottom-px h-0.5 rounded-full"
-                  style={{ background: 'var(--primary)' }}
+                  style={{ background: 'hsl(var(--primary))' }}
                 />
               ) : null}
             </Link>

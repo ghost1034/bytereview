@@ -28,10 +28,10 @@ export function TimesheetsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="font-serif text-2xl">Timesheets</h1>
-      <div className="tl-card overflow-hidden shadow-paper-sm">
+      <h1 className="font-sans text-2xl">Timesheets</h1>
+      <div className="tl-card overflow-hidden shadow-sm">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)', color: 'var(--ink-muted)' }}>
+          <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">User</th><th className="px-4 py-2">Period</th><th className="px-4 py-2">Status</th>
             <th className="px-4 py-2 text-right">Hours</th><th className="px-4 py-2 text-right">Amount</th><th className="px-4 py-2 text-right">Util %</th><th />
           </tr></thead>
@@ -39,7 +39,7 @@ export function TimesheetsPage() {
             {sheets.sort((a, b) => b.periodStart.localeCompare(a.periodStart)).map((s) => {
               const user = users.find((u) => u.id === s.userId)
               return (
-                <tr key={s.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+                <tr key={s.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                   <td className="px-4 py-2">{user?.name ?? s.userId}{s.userId === userId ? ' (you)' : ''}</td>
                   <td className="px-4 py-2 font-mono tabular-nums">{s.periodStart} — {s.periodEnd}</td>
                   <td className="px-4 py-2"><Badge variant="outline">{s.status}</Badge></td>
@@ -51,7 +51,7 @@ export function TimesheetsPage() {
               )
             })}
             {mine.length === 0 && sheets.length === 0 && (
-              <tr><td colSpan={6} className="px-4 py-8 text-center" style={{ color: 'var(--ink-muted)' }}>No timesheets yet. Submit from Time → My week.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center" style={{ color: 'hsl(var(--foreground-muted))' }}>No timesheets yet. Submit from Time → My week.</td></tr>
             )}
           </tbody>
         </table>

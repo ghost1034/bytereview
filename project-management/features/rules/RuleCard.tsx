@@ -51,7 +51,7 @@ export function RuleCard({
   }
 
   return (
-    <li className="tl-card p-4 shadow-paper-sm">
+    <li className="tl-card p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1 space-y-2">
           {editingName ? (
@@ -79,24 +79,24 @@ export function RuleCard({
               <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-60" />
             </button>
           )}
-          <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>{projectName}</p>
+          <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{projectName}</p>
           <div className="flex flex-wrap items-center gap-1 text-xs">
-            <span style={{ color: 'var(--ink-muted)' }}>When</span>
+            <span style={{ color: 'hsl(var(--foreground-muted))' }}>When</span>
             <Badge variant="secondary" className="font-normal">{parts.trigger}</Badge>
             {parts.conditions ? (
               <>
-                <span style={{ color: 'var(--ink-muted)' }}>if</span>
+                <span style={{ color: 'hsl(var(--foreground-muted))' }}>if</span>
                 <Badge variant="outline" className="font-normal">{parts.conditions}</Badge>
               </>
             ) : null}
-            <span style={{ color: 'var(--ink-muted)' }}>then</span>
+            <span style={{ color: 'hsl(var(--foreground-muted))' }}>then</span>
             {parts.actions.map((a, i) => (
-              <Badge key={i} className="font-normal" style={{ background: 'var(--accent-soft)', color: 'var(--accent)' }}>
+              <Badge key={i} className="font-normal" style={{ background: 'hsl(var(--success-soft))', color: 'hsl(var(--success))' }}>
                 {a}
               </Badge>
             ))}
           </div>
-          <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>
+          <p className="text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>
             {rule.runCount} run{rule.runCount === 1 ? '' : 's'}
             {rule.lastRunAt ? ` · Last run ${formatRelative(rule.lastRunAt)}` : ''}
           </p>
@@ -116,7 +116,7 @@ export function RuleCard({
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="tl-popover-surface" align="end">
+            <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={onEdit}>Edit</DropdownMenuItem>
               <DropdownMenuItem onClick={onDuplicate}>
                 <Copy className="mr-2 h-4 w-4" /> Duplicate

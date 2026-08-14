@@ -1,15 +1,15 @@
 import type { LucideIcon } from 'lucide-react'
 
 export const COLOR_MAP: Record<string, string> = {
-  primary: 'var(--primary)',
-  accent: 'var(--accent)',
-  warning: 'var(--warning)',
-  danger: 'var(--danger)',
-  info: 'var(--info)',
+  primary: 'hsl(var(--primary))',
+  accent: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  danger: 'hsl(var(--destructive))',
+  info: 'hsl(var(--info))',
 }
 
 export function projectDotColor(color: string): string {
-  return COLOR_MAP[color] ?? 'var(--primary)'
+  return COLOR_MAP[color] ?? 'hsl(var(--primary))'
 }
 
 export type NavItem = {

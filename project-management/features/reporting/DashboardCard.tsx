@@ -28,17 +28,17 @@ export function DashboardCard({ dashboard, owner, basePath, dataCtx }: Props) {
   return (
     <Link
       href={`${basePath}/reporting/${dashboard.id}`}
-      className="tl-card block overflow-hidden shadow-paper-sm transition-shadow hover:shadow-paper-md"
+      className="tl-card block overflow-hidden shadow-sm transition-shadow hover:shadow-md"
     >
-      <div className="grid grid-cols-3 gap-1 border-b p-2" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }}>
+      <div className="grid grid-cols-3 gap-1 border-b p-2" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}>
         {previewCharts.length ? (
           previewCharts.map((chart) => (
-            <div key={chart.id} className="h-16 overflow-hidden rounded-md bg-[var(--bg-elevated)] p-1">
+            <div key={chart.id} className="h-16 overflow-hidden rounded-md bg-[hsl(var(--card))] p-1">
               <ChartRenderer chart={chart} data={computeChart(chart, dataCtx)} compact onPointClick={() => undefined} />
             </div>
           ))
         ) : (
-          <div className="col-span-3 flex h-16 items-center justify-center text-xs italic" style={{ color: 'var(--ink-muted)' }}>
+          <div className="col-span-3 flex h-16 items-center justify-center text-xs italic" style={{ color: 'hsl(var(--foreground-muted))' }}>
             No charts yet
           </div>
         )}
@@ -53,7 +53,7 @@ export function DashboardCard({ dashboard, owner, basePath, dataCtx }: Props) {
             </Badge>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'var(--ink-muted)' }}>
+        <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           <span className="inline-flex items-center gap-1">
             <Users className="h-3 w-3" />
             {owner?.name ?? 'Unknown'}

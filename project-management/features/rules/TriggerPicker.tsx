@@ -58,7 +58,7 @@ export function TriggerPicker({ trigger, onChange, sections, forms, customFields
       <Label>When</Label>
       <Select value={trigger.type} onValueChange={(v) => setType(v as RuleTrigger['type'])}>
         <SelectTrigger><SelectValue /></SelectTrigger>
-        <SelectContent className="tl-popover-surface z-[100]">
+        <SelectContent className="z-[100]">
           {TRIGGER_OPTIONS.map((o) => (
             <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
           ))}
@@ -68,7 +68,7 @@ export function TriggerPicker({ trigger, onChange, sections, forms, customFields
       {trigger.type === 'task_moved_to_section' && (
         <Select value={trigger.sectionId} onValueChange={(sectionId) => onChange({ ...trigger, sectionId })}>
           <SelectTrigger><SelectValue placeholder="Section" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {sections.map((s) => (
               <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
             ))}
@@ -96,7 +96,7 @@ export function TriggerPicker({ trigger, onChange, sections, forms, customFields
             onValueChange={(customFieldId) => onChange({ ...trigger, customFieldId })}
           >
             <SelectTrigger><SelectValue placeholder="Field" /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">
+            <SelectContent className="z-[100]">
               {customFields.map((f) => (
                 <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
               ))}
@@ -116,7 +116,7 @@ export function TriggerPicker({ trigger, onChange, sections, forms, customFields
       {trigger.type === 'form_submitted' && (
         <Select value={trigger.formId} onValueChange={(formId) => onChange({ ...trigger, formId })}>
           <SelectTrigger><SelectValue placeholder="Form" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {forms.map((f) => (
               <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
             ))}

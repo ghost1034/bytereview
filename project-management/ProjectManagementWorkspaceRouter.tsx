@@ -150,9 +150,9 @@ export function ProjectManagementWorkspaceRouter({ workspaceId, segments = [] }:
 
 function UnavailableRoute({ basePath }: { basePath: string }) {
   return (
-    <div className="tl-card mx-auto max-w-lg p-8 text-center shadow-paper-sm">
-      <h1 className="font-serif text-2xl">Page not found</h1>
-      <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>
+    <div className="tl-card mx-auto max-w-lg p-8 text-center shadow-sm">
+      <h1 className="font-sans text-2xl">Page not found</h1>
+      <p className="mt-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         This project-management destination is not available.
       </p>
       <Link className="mt-4 inline-block text-sm underline" href={`${basePath}/home`}>

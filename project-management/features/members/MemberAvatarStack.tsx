@@ -25,14 +25,14 @@ export function MemberAvatarStack({ users, max = 4, size = 'md' }: Props) {
   const dim = size === 'sm' ? 'h-6 w-6 text-[10px]' : 'h-8 w-8 text-xs'
 
   if (users.length === 0) {
-    return <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>No members</span>
+    return <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>No members</span>
   }
 
   return (
     <div className="flex items-center">
       <div className="flex -space-x-2">
         {visible.map((user) => (
-          <Avatar key={user.id} className={`${dim} border-2`} style={{ borderColor: 'var(--bg-elevated)' }}>
+          <Avatar key={user.id} className={`${dim} border-2`} style={{ borderColor: 'hsl(var(--card))' }}>
             <AvatarFallback style={{ background: colorForUser(user.id), color: '#fff' }}>
               {initials(user.name)}
             </AvatarFallback>
@@ -42,7 +42,7 @@ export function MemberAvatarStack({ users, max = 4, size = 'md' }: Props) {
       {extra > 0 && (
         <span
           className="ml-2 rounded-full px-2 py-0.5 text-xs font-medium"
-          style={{ background: 'var(--bg-muted)', color: 'var(--ink-secondary)' }}
+          style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
         >
           +{extra} more
         </span>

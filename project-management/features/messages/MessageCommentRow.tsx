@@ -30,22 +30,22 @@ export function MessageCommentRow({
   }
 
   return (
-    <article className="rounded-lg p-3 text-sm" style={{ background: 'var(--bg-muted)' }}>
+    <article className="rounded-lg p-3 text-sm" style={{ background: 'hsl(var(--surface-muted))' }}>
       <div className="mb-1 flex items-center gap-2">
         <span
           className="flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold text-white"
-          style={{ background: author?.avatarColor ?? 'var(--primary)' }}
+          style={{ background: author?.avatarColor ?? 'hsl(var(--primary))' }}
         >
           {(author?.name ?? '?').slice(0, 1).toUpperCase()}
         </span>
         <span className="font-medium">{author?.name ?? 'Unknown'}</span>
-        <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+        <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {formatRelative(comment.createdAt)}
         </span>
       </div>
       <div
         className="leading-relaxed"
-        style={{ color: 'var(--ink-secondary)' }}
+        style={{ color: 'hsl(var(--foreground-muted))' }}
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(comment.bodyHtml) }}
       />
       <MessageReactions

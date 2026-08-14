@@ -49,7 +49,7 @@ export function MyTasksCalendar({ workspaceId, basePath }: Props) {
 
   if (!calendarProject) {
     return (
-      <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Create a project to schedule tasks on the calendar.
       </p>
     )

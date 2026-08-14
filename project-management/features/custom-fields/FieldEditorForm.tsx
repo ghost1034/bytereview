@@ -140,7 +140,7 @@ export function FieldEditorForm({ state, onChange, numberFields }: Props) {
           <SelectTrigger id="cf-type">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {FIELD_EDITOR_TYPES.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.label}
@@ -167,7 +167,7 @@ export function FieldEditorForm({ state, onChange, numberFields }: Props) {
             <Label>Format</Label>
             <Select value={state.numberFormat} onValueChange={(v) => set('numberFormat', v as typeof state.numberFormat)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="plain">Plain</SelectItem>
                 <SelectItem value="percent">Percent</SelectItem>
                 <SelectItem value="currency">Currency</SelectItem>
@@ -240,7 +240,7 @@ export function FieldEditorForm({ state, onChange, numberFields }: Props) {
                 }
               >
                 <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[100]">
+                <SelectContent className="z-[100]">
                   {OPTION_COLORS.map((c) => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
@@ -260,18 +260,18 @@ export function FieldEditorForm({ state, onChange, numberFields }: Props) {
             rows={3}
             onChange={(e) => set('formulaExpression', e.target.value)}
           />
-          <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Reference number/checkbox fields as [Field Name]. Supports + − × ÷, IF(cond,a,b), SUM(a,b).
           </p>
           {formulaPreview ? (
             formulaPreview.ok ? (
-              <p className="text-xs" style={{ color: 'var(--accent)' }}>Preview: {formulaPreview.value ?? 'empty'}</p>
+              <p className="text-xs" style={{ color: 'hsl(var(--success))' }}>Preview: {formulaPreview.value ?? 'empty'}</p>
             ) : (
-              <p className="text-xs" style={{ color: 'var(--danger)' }}>{formulaPreview.error}</p>
+              <p className="text-xs" style={{ color: 'hsl(var(--destructive))' }}>{formulaPreview.error}</p>
             )
           ) : null}
           {numberFields.length ? (
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Refs: {numberFields.map((f) => f.name).join(', ')}
             </p>
           ) : null}

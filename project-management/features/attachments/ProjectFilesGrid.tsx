@@ -179,7 +179,7 @@ export function ProjectFilesGrid({ project }: Props) {
       {canDelete ? <AttachmentListPanel scope={projectAttachmentScope} /> : null}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-[200px] flex-1">
-          <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: 'var(--ink-faint)' }} />
+          <Search className="absolute left-2 top-2.5 h-4 w-4" style={{ color: 'hsl(var(--foreground-subtle))' }} />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -191,7 +191,7 @@ export function ProjectFilesGrid({ project }: Props) {
           <SelectTrigger className="tl-input h-9 w-40" aria-label="File type">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All types</SelectItem>
             {(Object.keys(MIME_CATEGORY_LABELS) as MimeCategory[]).map((key) => (
               <SelectItem key={key} value={key}>
@@ -202,14 +202,14 @@ export function ProjectFilesGrid({ project }: Props) {
         </Select>
         <Select value={uploaderId} onValueChange={setUploaderId}>
           <SelectTrigger className="tl-input h-9 w-40" aria-label="Uploader"><SelectValue placeholder="Uploader" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="all">All uploaders</SelectItem>
             {uploaders.map((user) => <SelectItem key={user.id} value={user.id}>{user.name}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
           <SelectTrigger className="tl-input h-9 w-40" aria-label="Sort files"><SelectValue placeholder="Sort" /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="date_desc">Newest first</SelectItem>
             <SelectItem value="date_asc">Oldest first</SelectItem>
             <SelectItem value="name_asc">Name A–Z</SelectItem>
@@ -218,7 +218,7 @@ export function ProjectFilesGrid({ project }: Props) {
             <SelectItem value="size_asc">Smallest first</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex rounded-lg border" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="flex rounded-lg border" style={{ borderColor: 'hsl(var(--border))' }}>
           <Button size="icon" variant={layout === 'grid' ? 'secondary' : 'ghost'} className="h-9 w-9" aria-label="Grid layout" onClick={() => setLayout('grid')}><Grid2X2 className="h-4 w-4" /></Button>
           <Button size="icon" variant={layout === 'list' ? 'secondary' : 'ghost'} className="h-9 w-9" aria-label="List layout" onClick={() => setLayout('list')}><List className="h-4 w-4" /></Button>
         </div>
@@ -239,7 +239,7 @@ export function ProjectFilesGrid({ project }: Props) {
         ) : null}
       </div>
       {rows.length === 0 ? (
-        <p className="py-12 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <p className="py-12 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           No files match your filters.
         </p>
       ) : (
@@ -248,7 +248,7 @@ export function ProjectFilesGrid({ project }: Props) {
             <div
               key={row.id}
               className="rounded-lg border p-2"
-              style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+              style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
             >
               <label className="mb-2 flex items-center gap-2 text-xs">
                 <input type="checkbox" checked={selected.has(row.id)} onChange={() => toggle(row.id)} />
@@ -260,24 +260,24 @@ export function ProjectFilesGrid({ project }: Props) {
                 ) : (
                   <div
                     className="mb-2 flex h-24 items-center justify-center rounded text-xs"
-                    style={{ background: 'var(--bg-muted)', color: 'var(--ink-faint)' }}
+                    style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-subtle))' }}
                   >
                     {MIME_CATEGORY_LABELS[mimeCategory(row.mime)]}
                   </div>
                 )}
-                <p className="truncate text-sm font-medium" style={{ color: 'var(--ink-secondary)' }}>
+                <p className="truncate text-sm font-medium" style={{ color: 'hsl(var(--foreground-muted))' }}>
                   {row.name}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>
+                <p className="text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>
                   {formatFileSize(row.size)} · {row.taskName} · {row.uploaderName}
                 </p>
               </button>
             </div>
           ))}
         </div> : (
-          <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border-subtle)' }}>
+          <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'hsl(var(--border))' }}>
             <table className="w-full min-w-[760px] text-left text-sm">
-              <thead style={{ background: 'var(--bg-muted)', color: 'var(--ink-muted)' }}>
+              <thead style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}>
                 <tr>
                   <th className="p-2"><span className="sr-only">Select</span></th>
                   <th className="p-2">Name</th><th className="p-2">Type</th><th className="p-2">Size</th>
@@ -286,7 +286,7 @@ export function ProjectFilesGrid({ project }: Props) {
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr key={row.id} className="border-t" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <tr key={row.id} className="border-t" style={{ borderColor: 'hsl(var(--border))' }}>
                     <td className="p-2"><input type="checkbox" checked={selected.has(row.id)} onChange={() => toggle(row.id)} aria-label={`Select ${row.name}`} /></td>
                     <td className="p-2"><button type="button" className="font-medium hover:underline" onClick={() => setPreview(row)}>{row.name}</button></td>
                     <td className="p-2">{MIME_CATEGORY_LABELS[mimeCategory(row.mime)]}</td>

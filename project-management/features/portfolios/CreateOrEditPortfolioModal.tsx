@@ -121,9 +121,9 @@ export function CreateOrEditPortfolioModal({ open, onOpenChange, workspaceId, po
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">
+          <DialogTitle className="font-sans text-xl">
             {editing ? 'Edit portfolio' : 'New portfolio'}
           </DialogTitle>
         </DialogHeader>
@@ -150,7 +150,7 @@ export function CreateOrEditPortfolioModal({ open, onOpenChange, workspaceId, po
             <Label>Owner</Label>
             <Select value={ownerId} onValueChange={setOwnerId}>
               <SelectTrigger className="tl-input"><SelectValue placeholder="Select owner" /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 {users.map((u) => (
                   <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>
                 ))}
@@ -160,7 +160,7 @@ export function CreateOrEditPortfolioModal({ open, onOpenChange, workspaceId, po
           {projects.length > 0 && (
             <div className="grid gap-2">
               <Label>Projects</Label>
-              <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'var(--border-subtle)' }}>
+              <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'hsl(var(--border))' }}>
                 {projects.map((p) => (
                   <label key={p.id} className="flex cursor-pointer items-center gap-2 text-sm">
                     <input type="checkbox" checked={projectIds.includes(p.id)} onChange={() => toggle(projectIds, p.id, setProjectIds)} />
@@ -173,7 +173,7 @@ export function CreateOrEditPortfolioModal({ open, onOpenChange, workspaceId, po
           {goals.length > 0 && (
             <div className="grid gap-2">
               <Label>Goals</Label>
-              <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'var(--border-subtle)' }}>
+              <div className="max-h-32 space-y-1 overflow-y-auto rounded-lg border p-2" style={{ borderColor: 'hsl(var(--border))' }}>
                 {goals.map((g) => (
                   <label key={g.id} className="flex cursor-pointer items-center gap-2 text-sm">
                     <input type="checkbox" checked={goalIds.includes(g.id)} onChange={() => toggle(goalIds, g.id, setGoalIds)} />

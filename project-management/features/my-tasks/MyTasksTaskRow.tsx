@@ -38,8 +38,8 @@ export function MyTasksTaskRow({ task, projectById, onOpen, draggable = true }: 
       ref={sortable.setNodeRef}
       className="group flex items-center gap-2 rounded-lg border px-2 py-1.5 text-sm"
       style={{
-        borderColor: 'var(--border-subtle)',
-        background: 'var(--bg-elevated)',
+        borderColor: 'hsl(var(--border))',
+        background: 'hsl(var(--card))',
         transform: CSS.Transform.toString(sortable.transform),
         transition: sortable.transition,
         opacity: sortable.isDragging ? 0.5 : 1,
@@ -61,7 +61,7 @@ export function MyTasksTaskRow({ task, projectById, onOpen, draggable = true }: 
           <span
             key={p.id}
             className="max-w-[100px] truncate rounded-full px-2 py-0.5 text-[10px]"
-            style={{ background: 'var(--bg-muted)', color: 'var(--ink-muted)' }}
+            style={{ background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
           >
             {p.name}
           </span>

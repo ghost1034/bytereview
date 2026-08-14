@@ -39,12 +39,12 @@ export function DrillDownPanel({ chart, recordIds, label, basePath, onClose }: P
       role="dialog"
       aria-modal="true"
       aria-labelledby="dashboard-drilldown-title"
-      className="tl-card fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col shadow-paper-lg print:hidden"
-      style={{ maxHeight: '70vh', background: 'var(--bg-elevated)' }}
+      className="tl-card fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col shadow-lg print:hidden"
+      style={{ maxHeight: '70vh', background: 'hsl(var(--card))' }}
     >
-      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
         <div>
-          <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-xs uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Drill-down
           </p>
           <p id="dashboard-drilldown-title" className="font-medium">{label}</p>
@@ -59,14 +59,14 @@ export function DrillDownPanel({ chart, recordIds, label, basePath, onClose }: P
             <li key={row!.id}>
               <Link
                 href={recordHref(row!.id)}
-                className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[var(--bg-muted)]"
+                className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[hsl(var(--surface-muted))]"
               >
                 {'name' in row! ? row!.name : 'Record'}
               </Link>
             </li>
           ))
         ) : (
-          <li className="px-3 py-6 text-center text-sm italic" style={{ color: 'var(--ink-muted)' }}>
+          <li className="px-3 py-6 text-center text-sm italic" style={{ color: 'hsl(var(--foreground-muted))' }}>
             No records
           </li>
         )}

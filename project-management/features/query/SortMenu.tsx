@@ -49,7 +49,7 @@ export function SortMenu({ query, onChange, customFields = [] }: Props) {
           Sort: {currentLabel}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="tl-popover-surface" align="start">
+      <DropdownMenuContent align="start">
         {SORT_FIELD_OPTIONS.map((s) => (
           <DropdownMenuItem key={s.field} onClick={() => pickSort(s.field)}>
             {s.label}

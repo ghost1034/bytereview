@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 /** Single list row skeleton. */
 export function SkeletonRow() {
   return (
-    <div className="flex items-center gap-3 border-b px-3 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div className="flex items-center gap-3 border-b px-3 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
       <Skeleton className="tl-shimmer h-4 w-4 rounded" />
       <Skeleton className="tl-shimmer h-4 flex-1 max-w-[240px]" />
       <Skeleton className="tl-shimmer h-6 w-6 rounded-full" />
@@ -20,7 +20,7 @@ export function SkeletonRow() {
 /** Board card skeleton. */
 export function SkeletonCard() {
   return (
-    <div className="tl-card space-y-2 p-3 shadow-paper-sm">
+    <div className="tl-card space-y-2 p-3 shadow-sm">
       <Skeleton className="tl-shimmer h-3 w-3/4" />
       <Skeleton className="tl-shimmer h-3 w-1/2" />
       <div className="flex gap-2 pt-1">
@@ -59,7 +59,7 @@ export function SkeletonSidebarRows({ count = 5 }: { count?: number }) {
 /** List view loading — 8 rows. */
 export function ListViewSkeleton() {
   return (
-    <div className="tl-card overflow-hidden shadow-paper-sm">
+    <div className="tl-card overflow-hidden shadow-sm">
       {Array.from({ length: 8 }).map((_, i) => (
         <SkeletonRow key={i} />
       ))}

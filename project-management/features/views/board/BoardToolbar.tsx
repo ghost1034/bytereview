@@ -16,18 +16,18 @@ export function BoardToolbar({ query, onChange }: Props) {
 
   return (
     <div className="mb-2 flex flex-wrap items-center gap-2">
-      <span className="text-xs font-medium" style={{ color: 'var(--ink-muted)' }}>
+      <span className="text-xs font-medium" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Density
       </span>
-      <div className="flex rounded-lg border p-0.5" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="flex rounded-lg border p-0.5" style={{ borderColor: 'hsl(var(--border))' }}>
         {(['compact', 'comfortable'] as const).map((d) => (
           <button
             key={d}
             type="button"
             className="rounded-md px-2.5 py-1 text-xs capitalize"
             style={{
-              background: density === d ? 'var(--primary-soft)' : 'transparent',
-              color: density === d ? 'var(--primary)' : 'var(--ink-secondary)',
+              background: density === d ? 'hsl(var(--primary-soft))' : 'transparent',
+              color: density === d ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))',
             }}
             onClick={() => onChange({ ...query, density: d })}
           >

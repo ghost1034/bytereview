@@ -55,10 +55,10 @@ export function OnboardingSettingsPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="tl-card space-y-4 p-4 shadow-paper-sm">
+      <div className="tl-card space-y-4 p-4 shadow-sm">
         <div>
-          <h2 className="font-serif text-lg">Setup wizard</h2>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <h2 className="font-sans text-lg">Setup wizard</h2>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Re-run the first-run setup to update your company profile, industries, templates, and invites.
           </p>
         </div>
@@ -72,10 +72,10 @@ export function OnboardingSettingsPanel() {
         </Button>
       </div>
 
-      <div className="tl-card space-y-4 p-4 shadow-paper-sm">
+      <div className="tl-card space-y-4 p-4 shadow-sm">
         <div>
-          <h2 className="font-serif text-lg">Starter templates</h2>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <h2 className="font-sans text-lg">Starter templates</h2>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Add another curated starter project from the template library.
           </p>
         </div>
@@ -87,8 +87,8 @@ export function OnboardingSettingsPanel() {
             onClick={() => setSelected(t.id)}
             className="rounded-lg border p-2 text-left text-sm"
             style={{
-              borderColor: selected === t.id ? 'var(--primary)' : 'var(--border-subtle)',
-              background: selected === t.id ? 'var(--primary-soft)' : 'transparent',
+              borderColor: selected === t.id ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+              background: selected === t.id ? 'hsl(var(--primary-soft))' : 'transparent',
             }}
           >
             {t.iconEmoji} {t.name} · {countTemplateTasks(t)} tasks
@@ -99,7 +99,7 @@ export function OnboardingSettingsPanel() {
         Add starter project
       </Button>
       {message ? (
-        <p className="text-sm" style={{ color: 'var(--primary)' }}>
+        <p className="text-sm" style={{ color: 'hsl(var(--primary))' }}>
           {message}
         </p>
       ) : null}

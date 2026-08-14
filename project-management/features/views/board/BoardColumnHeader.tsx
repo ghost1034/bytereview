@@ -59,9 +59,9 @@ export function BoardColumnHeader({
   }
 
   return (
-    <div className="tl-card mb-2 flex shrink-0 items-center gap-1 px-2 py-2 shadow-paper-sm">
+    <div className="tl-card mb-2 flex shrink-0 items-center gap-1 px-2 py-2 shadow-sm">
       <button type="button" aria-label="Collapse column" onClick={onToggleCollapse}>
-        <ChevronDown className="h-4 w-4 shrink-0" style={{ color: 'var(--ink-muted)' }} />
+        <ChevronDown className="h-4 w-4 shrink-0" style={{ color: 'hsl(var(--foreground-muted))' }} />
       </button>
       {editing ? (
         <Input
@@ -92,9 +92,9 @@ export function BoardColumnHeader({
         style={{
           background:
             overWip || atLimit
-              ? 'color-mix(in srgb, var(--danger) 15%, transparent)'
-              : 'var(--bg-muted)',
-          color: overWip || atLimit ? 'var(--danger)' : 'var(--ink-muted)',
+              ? 'color-mix(in srgb, hsl(var(--destructive)) 15%, transparent)'
+              : 'hsl(var(--surface-muted))',
+          color: overWip || atLimit ? 'hsl(var(--destructive))' : 'hsl(var(--foreground-muted))',
         }}
         title={overWip ? 'WIP limit exceeded' : atLimit ? 'At WIP limit' : undefined}
         onDoubleClick={() => void setWip()}
@@ -110,13 +110,13 @@ export function BoardColumnHeader({
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="tl-popover-surface" align="end">
+        <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setEditing(true)}>Rename</DropdownMenuItem>
           <DropdownMenuItem onClick={() => void setWip()}>Set WIP limit</DropdownMenuItem>
           <DropdownMenuItem onClick={onToggleCollapse}>Collapse</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="text-[var(--danger)]"
+            className="text-[hsl(var(--destructive))]"
             onClick={() => void deleteProjectSection(section.id)}
           >
             Delete section

@@ -66,7 +66,7 @@ export function TaskDescriptionEditor({ task, onMention: _onMention }: Props) {
   return (
     <div className="mt-4">
       <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Description
         </p>
         {!editing ? (
@@ -81,9 +81,9 @@ export function TaskDescriptionEditor({ task, onMention: _onMention }: Props) {
         <div
           className="rounded-lg border px-3 py-2 text-sm leading-relaxed tl-task-notes [&_a]:underline"
           style={{
-            borderColor: 'var(--border-subtle)',
-            background: 'var(--bg-elevated)',
-            color: 'var(--ink-secondary)',
+            borderColor: 'hsl(var(--border))',
+            background: 'hsl(var(--card))',
+            color: 'hsl(var(--foreground-muted))',
             maxHeight: showCollapsed ? '6rem' : undefined,
             overflow: showCollapsed ? 'hidden' : undefined,
           }}
@@ -93,7 +93,7 @@ export function TaskDescriptionEditor({ task, onMention: _onMention }: Props) {
         <button
           type="button"
           className="w-full rounded-lg border border-dashed px-3 py-6 text-left text-sm"
-          style={{ borderColor: 'var(--border-default)', color: 'var(--ink-faint)' }}
+          style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-subtle))' }}
           onClick={() => setEditing(true)}
         >
           Add a description…

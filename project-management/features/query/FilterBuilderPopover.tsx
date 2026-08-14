@@ -99,8 +99,8 @@ export function FilterBuilderPopover({
     <Popover>
       <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       <TasklyticPopoverContent align="start" className="w-[520px] p-0">
-        <div className="border-b px-3 py-2" style={{ borderColor: 'var(--border-subtle)' }}>
-          <p className="text-xs font-medium" style={{ color: 'var(--ink-secondary)' }}>
+        <div className="border-b px-3 py-2" style={{ borderColor: 'hsl(var(--border))' }}>
+          <p className="text-xs font-medium" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Quick filters
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -118,11 +118,11 @@ export function FilterBuilderPopover({
         </div>
 
         <div className="max-h-[420px] overflow-y-auto px-3 py-2">
-          <p className="mb-2 text-[10px] uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+          <p className="mb-2 text-[10px] uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Recursive filter groups · {clauseCount(expression)} condition(s)
           </p>
           {expression.children.length === 0 ? (
-            <p className="py-4 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="py-4 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               No filters applied
             </p>
           ) : (
@@ -171,9 +171,9 @@ type GroupEditorProps = {
 
 function FilterGroupEditor({ group, root, fieldDefs, ctx, onUpdate, onRemove, onAddClause, onAddGroup }: GroupEditorProps) {
   return (
-    <div className={root ? 'space-y-2' : 'ml-3 space-y-2 rounded-lg border p-2'} style={!root ? { borderColor: 'var(--border-subtle)' } : undefined}>
+    <div className={root ? 'space-y-2' : 'ml-3 space-y-2 rounded-lg border p-2'} style={!root ? { borderColor: 'hsl(var(--border))' } : undefined}>
       <div className="flex items-center gap-1.5">
-        <Braces className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+        <Braces className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
         <Select value={group.operator} onValueChange={(operator) => onUpdate(group.id ?? '', (node) => isFilterGroup(node) ? { ...node, operator: operator as 'and' | 'or' } : node)}>
           <SelectTrigger className="h-7 w-24 text-xs" aria-label={root ? 'Root filter operator' : 'Filter group operator'}><SelectValue /></SelectTrigger>
           <TasklyticSelectContent>

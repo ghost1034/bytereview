@@ -79,7 +79,7 @@ export function CommentComposer({ task, workspaceUsers, replyToId, onPosted, com
       span.textContent = `@${pick.user.name}`
     } else {
       span.dataset.mentionToken = pick.token
-      span.style.cssText = 'color:var(--accent);font-weight:600'
+      span.style.cssText = 'color:hsl(var(--success));font-weight:600'
       span.textContent = pick.label
     }
 
@@ -121,8 +121,8 @@ export function CommentComposer({ task, workspaceUsers, replyToId, onPosted, com
           ref={editorRef}
           contentEditable
           suppressContentEditableWarning
-          className={`rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none focus-visible:shadow-focus ${compact ? 'min-h-16' : 'min-h-20 rounded-t-none'}`}
-          style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)', color: 'var(--ink-secondary)' }}
+          className={`rounded-lg border px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background ${compact ? 'min-h-16' : 'min-h-20 rounded-t-none'}`}
+          style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))', color: 'hsl(var(--foreground-muted))' }}
           data-placeholder="Write a comment… (@ to mention)"
           onInput={() => {
             detectMention()
@@ -142,7 +142,7 @@ export function CommentComposer({ task, workspaceUsers, replyToId, onPosted, com
       </div>
       <div className="flex items-center justify-between gap-2">
         {hasDraft ? (
-          <button type="button" className="text-xs underline" style={{ color: 'var(--ink-muted)' }} onClick={() => {
+          <button type="button" className="text-xs underline" style={{ color: 'hsl(var(--foreground-muted))' }} onClick={() => {
             if (!currentUserId) return
             clearDraft(currentUserId, task.id)
             if (editorRef.current) editorRef.current.innerHTML = ''

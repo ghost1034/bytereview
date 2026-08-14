@@ -143,7 +143,7 @@ export function TasklyticSidebar({ onNavigate }: Props) {
   const sectionLabel = (label: string, action?: ReactNode) =>
     !collapsed ? (
       <div className="flex items-center justify-between px-2.5 py-1">
-        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+        <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {label}
         </span>
         {action}
@@ -154,13 +154,13 @@ export function TasklyticSidebar({ onNavigate }: Props) {
     <TooltipProvider delayDuration={0}>
       <aside
         className="relative flex h-full shrink-0 flex-col border-r transition-[width] duration-200 ease-out"
-        style={{ width, borderColor: 'var(--border-subtle)', background: 'var(--bg-sunken)' }}
+        style={{ width, borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}
         aria-label="Project management navigation"
         data-tour="sidebar"
       >
         <SidebarResizeHandle width={sidebarWidth} collapsed={collapsed} onWidthChange={setSidebarWidth} />
 
-        <div className={cn('border-b p-2', collapsed && 'px-1')} style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className={cn('border-b p-2', collapsed && 'px-1')} style={{ borderColor: 'hsl(var(--border))' }}>
           <WorkspaceSwitcher fullWidth />
         </div>
 
@@ -201,11 +201,11 @@ export function TasklyticSidebar({ onNavigate }: Props) {
               'Projects',
               <button
                 type="button"
-                className="rounded p-0.5 focus-visible:outline-none focus-visible:shadow-focus"
+                className="rounded p-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 aria-label="Create project"
                 onClick={() => setCreateProjectOpen(true)}
               >
-                <Plus className="h-3.5 w-3.5" style={{ color: 'var(--ink-muted)' }} />
+                <Plus className="h-3.5 w-3.5" style={{ color: 'hsl(var(--foreground-muted))' }} />
               </button>
             )}
             <CollapsibleContent className="flex flex-col gap-0.5">
@@ -214,14 +214,14 @@ export function TasklyticSidebar({ onNavigate }: Props) {
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      className="flex h-9 w-full items-center justify-center rounded-lg focus-visible:outline-none focus-visible:shadow-focus"
+                      className="flex h-9 w-full items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                       onClick={() => setCreateProjectOpen(true)}
                       aria-label="Create project"
                     >
-                      <Plus className="h-4 w-4" style={{ color: 'var(--ink-muted)' }} />
+                      <Plus className="h-4 w-4" style={{ color: 'hsl(var(--foreground-muted))' }} />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent className="tl-popover-surface" side="right">Create project</TooltipContent>
+                  <TooltipContent side="right">Create project</TooltipContent>
                 </Tooltip>
               ) : null}
               {regularProjects.map((p) => (

@@ -54,7 +54,7 @@ export function AiAssistantPanel({ open, onOpenChange }: Props) {
     return (
       <button
         type="button"
-        className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full shadow-glow-sm tl-btn-primary"
+        className="fixed bottom-6 right-6 z-30 flex h-12 w-12 items-center justify-center rounded-full shadow-md tl-btn-primary"
         aria-label="Open Project Management AI"
         data-tour="ai-sparkles"
         onClick={() => onOpenChange(true)}
@@ -73,8 +73,8 @@ export function AiAssistantPanel({ open, onOpenChange }: Props) {
         onClick={() => onOpenChange(false)}
       />
       <aside
-        className="fixed inset-y-0 right-0 z-50 flex w-[380px] max-w-[100vw] flex-col border-l shadow-paper-lg"
-        style={{ borderColor: 'var(--border-subtle)' }}
+        className="fixed inset-y-0 right-0 z-50 flex w-[380px] max-w-[100vw] flex-col border-l shadow-lg"
+        style={{ borderColor: 'hsl(var(--border))' }}
         aria-label="Project Management AI panel"
       >
         <AiPanelHeader onClose={() => onOpenChange(false)} onOpenSettings={() => setTab('settings')} />

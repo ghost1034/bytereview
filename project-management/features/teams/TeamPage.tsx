@@ -31,11 +31,11 @@ export function TeamPage({ teamId }: { teamId?: string | null } = {}) {
   })
 
   if (!workspaceId || !workspace || !team || team.workspaceId !== workspaceId) {
-    return <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Team not found.</p>
+    return <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Team not found.</p>
   }
 
   if (!canViewTeam(team, currentUserId)) {
-    return <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>This team is secret — you need an invite to view it.</p>
+    return <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>This team is secret — you need an invite to view it.</p>
   }
 
   const showAdminPanel = Boolean(currentUser && isTeamAdmin(currentUser, team, workspace))
@@ -45,8 +45,8 @@ export function TeamPage({ teamId }: { teamId?: string | null } = {}) {
       <div className="flex flex-wrap items-center gap-3">
         <TeamIcon name={team.name} emoji={team.iconEmoji} className="h-10 w-10 text-xl" />
         <div>
-          <h1 className="font-serif text-2xl">{team.name}</h1>
-          <p className="text-sm capitalize" style={{ color: 'var(--ink-muted)' }}>
+          <h1 className="font-sans text-2xl">{team.name}</h1>
+          <p className="text-sm capitalize" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {team.privacy} · {team.memberIds.length} members
           </p>
         </div>
@@ -72,7 +72,7 @@ export function TeamPage({ teamId }: { teamId?: string | null } = {}) {
           {isTeamMember(team, currentUserId) ? (
             <TeamSettingsTab team={team} workspace={workspace} currentUser={currentUser} />
           ) : (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Join the team to access settings.</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Join the team to access settings.</p>
           )}
         </TabsContent>
       </Tabs>
@@ -81,7 +81,7 @@ export function TeamPage({ teamId }: { teamId?: string | null } = {}) {
         <Link
           href={`/dashboard/project-management/w/${workspaceId}/teams/${team.id}/settings`}
           className="text-xs underline"
-          style={{ color: 'var(--ink-muted)' }}
+          style={{ color: 'hsl(var(--foreground-muted))' }}
         >
           Direct link to team settings
         </Link>

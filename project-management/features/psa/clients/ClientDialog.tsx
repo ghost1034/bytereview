@@ -61,19 +61,19 @@ export function ClientDialog({ open, onOpenChange, workspaceId, client }: Props)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
-        <DialogHeader><DialogTitle className="font-serif text-xl">{client ? 'Edit client' : 'New client'}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle className="font-sans text-xl">{client ? 'Edit client' : 'New client'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
           <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="tl-input" /></div>
           <Select value={type} onValueChange={(v) => setType(v as Client['type'])}>
             <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">{(['individual', 'business', 'nonprofit', 'government'] as const).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+            <SelectContent className="z-[100]">{(['individual', 'business', 'nonprofit', 'government'] as const).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
           <div><Label>Contact email</Label><Input value={email} onChange={(e) => setEmail(e.target.value)} className="tl-input" /></div>
           <Select value={terms} onValueChange={(v) => setTerms(v as Client['paymentTerms'])}>
             <SelectTrigger className="tl-input"><SelectValue /></SelectTrigger>
-            <SelectContent className="tl-popover-surface z-[100]">{(['due_on_receipt', 'net_15', 'net_30', 'net_45', 'net_60'] as const).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+            <SelectContent className="z-[100]">{(['due_on_receipt', 'net_15', 'net_30', 'net_45', 'net_60'] as const).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="tl-input"><SelectValue placeholder="Default rate card" /></SelectTrigger><SelectContent className="tl-popover-surface z-[100]"><SelectItem value="none">No default rate card</SelectItem>{rateCards.map((card) => <SelectItem value={card.id} key={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
+          <Select value={rateCardId} onValueChange={setRateCardId}><SelectTrigger className="tl-input"><SelectValue placeholder="Default rate card" /></SelectTrigger><SelectContent className="z-[100]"><SelectItem value="none">No default rate card</SelectItem>{rateCards.map((card) => <SelectItem value={card.id} key={card.id}>{card.name}</SelectItem>)}</SelectContent></Select>
           <div><Label>Billing currency</Label><Input maxLength={3} value={currency} onChange={(event) => setCurrency(event.target.value)} className="tl-input uppercase" /></div>
         </div>
         <DialogFooter>

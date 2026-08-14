@@ -17,16 +17,16 @@ export function PortfolioSettingsTab({ portfolio, workspaceId }: Props) {
 
   return (
     <div className="space-y-8">
-      <section className="tl-card p-5 shadow-paper-sm">
+      <section className="tl-card p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="font-serif text-lg">Portfolio details</h2>
-            <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>{portfolio.description ?? 'No description'}</p>
+            <h2 className="font-sans text-lg">Portfolio details</h2>
+            <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{portfolio.description ?? 'No description'}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>Edit portfolio</Button>
         </div>
       </section>
-      <section className="tl-card p-5 shadow-paper-sm">
+      <section className="tl-card p-5 shadow-sm">
         <PortfolioCustomFieldsManager portfolio={portfolio} />
       </section>
       <CreateOrEditPortfolioModal

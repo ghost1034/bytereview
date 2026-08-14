@@ -29,13 +29,13 @@ export function ExpenseApprovalsTab({ workspaceId }: Props) {
     setReason('')
   }
 
-  if (reports.length === 0 && standaloneExpenses.length === 0) return <p className="py-8 text-center text-sm" style={{ color: 'var(--ink-muted)' }}>No expenses or reports pending.</p>
+  if (reports.length === 0 && standaloneExpenses.length === 0) return <p className="py-8 text-center text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No expenses or reports pending.</p>
 
   return (
     <div className="space-y-3">
-      {standaloneExpenses.map((expense) => <div key={expense.id} className="tl-card flex items-center justify-between gap-3 p-4 shadow-paper-sm"><div><p className="font-medium">{expense.description}</p><p className="font-mono text-sm">{formatMoney(expense.totalAmount ?? expense.amount)}</p></div><div className="flex gap-2"><Button size="sm" onClick={() => void runPsaAction('expenses', expense.id, 'approve', workspaceId)}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const rejection = window.prompt('Rejection reason'); if (rejection) void runPsaAction('expenses', expense.id, 'reject', workspaceId, { reason: rejection }) }}>Reject</Button></div></div>)}
+      {standaloneExpenses.map((expense) => <div key={expense.id} className="tl-card flex items-center justify-between gap-3 p-4 shadow-sm"><div><p className="font-medium">{expense.description}</p><p className="font-mono text-sm">{formatMoney(expense.totalAmount ?? expense.amount)}</p></div><div className="flex gap-2"><Button size="sm" onClick={() => void runPsaAction('expenses', expense.id, 'approve', workspaceId)}>Approve</Button><Button size="sm" variant="outline" onClick={() => { const rejection = window.prompt('Rejection reason'); if (rejection) void runPsaAction('expenses', expense.id, 'reject', workspaceId, { reason: rejection }) }}>Reject</Button></div></div>)}
       {reports.map((r) => (
-        <div key={r.id} className="tl-card p-4 shadow-paper-sm">
+        <div key={r.id} className="tl-card p-4 shadow-sm">
           <p className="font-medium">{r.name}</p>
           <p className="font-mono tabular-nums text-sm">{formatMoney(r.totalAmount)}</p>
           <div className="mt-2 flex gap-2">

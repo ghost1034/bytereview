@@ -57,7 +57,7 @@ export function FormBuilder({ form, projects, sections, members, onChange }: Pro
       <div className="space-y-4">
         <div className="space-y-2">
           {form.fields.length === 0 ? (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Add fields from the palette to build your form.
             </p>
           ) : (
@@ -80,7 +80,7 @@ export function FormBuilder({ form, projects, sections, members, onChange }: Pro
         </div>
         <FormPreview form={form} />
       </div>
-      <aside className="rounded-lg border p-4" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}>
+      <aside className="rounded-lg border p-4" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}>
         {selectedField ? (
           <FormFieldEditor field={selectedField} onChange={updateField} />
         ) : (

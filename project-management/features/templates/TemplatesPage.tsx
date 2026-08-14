@@ -76,8 +76,8 @@ export function TemplatesPage() {
     <div className="space-y-4" data-tour-page="templates">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl">Project templates</h1>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <h1 className="font-sans text-2xl">Project templates</h1>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {TEMPLATE_LIBRARY.length} curated templates across General, Business, Accounting, Law, Finance, Procurement, HR, and Corporate Dev.
           </p>
         </div>
@@ -112,7 +112,7 @@ export function TemplatesPage() {
             ))}
           </div>
           {!filtered.length && (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No templates match your filters.</p>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No templates match your filters.</p>
           )}
         </TabsContent>
 

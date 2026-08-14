@@ -45,7 +45,7 @@ export function TaskTemplateMenu({ taskId, taskName, workspaceId, createdBy }: P
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="sm" className="h-8 text-xs">Template</Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="tl-popover-surface" align="end">
+      <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setNaming(true)}>Save as task template</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

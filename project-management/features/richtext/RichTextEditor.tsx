@@ -70,11 +70,11 @@ export function RichTextEditor({
         aria-multiline="true"
         aria-label={ariaLabel}
         data-placeholder={placeholder}
-        className={`${minHeightClassName} rounded-b-lg border px-3 py-2 text-sm leading-relaxed outline-none focus-visible:shadow-focus tl-rich-editor empty:before:text-[var(--ink-faint)] empty:before:content-[attr(data-placeholder)]`}
+        className={`${minHeightClassName} rounded-b-lg border px-3 py-2 text-sm leading-relaxed outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background tl-rich-editor empty:before:text-[hsl(var(--foreground-subtle))] empty:before:content-[attr(data-placeholder)]`}
         style={{
-          borderColor: 'var(--border-subtle)',
-          background: 'var(--bg-elevated)',
-          color: 'var(--ink-secondary)',
+          borderColor: 'hsl(var(--border))',
+          background: 'hsl(var(--card))',
+          color: 'hsl(var(--foreground-muted))',
           opacity: disabled ? 0.6 : 1,
         }}
         onInput={emitChange}

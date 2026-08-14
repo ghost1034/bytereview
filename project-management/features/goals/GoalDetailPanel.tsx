@@ -40,13 +40,13 @@ export function GoalDetailPanel({ goal, workspaceId, currentUserId, onClose }: P
 
   return (
     <aside
-      className="tl-card fixed right-4 top-20 z-40 flex h-[calc(100vh-6rem)] w-full max-w-md flex-col overflow-hidden shadow-paper-lg"
+      className="tl-card fixed right-4 top-20 z-40 flex h-[calc(100vh-6rem)] w-full max-w-md flex-col overflow-hidden shadow-lg"
      
     >
-      <div className="flex items-start justify-between border-b p-4" style={{ borderColor: 'var(--border-subtle)' }}>
+      <div className="flex items-start justify-between border-b p-4" style={{ borderColor: 'hsl(var(--border))' }}>
         <div className="min-w-0 flex-1">
           <GoalStatusPill status={goal.status} />
-          <h2 className="mt-1 font-serif text-lg">{goal.name}</h2>
+          <h2 className="mt-1 font-sans text-lg">{goal.name}</h2>
           <GoalProgressBar percent={percent} status={goal.status} className="mt-2" />
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}><X className="h-4 w-4" /></Button>
@@ -60,9 +60,9 @@ export function GoalDetailPanel({ goal, workspaceId, currentUserId, onClose }: P
         </TabsList>
         <div className="flex-1 overflow-y-auto p-4">
           <TabsContent value="overview" className="mt-0 space-y-3 text-sm">
-            {goal.description ? <p style={{ color: 'var(--ink-secondary)' }}>{goal.description}</p> : null}
-            <p><span style={{ color: 'var(--ink-muted)' }}>Owner:</span> {owner?.name}</p>
-            <p><span style={{ color: 'var(--ink-muted)' }}>Period:</span> {formatDate(goal.timeFrame.start)} – {formatDate(goal.timeFrame.end)}</p>
+            {goal.description ? <p style={{ color: 'hsl(var(--foreground-muted))' }}>{goal.description}</p> : null}
+            <p><span style={{ color: 'hsl(var(--foreground-muted))' }}>Owner:</span> {owner?.name}</p>
+            <p><span style={{ color: 'hsl(var(--foreground-muted))' }}>Period:</span> {formatDate(goal.timeFrame.start)} – {formatDate(goal.timeFrame.end)}</p>
             {goal.supportingProjectIds.length ? (
               <div>
                 <p className="mb-1 font-medium">Supporting projects</p>
@@ -74,7 +74,7 @@ export function GoalDetailPanel({ goal, workspaceId, currentUserId, onClose }: P
                 </ul>
               </div>
             ) : null}
-            <Link href={`/dashboard/project-management/w/${workspaceId}/goals/${goal.id}`} className="text-sm underline" style={{ color: 'var(--primary)' }}>
+            <Link href={`/dashboard/project-management/w/${workspaceId}/goals/${goal.id}`} className="text-sm underline" style={{ color: 'hsl(var(--primary))' }}>
               Open full detail →
             </Link>
           </TabsContent>
@@ -83,18 +83,18 @@ export function GoalDetailPanel({ goal, workspaceId, currentUserId, onClose }: P
           </TabsContent>
           <TabsContent value="subgoals" className="mt-0 space-y-2">
             {children.length ? children.map((c) => (
-              <Link key={c.id} href={`/dashboard/project-management/w/${workspaceId}/goals/${c.id}`} className="block rounded-lg p-2 text-sm hover:bg-muted" style={{ background: 'var(--bg-muted)' }}>
+              <Link key={c.id} href={`/dashboard/project-management/w/${workspaceId}/goals/${c.id}`} className="block rounded-lg p-2 text-sm hover:bg-muted" style={{ background: 'hsl(var(--surface-muted))' }}>
                 {c.name}
               </Link>
-            )) : <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>No sub-goals yet.</p>}
+            )) : <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>No sub-goals yet.</p>}
           </TabsContent>
         </div>
       </Tabs>
 
       {linkedTasks.length ? (
-        <div className="border-t p-4 text-xs" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="border-t p-4 text-xs" style={{ borderColor: 'hsl(var(--border))' }}>
           <p className="mb-1 font-medium">Linked work ({linkedTasks.length})</p>
-          {linkedTasks.slice(0, 3).map((t) => <p key={t.id} style={{ color: 'var(--ink-muted)' }}>{t.name}</p>)}
+          {linkedTasks.slice(0, 3).map((t) => <p key={t.id} style={{ color: 'hsl(var(--foreground-muted))' }}>{t.name}</p>)}
         </div>
       ) : null}
     </aside>

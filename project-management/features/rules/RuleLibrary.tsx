@@ -25,11 +25,11 @@ export function RuleLibrary({ onSelect }: Props) {
           <ChevronDown className="h-3.5 w-3.5" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="tl-popover-surface w-72">
+      <DropdownMenuContent align="end" className="w-72">
         {RULE_TEMPLATES.map((t) => (
           <DropdownMenuItem key={t.id} onClick={() => onSelect(t)} className="flex flex-col items-start gap-0.5">
             <span className="font-medium">{t.name}</span>
-            <span className="text-xs" style={{ color: 'var(--ink-muted)' }}>{t.description}</span>
+            <span className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>{t.description}</span>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

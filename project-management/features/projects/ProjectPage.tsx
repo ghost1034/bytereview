@@ -110,7 +110,7 @@ export function ProjectPage({ projectId, routeView }: Props) {
   }, [activeView, basePath, messageIdParam, project, projectId])
 
   if (!project || !workspaceId || !currentUserId) {
-    return <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Project not found.</p>
+    return <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Project not found.</p>
   }
 
   return (
@@ -136,7 +136,7 @@ export function ProjectPage({ projectId, routeView }: Props) {
         </Button>
       </div>
 
-      <nav className="flex flex-wrap gap-4 border-b pb-1" style={{ borderColor: 'var(--border-subtle)' }}>
+      <nav className="flex flex-wrap gap-4 border-b pb-1" style={{ borderColor: 'hsl(var(--border))' }}>
         {VIEW_TABS.filter((t) => ['overview', 'messages', 'files', 'dashboard'].includes(t.id) || activeProjectViews(project.enabledViews).includes(t.id as ProjectView)).map((tab) => {
           const href = tab.id === 'overview'
             ? `${basePath}?view=overview`
@@ -149,11 +149,11 @@ export function ProjectPage({ projectId, routeView }: Props) {
               key={tab.id}
               href={href}
               className="relative pb-2 text-sm font-medium transition-colors"
-              style={{ color: active ? 'var(--primary)' : 'var(--ink-secondary)' }}
+              style={{ color: active ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))' }}
             >
               {tab.label}
               {active && (
-                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full" style={{ background: 'var(--primary)' }} />
+                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full" style={{ background: 'hsl(var(--primary))' }} />
               )}
             </Link>
           )

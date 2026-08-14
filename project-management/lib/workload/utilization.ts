@@ -65,10 +65,10 @@ export function utilizationForHours(
 
 /** CSS background for a capacity cell. */
 export function cellBackground(level: UtilizationLevel, ratio: number): string {
-  if (level === 'over') return 'color-mix(in srgb, var(--danger) 28%, var(--bg-elevated))'
-  if (level === 'at') return 'color-mix(in srgb, var(--warning) 22%, var(--bg-elevated))'
+  if (level === 'over') return 'color-mix(in srgb, hsl(var(--destructive)) 28%, hsl(var(--card)))'
+  if (level === 'at') return 'color-mix(in srgb, hsl(var(--warning)) 22%, hsl(var(--card)))'
   const mix = Math.min(24, Math.round(ratio * 30))
-  return `color-mix(in srgb, var(--accent) ${mix}%, var(--bg-elevated))`
+  return `color-mix(in srgb, hsl(var(--success)) ${mix}%, hsl(var(--card)))`
 }
 
 /** Format hours for display (one decimal when needed). */

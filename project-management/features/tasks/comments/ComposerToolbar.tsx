@@ -11,7 +11,7 @@ export function ComposerToolbar({ onExec }: Props) {
   return (
     <div
       className="flex flex-wrap gap-0.5 rounded-t-lg border border-b-0 p-1"
-      style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)' }}
+      style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))' }}
     >
       {[
         { icon: Bold, cmd: 'bold', label: 'Bold' },

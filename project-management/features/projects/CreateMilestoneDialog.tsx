@@ -76,9 +76,9 @@ export function CreateMilestoneDialog({ project, open, onOpenChange }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif">Add milestone</DialogTitle>
+          <DialogTitle className="font-sans">Add milestone</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -111,7 +111,7 @@ export function CreateMilestoneDialog({ project, open, onOpenChange }: Props) {
               value={dueOn}
               onChange={(e) => setDueOn(e.target.value)}
             />
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Optional — leave blank if no target date yet.
             </p>
           </div>

@@ -87,7 +87,7 @@ export function PortfolioStatusDialog({ portfolio, currentUserId, open, onOpenCh
 
   const SectionToggle = ({ label, open: sectionOpen, onToggle, children }: { label: string; open: boolean; onToggle: () => void; children: ReactNode }) => (
     <div className="space-y-2">
-      <button type="button" className="flex items-center gap-1 text-sm font-medium" style={{ color: 'var(--ink-secondary)' }} onClick={onToggle}>
+      <button type="button" className="flex items-center gap-1 text-sm font-medium" style={{ color: 'hsl(var(--foreground-muted))' }} onClick={onToggle}>
         {sectionOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
         {label}
       </button>
@@ -97,8 +97,8 @@ export function PortfolioStatusDialog({ portfolio, currentUserId, open, onOpenCh
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader><DialogTitle className="font-serif">Post portfolio update</DialogTitle></DialogHeader>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader><DialogTitle className="font-sans">Post portfolio update</DialogTitle></DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2"><Label>Status</Label><StatusSegmentPicker value={status} onChange={setStatus} /></div>
           <div className="space-y-2">
@@ -106,7 +106,7 @@ export function PortfolioStatusDialog({ portfolio, currentUserId, open, onOpenCh
             <Input id="pf-status-title" className="tl-input" value={title} onChange={(e) => setTitle(e.target.value)} />
           </div>
           {digest && (
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Sample activity: {digest.tasksCompleted.length} tasks completed recently across linked projects.
             </p>
           )}

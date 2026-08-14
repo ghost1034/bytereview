@@ -46,7 +46,7 @@ export const DayCell = memo(function DayCell({
     return (
       <div
         className={`${minHeight} border-b border-r`}
-        style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-muted)', opacity: 0.35 }}
+        style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--surface-muted))', opacity: 0.35 }}
       />
     )
   }
@@ -55,14 +55,14 @@ export const DayCell = memo(function DayCell({
     <div
       className={`group relative flex flex-col border-b border-r p-1 ${minHeight}`}
       style={{
-        borderColor: 'var(--border-subtle)',
+        borderColor: 'hsl(var(--border))',
         background: today
-          ? 'var(--primary-soft)'
+          ? 'hsl(var(--primary-soft))'
           : weekend
-            ? 'color-mix(in srgb, var(--bg-muted) 60%, var(--bg-elevated))'
+            ? 'color-mix(in srgb, hsl(var(--surface-muted)) 60%, hsl(var(--card)))'
             : inMonth
-              ? 'var(--bg-elevated)'
-              : 'var(--bg-muted)',
+              ? 'hsl(var(--card))'
+              : 'hsl(var(--surface-muted))',
         opacity: inMonth ? 1 : 0.55,
       }}
       onDragOver={(e) => e.preventDefault()}
@@ -78,9 +78,9 @@ export const DayCell = memo(function DayCell({
           className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs"
           style={{
             fontWeight: today ? 700 : 400,
-            color: today ? 'var(--primary)' : 'var(--ink-secondary)',
-            background: today ? 'var(--bg-elevated)' : 'transparent',
-            boxShadow: today ? '0 0 0 2px var(--primary)' : undefined,
+            color: today ? 'hsl(var(--primary))' : 'hsl(var(--foreground-muted))',
+            background: today ? 'hsl(var(--card))' : 'transparent',
+            boxShadow: today ? '0 0 0 2px hsl(var(--primary))' : undefined,
           }}
         >
           {format(day, 'd')}
@@ -89,7 +89,7 @@ export const DayCell = memo(function DayCell({
           <button
             type="button"
             className="rounded p-0.5 opacity-0 group-hover:opacity-100"
-            style={{ color: 'var(--ink-muted)' }}
+            style={{ color: 'hsl(var(--foreground-muted))' }}
             onClick={(e) => {
               e.stopPropagation()
               setAdding(true)
@@ -127,13 +127,13 @@ export const DayCell = memo(function DayCell({
                 <button
                   type="button"
                   className="px-1 text-left text-[10px]"
-                  style={{ color: 'var(--ink-muted)' }}
+                  style={{ color: 'hsl(var(--foreground-muted))' }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   +{overflow} more
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="tl-popover-surface w-56 p-2" align="start">
+              <PopoverContent className="w-56 p-2" align="start">
                 <ul className="space-y-1">
                   {dayTasks.map((task) => (
                     <li key={task.id}>

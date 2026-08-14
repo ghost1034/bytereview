@@ -60,7 +60,7 @@ export function ExpenseReportPanel({ workspaceId, userId, expenses }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="tl-card p-4 shadow-paper-sm">
+      <div className="tl-card p-4 shadow-sm">
         <h3 className="mb-2 font-medium">Create report from selection</h3>
         <div className="flex gap-2">
           <Input placeholder="Report name" value={name} onChange={(e) => setName(e.target.value)} className="tl-input" />
@@ -78,10 +78,10 @@ export function ExpenseReportPanel({ workspaceId, userId, expenses }: Props) {
       </div>
       <div className="space-y-2">
         {reports.map((r) => (
-          <div key={r.id} className="tl-card flex items-center justify-between p-3 shadow-paper-sm">
+          <div key={r.id} className="tl-card flex items-center justify-between p-3 shadow-sm">
             <div>
               <Link className="font-medium hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/expenses/reports/${r.id}`}>{r.name}</Link>
-              <p className="text-sm font-mono tabular-nums" style={{ color: 'var(--ink-muted)' }}>{formatMoney(r.totalAmount)} · reimb {formatMoney(r.reimbursableAmount)}</p>
+              <p className="text-sm font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{formatMoney(r.totalAmount)} · reimb {formatMoney(r.reimbursableAmount)}</p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline">{r.status}</Badge>

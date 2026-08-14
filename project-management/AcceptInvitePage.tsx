@@ -39,27 +39,27 @@ export function AcceptInvitePage() {
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center p-6">
-      <div className="tl-card w-full max-w-md p-8 text-center shadow-paper-md">
+      <div className="tl-card w-full max-w-md p-8 text-center shadow-md">
         {error ? (
           <>
-            <XCircle className="mx-auto h-10 w-10" style={{ color: 'var(--danger)' }} />
-            <h1 className="mt-4 font-serif text-2xl">Invitation unavailable</h1>
-            <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>{error}</p>
+            <XCircle className="mx-auto h-10 w-10" style={{ color: 'hsl(var(--destructive))' }} />
+            <h1 className="mt-4 font-sans text-2xl">Invitation unavailable</h1>
+            <p className="mt-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{error}</p>
             <Button asChild variant="outline" className="mt-5">
               <Link href="/dashboard/project-management">Tasklytic home</Link>
             </Button>
           </>
         ) : accepted ? (
           <>
-            <CheckCircle2 className="mx-auto h-10 w-10" style={{ color: 'var(--accent)' }} />
-            <h1 className="mt-4 font-serif text-2xl">Invitation accepted</h1>
-            <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>Opening your workspace…</p>
+            <CheckCircle2 className="mx-auto h-10 w-10" style={{ color: 'hsl(var(--success))' }} />
+            <h1 className="mt-4 font-sans text-2xl">Invitation accepted</h1>
+            <p className="mt-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Opening your workspace…</p>
           </>
         ) : (
           <>
-            <Loader2 className="mx-auto h-8 w-8 animate-spin" style={{ color: 'var(--primary)' }} />
-            <h1 className="mt-4 font-serif text-2xl">Joining workspace</h1>
-            <p className="mt-2 text-sm" style={{ color: 'var(--ink-muted)' }}>Checking your invitation…</p>
+            <Loader2 className="mx-auto h-8 w-8 animate-spin" style={{ color: 'hsl(var(--primary))' }} />
+            <h1 className="mt-4 font-sans text-2xl">Joining workspace</h1>
+            <p className="mt-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Checking your invitation…</p>
           </>
         )}
       </div>

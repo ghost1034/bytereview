@@ -89,23 +89,23 @@ export function AttachmentListPanel({
     <div ref={rootRef} tabIndex={-1} className={compact ? 'space-y-2 outline-none' : 'mt-4 outline-none'}>
       {!compact && (allowLink || allowCloudDrive) ? (
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Attachments
           </p>
           <div className="flex flex-wrap gap-2">
             {allowLink ? (
-              <button type="button" className="text-xs" style={{ color: 'var(--primary)' }} onClick={() => setLinkOpen((v) => !v)}>
+              <button type="button" className="text-xs" style={{ color: 'hsl(var(--primary))' }} onClick={() => setLinkOpen((v) => !v)}>
                 <Link2 className="mr-1 inline h-3 w-3" /> Add from link
               </button>
             ) : null}
             {allowCloudDrive && scope.cloudProviders.length > 0 ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button type="button" className="text-xs" style={{ color: 'var(--primary)' }}>
+                  <button type="button" className="text-xs" style={{ color: 'hsl(var(--primary))' }}>
                     <Cloud className="mr-1 inline h-3 w-3" /> Cloud drive
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="tl-popover-surface" align="end">
+                <DropdownMenuContent align="end">
                   {scope.cloudProviders.map((provider) => (
                     <DropdownMenuItem key={provider} onClick={() => void scope.connectCloudDrive(provider)}>
                       {scope.cloudLabel(provider)}
@@ -145,7 +145,7 @@ export function AttachmentListPanel({
         />
       ) : null}
       {scope.uploadError ? (
-        <p className="mt-2 text-xs" style={{ color: 'var(--danger)' }}>
+        <p className="mt-2 text-xs" style={{ color: 'hsl(var(--destructive))' }}>
           {scope.uploadError}
         </p>
       ) : null}

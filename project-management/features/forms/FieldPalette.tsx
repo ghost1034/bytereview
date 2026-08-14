@@ -20,7 +20,7 @@ type Props = { onAdd: (type: FormField['type']) => void }
 export function FieldPalette({ onAdd }: Props) {
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+      <p className="text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
         Add field
       </p>
       <div className="grid gap-1.5">

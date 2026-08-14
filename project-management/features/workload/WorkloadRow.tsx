@@ -34,7 +34,7 @@ export function WorkloadRow({
   return (
     <tr
       className="border-b last:border-0"
-      style={{ borderColor: 'var(--border-subtle)' }}
+      style={{ borderColor: 'hsl(var(--border))' }}
       onDragOver={(e) => {
         if (onDropTaskOnRow) e.preventDefault()
       }}
@@ -44,28 +44,28 @@ export function WorkloadRow({
         if (taskId && onDropTaskOnRow) onDropTaskOnRow(row.userId, taskId)
       }}
     >
-      <td className="sticky left-0 z-10 min-w-[200px] bg-[var(--bg-elevated)] px-3 py-2">
+      <td className="sticky left-0 z-10 min-w-[200px] bg-[hsl(var(--card))] px-3 py-2">
         <div className="flex items-start gap-2">
           <Avatar className="h-8 w-8">
             <AvatarFallback
               className="text-xs font-medium text-white"
-              style={{ background: row.user?.avatarColor ?? 'var(--ink-muted)' }}
+              style={{ background: row.user?.avatarColor ?? 'hsl(var(--foreground-muted))' }}
             >
               {initials(row.label)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <button type="button" className="truncate text-left text-sm font-medium hover:underline" onClick={() => onPersonClick?.(row.userId)}>{row.label}</button>
-            <p className="text-xs tabular-nums" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-xs tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {formatHours(row.weekTotalHours)} / {formatHours(weeklyCap)} · {row.overloadBucketCount} overload
             </p>
             <Progress value={barValue} className="mt-1 h-1.5" />
             {row.utilizationPercent > 100 ? (
-              <Badge variant="outline" className="mt-1 text-[10px]" style={{ borderColor: 'var(--danger)', color: 'var(--danger)' }}>
+              <Badge variant="outline" className="mt-1 text-[10px]" style={{ borderColor: 'hsl(var(--destructive))', color: 'hsl(var(--destructive))' }}>
                 {row.utilizationPercent}%
               </Badge>
             ) : (
-              <span className="mt-1 block text-[10px] tabular-nums" style={{ color: 'var(--ink-muted)' }}>
+              <span className="mt-1 block text-[10px] tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 {row.utilizationPercent}% utilized
               </span>
             )}

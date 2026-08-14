@@ -16,7 +16,7 @@ import type { CustomFieldType } from '../../types'
 type Props = { type: CustomFieldType; className?: string }
 
 export function FieldTypeIcon({ type, className = 'h-3.5 w-3.5' }: Props) {
-  const props = { className, style: { color: 'var(--ink-muted)' } as const }
+  const props = { className, style: { color: 'hsl(var(--foreground-muted))' } as const }
   switch (type) {
     case 'text':
       return <Type {...props} />

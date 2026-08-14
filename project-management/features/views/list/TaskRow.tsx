@@ -74,8 +74,8 @@ export function TaskRow({
       style={{
         gridTemplateColumns: gridTemplate,
         height: LIST_ROW_HEIGHT,
-        borderColor: 'var(--border-subtle)',
-        background: selected ? 'var(--bg-muted)' : task.completed ? 'var(--bg-muted)' : 'var(--bg-elevated)',
+        borderColor: 'hsl(var(--border))',
+        background: selected ? 'hsl(var(--surface-muted))' : task.completed ? 'hsl(var(--surface-muted))' : 'hsl(var(--card))',
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.45 : 1,

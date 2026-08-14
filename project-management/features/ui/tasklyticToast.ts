@@ -5,13 +5,13 @@ import { toast } from '@/hooks/use-toast'
 export type TasklyticToastStatus = 'success' | 'error' | 'info' | 'warning'
 
 const BORDER: Record<TasklyticToastStatus, string> = {
-  success: '#6b8e5a',
-  error: '#bc4a3f',
-  info: '#5c7a8c',
-  warning: '#c99846',
+  success: 'hsl(var(--success))',
+  error: 'hsl(var(--destructive))',
+  info: 'hsl(var(--info))',
+  warning: 'hsl(var(--warning))',
 }
 
-/** Warm Tasklytic toast with opaque portal surface and status-colored left border. */
+/** Shared toast surface with a semantic status border. */
 export function tasklyticToast(
   title: string,
   options?: { description?: string; status?: TasklyticToastStatus; duration?: number }
@@ -21,7 +21,7 @@ export function tasklyticToast(
     title,
     description: options?.description,
     duration: options?.duration ?? 5000,
-    className: 'tl-toast tl-popover-surface border-l-4',
+    className: 'border-l-4',
     style: {
       borderLeftColor: BORDER[status],
     },

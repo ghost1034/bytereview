@@ -32,9 +32,9 @@ export class TasklyticErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="tasklytic-root flex min-h-[320px] items-center justify-center p-6">
-          <div className="tl-card max-w-md space-y-4 p-6 text-center shadow-paper-md">
-            <h2 className="font-serif text-xl">Something went wrong</h2>
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <div className="tl-card max-w-md space-y-4 p-6 text-center shadow-md">
+            <h2 className="font-sans text-xl">Something went wrong</h2>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Tasklytic hit an unexpected error. Your data is still saved locally.
             </p>
             <div className="flex flex-wrap justify-center gap-2">

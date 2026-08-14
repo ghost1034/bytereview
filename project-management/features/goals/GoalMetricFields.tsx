@@ -36,7 +36,7 @@ export function GoalMetricFields(props: Props) {
       <GoalFormField label="Metric type">
         <Select value={metricKind} onValueChange={(v) => setMetricKind(v as MetricKind)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="percent">Percent</SelectItem>
             <SelectItem value="numeric">Numeric</SelectItem>
             <SelectItem value="currency">Currency</SelectItem>
@@ -47,7 +47,7 @@ export function GoalMetricFields(props: Props) {
       {metricKind === 'manual' ? (
         <Select value={manualStatus} onValueChange={(v) => setManualStatus(v as typeof manualStatus)}>
           <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="on_track">On track</SelectItem>
             <SelectItem value="at_risk">At risk</SelectItem>
             <SelectItem value="off_track">Off track</SelectItem>

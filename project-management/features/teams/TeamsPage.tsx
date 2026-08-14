@@ -27,14 +27,14 @@ function TeamCard({
   const isMember = useAuthStore((s) => s.currentUserId && team.memberIds.includes(s.currentUserId))
 
   return (
-    <li className="tl-card flex items-start gap-3 p-4 shadow-paper-sm">
+    <li className="tl-card flex items-start gap-3 p-4 shadow-sm">
       <TeamIcon name={team.name} emoji={team.iconEmoji} className="h-10 w-10 text-lg" />
       <div className="min-w-0 flex-1">
         <Link href={href} className="font-medium hover:underline">{team.name}</Link>
         {team.description && (
-          <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>{team.description}</p>
+          <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>{team.description}</p>
         )}
-        <p className="mt-2 text-xs capitalize" style={{ color: 'var(--ink-muted)' }}>
+        <p className="mt-2 text-xs capitalize" style={{ color: 'hsl(var(--foreground-muted))' }}>
           {team.privacy} · {team.memberIds.length} member{team.memberIds.length === 1 ? '' : 's'}
         </p>
         {!isMember && team.privacy !== 'secret' && (
@@ -72,8 +72,8 @@ export function TeamsPage() {
     <div className="tasklytic-root space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-serif text-2xl">Teams</h1>
-          <p className="mt-1 text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <h1 className="font-sans text-2xl">Teams</h1>
+          <p className="mt-1 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Organize people and projects within your workspace.
           </p>
         </div>
@@ -84,8 +84,8 @@ export function TeamsPage() {
       </div>
 
       {teams.length === 0 ? (
-        <div className="tl-card flex flex-col items-center gap-3 p-10 text-center shadow-paper-sm">
-          <Users className="h-10 w-10" style={{ color: 'var(--ink-faint)' }} strokeWidth={1.5} />
+        <div className="tl-card flex flex-col items-center gap-3 p-10 text-center shadow-sm">
+          <Users className="h-10 w-10" style={{ color: 'hsl(var(--foreground-subtle))' }} strokeWidth={1.5} />
           <p className="font-medium">No teams yet</p>
           <Button className="tl-btn-primary" onClick={() => setOpen(true)}>Create team</Button>
         </div>

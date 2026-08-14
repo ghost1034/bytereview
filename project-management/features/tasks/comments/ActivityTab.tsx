@@ -65,7 +65,7 @@ export function ActivityTab({ task }: Props) {
     return (
       <div>
         <FilterBar filter={filter} onFilter={setFilter} />
-        <p className="mt-4 text-sm" style={{ color: 'var(--ink-muted)' }}>
+        <p className="mt-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
           No activity yet.
         </p>
       </div>
@@ -79,7 +79,7 @@ export function ActivityTab({ task }: Props) {
         <div className="mt-4 space-y-4">
           {grouped.map(([day, rows]) => (
             <div key={day}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
                 {formatActivityDayLabel(day)}
               </p>
               <ul className="space-y-2">
@@ -89,22 +89,22 @@ export function ActivityTab({ task }: Props) {
                     <li key={event.id} className="flex items-start gap-2 text-sm">
                       <span
                         className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white"
-                        style={{ background: actor?.avatarColor ?? 'var(--primary)' }}
+                        style={{ background: actor?.avatarColor ?? 'hsl(var(--primary))' }}
                       >
                         {(actor?.name ?? '?').slice(0, 1).toUpperCase()}
                       </span>
                       <div>
-                        <p style={{ color: 'var(--ink-secondary)' }}>
+                        <p style={{ color: 'hsl(var(--foreground-muted))' }}>
                           <span className="font-medium">{actor?.name ?? 'Someone'}</span>{' '}
                           {renderActivitySentence(event)}
                         </p>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+                            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
                               {formatRelative(event.createdAt)}
                             </p>
                           </TooltipTrigger>
-                          <TooltipContent className="tl-popover-surface">{new Date(event.createdAt).toLocaleString()}</TooltipContent>
+                          <TooltipContent>{new Date(event.createdAt).toLocaleString()}</TooltipContent>
                         </Tooltip>
                       </div>
                     </li>
@@ -140,8 +140,8 @@ function FilterBar({
           onClick={() => onFilter(f.id)}
           className="rounded-full px-2.5 py-1 text-xs font-medium transition-colors"
           style={{
-            background: filter === f.id ? 'var(--accent-soft)' : 'var(--bg-muted)',
-            color: filter === f.id ? 'var(--accent)' : 'var(--ink-muted)',
+            background: filter === f.id ? 'hsl(var(--success-soft))' : 'hsl(var(--surface-muted))',
+            color: filter === f.id ? 'hsl(var(--success))' : 'hsl(var(--foreground-muted))',
           }}
         >
           {f.label}

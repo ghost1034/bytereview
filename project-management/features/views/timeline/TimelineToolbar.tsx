@@ -62,7 +62,7 @@ export function TimelineToolbar({
           <SelectTrigger className="h-8 w-[100px] text-xs">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             {ZOOM_LEVELS.map((z) => (
               <SelectItem key={z} value={z}>
                 {ZOOM_LABELS[z]}
@@ -80,7 +80,7 @@ export function TimelineToolbar({
           <SelectTrigger className="h-8 w-[120px] text-xs">
             <SelectValue placeholder="Rows by" />
           </SelectTrigger>
-          <SelectContent className="tl-popover-surface z-[100]">
+          <SelectContent className="z-[100]">
             <SelectItem value="none">Flat list</SelectItem>
             <SelectItem value="section">Section</SelectItem>
             <SelectItem value="assignee">Assignee</SelectItem>
@@ -93,7 +93,7 @@ export function TimelineToolbar({
         <SelectTrigger className="h-8 w-[120px] text-xs">
           <SelectValue placeholder="Color by" />
         </SelectTrigger>
-        <SelectContent className="tl-popover-surface z-[100]">
+        <SelectContent className="z-[100]">
           <SelectItem value="section">Section</SelectItem>
           <SelectItem value="assignee">Assignee</SelectItem>
           <SelectItem value="tag">Tag</SelectItem>
@@ -103,18 +103,18 @@ export function TimelineToolbar({
 
       <div
         className="flex items-center gap-2 rounded-md border px-2 py-1"
-        style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+        style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
         title="When on, dragging a predecessor bar later also moves its dependents. Turning on runs a one-time align for any overlapping dates."
       >
         <Switch id="auto-shift" className="tl-switch" checked={autoShift} onCheckedChange={onAutoShift} />
-        <Label htmlFor="auto-shift" className="cursor-pointer text-xs" style={{ color: 'var(--ink-secondary)' }}>
+        <Label htmlFor="auto-shift" className="cursor-pointer text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Auto-shift when dragging
         </Label>
       </div>
 
-      <div className="flex items-center gap-2 rounded-md border px-2 py-1" style={{ borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}>
+      <div className="flex items-center gap-2 rounded-md border px-2 py-1" style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}>
         <Switch id="crit-path" className="tl-switch" checked={highlightCriticalPath} onCheckedChange={onHighlightCriticalPath} />
-        <Label htmlFor="crit-path" className="text-xs" style={{ color: 'var(--ink-secondary)' }}>
+        <Label htmlFor="crit-path" className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
           Highlight critical path
         </Label>
       </div>
@@ -122,7 +122,7 @@ export function TimelineToolbar({
       {extra}
 
       {linkError ? (
-        <span className="text-xs" style={{ color: 'var(--danger)' }} title={linkError}>
+        <span className="text-xs" style={{ color: 'hsl(var(--destructive))' }} title={linkError}>
           {linkError}
         </span>
       ) : null}

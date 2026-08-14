@@ -42,11 +42,11 @@ export function EvaluationTenantsPanel() {
   }
 
   return (
-    <div className="tl-card space-y-4 p-4 shadow-paper-sm">
+    <div className="tl-card space-y-4 p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-serif text-lg">Evaluation tenants</h2>
-          <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+          <h2 className="font-sans text-lg">Evaluation tenants</h2>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Internal fixtures for Sales, CS, and Support walkthroughs.
           </p>
         </div>
@@ -63,7 +63,7 @@ export function EvaluationTenantsPanel() {
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b text-left" style={{ borderColor: 'var(--border-subtle)' }}>
+            <tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))' }}>
               <th className="py-2 pr-3">Tenant</th>
               <th className="py-2 pr-3">Vertical</th>
               <th className="py-2 pr-3">Stats</th>
@@ -74,12 +74,12 @@ export function EvaluationTenantsPanel() {
             {EVALUATION_TENANTS.map((t) => {
               const meta = getEvalTenantMeta(t.id)
               return (
-                <tr key={t.id} className="border-b" style={{ borderColor: 'var(--border-subtle)' }}>
+                <tr key={t.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                   <td className="py-2 pr-3 font-medium">{t.name}</td>
                   <td className="py-2 pr-3">
                     <Badge variant="secondary">{t.vertical}</Badge>
                   </td>
-                  <td className="py-2 pr-3" style={{ color: 'var(--ink-muted)' }}>
+                  <td className="py-2 pr-3" style={{ color: 'hsl(var(--foreground-muted))' }}>
                     {meta
                       ? `${meta.projectCount} projects · ${meta.taskCount} tasks · ${new Date(meta.lastProvisionedAt).toLocaleDateString()}`
                       : 'Not provisioned'}
@@ -144,7 +144,7 @@ export function EvaluationTenantsPanel() {
           <DialogHeader>
             <DialogTitle>Reset evaluation tenant</DialogTitle>
           </DialogHeader>
-          <p className="text-sm" style={{ color: 'var(--ink-secondary)' }}>
+          <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
             Type <strong>reset {confirmTenant?.name}</strong> to wipe and re-provision this fixture.
           </p>
           <Input value={confirmPhrase} onChange={(e) => setConfirmPhrase(e.target.value)} className="tl-input" />

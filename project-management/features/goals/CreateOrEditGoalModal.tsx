@@ -74,9 +74,9 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">{goal ? 'Edit goal' : 'Create goal'}</DialogTitle>
+          <DialogTitle className="font-sans text-xl">{goal ? 'Edit goal' : 'Create goal'}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-4 py-2">
           <GoalFormField label="Name *"><Input className="tl-input" value={form.name} onChange={(e) => form.setName(e.target.value)} /></GoalFormField>
@@ -85,13 +85,13 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
             <GoalFormField label="Owner">
               <Select value={form.ownerId} onValueChange={form.setOwnerId}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[100]">{users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
+                <SelectContent className="z-[100]">{users.map((u) => <SelectItem key={u.id} value={u.id}>{u.name}</SelectItem>)}</SelectContent>
               </Select>
             </GoalFormField>
             <GoalFormField label="Privacy">
               <Select value={form.privacy} onValueChange={(v) => form.setPrivacy(v as Goal['privacy'])}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent className="tl-popover-surface z-[100]">
+                <SelectContent className="z-[100]">
                   <SelectItem value="public">Public</SelectItem>
                   <SelectItem value="members_only">Members only</SelectItem>
                 </SelectContent>
@@ -101,7 +101,7 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
           <GoalFormField label="Time period">
             <Select value={form.preset} onValueChange={(v) => form.applyPreset(v as TimeFramePreset)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 {(Object.keys(TIMEFRAME_PRESET_LABELS) as TimeFramePreset[]).map((k) => (
                   <SelectItem key={k} value={k}>{TIMEFRAME_PRESET_LABELS[k]}</SelectItem>
                 ))}
@@ -129,7 +129,7 @@ export function CreateOrEditGoalModal({ open, onOpenChange, workspaceId, goal }:
           <GoalFormField label="Parent goal">
             <Select value={form.parentGoalId} onValueChange={form.setParentGoalId}>
               <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
-              <SelectContent className="tl-popover-surface z-[100]">
+              <SelectContent className="z-[100]">
                 <SelectItem value="none">None (company root)</SelectItem>
                 {parentOptions.map((g) => <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>)}
               </SelectContent>

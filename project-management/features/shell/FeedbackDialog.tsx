@@ -42,10 +42,10 @@ export function FeedbackDialog({ open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <TasklyticDialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">Send feedback</DialogTitle>
+          <DialogTitle className="font-sans text-xl">Send feedback</DialogTitle>
         </DialogHeader>
         {sent ? (
-          <p className="text-sm" style={{ color: 'var(--accent)' }}>Thanks — your feedback was saved.</p>
+          <p className="text-sm" style={{ color: 'hsl(var(--success))' }}>Thanks — your feedback was saved.</p>
         ) : (
           <Textarea
             className="tl-input min-h-[120px]"

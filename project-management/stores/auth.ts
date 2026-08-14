@@ -102,7 +102,6 @@ type ShellAction =
   | 'createProject'
   | 'createGoal'
   | 'createPortfolio'
-  | 'toggleTheme'
   | 'showShortcuts'
   | 'restartTour'
   | null

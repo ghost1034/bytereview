@@ -49,7 +49,7 @@ export function InboxPreviewPane({ workspaceId, notification }: Props) {
     return (
       <div
         className="flex h-full flex-col items-center justify-center px-8 text-center"
-        style={{ color: 'var(--ink-muted)' }}
+        style={{ color: 'hsl(var(--foreground-muted))' }}
       >
         <p className="text-sm">Select a notification to preview its details.</p>
       </div>
@@ -68,40 +68,40 @@ export function InboxPreviewPane({ workspaceId, notification }: Props) {
             <UserAvatar userId={notification.actorId} size="md" showPresence={false} />
           ) : null}
           <div className="min-w-0 flex-1">
-            <p className="font-medium" style={{ color: 'var(--ink-primary)' }}>
+            <p className="font-medium" style={{ color: 'hsl(var(--foreground))' }}>
               {title}
             </p>
-            <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-xs" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {formatRelative(notification.createdAt)}
               {actor ? ` · ${actor.name}` : ''}
             </p>
           </div>
         </div>
 
-        <div className="tl-card space-y-2 p-4 shadow-paper-sm">
-          <p className="text-xs uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+        <div className="tl-card space-y-2 p-4 shadow-sm">
+          <p className="text-xs uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
             {breadcrumb}
           </p>
-          <h2 className="font-serif text-xl" style={{ color: 'var(--ink-primary)' }}>
+          <h2 className="font-sans text-xl" style={{ color: 'hsl(var(--foreground))' }}>
             {resourceName}
           </h2>
           {task?.notes ? (
-            <p className="line-clamp-4 text-sm" style={{ color: 'var(--ink-secondary)' }}>
+            <p className="line-clamp-4 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               {task.notes.replace(/<[^>]+>/g, '').slice(0, 280)}
             </p>
           ) : null}
           {project && notification.scope.type !== 'project' ? (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Project: {project.name}
             </p>
           ) : null}
           {task?.dueOn ? (
-            <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Due {formatDate(task.dueOn)}
             </p>
           ) : null}
           {statusUpdate ? (
-            <div className="space-y-2 text-sm" style={{ color: 'var(--ink-secondary)' }}>
+            <div className="space-y-2 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               <p className="font-medium">{statusUpdate.title}</p>
               <p className="line-clamp-6">{statusUpdate.summaryHtml.replace(/<[^>]+>/g, '')}</p>
             </div>

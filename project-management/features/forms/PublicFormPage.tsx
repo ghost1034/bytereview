@@ -65,7 +65,7 @@ export function PublicFormPage({ formId }: Props) {
   if (formLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Loading form…</p>
+        <p className="text-sm text-foreground-muted">Loading form…</p>
       </div>
     )
   }
@@ -73,7 +73,7 @@ export function PublicFormPage({ formId }: Props) {
   if (!form) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>{error ?? 'Form not found.'}</p>
+        <p className="text-sm text-foreground-muted">{error ?? 'Form not found.'}</p>
       </div>
     )
   }
@@ -81,7 +81,7 @@ export function PublicFormPage({ formId }: Props) {
   if (!form.isPublic) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
-        <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>This form is not published.</p>
+        <p className="text-sm text-foreground-muted">This form is not published.</p>
       </div>
     )
   }
@@ -117,11 +117,11 @@ export function PublicFormPage({ formId }: Props) {
 
   if (submitted) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6" style={{ background: 'var(--bg-base)' }}>
-        <div className="tl-card max-w-md p-8 text-center shadow-paper-md">
-          <p className="font-serif text-xl">{form.confirmationMessage}</p>
+      <div className="flex min-h-screen items-center justify-center bg-background p-6">
+        <div className="tasklytic-public-card max-w-md p-8 text-center">
+          <p className="tasklytic-public-heading text-xl">{form.confirmationMessage}</p>
           <Button
-            className="tl-btn-primary mt-6 border-0"
+            className="tasklytic-public-primary mt-6"
             onClick={() => {
               setSubmitted(false)
               setAnswers({})
@@ -135,7 +135,7 @@ export function PublicFormPage({ formId }: Props) {
   }
 
   return (
-    <div className="min-h-screen p-6" style={{ background: 'var(--bg-base)' }}>
+    <div className="min-h-screen bg-background p-6">
       <div className="mx-auto max-w-lg">
         <PublicFormBody
           form={form}
@@ -170,14 +170,14 @@ function PublicFormBody({
       {form.branding?.coverImageDataUrl ? (
         <img src={form.branding.coverImageDataUrl} alt="" className="mb-6 h-40 w-full rounded-lg object-cover" />
       ) : null}
-      <form onSubmit={onSubmit} className="tl-card space-y-4 p-6 shadow-paper-md">
+      <form onSubmit={onSubmit} className="tasklytic-public-card space-y-4 p-6">
         {form.branding?.logoDataUrl ? (
           <img src={form.branding.logoDataUrl} alt="" className="h-10 w-auto object-contain" />
         ) : null}
         <div>
-          <h1 className="font-serif text-2xl">{form.name}</h1>
+          <h1 className="tasklytic-public-heading text-2xl">{form.name}</h1>
           {form.description ? (
-            <p className="mt-2 text-sm" style={{ color: 'var(--ink-secondary)' }}>{form.description}</p>
+            <p className="mt-2 text-sm text-foreground-muted">{form.description}</p>
           ) : null}
         </div>
         {form.fields.filter((field) => isFormFieldVisible(field, answers)).map((field) => (
@@ -190,12 +190,12 @@ function PublicFormBody({
           />
         ))}
         {form.fields.some((f) => f.required) ? (
-          <p className="text-xs" style={{ color: 'var(--ink-muted)' }}>* Required fields</p>
+          <p className="text-xs text-foreground-muted">* Required fields</p>
         ) : null}
         {error ? (
-          <p className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>
+          <p className="text-sm text-destructive">{error}</p>
         ) : null}
-        <Button type="submit" className="tl-btn-primary w-full border-0" disabled={loading}>
+        <Button type="submit" className="tasklytic-public-primary w-full" disabled={loading}>
           {loading ? 'Submitting…' : 'Submit'}
         </Button>
       </form>

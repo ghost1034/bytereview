@@ -77,13 +77,13 @@ export function ProjectMessages({ projectId, selectedMessageId, basePath }: Prop
   }
 
   if (!project || !currentUserId) {
-    return <p className="text-sm" style={{ color: 'var(--ink-muted)' }}>Unable to load messages.</p>
+    return <p className="text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>Unable to load messages.</p>
   }
 
   return (
-    <div className="tl-card overflow-hidden shadow-paper-sm">
-      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'var(--border-subtle)' }}>
-        <h2 className="font-serif text-lg">Project messages</h2>
+    <div className="tl-card overflow-hidden shadow-sm">
+      <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>
+        <h2 className="font-sans text-lg">Project messages</h2>
         <Button
           size="sm"
           className="tl-btn-primary border-0"
@@ -97,7 +97,7 @@ export function ProjectMessages({ projectId, selectedMessageId, basePath }: Prop
       </div>
 
       <div className="grid min-h-[420px] lg:grid-cols-[320px_1fr]">
-        <div className="overflow-y-auto border-r" style={{ borderColor: 'var(--border-subtle)' }}>
+        <div className="overflow-y-auto border-r" style={{ borderColor: 'hsl(var(--border))' }}>
           <MessageList
             messages={messages}
             selectedId={selectedId}
@@ -119,7 +119,7 @@ export function ProjectMessages({ projectId, selectedMessageId, basePath }: Prop
               onDeleted={handleDeleted}
             />
           ) : (
-            <p className="p-8 text-sm" style={{ color: 'var(--ink-muted)' }}>
+            <p className="p-8 text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Select a message or create a new one.
             </p>
           )}

@@ -17,23 +17,23 @@ export function TaskDetailTabs({ task, commentsRef }: Props) {
   const activityCount = useActivityStore((s) => s.list().filter((a) => a.taskId === task.id).length)
 
   return (
-    <section className="mt-6 border-t pt-4" style={{ borderColor: 'var(--border-subtle)' }}>
+    <section className="mt-6 border-t pt-4" style={{ borderColor: 'hsl(var(--border))' }}>
       <Tabs defaultValue="comments">
         <TabsList
           className="mb-3 h-auto w-full gap-1 overflow-x-auto rounded-lg p-1"
-          style={{ background: 'var(--bg-muted)' }}
+          style={{ background: 'hsl(var(--surface-muted))' }}
           aria-label="Task detail sections"
         >
-          <TabsTrigger value="comments" className="shrink-0 capitalize data-[state=active]:shadow-paper-sm">
+          <TabsTrigger value="comments" className="shrink-0 capitalize data-[state=active]:shadow-sm">
             Comments{commentCount ? ` (${commentCount})` : ''}
           </TabsTrigger>
-          <TabsTrigger value="activity" className="shrink-0 capitalize data-[state=active]:shadow-paper-sm">
+          <TabsTrigger value="activity" className="shrink-0 capitalize data-[state=active]:shadow-sm">
             Activity{activityCount ? ` (${activityCount})` : ''}
           </TabsTrigger>
-          <TabsTrigger value="time" className="shrink-0 capitalize data-[state=active]:shadow-paper-sm">
+          <TabsTrigger value="time" className="shrink-0 capitalize data-[state=active]:shadow-sm">
             Time
           </TabsTrigger>
-          <TabsTrigger value="expenses" className="shrink-0 capitalize data-[state=active]:shadow-paper-sm">
+          <TabsTrigger value="expenses" className="shrink-0 capitalize data-[state=active]:shadow-sm">
             Expenses
           </TabsTrigger>
         </TabsList>

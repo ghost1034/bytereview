@@ -23,7 +23,7 @@ export function AdminOnlyWrap({
         <TooltipTrigger asChild>
           <span className="inline-flex cursor-not-allowed opacity-60">{children}</span>
         </TooltipTrigger>
-        <TooltipContent className="tl-popover-surface">{message}</TooltipContent>
+        <TooltipContent>{message}</TooltipContent>
       </Tooltip>
     </TooltipProvider>
   )

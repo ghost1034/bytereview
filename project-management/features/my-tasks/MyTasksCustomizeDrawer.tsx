@@ -90,7 +90,7 @@ export function MyTasksCustomizeDrawer({ workspaceId, userId, layout, onUpdate }
       </SheetTrigger>
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="font-serif">Customize My Tasks</SheetTitle>
+          <SheetTitle className="font-sans">Customize My Tasks</SheetTitle>
           <SheetDescription>Reorder sections, add personal buckets, and tune defaults.</SheetDescription>
         </SheetHeader>
 
@@ -107,7 +107,7 @@ export function MyTasksCustomizeDrawer({ workspaceId, userId, layout, onUpdate }
           </div>
 
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: 'var(--ink-muted)' }}>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide" style={{ color: 'hsl(var(--foreground-muted))' }}>
               Sections
             </p>
             <ul className="space-y-2">
@@ -121,9 +121,9 @@ export function MyTasksCustomizeDrawer({ workspaceId, userId, layout, onUpdate }
                   <li
                     key={id}
                     className="flex items-center gap-2 rounded-lg border px-2 py-1.5"
-                    style={{ borderColor: 'var(--border-subtle)' }}
+                    style={{ borderColor: 'hsl(var(--border))' }}
                   >
-                    <GripVertical className="h-4 w-4 shrink-0" style={{ color: 'var(--ink-faint)' }} />
+                    <GripVertical className="h-4 w-4 shrink-0" style={{ color: 'hsl(var(--foreground-subtle))' }} />
                     <Input
                       value={label}
                       onChange={(e) =>
@@ -142,7 +142,7 @@ export function MyTasksCustomizeDrawer({ workspaceId, userId, layout, onUpdate }
                     </Button>
                     {!builtin ? (
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteCustom(id)}>
-                        <Trash2 className="h-4 w-4" style={{ color: 'var(--danger)' }} />
+                        <Trash2 className="h-4 w-4" style={{ color: 'hsl(var(--destructive))' }} />
                       </Button>
                     ) : null}
                   </li>

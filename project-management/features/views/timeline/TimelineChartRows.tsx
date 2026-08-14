@@ -60,7 +60,7 @@ export function TimelineChartRows(props: Props) {
             <div
               key={row.kind === 'section' ? `s-${row.sectionId}` : `l-${row.key}`}
               className="absolute border-b"
-              style={{ top: i * ROW_H, height: ROW_H, width, borderColor: 'var(--border-subtle)', background: 'var(--bg-elevated)' }}
+              style={{ top: i * ROW_H, height: ROW_H, width, borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))' }}
             />
           )
         }

@@ -18,7 +18,6 @@ const SHORTCUTS: Shortcut[] = [
   { keys: 'g i', description: 'Go to Inbox' },
   { keys: '[', description: 'Collapse sidebar' },
   { keys: ']', description: 'Expand sidebar' },
-  { keys: 't', description: 'Toggle theme' },
   { keys: 'Shift+T', description: 'Open timer controls' },
   { keys: '?', description: 'Show this dialog' },
 ]
@@ -31,21 +30,21 @@ type Props = {
 export function KeyboardShortcutsDialog({ open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="tl-dialog-surface max-w-md">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-serif text-xl">Keyboard shortcuts</DialogTitle>
+          <DialogTitle className="font-sans text-xl">Keyboard shortcuts</DialogTitle>
         </DialogHeader>
         <ul className="grid gap-2 py-2">
           {SHORTCUTS.map((s) => (
             <li
               key={s.keys}
               className="flex items-center justify-between gap-4 rounded-lg px-3 py-2 text-sm"
-              style={{ background: 'var(--bg-muted)' }}
+              style={{ background: 'hsl(var(--surface-muted))' }}
             >
-              <span style={{ color: 'var(--ink-secondary)' }}>{s.description}</span>
+              <span style={{ color: 'hsl(var(--foreground-muted))' }}>{s.description}</span>
               <kbd
                 className="rounded-md border px-2 py-0.5 font-mono text-xs font-medium tabular-nums"
-                style={{ borderColor: 'var(--border-default)', background: 'var(--bg-elevated)', color: 'var(--ink-primary)' }}
+                style={{ borderColor: 'hsl(var(--border))', background: 'hsl(var(--card))', color: 'hsl(var(--foreground))' }}
               >
                 {s.keys}
               </kbd>

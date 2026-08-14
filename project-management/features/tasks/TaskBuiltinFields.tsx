@@ -21,25 +21,25 @@ export function TaskBuiltinFields({ task }: Props) {
   return (
     <div className="text-sm">
       <div className="mb-1.5 flex items-center justify-between">
-        <span style={{ color: 'var(--ink-muted)' }}>Fields</span>
+        <span style={{ color: 'hsl(var(--foreground-muted))' }}>Fields</span>
         <button
           type="button"
           className="text-xs font-medium"
-          style={{ color: 'var(--primary)' }}
+          style={{ color: 'hsl(var(--primary))' }}
           onClick={() => setFieldEditorOpen(true)}
         >
           + Add fields
         </button>
       </div>
       {taskFields.length === 0 ? (
-        <p className="text-xs" style={{ color: 'var(--ink-faint)' }}>
+        <p className="text-xs" style={{ color: 'hsl(var(--foreground-subtle))' }}>
           No custom fields yet.
         </p>
       ) : (
         <div className="space-y-2">
           {taskFields.map((field) => (
             <div key={field.id} className="flex items-center justify-between gap-4">
-              <span style={{ color: 'var(--ink-muted)' }}>{field.name}</span>
+              <span style={{ color: 'hsl(var(--foreground-muted))' }}>{field.name}</span>
               <FieldValueEditor task={task} field={field} />
             </div>
           ))}

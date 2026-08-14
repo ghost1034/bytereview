@@ -34,7 +34,7 @@ export function AiThreadList({ workspaceId }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-1 border-b px-2 py-1.5" style={{ borderColor: 'var(--border-subtle)' }}>
+    <div className="flex items-center gap-1 border-b px-2 py-1.5" style={{ borderColor: 'hsl(var(--border))' }}>
       <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
         {threads.slice(0, 6).map((t) => (
           <button
@@ -44,7 +44,7 @@ export function AiThreadList({ workspaceId }: Props) {
             className={`max-w-[120px] truncate rounded-full px-2.5 py-1 text-xs ${
               t.id === activeId ? 'tl-btn-primary text-white' : ''
             }`}
-            style={t.id === activeId ? undefined : { background: 'var(--bg-sunken)', color: 'var(--ink-muted)' }}
+            style={t.id === activeId ? undefined : { background: 'hsl(var(--surface-muted))', color: 'hsl(var(--foreground-muted))' }}
           >
             {t.title}
           </button>
