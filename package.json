@@ -22,7 +22,8 @@
     "test:tasklytic": "vitest run --config vitest.tasklytic-unit.config.ts",
     "test:tasklytic:browser": "vitest run --config vitest.tasklytic-browser.config.ts",
     "test:tasklytic:backend": "backend/.venv/bin/python -m pytest backend/tests/test_tasklytic_service.py backend/tests/test_tasklytic_psa.py backend/tests/test_tasklytic_billing.py backend/tests/test_tasklytic_integrations.py -q",
-    "tasklytic:phases": "node scripts/run-tasklytic-phases.mjs"
+    "tasklytic:phases": "node scripts/run-tasklytic-phases.mjs",
+    "tasklytic-redesign:phases": "node scripts/run-tasklytic-redesign-phases.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
