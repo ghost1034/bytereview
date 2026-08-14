@@ -26,7 +26,7 @@ type AuthState = {
 
 
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
 
   currentUserId: null,
 
@@ -65,6 +65,11 @@ export const useAuthStore = create<AuthState>((set) => ({
   async setCurrentUser(id, options) {
     const partition = id === null ? 'default' : (options?.partition ?? 'default')
     setRepositoryPartition(partition)
+
+    const current = get()
+    if (current.currentUserId === id && current.partition === partition) {
+      return
+    }
 
     const repo = getRepository()
 
