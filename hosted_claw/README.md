@@ -47,6 +47,12 @@ rate-limited action list in the turn's existing Slack response, replacing the
 generic progress placeholder as soon as the first action begins. Native
 reasoning progress is deliberately not relayed.
 
+Generated files are delivered to the originating Slack conversation through
+the control plane's scanned artifact pipeline. Native `artifact.created`
+events are delivered directly. As a compatibility fallback, a supported
+top-level `/opt/data/workspace/...` file named in the final response is also
+delivered, with duplicate paths suppressed when both signals are present.
+
 `HOSTED_CLAW_PROXY_IMAGE` must also be a digest-pinned Caddy image. The
 supervisor creates an isolated bridge network and a credential-injecting proxy
 sidecar per tenant. The tenant bridge permits direct outbound traffic so files

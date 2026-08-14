@@ -85,6 +85,7 @@ try:
         HostedTurnTimeout,
         Runtime,
         Supervisor,
+        _referenced_workspace_artifacts,
     )
 finally:
     sys.path.pop(0)
@@ -584,6 +585,27 @@ class HostedRuntimeReadinessTests(unittest.TestCase):
 
 
 class HostedGeneratedArtifactDeliveryTests(unittest.IsolatedAsyncioTestCase):
+    def test_resolves_supported_workspace_files_named_in_final_response(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            workspace = Path(directory)
+            workpaper = workspace / "reconciliation workpaper.xlsx"
+            workpaper.write_bytes(b"xlsx")
+            unsupported = workspace / "notes.md"
+            unsupported.write_text("notes", encoding="utf-8")
+            nested = workspace / "nested"
+            nested.mkdir()
+            (nested / "hidden.csv").write_text("hidden", encoding="utf-8")
+
+            artifacts = _referenced_workspace_artifacts(
+                "The complete workpaper has been generated at: "
+                "/opt/data/workspace/reconciliation workpaper.xlsx\n"
+                "Ignore /opt/data/workspace/notes.md and "
+                "/opt/data/workspace/nested/hidden.csv.",
+                workspace,
+            )
+
+        self.assertEqual(artifacts, [workpaper.resolve()])
+
     async def test_explicit_generated_artifact_is_still_delivered_to_slack(self) -> None:
         supervisor = Supervisor.__new__(Supervisor)
         supervisor.worker_id = "worker-a"
@@ -1305,8 +1327,19 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual([request.url.path for request in requests], ["/v1/capabilities"])
 
-    async def test_supervisor_persists_native_session_rotation_and_usage(self) -> None:
+    async def test_supervisor_persists_session_and_delivers_file_named_in_final_response(self) -> None:
         runtime = self.runtime()
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        runtime.data_dir = Path(temporary.name)
+        workspace = runtime.data_dir / "workspace"
+        workspace.mkdir()
+        workpaper = workspace / "reconciliation_workpaper.xlsx"
+        workpaper.write_bytes(b"xlsx")
+        final_text = (
+            "The complete reconciliation XLSX workpaper has been generated at: "
+            "/opt/data/workspace/reconciliation_workpaper.xlsx"
+        )
 
         async def native_events(*_args, **_kwargs):
             yield {"type": "session.ready", "session_id": "hcs-native"}
@@ -1320,13 +1353,8 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
             yield {"type": "assistant.delta", "delta": "partial"}
             yield {
                 "type": "assistant.completed",
-                "content": "final answer",
+                "content": final_text,
                 "session_id": "hcs-rotated",
-            }
-            yield {
-                "type": "artifact.created",
-                "path": "/opt/data/workspace/report.csv",
-                "content_type": "text/csv",
             }
             yield {
                 "type": "run.completed",
@@ -1397,7 +1425,7 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
         final_progress = unittest.mock.call(
             "POST",
             "/api/internal/hosted-claw/jobs/job-native/progress?worker_id=worker-a",
-            json={"kind": "final", "text": "final answer"},
+            json={"kind": "final", "text": final_text},
         )
         self.assertIn(final_progress, supervisor.control.request.await_args_list)
         completion = [
@@ -1421,8 +1449,7 @@ class HostedHermesNativeSessionTests(unittest.IsolatedAsyncioTestCase):
         supervisor._deliver_generated_artifact.assert_awaited_once_with(
             job,
             runtime,
-            (runtime.data_dir / "workspace").resolve() / "report.csv",
-            "text/csv",
+            workpaper.resolve(),
         )
 
 
