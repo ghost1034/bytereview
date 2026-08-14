@@ -1,132 +1,76 @@
-# Tasklytic Phase-by-Phase Completion Plan
+# Tasklytic Design Unification Plan
 
 ## Summary
 
-Implement each phase from the result of its predecessor. Every phase must pass its exit gate before the next begins, but production deployment is allowed only at the milestone gates after Phases 3, 7, and 10. Production deployment should be done only by the human developer.
+Redesign every authenticated Tasklytic workflow to use CPAAutomation’s shared dashboard shell, IBM Plex typography, semantic color tokens, and UI primitives. Preserve Tasklytic’s compact work-management density and specialized workspace navigation. Public intake forms remain client-focused and visually isolated from the authenticated redesign.
 
-Preserve these decisions throughout: `/dashboard/project-management` is canonical, “Tasklytic” is customer-facing, Firebase owns authentication, PostgreSQL is authoritative for authenticated users, internal evaluation workspaces remain supported, and customer trial behavior is removed.
+No backend, database, or OpenAPI changes are required.
 
-## Implementation Phases
+## Implementation Changes
 
-### Phase 1 — Baseline, boundaries, and quality gates
+### 1. Establish the shared design foundation
 
-- Create a requirement traceability matrix covering the numbered Tasklytic specifications, current implementation, target phase, and final disposition.
-- Remove trial roles, partitions, claims, onboarding copy, and analytics events without deleting legacy browser keys. Preserve explicitly gated evaluation tenants.
-- Require the backend repository for authenticated use. Limit local persistence to tests and evaluation tooling; show a recoverable service-unavailable state when production persistence cannot load.
-- Hide unsupported integration choices and remove stale route/name documentation.
-- Make the existing ESLint flat configuration and TypeScript checks enforceable in CI. Fix blocking violations, remove Next.js build bypasses, and add Tasklytic lint, type-check, frontend-unit, and backend-test jobs.
+- Replace Tasklytic’s cream/terracotta/Fraunces theme with CPAAutomation tokens such as `background`, `surface`, `card`, `foreground`, `primary`, `border`, and semantic status colors.
+- Remove authenticated uses of private theme state, `tasklytic:theme`, auroras, glows, paper shadows, and inline legacy color variables.
+- Preserve dense dimensions: 36px rows and primary actions, 32–36px compact controls, and space-efficient boards, tables, timelines, and toolbars.
+- Add Tasklytic to the semantic-color ESLint scope and introduce a static check preventing new legacy tokens, raw palette classes, or Tasklytic portal-surface workarounds.
+- Move the existing public-form visual tokens into a separately scoped `.tasklytic-public-root` stylesheet so public forms do not block authenticated cleanup.
 
-Exit gate: canonical routes and access boundaries are tested; no customer trial path is reachable; explicit lint, type-check, unit, backend, OpenAPI, and production-build checks pass.
+### 2. Integrate Tasklytic with the CPAAutomation shell
 
-### Phase 2 — Concurrency, authorization, and live data contracts
+- Remove the project-management immersive-shell exception in `components/layout/dashboard-shell.tsx`; retain the global CPAAutomation sidebar, top bar, account menu, and support entry.
+- Treat Tasklytic as an edge-to-edge wide route: the dashboard shell supplies no content padding, and the module owns its compact inner spacing without creating nested viewport scrolling.
+- Refactor `project-management/TasklyticChrome.tsx` into a workspace shell containing only:
+  - The resizable/collapsible Tasklytic workspace and project navigator.
+  - A mobile-only module bar and secondary-navigation drawer.
+  - Tasklytic dialogs, timer banner, AI panel, shortcuts, and creation flows.
+- Remove Tasklytic’s duplicate top bar, logo, account/sign-out controls, and independent theme toggle.
+- Keep the local navigator at 240px by default, collapsible to 56px on desktop, and drawer-based below the existing `lg` breakpoint.
 
-- Standardize revisions on mutable records and expose them in bootstrap and collection responses.
-- Require `If-Match` on updates and deletes. Return `409` with the current record when revisions conflict, and add reusable conflict/reload UI.
-- Add workspace event persistence and an authenticated SSE endpoint supporting `Last-Event-ID` or an explicit cursor. Retain refresh-on-focus as fallback.
-- Centralize action-level authorization for view, edit, submit, approve, bill, payment, trust, rate, and workspace-administration operations; enforce the same capabilities in APIs and UI.
-- Introduce shared loading, empty, forbidden, not-found, conflict, retry, and service-error components.
+### 3. Add a reusable module-chrome interface
 
-Exit gate: tenant isolation, conditional writes, conflict recovery, SSE reconnect/cursor behavior, and every authorization capability have backend and frontend regression tests.
+Introduce a dashboard module registration hook with this internal contract:
 
-### Phase 3 — Transactional commands and background execution
+```ts
+type DashboardModuleChrome = {
+  breadcrumbs?: Array<{ label: string; href?: string }>
+  openCommandPalette?: () => void
+  actions?: React.ReactNode
+}
+```
 
-- Add an idempotent outbox/job model with leases, retry policy, run history, failure details, and deduplication keys.
-- Extend Tasklytic maintenance into the runner for scheduled rules, due-date notifications, dashboard digests, AI teammates, abandoned uploads, and integration retries.
-- Move existing multi-record mutations into transactional domain commands. Require future approvals, invoices, payments, locks, and rule executions to use the same command boundary.
-- Expose command status and retry diagnostics for authorized administrators.
+- Tasklytic registers its store-backed breadcrumbs and command palette while mounted and cleans them up when leaving the route.
+- The shared top-bar search and `⌘K` open Tasklytic’s richer workspace search on Tasklytic routes and the existing global palette elsewhere.
+- The Tasklytic palette retains project, task, goal, people, page, and creation results; remove duplicate theme and sign-out actions and add a compact CPAAutomation destinations group.
+- Render Tasklytic’s Create, running-timer, and inbox controls in the shared top-bar action slot. Move tour/setup/shortcut utilities to the Tasklytic sidebar footer.
+- On mobile, keep the global sidebar trigger in the shared top bar and provide a clearly labeled Tasklytic-navigation trigger in the module bar.
 
-Exit gate: atomic rollback, duplicate dispatch, concurrent workers, retry exhaustion, and scheduled-job idempotency tests pass.
+### 4. Convert authenticated surfaces in gated waves
 
-Milestone A: the platform foundation may be deployed after backward-compatibility verification.
+Each wave converts complete feature families so no individual workflow is half-restyled:
 
-### Phase 4 — Core projects, navigation, files, and timers
+1. **Shell and primitives:** navigation, module chrome, buttons, inputs, menus, dialogs, popovers, tabs, badges, cards, empty/error/loading states, page headers, toolbars, and task-detail surfaces.
+2. **Core work management:** home, projects, tasks, list/board/calendar/timeline/Gantt views, files, inbox, search, comments, and attachments.
+3. **Planning and administration:** portfolios, goals, workload, reporting, rules, templates, authenticated form builder/submissions, teams, members, settings, onboarding, and AI.
+4. **Professional services:** time tracking, timesheets, expenses, clients, matters/engagements, invoicing, trust accounting, and reports.
+5. **Cleanup:** delete unused Tasklytic theme, logo, top-bar, portal-wrapper, and legacy style code; update `project-management/Design.md` to designate the CPAAutomation design system as authoritative.
 
-- Complete Teams and My Searches navigation, breadcrumbs, Form and Dashboard creation actions, and all currently visible settings destinations. Keep later-phase destinations hidden until functional.
-- Add distinct Timeline and Gantt views plus project Files and Dashboard tabs without breaking existing project URLs.
-- Complete project settings, members, descriptions, custom fields, notifications, view defaults, attachment-image covers, and project/task template entry points.
-- Finish the files grid: search, filter, sort, grid/list layouts, bulk download, and authorized deletion.
-- Implement one user-scoped running timer, global banner, quick start, accurate elapsed capture, and Save/Discard/Cancel when switching tasks. Preserve `T` for theme and use `Shift+T` for timer control.
+Use shared CPAAutomation primitives directly where possible. Keep thin Tasklytic wrappers only for compact density or domain-specific behavior, not for independent colors, typography, or portal styling.
 
-Exit gate: desktop/mobile browser tests cover navigation, project CRUD/settings, every project view, files, permissions, covers, and timer switching/recovery.
+## Test Plan
 
-### Phase 5 — Advanced work management
+- Add unit coverage for module-chrome registration and cleanup, dynamic breadcrumbs, route-aware `⌘K`, action-slot behavior, sidebar persistence, and public/authenticated style isolation.
+- Update browser tests for global plus local navigation, workspace switching, Create actions, timer recovery, inbox, command search, dialogs, and task-detail panes.
+- Test representative screens at 1440×900, 1024×768, and 390×844, including populated, empty, loading, forbidden, error, and overflow states.
+- Add visual baselines for home, project list/board/timeline, task detail, inbox, reporting, settings, and PSA tables; compare them with shared CPAAutomation shell and component references.
+- Run Axe with color contrast enabled and verify keyboard navigation, focus visibility, reduced motion, landmark order, drawer focus trapping, and touch-target labeling.
+- For every wave run `npm run lint:tasklytic`, `npm run test:tasklytic`, `npm run test:tasklytic:browser`, TypeScript checks, `npm run build`, and `npm run check:tasklytic-bundle`.
+- Final acceptance requires zero authenticated references to Fraunces, `tasklytic:theme`, private warm-theme variables, aurora/glow helpers, or `tl-*-surface` portal classes.
 
-- Replace flat filters with recursive AND/OR groups and lazily migrate existing filters into a top-level AND group.
-- Complete global search across Tasks, Projects, Goals, and People, including list/board/chart results, live counts, personal/workspace saved searches, and pinned sidebar entries.
-- Finish weighted goal and supporting-goal rollups.
-- Complete workload grouping, effort selection, capacity permissions, context actions, and people drill-down.
-- Finish template bundles, previews, placeholder-role resolution, editable icons, task-template entry points, and curated-template validation.
-- Harden public forms for validation, attachments, idempotency, spam controls, and permissions.
+## Assumptions and Acceptance Criteria
 
-Exit gate: recursive-query migration, saved-search ownership, goal rollups, workload permissions, template resolution, and authenticated/public form flows are covered by unit, backend, and browser tests.
-
-### Phase 6 — Automation and reporting
-
-- Move rule evaluation from page-triggered client execution to the event/job pipeline.
-- Add documented triggers/actions, scheduled and due-date events, exactly-once run records, retries, and visible failure history.
-- Repair chart field handling and establish an extensible reporting-source registry; register project/task sources now and PSA sources as Phases 8–9 add them.
-- Enforce dashboard viewer/editor permissions and accessible drill-downs.
-- Generate real dashboard snapshots for email digests, expose next-run status, and eliminate client/server duplicate scheduling.
-
-Exit gate: event-triggered and scheduled rules, replay protection, chart persistence, dashboard permissions, drill-downs, snapshots, and digest scheduling pass automated tests.
-
-### Phase 7 — Persistent AI and AI teammates
-
-- Persist AI threads and user/workspace settings on the backend. Migrate local threads once only after successful server persistence.
-- Centralize supported Vertex models and structured-output schemas; keep credentials and prompt context server-side.
-- Support previewable, editable, permission-checked proposals for task creation, subtasks, descriptions, status drafts, custom fields, rules, dashboard charts, summaries, and assignee suggestions.
-- Implement Tria, Summarie, and Statura as configurable scheduled jobs with scoped context, audit trails, rate limits, metering, and failure notifications.
-
-Exit gate: AI scope isolation, proposal validation/acceptance, one-time migration, teammate scheduling, rate limits, usage events, and failure handling pass backend and browser tests.
-
-Milestone B: the completed work-management, automation, reporting, and AI feature set may enter authenticated internal beta.
-
-### Phase 8 — PSA operations and approvals
-
-- Add unified Approvals settings, conditional Matters/Engagements terminology, and detail routes for clients, matters/engagements, and expense reports.
-- Complete time and expense edit, duplicate, submit, approve/reject, partial approval, write-off, lock, filter, receipt, and reimbursement workflows.
-- Enforce immutable billed records and capability-based approval actions.
-- Register time, expense, utilization, and WIP reporting sources.
-- Provide manual receipt entry as the reliable fallback until Vertex extraction is enabled in Phase 10.
-
-Exit gate: every time, timesheet, expense, and expense-report lifecycle transition is tested across member, approver, billing-admin, and unauthorized roles.
-
-### Phase 9 — Billing, payments, trust, and financial controls
-
-- Complete Billing Settings, rate cards, activity codes, approval routing, and budgets.
-- Add invoice detail routes and complete narrative, discount, write-off, PDF, delivery/resend, aging, void, payment, trust/retainer, and audit-history workflows.
-- Add transactional invoice generation, billing locks, payment application, and reversal behavior.
-- Aggregate money by currency unless an explicit FX quote exists. Add cached ECB daily rates with workspace overrides for unsupported currencies.
-- Register invoice, payment, realization, effective-rate, and AR-aging reporting sources.
-
-Exit gate: rate resolution, currency separation, FX overrides, invoice/payment/trust state machines, immutable billing records, PDF output, and authorization pass unit, backend, and end-to-end tests.
-
-### Phase 10 — Production integrations and launch hardening
-
-- Implement Google Drive selection/import, Vertex receipt extraction with manual fallback, Gmail/GCS delivery and storage, and Stripe Connect payment links/webhook reconciliation.
-- Keep workspace-plan Stripe billing separately scoped from client invoice payments.
-- Replace advertised analytics adapters with first-party usage/audit events. Keep QuickBooks Online, OneDrive, Dropbox, Xero, NetSuite, and other unsupported providers hidden.
-- Handle revoked credentials, replayed webhooks, partial synchronization, retry exhaustion, and external-ID conflicts without losing local records.
-- Split the catch-all UI into feature-level lazy chunks, virtualize large lists, and keep the reported initial Tasklytic JavaScript load below 350 kB without eager PSA, reporting, AI, or settings code.
-- Complete mobile, keyboard, and accessibility verification; remove obsolete placeholders, dead controls, duplicate components, and stale “coming soon” content.
-- Close the traceability matrix only when every requirement is implemented and tested or explicitly superseded.
-
-Exit gate: supported integrations pass sandbox tests; failure/replay scenarios preserve accounting records; accessibility and performance budgets pass; no visible placeholder or false integration remains; full CI and representative end-to-end suites are green.
-
-Milestone C: production launch after migration rehearsal, capability enablement, monitoring verification, and rollback validation.
-
-## Public Interfaces and Migrations
-
-- Responses expose integer `revision` values and matching ETags. Existing-record `PUT` and `DELETE` requests require `If-Match`; conflicts return `409` with `detail.code = "revision_conflict"` and the current record.
-- Add authenticated workspace SSE events with durable event IDs/cursors.
-- Introduce recursive `FilterExpression` clause/group types and migrate legacy `FilterClause[]` values lazily as AND groups.
-- Add typed approval-policy, external-reference, FX-quote, AI-thread, AI-teammate, automation-run, job/outbox, and integration-capability records.
-- Use resource-scoped lifecycle actions for submit, approve, reject, generate, send, void, pay, retry, and synchronize operations rather than generic collection replacement.
-- Add project view values `gantt`, `files`, and `dashboard`; add the Engagements alias and required settings/entity-detail routes.
-- Use additive Alembic migrations, backward-compatible backend responses, regenerated `lib/api-types.ts`, and capability-gated frontend activation. Remove compatibility code only after the final rollout gate.
-
-## Verification Rules
-
-- Every phase begins from the predecessor and is delivered as a separately reviewable change set.
-- Every phase runs targeted tests first, followed by Tasklytic lint, TypeScript, frontend unit tests, `backend/tests/test_tasklytic_service.py`, relevant new backend tests, and OpenAPI freshness checks.
-- Create a git commit after each phase, but do not push.
+- Business logic, route contracts, permissions, persistence, and backend behavior remain unchanged.
+- Public intake forms retain their current client-facing identity and submission behavior.
+- Tasklytic follows the host theme rather than owning a separate theme preference; the current dashboard remains light, and future host dark-mode support will propagate through shared tokens.
+- Releases occur in the gated waves above using compatibility adapters until the final cleanup. A feature family is releasable only when its full workflow and responsive states are converted.
+- The redesign is complete when Tasklytic visibly belongs to CPAAutomation, presents only one global account/search/theme shell, retains its dense productivity workflows, and passes all existing functional, accessibility, bundle, and build gates.
