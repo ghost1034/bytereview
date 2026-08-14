@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPBearer
 from dotenv import load_dotenv
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 import stripe
 
 from core.runtime import environment, is_production
@@ -77,7 +78,22 @@ if not stripe.api_key:
 # ---------- Security ----------
 security = HTTPBearer(auto_error=False)
 
-# ---------- Global error handler (ensure clear logs on 500s) ----------
+# ---------- Global error handlers ----------
+@app.exception_handler(SQLAlchemyTimeoutError)
+async def database_pool_timeout_handler(request: Request, exc: SQLAlchemyTimeoutError):
+    logger.error(
+        "Database connection pool exhausted on %s %s: %s",
+        request.method,
+        request.url.path,
+        exc,
+    )
+    return JSONResponse(
+        {"detail": "Database temporarily unavailable"},
+        status_code=503,
+        headers={"Retry-After": "5"},
+    )
+
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled exception on %s %s", request.method, request.url.path)
