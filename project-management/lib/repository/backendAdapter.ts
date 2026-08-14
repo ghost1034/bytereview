@@ -160,10 +160,11 @@ export const backendRepositoryAdapter: RepositoryAdapter = {
     const items = (cache.get(entity) ?? []) as T[]
     const previous = items.find((candidate) => candidate.id === item.id)
     assertMutationCapability(entity, item, previous)
+    const revision = item.revision ?? previous?.revision
     try {
       const saved = await tasklyticApiJson<T>(entityPath(entity, `/${item.id}`), {
         method: 'PUT',
-        headers: item.revision ? { 'If-Match': `"${item.revision}"` } : undefined,
+        headers: revision ? { 'If-Match': `"${revision}"` } : undefined,
         body: JSON.stringify(item),
       })
       invalidateSnapshots()

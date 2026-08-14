@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Session } from '../../types'
 
 const apiJson = vi.fn()
 
@@ -83,6 +84,41 @@ describe('backendRepositoryAdapter', () => {
       expect.objectContaining({ headers: { 'If-Match': '"7"' } }),
     )
     expect(saved.revision).toBe(8)
+  })
+
+  it('uses the cached revision when a session save omits it', async () => {
+    apiJson
+      .mockResolvedValueOnce({
+        workspaceId: null,
+        generatedAt: new Date().toISOString(),
+        capabilities: null,
+        collections: {
+          session: [{
+            id: 'session',
+            currentUserId: 'user-1',
+            partition: 'default',
+            revision: 4,
+          }],
+        },
+      })
+      .mockResolvedValueOnce({
+        id: 'session',
+        currentUserId: 'user-1',
+        partition: 'default',
+        revision: 5,
+      })
+    const { backendRepositoryAdapter } = await import('./backendAdapter')
+    await backendRepositoryAdapter.loadAll('session')
+
+    await backendRepositoryAdapter.saveAll<Session>('session', [{
+      currentUserId: 'user-1',
+      partition: 'default',
+    }])
+
+    expect(apiJson).toHaveBeenLastCalledWith(
+      '/session/session',
+      expect.objectContaining({ headers: { 'If-Match': '"4"' } }),
+    )
   })
 
   it('reports a revision conflict without replacing the loaded record', async () => {
