@@ -51,11 +51,16 @@ export function useBreadcrumbs(): Crumb[] {
 }
 
 interface DashboardBreadcrumbsProps {
+  breadcrumbs?: Array<{ label: string; href?: string }>
   className?: string
 }
 
-export function DashboardBreadcrumbs({ className }: DashboardBreadcrumbsProps) {
-  const crumbs = useBreadcrumbs()
+export function DashboardBreadcrumbs({ breadcrumbs, className }: DashboardBreadcrumbsProps) {
+  const routeCrumbs = useBreadcrumbs()
+  const crumbs = breadcrumbs?.map((crumb, index) => ({
+    ...crumb,
+    current: index === breadcrumbs.length - 1,
+  })) ?? routeCrumbs
 
   if (crumbs.length === 0) return null
 
@@ -63,14 +68,17 @@ export function DashboardBreadcrumbs({ className }: DashboardBreadcrumbsProps) {
     <nav aria-label="Breadcrumb" className={cn('min-w-0', className)}>
       <ol className="flex min-w-0 items-center gap-1 text-sm">
         {crumbs.map((crumb, i) => (
-          <li key={crumb.href} className="flex min-w-0 items-center gap-1">
+          <li key={`${crumb.label}-${crumb.href ?? i}`} className="flex min-w-0 items-center gap-1">
             {i > 0 && (
               <ChevronRight className="size-3.5 shrink-0 text-foreground-subtle" aria-hidden />
             )}
-            {crumb.current ? (
+            {crumb.current || !crumb.href ? (
               <span
-                aria-current="page"
-                className="truncate font-medium text-foreground"
+                aria-current={crumb.current ? 'page' : undefined}
+                className={cn(
+                  'truncate',
+                  crumb.current ? 'font-medium text-foreground' : 'text-foreground-muted',
+                )}
               >
                 {crumb.label}
               </span>

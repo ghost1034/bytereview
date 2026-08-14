@@ -12,7 +12,6 @@ import { useUiStore } from '../../stores/auth'
 import { useGoalsStore, useProjectsStore, useTasksStore, useUsersStore } from '../../stores/entities'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import { searchWorkspace, searchWorkspaceGoals, searchWorkspacePeople } from '../../lib/search/searchIndex'
-import { useAuth } from '@/contexts/AuthContext'
 import { HighlightMatch } from './CommandPaletteHighlight'
 import { filterDestinations } from './searchDestinations'
 
@@ -20,8 +19,16 @@ type FlatItem = {
   label: string
   href?: string
   group: string
-  action?: 'quickAdd' | 'createProject' | 'signOut'
+  action?: 'quickAdd' | 'createProject'
 }
+
+const CPAAUTOMATION_DESTINATIONS = [
+  { label: 'CPAAutomation dashboard', href: '/dashboard' },
+  { label: 'Jobs', href: '/dashboard/jobs' },
+  { label: 'PBC', href: '/dashboard/pbc' },
+  { label: 'Inkwise', href: '/dashboard/inkwise' },
+  { label: 'E-Signature', href: '/dashboard/esign' },
+]
 
 export function CommandPalette() {
   const open = useUiStore((s) => s.commandPaletteOpen)
@@ -32,7 +39,6 @@ export function CommandPalette() {
   const listRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const { workspaceId, workspace } = useWorkspaceContext()
-  const { signOut } = useAuth()
   const projects = useProjectsStore((s) => s.list().filter((p) => p.workspaceId === workspaceId && !p.archived))
   const tasks = useTasksStore((s) => s.list().filter((t) => t.workspaceId === workspaceId))
   const goals = useGoalsStore((s) => s.list().filter((goal) => goal.workspaceId === workspaceId))
@@ -79,13 +85,19 @@ export function CommandPalette() {
     }
 
     const actions: FlatItem[] = [
-      { label: 'Create task', group: 'Actions', action: 'quickAdd' },
-      { label: 'Create project', group: 'Actions', action: 'createProject' },
-      { label: 'Sign out', group: 'Actions', action: 'signOut' },
+      { label: 'Create task', group: 'Create', action: 'quickAdd' },
+      { label: 'Create project', group: 'Create', action: 'createProject' },
     ]
     actions
       .filter((a) => !q || a.label.toLowerCase().includes(q))
       .forEach((a) => items.push(a))
+
+    CPAAUTOMATION_DESTINATIONS
+      .filter((destination) => !q || destination.label.toLowerCase().includes(q))
+      .forEach((destination) => items.push({
+        ...destination,
+        group: 'CPAAutomation destinations',
+      }))
 
     return items
   }, [goals, people, projects, query, tasks, workspace?.memberIds, workspaceId])
@@ -108,10 +120,6 @@ export function CommandPalette() {
     }
     if (item.action === 'createProject') {
       dispatchShellAction('createProject')
-      return
-    }
-    if (item.action === 'signOut') {
-      await signOut()
       return
     }
     if (item.href) router.push(item.href)

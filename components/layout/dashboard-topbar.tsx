@@ -28,11 +28,15 @@ import { DashboardBreadcrumbs } from './dashboard-breadcrumbs'
 
 interface DashboardTopbarProps {
   onOpenCommandPalette?: () => void
+  breadcrumbs?: Array<{ label: string; href?: string }>
+  actions?: React.ReactNode
   className?: string
 }
 
 export function DashboardTopbar({
   onOpenCommandPalette,
+  breadcrumbs,
+  actions,
   className,
 }: DashboardTopbarProps) {
   const { user, signOut } = useAuth()
@@ -67,7 +71,7 @@ export function DashboardTopbar({
 
       <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
 
-      <DashboardBreadcrumbs className="hidden flex-1 sm:flex" />
+      <DashboardBreadcrumbs breadcrumbs={breadcrumbs} className="hidden flex-1 sm:flex" />
 
       {/* Spacer on mobile (breadcrumbs hidden) */}
       <div className="flex-1 sm:hidden" />
@@ -89,6 +93,12 @@ export function DashboardTopbar({
           <span className="text-[11px]">⌘</span>K
         </kbd>
       </button>
+
+      {actions ? (
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1" aria-label="Module actions">
+          {actions}
+        </div>
+      ) : null}
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

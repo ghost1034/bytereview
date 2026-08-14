@@ -24,15 +24,63 @@ describe('Tasklytic dashboard shell integration', () => {
   it('renders only workspace chrome beneath the shared dashboard chrome', () => {
     const chrome = read('project-management/TasklyticChrome.tsx')
 
-    expect(chrome).not.toContain('TasklyticTopbar')
+    expect(chrome).not.toContain("from './features/shell/TasklyticTopbar'")
+    expect(chrome).not.toContain('<TasklyticTopbar ')
     expect(chrome).not.toMatch(/AccountMenu|signOut|toggleTheme|tasklytic:theme/)
     expect(chrome).toContain('h-full min-h-0 w-full min-w-0 overflow-hidden')
     expect(chrome).toContain('overflow-y-auto overflow-x-hidden p-3 sm:p-4')
     expect(chrome).toContain('className="hidden min-h-0 lg:flex"')
     expect(chrome).toContain('className="w-[min(240px,85vw)]')
-    expect(chrome).toContain('<TasklyticSidebar mode="drawer"')
+    expect(chrome).toMatch(/<TasklyticSidebar\s+mode="drawer"/)
     expect(chrome).toContain('aria-label="Tasklytic module controls"')
+    expect(chrome).toContain('<span>Tasklytic navigation</span>')
+    expect(chrome).not.toContain('aria-label="Search Tasklytic"')
     expect(chrome).toContain('lg:hidden')
+  })
+
+  it('registers Tasklytic breadcrumbs, search, and actions with the shared top bar', () => {
+    const moduleChrome = read('components/layout/dashboard-module-chrome.tsx')
+    const shell = read('components/layout/dashboard-shell.tsx')
+    const topbar = read('components/layout/dashboard-topbar.tsx')
+    const chrome = read('project-management/TasklyticChrome.tsx')
+    const actions = read('project-management/features/shell/TasklyticTopbarActions.tsx')
+
+    expect(moduleChrome).toContain('export type DashboardModuleChrome')
+    expect(moduleChrome).toContain('export function useDashboardModuleChrome')
+    expect(shell).toContain('<DashboardModuleChromeProvider>')
+    expect(shell).toContain('resolveDashboardCommandPalette(moduleChrome, openGlobalPalette)')
+    expect(topbar).toContain('breadcrumbs={breadcrumbs}')
+    expect(topbar).toContain('{actions}')
+    expect(topbar).toContain('<SidebarTrigger')
+    expect(chrome).toContain('useDashboardModuleChrome(moduleChrome)')
+    expect(chrome).toContain('openCommandPalette: openTasklyticCommandPalette')
+    expect(actions).toContain('aria-label="Tasklytic actions"')
+    expect(actions).toContain('aria-label="Create in Tasklytic"')
+    expect(actions).toContain('<RunningTimerChip />')
+    expect(actions).toContain('<MiniInboxDropdown')
+  })
+
+  it('keeps rich Tasklytic results without duplicate host account controls', () => {
+    const palette = read('project-management/features/shell/CommandPalette.tsx')
+
+    for (const group of ['Pages', 'Projects', 'Tasks', 'Goals', 'People', 'Create']) {
+      expect(palette).toContain(`group: '${group}'`)
+    }
+    expect(palette).toContain("group: 'CPAAutomation destinations'")
+    expect(palette).not.toMatch(/Sign out|Toggle theme|signOut|toggleTheme/)
+  })
+
+  it('puts tour, setup, and shortcut utilities in the Tasklytic navigator footer', () => {
+    const sidebar = read('project-management/features/shell/TasklyticSidebar.tsx')
+    const help = read('project-management/features/shell/HelpMenu.tsx')
+
+    expect(sidebar).toContain('placement="sidebar"')
+    expect(sidebar).toContain('onShowShortcuts')
+    expect(sidebar).toContain('onRestartTour')
+    expect(sidebar).toContain('onRestartSetup')
+    expect(help).toContain('Keyboard shortcuts')
+    expect(help).toContain('Restart product tour')
+    expect(help).toContain('Restart setup wizard')
   })
 
   it('keeps the navigator default, collapsed, and drawer contracts distinct', () => {

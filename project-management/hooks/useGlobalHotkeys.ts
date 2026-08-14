@@ -37,9 +37,9 @@ export function useGlobalHotkeys(options: Options = {}) {
       const tag = (e.target as HTMLElement)?.tagName
       if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return
 
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if (onOpenCommand && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        onOpenCommand?.()
+        onOpenCommand()
         return
       }
 

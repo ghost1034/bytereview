@@ -1,17 +1,12 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
-import { Menu, Plus, Search } from 'lucide-react'
+import { Menu } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { useDashboardModuleChrome } from '@/components/layout/dashboard-module-chrome'
 import {
   Sheet,
   SheetContent,
@@ -22,13 +17,15 @@ import {
 
 import { CommandPalette } from './features/shell/CommandPalette'
 import { TasklyticSidebar } from './features/shell/TasklyticSidebar'
+import { TasklyticTopbarActions } from './features/shell/TasklyticTopbarActions'
 import { KeyboardShortcutsDialog } from './features/shell/KeyboardShortcutsDialog'
 import { TasklyticErrorBoundary } from './features/ui/TasklyticErrorBoundary'
 import { startProductTour } from './features/onboarding/productTourLauncher'
+import { restartOnboardingWizard } from './features/onboarding/restartOnboarding'
 import { useGlobalHotkeys } from './hooks/useGlobalHotkeys'
 import { useResolveDefaultWorkspace } from './hooks/useResolveDefaultWorkspace'
 import { useReducedMotion } from './hooks/useReducedMotion'
-import { useUiStore } from './stores/auth'
+import { useAuthStore, useUiStore } from './stores/auth'
 import { useWorkspaceContext } from './hooks/useWorkspaceContext'
 
 const AiAssistantPanel = dynamic(() => import('./features/ai/AiAssistantPanel').then((module) => module.AiAssistantPanel), { ssr: false })
@@ -55,12 +52,38 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
   const [createDashboardOpen, setCreateDashboardOpen] = useState(false)
 
   const { workspaceId } = useWorkspaceContext()
+  const currentUserId = useAuthStore((s) => s.currentUserId)
   const breadcrumbs = useUiStore((s) => s.breadcrumbs)
   const setCollapsed = useUiStore((s) => s.setSidebarCollapsed)
   const setCommandOpen = useUiStore((s) => s.setCommandPaletteOpen)
   const shellAction = useUiStore((s) => s.shellAction)
   const clearShellAction = useUiStore((s) => s.clearShellAction)
   const pageTitle = breadcrumbs[breadcrumbs.length - 1]?.label ?? 'Tasklytic'
+  const openTasklyticCommandPalette = useCallback(() => setCommandOpen(true), [setCommandOpen])
+  const restartSetup = useCallback(() => {
+    if (currentUserId) void restartOnboardingWizard(currentUserId)
+  }, [currentUserId])
+  const moduleActions = useMemo(
+    () => (
+      <TasklyticTopbarActions
+        onCreateTask={() => setQuickAddOpen(true)}
+        onCreateProject={() => setCreateProjectOpen(true)}
+        onCreateForm={() => setCreateFormOpen(true)}
+        onCreatePortfolio={() => setCreatePortfolioOpen(true)}
+        onCreateDashboard={() => setCreateDashboardOpen(true)}
+      />
+    ),
+    [],
+  )
+  const moduleChrome = useMemo(
+    () => ({
+      breadcrumbs,
+      openCommandPalette: openTasklyticCommandPalette,
+      actions: moduleActions,
+    }),
+    [breadcrumbs, moduleActions, openTasklyticCommandPalette],
+  )
+  useDashboardModuleChrome(moduleChrome)
   useResolveDefaultWorkspace()
 
   useEffect(() => {
@@ -113,7 +136,11 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
         className={`tasklytic-root flex h-full min-h-0 w-full min-w-0 overflow-hidden${reducedMotion ? ' reduce-motion' : ''}`}
       >
         <div className="hidden min-h-0 lg:flex">
-          <TasklyticSidebar />
+          <TasklyticSidebar
+            onShowShortcuts={() => setShortcutsOpen(true)}
+            onRestartTour={startProductTour}
+            onRestartSetup={restartSetup}
+          />
         </div>
 
         <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
@@ -126,7 +153,13 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
               <SheetTitle>Tasklytic navigation</SheetTitle>
               <SheetDescription>Switch workspaces and open Tasklytic projects and tools.</SheetDescription>
             </SheetHeader>
-            <TasklyticSidebar mode="drawer" onNavigate={() => setMobileNavOpen(false)} />
+            <TasklyticSidebar
+              mode="drawer"
+              onNavigate={() => setMobileNavOpen(false)}
+              onShowShortcuts={() => setShortcutsOpen(true)}
+              onRestartTour={startProductTour}
+              onRestartSetup={restartSetup}
+            />
           </SheetContent>
         </Sheet>
 
@@ -144,36 +177,10 @@ export function TasklyticChrome({ children }: { children: ReactNode }) {
               onClick={() => setMobileNavOpen(true)}
             >
               <Menu className="size-4" />
-              <span>Navigate</span>
+              <span>Tasklytic navigation</span>
             </Button>
 
             <span className="min-w-0 flex-1 truncate px-1 text-sm font-medium">{pageTitle}</span>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-9 shrink-0"
-              aria-label="Search Tasklytic"
-              onClick={() => setCommandOpen(true)}
-            >
-              <Search className="size-4" />
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button type="button" size="icon" className="size-9 shrink-0" aria-label="Create in Tasklytic">
-                  <Plus className="size-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setQuickAddOpen(true)}>Task</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCreateProjectOpen(true)}>Project</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCreateFormOpen(true)}>Form</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCreatePortfolioOpen(true)}>Portfolio</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setCreateDashboardOpen(true)}>Dashboard</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
 
           <TimerBanner />

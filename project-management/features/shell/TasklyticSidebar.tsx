@@ -48,18 +48,30 @@ import { TasklyticEmptyState } from '../ui/TasklyticEmptyState'
 import type { NavItem } from './sidebarUtils'
 import { SavedSearchesSidebarGroup } from '../search/SavedSearchesSidebarGroup'
 import { matterTerminology } from '../../lib/psa/terminology'
+import { FeedbackDialog } from './FeedbackDialog'
+import { HelpMenu } from './HelpMenu'
 
 type Props = {
   onNavigate?: () => void
   mode?: 'desktop' | 'drawer'
+  onShowShortcuts?: () => void
+  onRestartTour?: () => void
+  onRestartSetup?: () => void
 }
 
-export function TasklyticSidebar({ onNavigate, mode = 'desktop' }: Props) {
+export function TasklyticSidebar({
+  onNavigate,
+  mode = 'desktop',
+  onShowShortcuts,
+  onRestartTour,
+  onRestartSetup,
+}: Props) {
   const { workspaceId, workspace } = useWorkspaceContext()
   const matterTerms = matterTerminology(workspace)
   const currentUserId = useAuthStore((s) => s.currentUserId)
   const storedCollapsed = useUiStore((s) => s.sidebarCollapsed)
   const setCollapsed = useUiStore((s) => s.setSidebarCollapsed)
+  const dispatchShellAction = useUiStore((s) => s.dispatchShellAction)
   const sidebarWidth = useUiStore((s) => s.sidebarWidth)
   const setSidebarWidth = useUiStore((s) => s.setSidebarWidth)
   const unread = useNotificationsStore((s) => s.list().filter((n) => n.unread && !n.archived).length)
@@ -72,6 +84,7 @@ export function TasklyticSidebar({ onNavigate, mode = 'desktop' }: Props) {
 
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [projectsOpen, setProjectsOpen] = useState(true)
   const [starredOpen, setStarredOpen] = useState(true)
 
@@ -259,11 +272,22 @@ export function TasklyticSidebar({ onNavigate, mode = 'desktop' }: Props) {
           collapsed={collapsed}
           onInvite={() => setInviteOpen(true)}
           onToggleCollapse={drawer ? undefined : () => setCollapsed(!collapsed)}
+          utilities={(
+            <HelpMenu
+              collapsed={collapsed}
+              placement="sidebar"
+              onFeedback={() => setFeedbackOpen(true)}
+              onShortcuts={onShowShortcuts ?? (() => dispatchShellAction('showShortcuts'))}
+              onRestartTour={onRestartTour ?? (() => dispatchShellAction('restartTour'))}
+              onRestartSetup={onRestartSetup}
+            />
+          )}
         />
       </aside>
 
       <CreateProjectDialog open={createProjectOpen} onOpenChange={setCreateProjectOpen} workspaceId={workspaceId} />
       <InvitePeopleDialog open={inviteOpen} onOpenChange={setInviteOpen} />
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </TooltipProvider>
   )
 }

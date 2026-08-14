@@ -12,9 +12,18 @@ type Props = {
   onShortcuts: () => void
   onRestartTour: () => void
   onRestartSetup?: () => void
+  placement?: 'topbar' | 'sidebar'
+  collapsed?: boolean
 }
 
-export function HelpMenu({ onFeedback, onShortcuts, onRestartTour, onRestartSetup }: Props) {
+export function HelpMenu({
+  onFeedback,
+  onShortcuts,
+  onRestartTour,
+  onRestartSetup,
+  placement = 'topbar',
+  collapsed = false,
+}: Props) {
   const items = [
     { label: 'Send feedback', icon: MessageSquare, onClick: onFeedback },
     { label: 'Keyboard shortcuts', icon: Keyboard, onClick: onShortcuts },
@@ -30,13 +39,20 @@ export function HelpMenu({ onFeedback, onShortcuts, onRestartTour, onRestartSetu
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="rounded-lg p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-          aria-label="Help"
+          className={`flex h-9 items-center rounded-lg text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background${placement === 'sidebar' && !collapsed ? ' w-full gap-2 px-2.5' : ' w-9 justify-center'}`}
+          aria-label={placement === 'sidebar' ? 'Tasklytic help and utilities' : 'Help'}
         >
           <HelpCircle className="h-5 w-5" style={{ color: 'hsl(var(--foreground-muted))' }} />
+          {placement === 'sidebar' && !collapsed ? (
+            <span style={{ color: 'hsl(var(--foreground-muted))' }}>Help &amp; utilities</span>
+          ) : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-1" align="end">
+      <PopoverContent
+        className="w-56 p-1"
+        align={placement === 'sidebar' ? 'start' : 'end'}
+        side={placement === 'sidebar' ? 'right' : 'bottom'}
+      >
         {items.map((item) => {
           const Icon = item.icon
           if ('href' in item) {

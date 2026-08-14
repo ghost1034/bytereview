@@ -30,6 +30,11 @@ import {
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 
 import { AppSidebar } from './app-sidebar'
+import {
+  DashboardModuleChromeProvider,
+  resolveDashboardCommandPalette,
+  useRegisteredDashboardModuleChrome,
+} from './dashboard-module-chrome'
 import { DashboardTopbar } from './dashboard-topbar'
 import { ProductTourProvider } from '@/components/tour/product-tour'
 import { WelcomeTourDialog } from '@/components/tour/welcome-tour-dialog'
@@ -79,8 +84,22 @@ export function DashboardShell({
   children,
   defaultSidebarOpen = true,
 }: DashboardShellProps) {
+  return (
+    <DashboardModuleChromeProvider>
+      <DashboardShellContent defaultSidebarOpen={defaultSidebarOpen}>
+        {children}
+      </DashboardShellContent>
+    </DashboardModuleChromeProvider>
+  )
+}
+
+function DashboardShellContent({
+  children,
+  defaultSidebarOpen = true,
+}: DashboardShellProps) {
   const router = useRouter()
   const pathname = usePathname() ?? ''
+  const moduleChrome = useRegisteredDashboardModuleChrome()
   const isWideRoute =
     pathname.startsWith('/dashboard/cpe-tracker') ||
     pathname.startsWith('/dashboard/inkwise') ||
@@ -92,17 +111,22 @@ export function DashboardShell({
     /\/dashboard\/esign\/templates\/[^/]+/.test(pathname)
   const isProjectManagement = pathname.startsWith('/dashboard/project-management')
   const [paletteOpen, setPaletteOpen] = React.useState(false)
+  const openGlobalPalette = React.useCallback(() => setPaletteOpen(true), [])
+  const openCommandPalette = React.useMemo(
+    () => resolveDashboardCommandPalette(moduleChrome, openGlobalPalette),
+    [moduleChrome, openGlobalPalette],
+  )
 
   React.useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'k' && (event.metaKey || event.ctrlKey)) {
+      if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
-        setPaletteOpen((open) => !open)
+        openCommandPalette()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [openCommandPalette])
 
   const runCommand = React.useCallback(
     (action: () => void) => {
@@ -144,7 +168,11 @@ export function DashboardShell({
           isProjectManagement && 'min-h-0 overflow-hidden',
         )}
       >
-        <DashboardTopbar onOpenCommandPalette={() => setPaletteOpen(true)} />
+        <DashboardTopbar
+          actions={moduleChrome?.actions}
+          breadcrumbs={moduleChrome?.breadcrumbs}
+          onOpenCommandPalette={openCommandPalette}
+        />
 
         <main
           id="main-content"

@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { PanelLeftClose, PanelLeftOpen, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -12,9 +13,10 @@ type Props = {
   collapsed: boolean
   onInvite: () => void
   onToggleCollapse?: () => void
+  utilities?: ReactNode
 }
 
-export function SidebarFooter({ collapsed, onInvite, onToggleCollapse }: Props) {
+export function SidebarFooter({ collapsed, onInvite, onToggleCollapse, utilities }: Props) {
   return (
     <div
       className={cn('flex flex-col gap-1 border-t p-2', collapsed && 'items-center')}
@@ -46,6 +48,8 @@ export function SidebarFooter({ collapsed, onInvite, onToggleCollapse }: Props) 
           Invite people
         </button>
       )}
+
+      {utilities}
 
       {onToggleCollapse ? (
         <button
