@@ -41,8 +41,11 @@ network.
 
 For Slack, replace `API_HOST` in `slack-app-manifest.yaml`, import the manifest
 into the CPAAutomation Slack app, and enable unlisted distribution for the
-pilot. Do not add channel scopes or channel event subscriptions; v1 intake is
-DM-only. Marketplace publication is not required.
+pilot. Hosted Claw accepts DMs plus explicit app mentions in public or private
+channels where the app has been invited. It does not read unmentioned channel
+messages. After adding the `app_mentions:read` scope and `app_mention` event,
+existing workspaces must reconnect Slack from the Hosted Slack dashboard to
+grant the new scope. Marketplace publication is not required.
 
 Alert when there is no unexpired worker lease, oldest queue age exceeds 60
 seconds, disk reaches 80%, an entitlement budget is exhausted, a runtime

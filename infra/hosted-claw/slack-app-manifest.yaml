@@ -1,6 +1,6 @@
 display_information:
   name: CPAAutomation Hosted Claw
-  description: Managed AccountingClaw and LegalClaw in Slack DMs
+  description: Managed AccountingClaw and LegalClaw in Slack DMs and channel threads
   background_color: "#111827"
 features:
   app_home:
@@ -27,12 +27,14 @@ oauth_config:
       - files:read
       - files:write
       - commands
+      - app_mentions:read
 settings:
   event_subscriptions:
     request_url: https://api.cpaautomation.ai/api/slack/events
     bot_events:
       - app_home_opened
       - app_uninstalled
+      - app_mention
       - message.im
       - tokens_revoked
   interactivity:

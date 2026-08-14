@@ -48,6 +48,7 @@ class HostedStatusResponse(BaseModel):
     linked: bool = False
     workspace_name: Optional[str] = None
     slack_user_id: Optional[str] = None
+    slack_reauthorization_required: bool = False
     config: Optional[HostedConfigResponse] = None
     runtime_status: str = "stopped"
     runtime_last_activity_at: Optional[datetime] = None

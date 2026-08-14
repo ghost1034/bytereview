@@ -122,6 +122,7 @@ ADMIN_TABLE_GROUPS: dict[str, dict[str, Any]] = {
             "hosted_claw_slack_installations", "hosted_claw_slack_links",
             "hosted_claw_oauth_states", "hosted_claw_link_tokens",
             "hosted_claw_entitlements", "hosted_claw_configs",
+            "hosted_claw_channel_sessions",
             "hosted_claw_product_sessions", "hosted_claw_jobs",
             "hosted_claw_artifacts", "hosted_claw_approvals",
             "hosted_claw_read_only_actions", "hosted_claw_worker_leases",

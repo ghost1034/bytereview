@@ -30,6 +30,16 @@ ALLOWED_EXTENSIONS = {".pdf", ".docx", ".xlsx", ".csv", ".txt", ".png", ".jpg", 
 REJECTED_EXTENSIONS = {".docm", ".xlsm", ".xlam", ".rar", ".7z", ".tar", ".gz", ".exe", ".dll", ".sh", ".bat", ".cmd"}
 MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024
 MAX_ATTACHMENTS = 10
+SLACK_CHANNEL_MENTION_SCOPE = "app_mentions:read"
+SLACK_BOT_SCOPES = (
+    "chat:write",
+    "im:history",
+    "im:write",
+    "files:read",
+    "files:write",
+    "commands",
+    SLACK_CHANNEL_MENTION_SCOPE,
+)
 
 
 def get_or_create_entitlement(db: Session, user_id: str) -> HostedClawEntitlement:
@@ -70,11 +80,10 @@ def slack_oauth_url(state: str) -> str:
     client_id = os.getenv("SLACK_CLIENT_ID", "").strip()
     if not client_id:
         raise RuntimeError("SLACK_CLIENT_ID is not configured")
-    scopes = "chat:write,im:history,im:write,files:read,files:write,commands"
     query = urllib.parse.urlencode(
         {
             "client_id": client_id,
-            "scope": scopes,
+            "scope": ",".join(SLACK_BOT_SCOPES),
             "redirect_uri": f"{public_api_base_url()}/api/slack/oauth/callback",
             "state": state,
         }

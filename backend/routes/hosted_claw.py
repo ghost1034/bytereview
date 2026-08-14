@@ -31,6 +31,7 @@ from models.db_models import (
     ConnectorToken,
     HostedClawApproval,
     HostedClawArtifact,
+    HostedClawChannelSession,
     HostedClawConfig,
     HostedClawCronOccurrence,
     HostedClawCronSchedule,
@@ -99,6 +100,7 @@ from services.hosted_claw_service import (
     slack_oauth_url,
     validate_attachment,
     decrypt_bot_token,
+    SLACK_CHANNEL_MENTION_SCOPE,
 )
 from services.hosted_claw_cron import (
     active_slack_context,
@@ -171,19 +173,73 @@ def _valid_slack_file_url(value: str) -> bool:
 
 
 def _supported_slack_message_event(event: dict[str, Any]) -> bool:
-    """Return whether a Slack event represents a user-authored DM we can run.
+    """Return whether a Slack event is a user-authored DM or app mention.
 
     Slack labels messages containing newly shared attachments as ``file_share``.
     Treat that subtype as an ordinary message so attachment workflows reach the
-    quarantine pipeline, while continuing to ignore edits, deletes, bot output,
-    and every other message subtype.
+    quarantine pipeline. Channel messages must arrive as explicit app-mention
+    events; ordinary channel messages and bot output are ignored.
     """
+    if event.get("bot_id") or event.get("subtype") not in {None, "file_share"}:
+        return False
+    if event.get("type") == "app_mention":
+        return bool(event.get("user") and event.get("channel"))
     return bool(
         event.get("type") == "message"
         and event.get("channel_type") == "im"
-        and not event.get("bot_id")
-        and event.get("subtype") in {None, "file_share"}
+        and event.get("user")
     )
+
+
+def _is_channel_mention(event: dict[str, Any]) -> bool:
+    return event.get("type") == "app_mention"
+
+
+def _channel_prompt(text_value: Any, bot_user_id: str) -> str:
+    """Remove only this installation's bot mention from a channel prompt."""
+    text_value = str(text_value or "")
+    mention = f"<@{bot_user_id}>"
+    return text_value.replace(mention, " ").strip()
+
+
+def _event_reply(event: dict[str, Any], text_value: str) -> dict[str, str]:
+    payload = {"channel": str(event.get("channel") or ""), "text": text_value}
+    if _is_channel_mention(event):
+        payload["thread_ts"] = str(event.get("thread_ts") or event.get("ts") or "")
+    return payload
+
+
+async def _send_channel_link(
+    installation: HostedClawSlackInstallation,
+    *,
+    slack_user: str,
+    channel: str,
+    thread_ts: str,
+    link_text: str,
+) -> None:
+    """Deliver an account link privately and acknowledge it without leaking the token."""
+    acknowledgement = {
+        "channel": channel,
+        "thread_ts": thread_ts,
+        "text": f"<@{slack_user}> I sent your CPAAutomation account link by DM.",
+    }
+    try:
+        opened = await slack_api(installation, "conversations.open", {"users": slack_user})
+        dm_channel = str((opened.get("channel") or {}).get("id") or "")
+        if not dm_channel:
+            raise RuntimeError("Slack did not return a DM channel")
+        await slack_api(
+            installation,
+            "chat.postMessage",
+            {"channel": dm_channel, "text": link_text},
+        )
+    except Exception:
+        logger.warning("hosted_channel_link_dm_failed team_id=%s", installation.team_id)
+        acknowledgement["text"] = (
+            f"<@{slack_user}> I couldn't send you a DM. Link Slack from the "
+            "CPAAutomation Hosted Slack dashboard, then mention me again."
+        )
+    await slack_api(installation, "chat.postMessage", acknowledgement)
 
 
 def _runtime_start_expected(
@@ -204,6 +260,44 @@ def _ensure_hermes_session_id(session: HostedClawProductSession) -> str:
     if not session.hermes_session_id:
         session.hermes_session_id = f"hcs_{uuid.uuid4().hex}"
     return str(session.hermes_session_id)
+
+
+def _channel_session_for_job(
+    db: Session,
+    job: HostedClawJob,
+    payload: dict[str, Any],
+) -> HostedClawChannelSession | None:
+    if payload.get("source") != "channel_mention":
+        return None
+    if job.channel_session_id:
+        existing = db.get(HostedClawChannelSession, job.channel_session_id)
+        if existing is not None:
+            return existing
+    team_id = str(payload.get("team_id") or "")
+    channel_id = str(payload.get("channel_id") or "")
+    thread_ts = str(payload.get("thread_ts") or "")
+    if not team_id or not channel_id or not thread_ts:
+        raise HostedClawUnavailable("Slack channel session identity is incomplete")
+    session = db.query(HostedClawChannelSession).filter(
+        HostedClawChannelSession.user_id == job.user_id,
+        HostedClawChannelSession.product == job.product,
+        HostedClawChannelSession.team_id == team_id,
+        HostedClawChannelSession.channel_id == channel_id,
+        HostedClawChannelSession.thread_ts == thread_ts,
+    ).first()
+    if session is None:
+        session = HostedClawChannelSession(
+            user_id=job.user_id,
+            product=job.product,
+            team_id=team_id,
+            channel_id=channel_id,
+            thread_ts=thread_ts,
+            hermes_session_id=f"hcs_{uuid.uuid4().hex}",
+        )
+        db.add(session)
+        db.flush()
+    job.channel_session_id = session.id
+    return session
 
 
 def _aware_datetime(value: datetime) -> datetime:
@@ -467,6 +561,11 @@ async def status(user_id: str = Depends(get_current_user_id), db: Session = Depe
         linked=link is not None,
         workspace_name=installation.team_name if installation else None,
         slack_user_id=link.slack_user_id if link else None,
+        slack_reauthorization_required=bool(
+            link
+            and installation
+            and SLACK_CHANNEL_MENTION_SCOPE not in (installation.scopes or [])
+        ),
         config=_config_response(config),
         runtime_status=str(session.status) if session else "stopped",
         runtime_last_activity_at=session.last_activity_at if session else None,
@@ -846,7 +945,7 @@ async def new_session(user_id: str = Depends(get_current_user_id), db: Session =
         ConnectorToken.revoked_at.is_(None),
     ).update({ConnectorToken.revoked_at: now}, synchronize_session=False)
     db.commit()
-    return HostedCommandResponse(message="The next message will start a fresh session. Retained history was not deleted.")
+    return HostedCommandResponse(message="The next DM will start a fresh session. Retained history was not deleted.")
 
 
 @user_router.post("/session/reset", response_model=HostedCommandResponse)
@@ -883,6 +982,10 @@ async def reset_product(user_id: str = Depends(get_current_user_id), db: Session
     db.query(HostedClawJob).filter(
         HostedClawJob.user_id == user_id,
         HostedClawJob.product == config.active_product,
+    ).delete(synchronize_session=False)
+    db.query(HostedClawChannelSession).filter(
+        HostedClawChannelSession.user_id == user_id,
+        HostedClawChannelSession.product == config.active_product,
     ).delete(synchronize_session=False)
     schedule_ids = db.query(HostedClawCronSchedule.id).filter(
         HostedClawCronSchedule.user_id == user_id,
@@ -947,6 +1050,7 @@ async def delete_hosted(user_id: str = Depends(get_current_user_id), db: Session
         HostedClawCronOccurrence,
         HostedClawCronSchedule,
         HostedClawJob,
+        HostedClawChannelSession,
         HostedClawArtifact,
         HostedClawConfig,
         HostedClawUsageSummary,
@@ -1068,12 +1172,27 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks, db: 
         return {"ok": True}
     link = _active_link_query(db, enterprise, team, slack_user).first()
     if link is None:
-        message = _create_link_message(db, installation, enterprise, team, slack_user, event.get("channel"))
-        background_tasks.add_task(slack_api, installation, "chat.postMessage", message)
+        message = _create_link_message(db, installation, enterprise, team, slack_user, str(event.get("channel") or ""))
+        if _is_channel_mention(event):
+            background_tasks.add_task(
+                _send_channel_link,
+                installation,
+                slack_user=slack_user,
+                channel=str(event.get("channel") or ""),
+                thread_ts=str(event.get("thread_ts") or event.get("ts") or ""),
+                link_text=message["text"],
+            )
+        else:
+            background_tasks.add_task(slack_api, installation, "chat.postMessage", message)
         return {"ok": True}
     entitlement = get_or_create_entitlement(db, str(link.user_id))
     if not entitlement or not entitlement.enabled or entitlement.revoked_at is not None:
-        background_tasks.add_task(slack_api, installation, "chat.postMessage", {"channel": event.get("channel"), "text": "Hosted Claw is not enabled for this CPAAutomation account."})
+        background_tasks.add_task(
+            slack_api,
+            installation,
+            "chat.postMessage",
+            _event_reply(event, "Hosted Claw is not enabled for this CPAAutomation account."),
+        )
         return {"ok": True}
     period = date.today().replace(day=1)
     usage_cost = db.query(HostedClawUsageSummary.cost_usd).filter(
@@ -1086,12 +1205,17 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks, db: 
             slack_api,
             installation,
             "chat.postMessage",
-            {"channel": event.get("channel"), "text": "Your Hosted Claw monthly model budget is exhausted."},
+            _event_reply(event, "Your Hosted Claw monthly model budget is exhausted."),
         )
         return {"ok": True}
     files = event.get("files") or []
     if len(files) > 10:
-        background_tasks.add_task(slack_api, installation, "chat.postMessage", {"channel": event.get("channel"), "text": "A message can include at most 10 attachments."})
+        background_tasks.add_task(
+            slack_api,
+            installation,
+            "chat.postMessage",
+            _event_reply(event, "A message can include at most 10 attachments."),
+        )
         return {"ok": True}
     try:
         for item in files:
@@ -1103,16 +1227,31 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks, db: 
             slack_api,
             installation,
             "chat.postMessage",
-            {"channel": event.get("channel"), "text": str(exc.detail)},
+            _event_reply(event, str(exc.detail)),
         )
         return {"ok": True}
     config = get_or_create_config(db, str(link.user_id))
+    prompt = (
+        _channel_prompt(event.get("text"), str(installation.bot_user_id))
+        if _is_channel_mention(event)
+        else str(event.get("text") or "")
+    )
+    if _is_channel_mention(event) and not prompt and not files:
+        background_tasks.add_task(
+            slack_api,
+            installation,
+            "chat.postMessage",
+            _event_reply(event, "Mention me with a question or attach a supported file."),
+        )
+        return {"ok": True}
     event_id = str(body.get("event_id") or f"slack:{team}:{event.get('client_msg_id') or event.get('ts')}")
     payload = {
-        "text": str(event.get("text") or ""),
+        "text": prompt,
         "channel_id": str(event.get("channel") or ""),
         "slack_ts": str(event.get("ts") or ""),
         "thread_ts": str(event.get("thread_ts") or event.get("ts") or ""),
+        "source": "channel_mention" if _is_channel_mention(event) else "slack_dm",
+        "team_id": team,
         "files": [
             {"id": item.get("id"), "name": item.get("name"), "mimetype": item.get("mimetype"), "size": item.get("size"), "url_private_download": item.get("url_private_download")}
             for item in files
@@ -1146,6 +1285,8 @@ def _slash_text(command: str, linked: bool, runtime_status: str = "stopped") -> 
         return f"Hosted Claw is linked. Runtime status: {runtime_status}. Product and model are managed in the dashboard."
     if command == "stop":
         return "Hosted Claw runtime was stopped. Active schedules remain enabled and can wake it again."
+    if command == "new":
+        return "The next DM will start a fresh personal session. Start a new channel thread for fresh channel context."
     return "Command accepted."
 
 
@@ -1340,7 +1481,11 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
                 await slack_api(
                     installation,
                     "chat.postMessage",
-                    {"channel": notice_payload["channel_id"], "text": "Your Hosted Claw monthly model budget is exhausted."},
+                    {
+                        "channel": notice_payload["channel_id"],
+                        "thread_ts": notice_payload.get("thread_ts"),
+                        "text": "Your Hosted Claw monthly model budget is exhausted.",
+                    },
                 )
         except Exception:
             logger.warning("Could not deliver hosted budget exhaustion notice job_id=%s", job.id)
@@ -1360,7 +1505,6 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
         db.flush()
     elif not session.runtime_id:
         session.runtime_id = f"hcr_{uuid.uuid4().hex}"
-    _ensure_hermes_session_id(session)
     session.worker_id = body.worker_id
     session.status = "starting" if runtime_start_expected else "ready"
     db.query(HostedClawProductSession).filter(
@@ -1369,10 +1513,17 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
         HostedClawProductSession.status.in_(["starting", "ready", "running"]),
     ).update({HostedClawProductSession.status: "stopped"}, synchronize_session=False)
     plaintext = KmsEnvelope().decrypt(job.payload_ciphertext, aad=f"hosted-job:{job.event_id}".encode(), key_version=str(job.kms_key_version))
-    payload = _register_claim_attachments(db, job, json.loads(plaintext))
+    payload = json.loads(plaintext)
+    channel_session = _channel_session_for_job(db, job, payload)
+    conversation_session_id = (
+        str(channel_session.hermes_session_id)
+        if channel_session is not None
+        else _ensure_hermes_session_id(session)
+    )
+    payload = _register_claim_attachments(db, job, payload)
     result = WorkerJobResponse(
         job_id=str(job.id), queued_at=job.created_at, payload=payload, user_id=str(job.user_id), product=str(job.product),
-        config=_config_response(config), session_id=session.hermes_session_id, runtime_id=str(session.runtime_id),
+        config=_config_response(config), session_id=conversation_session_id, runtime_id=str(session.runtime_id),
         monthly_budget_usd=monthly_budget,
         remaining_budget_usd=remaining_budget,
         budget_period=period,
@@ -1734,8 +1885,13 @@ async def complete_job(job_id: str, body: JobCompletionRequest, worker_id: str, 
         HostedClawProductSession.user_id == job.user_id,
         HostedClawProductSession.product == job.product,
     ).first()
+    if job.channel_session_id and body.hermes_session_id:
+        channel_session = db.get(HostedClawChannelSession, job.channel_session_id)
+        if channel_session:
+            channel_session.hermes_session_id = body.hermes_session_id
     if session:
-        session.hermes_session_id = body.hermes_session_id or session.hermes_session_id
+        if not job.channel_session_id:
+            session.hermes_session_id = body.hermes_session_id or session.hermes_session_id
         session.status = "ready" if completion_status == "completed" else "stopped"
         session.last_activity_at = utcnow()
         if body.applied_config_revision is not None:

@@ -37,12 +37,12 @@ export function HostedClawCard() {
           const url = new URL(window.location.href)
           url.searchParams.delete('hosted_link')
           window.history.replaceState({}, '', url)
-          toast({ title: 'Slack linked', description: 'You can now DM the CPAAutomation Slack app.' })
+          toast({ title: 'Slack linked', description: 'You can now DM the app or mention it in an invited Slack channel.' })
         } else if (oauthLinked) {
           const url = new URL(window.location.href)
           url.searchParams.delete('slack_linked')
           window.history.replaceState({}, '', url)
-          toast({ title: 'Slack linked', description: 'You can now DM the CPAAutomation Slack app.' })
+          toast({ title: 'Slack linked', description: 'You can now DM the app or mention it in an invited Slack channel.' })
         }
         const next = await apiClient.getHostedClawStatus()
         if (!cancelled) {
@@ -78,7 +78,7 @@ export function HostedClawCard() {
     <Section
       variant="card"
       title={<span className="inline-flex items-center gap-2"><Cloud className="size-4 text-primary" aria-hidden />Hosted Slack</span>}
-      description="Run an isolated AccountingClaw or LegalClaw worker by messaging the CPAAutomation Slack app. Desktop and self-hosted installs remain separate."
+      description="Run an isolated AccountingClaw or LegalClaw worker by DM or by mentioning the CPAAutomation Slack app in an invited channel. Desktop and self-hosted installs remain separate."
     >
       {!status.feature_enabled ? (
         <p className="text-sm text-foreground-muted">Hosted Slack is not currently available.</p>
@@ -92,7 +92,12 @@ export function HostedClawCard() {
               <p className="mt-1 text-xs text-foreground-muted">Runtime: {status.runtime_status} · {status.usage_turns} turns · ${Number(status.usage_cost_usd).toFixed(2)} used {Number(status.monthly_budget_usd) > 0 ? `of $${Number(status.monthly_budget_usd).toFixed(2)} this month` : '(no monthly cap)'}</p>
             </div>
             {status.linked ? (
-              <Button variant="outline" size="sm" disabled={busy} onClick={() => run(() => apiClient.unlinkHostedSlack(), 'Slack unlinked')}><Unlink className="size-4" aria-hidden />Unlink</Button>
+              <div className="flex flex-wrap gap-2">
+                {status.slack_reauthorization_required ? (
+                  <Button size="sm" disabled={busy} onClick={async () => { setBusy(true); try { const result = await apiClient.startHostedSlackInstall(); window.location.assign(result.authorize_url) } catch (error) { setBusy(false); toast({ title: 'Could not reconnect Slack', description: error instanceof ApiError ? error.message : 'Please try again.', variant: 'destructive' }) } }}><MessageSquare className="size-4" aria-hidden />Reconnect for channel mentions</Button>
+                ) : null}
+                <Button variant="outline" size="sm" disabled={busy} onClick={() => run(() => apiClient.unlinkHostedSlack(), 'Slack unlinked')}><Unlink className="size-4" aria-hidden />Unlink</Button>
+              </div>
             ) : (
               <Button disabled={busy} onClick={async () => { setBusy(true); try { const result = await apiClient.startHostedSlackInstall(); window.location.assign(result.authorize_url) } catch (error) { setBusy(false); toast({ title: 'Could not open Slack', description: error instanceof ApiError ? error.message : 'Please try again.', variant: 'destructive' }) } }}><MessageSquare className="size-4" aria-hidden />Add to Slack</Button>
             )}
@@ -129,7 +134,7 @@ export function HostedClawCard() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button disabled={busy} onClick={() => run(() => apiClient.updateHostedClawConfig(config), 'Hosted settings saved')}><Save className="size-4" aria-hidden />Save settings</Button>
-            <Button variant="outline" disabled={busy} onClick={() => run(() => apiClient.newHostedClawSession(), 'The next message will start a fresh session')}><RotateCcw className="size-4" aria-hidden />New session</Button>
+            <Button variant="outline" disabled={busy} onClick={() => run(() => apiClient.newHostedClawSession(), 'The next DM will start a fresh session')}><RotateCcw className="size-4" aria-hidden />New DM session</Button>
             <Button variant="outline" disabled={busy} onClick={() => run(() => apiClient.stopHostedClaw(), 'Hosted Claw stopped')}><Square className="size-4" aria-hidden />Stop</Button>
           </div>
           <div className="border-t border-border pt-5">

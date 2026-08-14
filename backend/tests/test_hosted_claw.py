@@ -9,6 +9,7 @@ import sys
 import tempfile
 import types
 import unittest
+import urllib.parse
 import zipfile
 from datetime import datetime, timedelta, timezone
 from importlib.util import module_from_spec, spec_from_file_location
@@ -23,7 +24,7 @@ from sqlalchemy.orm import Session
 
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 
 from services.hosted_claw_security import (
     HostedClawUnavailable,
@@ -34,26 +35,38 @@ from services.hosted_claw_security import (
     verify_slack_signature,
 )
 from services.hosted_claw_service import (
+    SLACK_CHANNEL_MENTION_SCOPE,
     action_is_read_only,
     get_or_create_entitlement,
     managed_hermes_config,
     publish_job,
     require_entitlement,
+    slack_oauth_url,
     validate_attachment,
 )
 from services.hosted_claw_cron import reconcile_schedules, recover_expired_occurrences
-from models.db_models import HostedClawCronOccurrence, HostedClawCronSchedule
+from models.db_models import (
+    HostedClawChannelSession,
+    HostedClawCronOccurrence,
+    HostedClawCronSchedule,
+)
 from routes.connector import _handle_mcp_message
 from routes.hosted_claw import (
+    _channel_prompt,
+    _channel_session_for_job,
     _ensure_hermes_session_id,
+    _event_reply,
     _link_oauth_installer,
     _runtime_start_expected,
+    _send_channel_link,
     _supported_slack_message_event,
     _valid_slack_file_url,
+    complete_job,
     deliver_runtime_cron_text,
     mark_job_started,
     post_job_progress,
     runtime_stopped,
+    slack_events,
 )
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -146,11 +159,22 @@ class HostedSlackMessageEventTests(unittest.TestCase):
                 }
             )
         )
+        self.assertTrue(
+            _supported_slack_message_event(
+                {
+                    "type": "app_mention",
+                    "channel": "C123",
+                    "user": "U123",
+                    "text": "<@UBOT> review this",
+                }
+            )
+        )
 
     def test_rejects_non_dm_bot_and_mutating_message_subtypes(self) -> None:
         base = {"type": "message", "channel_type": "im", "user": "U123"}
         cases = [
             {**base, "channel_type": "channel"},
+            {**base, "type": "app_mention", "channel": None},
             {**base, "bot_id": "B123"},
             {**base, "subtype": "message_changed"},
             {**base, "subtype": "message_deleted"},
@@ -159,6 +183,265 @@ class HostedSlackMessageEventTests(unittest.TestCase):
         for event in cases:
             with self.subTest(event=event):
                 self.assertFalse(_supported_slack_message_event(event))
+
+    def test_channel_prompt_removes_only_the_hosted_bot_mention(self) -> None:
+        prompt = _channel_prompt(
+            "  <@UBOT> Review this for <@UACCOUNTANT>.\nKeep the table. <@UBOT>  ",
+            "UBOT",
+        )
+
+        self.assertEqual(
+            prompt,
+            "Review this for <@UACCOUNTANT>.\nKeep the table.",
+        )
+
+    def test_channel_replies_are_threaded_while_dm_replies_are_not(self) -> None:
+        channel = _event_reply(
+            {"type": "app_mention", "channel": "C123", "ts": "100.001"},
+            "Working on it",
+        )
+        threaded = _event_reply(
+            {
+                "type": "app_mention",
+                "channel": "C123",
+                "ts": "101.001",
+                "thread_ts": "100.001",
+            },
+            "Working on it",
+        )
+        dm = _event_reply(
+            {"type": "message", "channel_type": "im", "channel": "D123", "ts": "100.001"},
+            "Working on it",
+        )
+
+        self.assertEqual(channel["thread_ts"], "100.001")
+        self.assertEqual(threaded["thread_ts"], "100.001")
+        self.assertNotIn("thread_ts", dm)
+
+
+class HostedSlackChannelLinkTests(unittest.IsolatedAsyncioTestCase):
+    async def test_channel_link_token_is_sent_by_dm_and_not_in_thread(self) -> None:
+        installation = SimpleNamespace(team_id="T123")
+
+        with patch(
+            "routes.hosted_claw.slack_api",
+            new=AsyncMock(
+                side_effect=[
+                    {"ok": True, "channel": {"id": "D123"}},
+                    {"ok": True, "ts": "101.001"},
+                    {"ok": True, "ts": "102.001"},
+                ]
+            ),
+        ) as slack:
+            await _send_channel_link(
+                installation,
+                slack_user="U123",
+                channel="C123",
+                thread_ts="100.001",
+                link_text="Link with secret-token",
+            )
+
+        self.assertEqual(
+            slack.await_args_list[1].args[2],
+            {"channel": "D123", "text": "Link with secret-token"},
+        )
+        thread_message = slack.await_args_list[2].args[2]
+        self.assertEqual(thread_message["thread_ts"], "100.001")
+        self.assertNotIn("secret-token", thread_message["text"])
+
+    async def test_channel_link_dm_failure_has_safe_thread_fallback(self) -> None:
+        installation = SimpleNamespace(team_id="T123")
+
+        with patch(
+            "routes.hosted_claw.slack_api",
+            new=AsyncMock(side_effect=[RuntimeError("dm disabled"), {"ok": True}]),
+        ) as slack:
+            await _send_channel_link(
+                installation,
+                slack_user="U123",
+                channel="C123",
+                thread_ts="100.001",
+                link_text="Link with secret-token",
+            )
+
+        fallback = slack.await_args_list[1].args[2]
+        self.assertIn("dashboard", fallback["text"])
+        self.assertNotIn("secret-token", fallback["text"])
+
+
+class HostedSlackChannelEventTests(unittest.IsolatedAsyncioTestCase):
+    async def test_linked_mention_enqueues_clean_thread_payload(self) -> None:
+        event = {
+            "type": "app_mention",
+            "user": "U123",
+            "channel": "C123",
+            "ts": "101.001",
+            "thread_ts": "100.001",
+            "text": "<@UBOT> review <@U456>'s workbook",
+        }
+        body = {"type": "event_callback", "team_id": "T123", "event_id": "EV123", "event": event}
+        request = MagicMock()
+        request.body = AsyncMock(return_value=json.dumps(body).encode())
+        background_tasks = BackgroundTasks()
+        db = MagicMock(spec=Session)
+        db.query.return_value.filter.return_value.scalar.return_value = 0
+        installation = SimpleNamespace(id="installation-a", bot_user_id="UBOT")
+        link = SimpleNamespace(id="link-a", user_id="user-a")
+        entitlement = SimpleNamespace(enabled=True, revoked_at=None, monthly_budget_usd=0)
+        config = SimpleNamespace(active_product="accountingclaw")
+        encrypted = SimpleNamespace(ciphertext=b"encrypted", key_version="key-a")
+
+        with patch("routes.hosted_claw._require_feature"), patch(
+            "routes.hosted_claw._slack_verified"
+        ), patch("routes.hosted_claw._installation_query") as installation_query, patch(
+            "routes.hosted_claw._active_link_query"
+        ) as link_query, patch(
+            "routes.hosted_claw.get_or_create_entitlement", return_value=entitlement
+        ), patch(
+            "routes.hosted_claw.get_or_create_config", return_value=config
+        ), patch(
+            "routes.hosted_claw.KmsEnvelope.encrypt", return_value=encrypted
+        ) as encrypt, patch("routes.hosted_claw.publish_job") as publish:
+            installation_query.return_value.first.return_value = installation
+            link_query.return_value.first.return_value = link
+            result = await slack_events(request, background_tasks, db)
+
+        self.assertEqual(result, {"ok": True})
+        payload = json.loads(encrypt.call_args.args[0])
+        self.assertEqual(payload["text"], "review <@U456>'s workbook")
+        self.assertEqual(payload["source"], "channel_mention")
+        self.assertEqual(payload["team_id"], "T123")
+        self.assertEqual(payload["thread_ts"], "100.001")
+        queued_job = db.add.call_args.args[0]
+        self.assertEqual(queued_job.event_id, "EV123")
+        self.assertEqual(queued_job.user_id, "user-a")
+        publish.assert_called_once()
+
+
+class HostedSlackChannelSessionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.engine = create_engine("sqlite://")
+        HostedClawChannelSession.__table__.create(self.engine)
+        self.db = Session(self.engine)
+
+    def tearDown(self) -> None:
+        self.db.close()
+        self.engine.dispose()
+
+    def test_same_user_and_thread_reuses_session_but_other_thread_isolated(self) -> None:
+        payload = {
+            "source": "channel_mention",
+            "team_id": "T123",
+            "channel_id": "C123",
+            "thread_ts": "100.001",
+        }
+        first_job = SimpleNamespace(
+            channel_session_id=None,
+            user_id="user-a",
+            product="accountingclaw",
+        )
+        repeated_job = SimpleNamespace(
+            channel_session_id=None,
+            user_id="user-a",
+            product="accountingclaw",
+        )
+        other_job = SimpleNamespace(
+            channel_session_id=None,
+            user_id="user-a",
+            product="accountingclaw",
+        )
+
+        first = _channel_session_for_job(self.db, first_job, payload)
+        repeated = _channel_session_for_job(self.db, repeated_job, payload)
+        other = _channel_session_for_job(
+            self.db,
+            other_job,
+            {**payload, "thread_ts": "200.001"},
+        )
+
+        self.assertEqual(first.id, repeated.id)
+        self.assertNotEqual(first.hermes_session_id, other.hermes_session_id)
+        self.assertEqual(first_job.channel_session_id, first.id)
+        self.assertEqual(other_job.channel_session_id, other.id)
+
+    def test_dm_job_does_not_create_a_channel_session(self) -> None:
+        job = SimpleNamespace(channel_session_id=None, user_id="user-a", product="accountingclaw")
+
+        self.assertIsNone(
+            _channel_session_for_job(
+                self.db,
+                job,
+                {"source": "slack_dm", "channel_id": "D123", "thread_ts": "100.001"},
+            )
+        )
+        self.assertEqual(self.db.query(HostedClawChannelSession).count(), 0)
+
+
+class HostedSlackChannelCompletionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_channel_rotation_updates_thread_session_not_dm_session(self) -> None:
+        job = SimpleNamespace(
+            id="job-a",
+            worker_id="worker-a",
+            status="running",
+            channel_session_id="channel-session-a",
+            user_id="user-a",
+            product="accountingclaw",
+            run_id=None,
+            error_code=None,
+            completed_at=None,
+        )
+        personal_session = SimpleNamespace(
+            hermes_session_id="hcs-personal",
+            status="running",
+            last_activity_at=None,
+            applied_config_revision=1,
+        )
+        channel_session = SimpleNamespace(hermes_session_id="hcs-channel-old")
+        usage = SimpleNamespace(
+            prompt_tokens=0,
+            completion_tokens=0,
+            cost_usd=0,
+            turns=0,
+        )
+        job_query = MagicMock()
+        job_query.filter.return_value.with_for_update.return_value.first.return_value = job
+        session_query = MagicMock()
+        session_query.filter.return_value.first.return_value = personal_session
+        usage_query = MagicMock()
+        usage_query.filter.return_value.first.return_value = usage
+        db = MagicMock(spec=Session)
+        db.query.side_effect = [job_query, session_query, usage_query]
+        db.get.return_value = channel_session
+        body = SimpleNamespace(
+            status="completed",
+            run_id="run-a",
+            error_code=None,
+            hermes_session_id="hcs-channel-new",
+            applied_config_revision=2,
+            prompt_tokens=4,
+            completion_tokens=2,
+            cost_usd=0,
+        )
+
+        await complete_job("job-a", body, "worker-a", db)
+
+        self.assertEqual(channel_session.hermes_session_id, "hcs-channel-new")
+        self.assertEqual(personal_session.hermes_session_id, "hcs-personal")
+        self.assertEqual(personal_session.status, "ready")
+        self.assertEqual(personal_session.applied_config_revision, 2)
+        self.assertEqual(usage.turns, 1)
+
+
+class HostedSlackOAuthScopeTests(unittest.TestCase):
+    def test_oauth_requests_channel_mention_scope(self) -> None:
+        with patch.dict(os.environ, {"SLACK_CLIENT_ID": "client-a"}), patch(
+            "services.hosted_claw_service.public_api_base_url",
+            return_value="https://api.example.test",
+        ):
+            url = slack_oauth_url("state-a")
+
+        scopes = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)["scope"][0].split(",")
+        self.assertIn(SLACK_CHANNEL_MENTION_SCOPE, scopes)
 
 
 class HostedArtifactScannerTests(unittest.TestCase):
@@ -1715,3 +1998,4 @@ class HostedArtifactValidationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+    _send_channel_link,

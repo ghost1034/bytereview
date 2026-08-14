@@ -2297,6 +2297,32 @@ class HostedClawProductSession(Base):
     )
 
 
+class HostedClawChannelSession(Base):
+    __tablename__ = "hosted_claw_channel_sessions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    product = Column(String(32), nullable=False)
+    team_id = Column(String(64), nullable=False)
+    channel_id = Column(String(64), nullable=False)
+    thread_ts = Column(String(32), nullable=False)
+    hermes_session_id = Column(String(128), nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "product",
+            "team_id",
+            "channel_id",
+            "thread_ts",
+            name="uq_hosted_claw_channel_session_thread",
+        ),
+        CheckConstraint("product IN ('accountingclaw', 'legalclaw')", name="ck_hosted_claw_channel_session_product"),
+    )
+
+
 class HostedClawJob(Base):
     __tablename__ = "hosted_claw_jobs"
 
@@ -2304,6 +2330,12 @@ class HostedClawJob(Base):
     event_id = Column(String(128), nullable=False, unique=True)
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     slack_link_id = Column(UUID(as_uuid=True), ForeignKey("hosted_claw_slack_links.id", ondelete="CASCADE"), nullable=False)
+    channel_session_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("hosted_claw_channel_sessions.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     product = Column(String(32), nullable=False)
     payload_ciphertext = Column(LargeBinary, nullable=False)
     kms_key_version = Column(Text, nullable=False)

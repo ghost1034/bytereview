@@ -58,6 +58,7 @@ export interface HostedClawStatus {
   linked: boolean
   workspace_name: string | null
   slack_user_id: string | null
+  slack_reauthorization_required: boolean
   config: HostedClawConfig | null
   runtime_status: string
   runtime_last_activity_at: string | null

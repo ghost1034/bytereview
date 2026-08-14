@@ -12660,6 +12660,11 @@ export interface components {
             workspace_name?: string | null;
             /** Slack User Id */
             slack_user_id?: string | null;
+            /**
+             * Slack Reauthorization Required
+             * @default false
+             */
+            slack_reauthorization_required: boolean;
             config?: components["schemas"]["HostedConfigResponse"] | null;
             /**
              * Runtime Status

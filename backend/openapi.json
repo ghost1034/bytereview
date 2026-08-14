@@ -39932,6 +39932,11 @@
             ],
             "title": "Slack User Id"
           },
+          "slack_reauthorization_required": {
+            "type": "boolean",
+            "title": "Slack Reauthorization Required",
+            "default": false
+          },
           "config": {
             "anyOf": [
               {
