@@ -34,7 +34,7 @@ export function MyTasksPage() {
   const basePath = workspaceId ? `/dashboard/project-management/w/${workspaceId}/my-tasks` : '#'
 
   usePageMeta({ breadcrumbs: workspaceId ? [
-    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Tasklytic', href: `/dashboard/project-management/w/${workspaceId}/home` },
     { label: 'My Tasks' },
   ] : [] })
 

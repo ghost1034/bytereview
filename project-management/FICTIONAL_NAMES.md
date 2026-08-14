@@ -1,4 +1,4 @@
-# Fictional Names — AI Project Management Onboarding & Evaluation Content
+# Fictional Names — Tasklytic Onboarding & Evaluation Content
 
 All company, person, and matter names used in Tasklytic onboarding starter content and internal evaluation tenants are **entirely fictional**. Any resemblance to real entities, living or dead, is coincidental.
 

@@ -66,7 +66,7 @@ const QUICK_ACTIONS: Array<{
       { label: 'PBC', href: '/dashboard/pbc', icon: ClipboardCheck },
       { label: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
       {
-        label: 'AI Project Management',
+        label: 'Tasklytic',
         href: '/dashboard/project-management',
         icon: FolderKanban,
       },

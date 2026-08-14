@@ -9,7 +9,7 @@ import {
   isRemovedCustomerTrialRoute,
 } from './routePolicy'
 
-describe('AI Project Management route boundaries', () => {
+describe('Tasklytic route boundaries', () => {
   it('recognizes only the canonical authenticated route family', () => {
     expect(PROJECT_MANAGEMENT_ROUTE).toBe('/dashboard/project-management')
     expect(isCustomerProjectManagementRoute(PROJECT_MANAGEMENT_ROUTE)).toBe(true)

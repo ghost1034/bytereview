@@ -40,7 +40,7 @@ export function ReportingHomePage() {
   const [createOpen, setCreateOpen] = useState(false)
 
   usePageMeta({ breadcrumbs: workspaceId ? [
-    { label: 'AI Project Management', href: `${basePath}/home` },
+    { label: 'Tasklytic', href: `${basePath}/home` },
     { label: 'Reporting' },
   ] : [] })
 

@@ -5,7 +5,7 @@ import { TasklyticChrome } from '@/project-management/TasklyticChrome'
 import { TasklyticProvider } from '@/project-management/TasklyticProvider'
 
 export const metadata: Metadata = {
-  title: 'AI Project Management',
+  title: 'Tasklytic',
   description: 'Plan client work, manage teams, track time, and report on delivery.',
 }
 

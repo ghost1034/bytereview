@@ -91,7 +91,7 @@ const PRODUCTS_GROUP: NavGroup = {
     { name: 'PBC', href: '/dashboard/pbc', icon: ClipboardCheck },
     { name: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
     {
-      name: 'AI Project Management',
+      name: 'Tasklytic',
       href: '/dashboard/project-management',
       icon: FolderKanban,
     },

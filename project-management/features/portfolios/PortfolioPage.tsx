@@ -30,7 +30,7 @@ export function PortfolioPage({ portfolioId, tab }: Props) {
     breadcrumbs:
       portfolio && workspaceId
         ? [
-            { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+            { label: 'Tasklytic', href: `/dashboard/project-management/w/${workspaceId}/home` },
             { label: 'Portfolios', href: `/dashboard/project-management/w/${workspaceId}/portfolios` },
             { label: portfolio.name },
           ]

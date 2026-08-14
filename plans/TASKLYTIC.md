@@ -4,7 +4,7 @@
 
 Implement each phase from the result of its predecessor. Every phase must pass its exit gate before the next begins, but production deployment is allowed only at the milestone gates after Phases 3, 7, and 10. Production deployment should be done only by the human developer.
 
-Preserve these decisions throughout: `/dashboard/project-management` is canonical, “AI Project Management” is customer-facing, Firebase owns authentication, PostgreSQL is authoritative for authenticated users, internal evaluation workspaces remain supported, and customer trial behavior is removed.
+Preserve these decisions throughout: `/dashboard/project-management` is canonical, “Tasklytic” is customer-facing, Firebase owns authentication, PostgreSQL is authoritative for authenticated users, internal evaluation workspaces remain supported, and customer trial behavior is removed.
 
 ## Implementation Phases
 

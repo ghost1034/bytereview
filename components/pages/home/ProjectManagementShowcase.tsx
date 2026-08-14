@@ -56,7 +56,7 @@ const COLUMNS = [
 function ProjectManagementMockup() {
   return (
     <BrowserFrame
-      label="AI Project Management · Project Management"
+      label="Tasklytic · Project Management"
       rightSlot={
         <div className="flex items-center gap-1 text-indigo-300">
           <Users className="size-3.5" aria-hidden />
@@ -164,7 +164,7 @@ export default function ProjectManagementShowcase({ onTryProduct }: ProjectManag
     <SectionShell
       id="productivity-suite-showcase"
       surface="tint"
-      eyebrow="AI Project Management"
+      eyebrow="Tasklytic"
       eyebrowIcon={FolderKanban}
       eyebrowTone={TONE}
       title={
@@ -184,7 +184,7 @@ export default function ProjectManagementShowcase({ onTryProduct }: ProjectManag
           onClick={() => onTryProduct('/dashboard/project-management')}
           className="bg-accent-blue-500 text-white hover:bg-accent-blue-600"
         >
-          Open the AI Project Management
+          Open Tasklytic
         </Button>
       </div>
     </SectionShell>

@@ -44,7 +44,7 @@ export function TimeTrackingPage() {
   const [statusFilter, setStatusFilter] = useState('all')
 
   usePageMeta({ breadcrumbs: workspaceId ? [
-    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Tasklytic', href: `/dashboard/project-management/w/${workspaceId}/home` },
     { label: 'Time tracking' },
   ] : [] })
 

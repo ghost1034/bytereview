@@ -9,7 +9,7 @@ export function DocsIndex({ sections }: { sections: DocsTree }) {
       <PageHeader
         eyebrow="Documentation"
         title="CPAAutomation Docs"
-        description="Guides and reference for every product in the CPAAutomation suite (AI Project Management coming soon). Pick a product to get started."
+        description="Guides and reference for every product in the CPAAutomation suite (Tasklytic coming soon). Pick a product to get started."
       />
       <div className="grid gap-3 sm:grid-cols-2">
         {sections.map((section) => {

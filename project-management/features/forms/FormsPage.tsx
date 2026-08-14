@@ -24,7 +24,7 @@ export function FormsPage() {
   const selected = forms.find((f) => f.id === selectedId)
 
   usePageMeta({ breadcrumbs: workspaceId ? [
-    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Tasklytic', href: `/dashboard/project-management/w/${workspaceId}/home` },
     { label: 'Forms' },
   ] : [] })
 

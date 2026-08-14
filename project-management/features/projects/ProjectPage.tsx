@@ -76,7 +76,7 @@ export function ProjectPage({ projectId, routeView }: Props) {
     () =>
       project && workspaceId
         ? [
-            { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+            { label: 'Tasklytic', href: `/dashboard/project-management/w/${workspaceId}/home` },
             { label: 'Projects', href: `/dashboard/project-management/w/${workspaceId}/projects` },
             { label: project.name, href: activeView === 'overview' ? undefined : basePath },
             ...(activeView === 'overview' ? [] : [{ label: VIEW_TABS.find((tab) => tab.id === activeView)?.label ?? 'Project' }]),

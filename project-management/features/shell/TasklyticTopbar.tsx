@@ -88,7 +88,7 @@ export function TasklyticTopbar({
 
   const inboxHref = workspaceId ? `/dashboard/project-management/w/${workspaceId}/inbox` : '#'
   const ThemeIcon = THEME_ICONS[theme]
-  const pageTitle = breadcrumbs.length ? breadcrumbs[breadcrumbs.length - 1]?.label : 'AI Project Management'
+  const pageTitle = breadcrumbs.length ? breadcrumbs[breadcrumbs.length - 1]?.label : 'Tasklytic'
 
   return (
     <>
@@ -113,7 +113,7 @@ export function TasklyticTopbar({
 
         <nav className="hidden min-w-0 flex-1 items-center gap-1 text-sm lg:flex" aria-label="Breadcrumb">
           {breadcrumbs.length === 0 ? (
-            <span className="truncate font-medium" style={{ color: 'var(--ink-primary)' }}>AI Project Management</span>
+            <span className="truncate font-medium" style={{ color: 'var(--ink-primary)' }}>Tasklytic</span>
           ) : (
             breadcrumbs.map((crumb, i) => (
               <span key={`${crumb.label}-${i}`} className="flex min-w-0 items-center gap-1">

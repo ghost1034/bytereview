@@ -2,6 +2,8 @@
 
 ## Project Structure & Module Organization
 
+This project is called CPAAutomation. It is composed of many products: Universal Document Analysis, Form Fill, Inkwise, Tasklytic, Prepared by Client, E-Signature, Chrona, Claw Series, AI Analytics Suite, etc.
+
 The Next.js 15 frontend uses the App Router under `app/`. Reusable components live in `components/`, utilities in `lib/`, hooks in `hooks/`, and static assets in `public/`. The FastAPI application is under `backend/`, with routers, services, models, migrations, and tests in their corresponding subdirectories. Background workers live in `backend/task_services/`; deployment tooling is in `scripts/` and `infra/`. Keep generated OpenAPI types in `lib/api-types.ts` synchronized with backend contracts.
 
 ## Build, Test, and Development Commands
@@ -25,4 +27,4 @@ Backend tests use pytest and follow `backend/tests/test_<feature>.py`; frontend 
 
 ## Commit & Pull Request Guidelines
 
-Recent commits use concise, imperative subjects prefixed by the product or area, for example `PBC: Add request validation` or `Deployment: Fix worker startup`. Keep each commit scoped. Pull requests should explain user-visible behavior, implementation risks, configuration or migration steps, and verification performed; link related issues and include screenshots for UI changes. Update `.env.example` and documentation when adding configuration, and never commit credentials or production data.
+Always make a commit after finishing work. Commits use concise, imperative subjects prefixed by the product or area, for example `PBC: Add request validation` or `Deployment: Fix worker startup`. Keep each commit scoped. Pull requests should explain user-visible behavior, implementation risks, configuration or migration steps, and verification performed; link related issues and include screenshots for UI changes. Update `.env.example` and documentation when adding configuration, and never commit credentials or production data.

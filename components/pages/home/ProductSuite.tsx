@@ -70,7 +70,7 @@ const PRODUCTS: Product[] = [
     href: '#inkwise-showcase',
   },
   {
-    name: 'AI Project Management',
+    name: 'Tasklytic',
     description:
       'Plan projects, coordinate teams, track time, and automate the work that keeps engagements moving.',
     icon: FolderKanban,

@@ -104,7 +104,7 @@ const PRODUCT_LINKS: ProductLink[] = [
     icon: BarChart3,
   },
   {
-    label: 'AI Project Management',
+    label: 'Tasklytic',
     href: '/#productivity-suite-showcase',
     description: 'Projects, tasks, forms, time, reporting & AI',
     icon: FolderKanban,

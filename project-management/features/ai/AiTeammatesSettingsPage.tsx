@@ -32,7 +32,7 @@ export function AiTeammatesSettingsPage() {
   const [message, setMessage] = useState<string | null>(null)
 
   usePageMeta({ breadcrumbs: workspaceId ? [
-    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Tasklytic', href: `/dashboard/project-management/w/${workspaceId}/home` },
     { label: 'Settings', href: `/dashboard/project-management/w/${workspaceId}/settings` },
     { label: 'AI teammates' },
   ] : [] })

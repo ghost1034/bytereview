@@ -1,4 +1,4 @@
-# AI Project Management Milestone C launch runbook
+# Tasklytic Milestone C launch runbook
 
 Production deployment is human-owned. Complete each checkpoint in order and
 attach the command output, operator, UTC timestamp, and deployment revision to

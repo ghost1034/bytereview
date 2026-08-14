@@ -41,7 +41,7 @@ export function TasklyticHome() {
 
   usePageMeta({
     breadcrumbs: workspace
-      ? [{ label: 'AI Project Management', href: '#' }, { label: workspace.name }]
+      ? [{ label: 'Tasklytic', href: '#' }, { label: workspace.name }]
       : [],
   })
 
@@ -58,7 +58,7 @@ export function TasklyticHome() {
   if (!workspaceId) {
     return (
       <TasklyticEmptyState
-        headline="Welcome to the AI Project Management"
+        headline="Welcome to Tasklytic"
         subhead="Pick a workspace to begin organizing projects, tasks, and goals."
       />
     )

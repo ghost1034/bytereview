@@ -63,7 +63,7 @@ export function SettingsPage() {
   const { workspaceId, workspace } = useWorkspaceContext()
 
   usePageMeta({ breadcrumbs: workspaceId ? [
-    { label: 'AI Project Management', href: `/dashboard/project-management/w/${workspaceId}/home` },
+    { label: 'Tasklytic', href: `/dashboard/project-management/w/${workspaceId}/home` },
     { label: 'Settings' },
   ] : [] })
 

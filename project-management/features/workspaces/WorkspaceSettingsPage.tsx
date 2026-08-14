@@ -32,7 +32,7 @@ export function WorkspaceSettingsPage() {
 
   usePageMeta({
     breadcrumbs: [
-      { label: 'AI Project Management', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/home` : undefined },
+      { label: 'Tasklytic', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/home` : undefined },
       { label: 'Settings', href: workspaceId ? `/dashboard/project-management/w/${workspaceId}/settings` : undefined },
       { label: 'Workspace' },
     ],

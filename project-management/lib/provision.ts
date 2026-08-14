@@ -82,7 +82,7 @@ export function buildStarterContent(input: ProvisionInput): ProvisionResult {
     workspaceId,
     teamId,
     name: 'Getting Started',
-    description: '<p>Welcome to the CPAAutomation AI Project Management — your home for projects and tasks.</p>',
+    description: '<p>Welcome to the CPAAutomation Tasklytic — your home for projects and tasks.</p>',
     iconEmoji: '🚀',
     color: 'primary',
     privacy: 'public_to_team',
@@ -144,7 +144,7 @@ export function buildStarterContent(input: ProvisionInput): ProvisionResult {
     userId: input.userId,
     type: 'status_update',
     scope: { type: 'project', id: projectId },
-    message: 'Welcome to the AI Project Management — open your starter project to begin.',
+    message: 'Welcome to Tasklytic — open your starter project to begin.',
     unread: true,
     archived: false,
     createdAt: now(),
@@ -157,7 +157,7 @@ export function buildStarterContent(input: ProvisionInput): ProvisionResult {
   const goal: Goal = {
     id: newId(),
     workspaceId,
-    name: 'Launch the AI Project Management successfully',
+    name: 'Launch Tasklytic successfully',
     description: 'Complete onboarding and ship the first milestone.',
     ownerId: input.userId,
     timeFrame: {

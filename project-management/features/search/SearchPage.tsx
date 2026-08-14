@@ -84,7 +84,7 @@ export function SearchPage() {
   usePageMeta({
     breadcrumbs: workspaceId
       ? [
-          { label: 'AI Project Management', href: `${basePath}/home` },
+          { label: 'Tasklytic', href: `${basePath}/home` },
           { label: 'My Searches' },
         ]
       : [],

@@ -75,7 +75,7 @@ export function DashboardPage({ workspaceId, dashboardId, basePath, returnHref, 
 
   usePageMeta({
     breadcrumbs: [
-      { label: 'AI Project Management', href: `${basePath}/home` },
+      { label: 'Tasklytic', href: `${basePath}/home` },
       ...(breadcrumbLabel ? [{ label: 'Projects', href: `${basePath}/projects` }] : []),
       { label: breadcrumbLabel ?? 'Reporting', href: returnHref ?? `${basePath}/reporting` },
       { label: dashboard?.name ?? 'Dashboard' },

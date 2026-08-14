@@ -1,6 +1,6 @@
-# AI Project Management — Design Log
+# Tasklytic — Design Log
 
-Production-grade, multi-tenant work-management module built incrementally from build-plan docs `00`–`30`, integrated into the CPAAutomation Next.js app. `Tasklytic` remains the internal code name; the customer-facing name is **AI Project Management**. It mounts at the canonical authenticated route `/dashboard/project-management`, bridges CPAAutomation Firebase auth, and persists through FastAPI/PostgreSQL. See `plans/TASKLYTIC-TRACEABILITY.md` for accepted and superseded requirements.
+Production-grade, multi-tenant work-management module built incrementally from build-plan docs `00`–`30`, integrated into the CPAAutomation Next.js app. `Tasklytic` remains the internal code name; the customer-facing name is **Tasklytic**. It mounts at the canonical authenticated route `/dashboard/project-management`, bridges CPAAutomation Firebase auth, and persists through FastAPI/PostgreSQL. See `plans/TASKLYTIC-TRACEABILITY.md` for accepted and superseded requirements.
 
 > Integration note: the build-plan docs target Vite + React Router. This module adapts every step to **Next.js App Router** + CPAAutomation's **shadcn/ui** while preserving the locked data model and adapter architecture. The standalone public marketing site from `01b §7` is intentionally **out of scope** because CPAAutomation owns marketing and routing; all in-app aesthetics from `01b` are implemented.
 
@@ -24,7 +24,7 @@ Additive extensions added during rebuild: workspace invitations/plans, billing i
 ## Adapter seams (production swap-out points)
 
 - **RepositoryAdapter** (`lib/repository`) — customer use always selects the REST adapter, which hydrates from `/api/tasklytic/bootstrap` and persists JSON payloads behind authoritative PostgreSQL tenancy and membership columns. The local adapter is test/evaluation-only; existing browser records are neither imported nor erased.
-- **Authentication & user profiles** — delegated entirely to the host CPAAutomation platform (Firebase `useAuth`). AI Project Management owns no sign-in/up, password, OAuth, profile-editing, guest-continuation, or trial screens; the dashboard gates access and `TasklyticProvider` bridges the Firebase session into a linked user.
+- **Authentication & user profiles** — delegated entirely to the host CPAAutomation platform (Firebase `useAuth`). Tasklytic owns no sign-in/up, password, OAuth, profile-editing, guest-continuation, or trial screens; the dashboard gates access and `TasklyticProvider` bridges the Firebase session into a linked user.
 - **EmailAdapter** (`lib/email`) — customer mode delivers through the authenticated Gmail-backed API; local queuing is test/evaluation-only.
 - **FileStorageAdapter** (`lib/fileStorage`) — customer mode uses signed direct uploads through the configured local/GCS object store; inline data URLs are test/evaluation-only.
 - **FileStorageAdapter** (`lib/fileStorage`) — customer mode uses signed-URL uploads (100 MB cap) to the configured private local/GCS object store via `/api/tasklytic/files:*`; metadata is tracked in `tasklytic_file_uploads` for workspace-scoped access.

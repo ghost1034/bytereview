@@ -23,7 +23,7 @@ export function PeoplePage({ userId }: { userId: string }) {
   )
   usePageMeta({
     breadcrumbs: workspaceId
-      ? [{ label: 'AI Project Management', href: `${basePath}/home` }, { label: 'People', href: `${basePath}/search` }, { label: user?.name ?? 'Profile' }]
+      ? [{ label: 'Tasklytic', href: `${basePath}/home` }, { label: 'People', href: `${basePath}/search` }, { label: user?.name ?? 'Profile' }]
       : [],
   })
 
