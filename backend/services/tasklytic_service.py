@@ -169,9 +169,9 @@ def parse_revision_etag(value: str | None) -> int:
 
 def capabilities_for_user(db: Session, workspace_id: str, user_id: str) -> dict[str, bool]:
     member = get_membership(db, workspace_id, user_id)
-    flags = _user_flags(db, workspace_id, user_id)
     is_admin = member.role == "admin"
     is_member = member.role == "member"
+    flags = {} if is_admin else _user_flags(db, workspace_id, user_id)
     return {
         "view": True,
         "edit": is_admin or is_member,
@@ -1230,12 +1230,55 @@ def bootstrap(db: Session, user_id: str, workspace_id: str | None) -> dict[str, 
     if workspace_id:
         workspace_id = validate_id(workspace_id, "workspace_id")
         membership = get_membership(db, workspace_id, user_id)
-        for kind, policy in ENTITY_POLICIES.items():
-            if kind not in collections and kind != "workspaces" and policy.scope != "private":
-                if kind == "workspaceInvitations" and membership.role != "admin":
-                    collections[kind] = []
+        workspace_kinds = [
+            kind
+            for kind, policy in ENTITY_POLICIES.items()
+            if (
+                kind not in collections
+                and kind not in {"workspaces", "workspaceInvitations"}
+                and policy.scope != "private"
+            )
+        ]
+        for kind in workspace_kinds:
+            collections[kind] = []
+
+        rows = (
+            db.query(TasklyticEntityRecord)
+            .filter(
+                TasklyticEntityRecord.workspace_id == workspace_id,
+                TasklyticEntityRecord.entity_kind.in_(workspace_kinds),
+            )
+            .order_by(
+                TasklyticEntityRecord.entity_kind,
+                TasklyticEntityRecord.created_at,
+                TasklyticEntityRecord.record_id,
+            )
+            .all()
+        )
+        for row in rows:
+            payload = copy.deepcopy(row.payload or {})
+            if membership.role == "admin":
+                # Personal saved searches remain private even from workspace admins.
+                if (
+                    row.entity_kind == "savedViews"
+                    and payload.get("ownership", "personal") == "personal"
+                    and payload.get("createdBy") != user_id
+                ):
                     continue
-                collections[kind] = list_records(db, kind, user_id, workspace_id)
+            else:
+                try:
+                    authorize_record(db, row.entity_kind, payload, workspace_id, user_id)
+                except HTTPException as exc:
+                    if exc.status_code == 403:
+                        continue
+                    raise
+            collections[row.entity_kind].append(record_payload(row))
+
+        collections["workspaceInvitations"] = (
+            list_invitations(db, workspace_id, user_id)
+            if membership.role == "admin"
+            else []
+        )
     capabilities = capabilities_for_user(db, workspace_id, user_id) if workspace_id else None
     return {
         "workspaceId": workspace_id,

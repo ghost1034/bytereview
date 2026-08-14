@@ -10,7 +10,7 @@ os.environ.setdefault("ENVIRONMENT", "test")
 import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -217,6 +217,34 @@ def test_private_project_and_dependents_are_hidden_from_guest(db):
     assert snapshot["collections"]["projects"] == []
     assert snapshot["collections"]["tasks"] == []
     assert snapshot["collections"]["sections"] == []
+
+
+def test_admin_bootstrap_loads_workspace_collections_in_bulk(db):
+    provision_bundle(db, starter_bundle(), {"uid": "owner", "email": "owner@example.com"})
+    for index in range(25):
+        upsert_record(db, "tasks", {
+            "id": f"task-bulk-{index}",
+            "workspaceId": "w1",
+            "name": f"Bulk task {index}",
+            "projectIds": ["project1"],
+            "sectionIdByProject": {"project1": "section1"},
+        }, "owner", "w1")
+    db.flush()
+
+    statements = 0
+
+    def count_statement(*_args):
+        nonlocal statements
+        statements += 1
+
+    event.listen(db.get_bind(), "before_cursor_execute", count_statement)
+    try:
+        snapshot = bootstrap(db, "owner", "w1")
+    finally:
+        event.remove(db.get_bind(), "before_cursor_execute", count_statement)
+
+    assert len(snapshot["collections"]["tasks"]) == 26
+    assert statements <= 12
 
 
 def test_cross_workspace_parent_reference_and_privilege_escalation_are_rejected(db):

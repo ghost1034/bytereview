@@ -63,6 +63,9 @@ export function TasklyticProvider({ children }: Props) {
   const { user: firebaseUser, loading: authLoading } = useAuth()
   const authUserId = firebaseUser?.uid ?? null
   const setupGenRef = useRef(0)
+  const routeWorkspaceIdRef = useRef(routeWorkspaceId)
+  const hydratedWorkspaceIdRef = useRef<string | null>(null)
+  routeWorkspaceIdRef.current = routeWorkspaceId
   const [bootReady, setBootReady] = useState(false)
   const [bootError, setBootError] = useState<string | null>(null)
   const [authWaitExpired, setAuthWaitExpired] = useState(false)
@@ -179,6 +182,7 @@ export function TasklyticProvider({ children }: Props) {
     async function setup() {
       setBootReady(false)
       setBootError(null)
+      hydratedWorkspaceIdRef.current = null
       let workspaceId: string | null = null
 
       try {
@@ -186,7 +190,7 @@ export function TasklyticProvider({ children }: Props) {
         if (!stillActive()) return
 
         const workspaces = useWorkspacesStore.getState().list()
-        const preferred = routeWorkspaceId ?? useUiStore.getState().activeWorkspaceId
+        const preferred = routeWorkspaceIdRef.current ?? useUiStore.getState().activeWorkspaceId
         workspaceId = pickWorkspaceId(preferred, workspaces)
 
         if (!workspaceId) {
@@ -200,6 +204,7 @@ export function TasklyticProvider({ children }: Props) {
 
         if (workspaceId && usesTasklyticBackend()) {
           await rehydrateWorkspaceStores(workspaceId)
+          hydratedWorkspaceIdRef.current = workspaceId
         }
 
         await useAuthStore.getState().setCurrentUser(userId)
@@ -253,7 +258,7 @@ export function TasklyticProvider({ children }: Props) {
     }
 
     void setup()
-  }, [authLoading, authUserId, routeWorkspaceId, firebaseUser, bootAttempt])
+  }, [authLoading, authUserId, firebaseUser, bootAttempt])
 
   useEffect(() => {
     if (!bootReady || !resolvedWorkspaceId || !pathname) return
@@ -264,10 +269,16 @@ export function TasklyticProvider({ children }: Props) {
 
   useEffect(() => {
     if (authLoading || !usesTasklyticBackend() || !effectiveWorkspaceId || !bootReady) return
+    if (hydratedWorkspaceIdRef.current === effectiveWorkspaceId) return
+    useUiStore.getState().setActiveWorkspaceId(effectiveWorkspaceId)
     setActiveRepositoryWorkspaceId(effectiveWorkspaceId)
-    void rehydrateWorkspaceStores(effectiveWorkspaceId).catch((err) => {
-      console.warn('Tasklytic workspace refresh failed:', err)
-    })
+    void rehydrateWorkspaceStores(effectiveWorkspaceId)
+      .then(() => {
+        hydratedWorkspaceIdRef.current = effectiveWorkspaceId
+      })
+      .catch((err) => {
+        console.warn('Tasklytic workspace refresh failed:', err)
+      })
   }, [authLoading, bootReady, effectiveWorkspaceId])
 
   useEffect(() => {
