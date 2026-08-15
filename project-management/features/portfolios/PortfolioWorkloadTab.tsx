@@ -17,8 +17,7 @@ export function PortfolioWorkloadTab({ portfolio, workspaceId }: Props) {
       <Users className="mb-3 h-10 w-10" style={{ color: 'hsl(var(--primary))' }} />
       <h3 className="font-sans text-lg">Portfolio workload</h3>
       <p className="mt-2 max-w-md text-sm" style={{ color: 'hsl(var(--foreground-muted))' }}>
-        Cross-project workload for <strong>{portfolio.name}</strong> will be available in the Workload module (step 25).
-        Use the workspace workload view in the meantime.
+        View workload across the workspace, including projects in <strong>{portfolio.name}</strong>.
       </p>
       <Button asChild className="mt-4" variant="outline" size="sm">
         <Link href={`/dashboard/project-management/w/${workspaceId}/workload`}>Open workspace workload</Link>
