@@ -234,7 +234,7 @@ function SharedCreateHarness() {
 describe('Phase 4 desktop and mobile browser gate', () => {
   beforeEach(() => seed())
 
-  it('exposes Teams and My Searches navigation on desktop', async () => {
+  it('exposes primary workspace and invoicing navigation on desktop', async () => {
     await page.viewport(1440, 900)
     const screen = render(<TasklyticSidebar />)
     await expect
@@ -248,12 +248,24 @@ describe('Phase 4 desktop and mobile browser gate', () => {
         await screen.getByRole('link', { name: 'My Searches' }).element()
       ).getAttribute('href'),
     ).toContain('/my-searches')
+    await expect
+      .element(screen.getByRole('link', { name: 'Invoicing' }))
+      .toBeVisible()
+    await expect
+      .element(screen.getByRole('link', { name: 'Invoicing' }))
+      .toHaveAttribute(
+        'href',
+        '/dashboard/project-management/w/workspace-1/psa/invoicing',
+      )
     await page.viewport(390, 844)
     await expect
       .element(screen.getByRole('link', { name: 'Teams' }))
       .toBeVisible()
     await expect
       .element(screen.getByRole('link', { name: 'My Searches' }))
+      .toBeVisible()
+    await expect
+      .element(screen.getByRole('link', { name: 'Invoicing' }))
       .toBeVisible()
   })
 

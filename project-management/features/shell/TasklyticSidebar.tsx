@@ -10,6 +10,7 @@ import {
   Building2,
   CheckSquare,
   FileCheck2,
+  FileText,
   Clock,
   Receipt,
   Home,
@@ -145,6 +146,7 @@ export function TasklyticSidebar({
             { href: `${base}/psa/expenses`, label: 'Expenses', icon: Receipt },
             { href: `${base}/psa/clients`, label: 'Clients', icon: Building2 },
             { href: `${base}/psa/${matterTerms.route}`, label: matterTerms.plural, icon: Briefcase },
+            { href: `${base}/psa/invoicing`, label: 'Invoicing', icon: FileText },
           ]
         : [],
     [base, matterTerms.plural, matterTerms.route]
