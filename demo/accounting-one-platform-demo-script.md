@@ -305,7 +305,7 @@ Show the UDA workflow header—**Upload · Fields · Review · Processing · Res
 - Open **Perform July OpEx flux** → **Time** → **Add time**. Enter **1:30 / 1.5 hours**, description **“July operating expense flux analysis and memo”**, keep **Billable** on, and save. Show $300.
 - Open **PSA → Time → My week**. Show **4.00h billable** and **$800**; click **Submit week**.
 - Cut to the approver’s **To approve** tab and approve the timesheet. If your role combines capabilities, use a clean insert that makes the status transition clear.
-- Navigate directly to Tasklytic **Invoicing** from the prepared bookmark or route and click **Generate invoice**.
+- In the Tasklytic sidebar, open **PSA → Invoicing** and click **Generate invoice**.
 - In the five-step wizard:
   1. Client: **Riverstone Manufacturing**.
   2. Billing scope: **Riverstone Manufacturing — July 2026 Close & Advisory**.
@@ -336,6 +336,6 @@ Show the UDA workflow header—**Upload · Fields · Review · Processing · Res
 - Record asynchronous steps as two shots: click the action, then cut to the completed result. Never accelerate a spinner while claiming the result was instantaneous.
 - Keep a duplicate finalized reconciliation and variance analysis available. If a live AI response differs in wording, preserve the exact financial control totals and use manual review/refinement to align the explanation with the synthetic source notes.
 - PBC can package accepted evidence, but the demo handoff into UDA is an explicit upload. UDA exports are then explicitly uploaded to Analytics. Describe these as controlled handoffs within the platform, not invisible automatic sync.
-- The current Tasklytic sidebar exposes Time, Timesheets, Expenses, Clients, and Engagements in the PSA group, while the Invoicing route exists but may not be pinned in that group. Use a prepared bookmark/direct route for the invoicing segment unless navigation is updated before filming.
+- The Tasklytic sidebar exposes **Invoicing** in the PSA group alongside Time, Timesheets, Expenses, Clients, and Engagements. Use the visible **PSA → Invoicing** navigation during filming so the audience sees how billing fits into the workspace.
 - Use the terms shown in the product: **Engagements** for an accounting-mode Tasklytic workspace; **Submitted / Accepted** in PBC; **Source A / Source B** in reconciliation; **Base period / Comparison period** in variance; **Draft / In Review / Approved / Finalized** for Analytics status.
 - Avoid unsupported claims such as autonomous posting of journal entries, automatic file propagation between products, automatic Tasklytic task completion from PBC, or a single shared client master across every product.
