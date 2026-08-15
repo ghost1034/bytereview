@@ -128,7 +128,7 @@ export function TasklyticHome() {
             subhead="Every great workflow starts with a single project. Name it, invite your team, and add the first task."
             ctaLabel="Create your first project"
             onCta={() => setCreateOpen(true)}
-            learnMoreHref="/docs/projects"
+            learnMoreHref="/docs/tasklytic/projects-and-tasks"
           />
         )}
       </section>

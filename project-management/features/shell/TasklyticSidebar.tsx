@@ -259,7 +259,7 @@ export function TasklyticSidebar({
                     subhead="Create a project to organize work for your team."
                     ctaLabel="New project"
                     onCta={() => setCreateProjectOpen(true)}
-                    learnMoreHref="/docs/projects"
+                    learnMoreHref="/docs/tasklytic/projects-and-tasks"
                     className="py-6"
                   />
                 </div>

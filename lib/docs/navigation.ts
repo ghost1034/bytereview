@@ -1,5 +1,14 @@
 import type { ComponentType } from 'react'
-import { BarChart3, Bot, Clock, FileSignature, FileText, Files, PenTool } from 'lucide-react'
+import {
+  BarChart3,
+  Bot,
+  Clock,
+  FileSignature,
+  FileText,
+  Files,
+  FolderKanban,
+  PenTool,
+} from 'lucide-react'
 
 /**
  * Documentation navigation manifest. This holds only the *section* structure —
@@ -70,6 +79,12 @@ export const DOCS_SECTIONS: DocSectionConfig[] = [
     title: 'Inkwise',
     icon: PenTool,
     description: 'AI writing with citations',
+  },
+  {
+    slug: 'tasklytic',
+    title: 'Tasklytic',
+    icon: FolderKanban,
+    description: 'Projects, tasks, and client delivery',
   },
   {
     slug: 'e-signature',
