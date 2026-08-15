@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, FileCheck2, Library, LockKeyhole, Plus, Search, Settings } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, FileCheck2, Library, LockKeyhole, Plus, Search, Settings, UserPlus } from 'lucide-react'
 
 import { useAnalyticsClients } from '@/hooks/useAnalyticsClients'
 import { useCreatePbcEngagement, usePbcClientEngagements, usePbcDashboard, usePbcEngagements } from '@/hooks/usePbc'
@@ -97,7 +97,10 @@ export default function PbcDashboardPage() {
             </DialogHeader>
             <form className="space-y-4" onSubmit={submit}>
               <div className="space-y-2"><Label htmlFor="pbc-name">Engagement name</Label><Input id="pbc-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="2026 Financial Statement Audit" /></div>
-              <div className="space-y-2"><Label>Client</Label><Select required value={form.client_id} onValueChange={(value) => setForm({ ...form, client_id: value })}><SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger><SelectContent>{(clients.data?.clients || []).map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between"><Label>Client</Label><Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" asChild><Link href="/dashboard/analytics/clients?addClient=true"><UserPlus className="mr-1 size-3" />Add a new client</Link></Button></div>
+                <Select required value={form.client_id} onValueChange={(value) => setForm({ ...form, client_id: value })}><SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger><SelectContent>{(clients.data?.clients || []).map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}</SelectContent></Select>
+              </div>
               <div className="space-y-2"><Label>Request-list template</Label><Select value={form.template_id || 'blank'} onValueChange={(value) => setForm({ ...form, template_id: value === 'blank' ? '' : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="blank">Blank engagement</SelectItem>{(templates.data?.templates || []).map((template) => <SelectItem key={String(template.id)} value={String(template.id)}>{String(template.name)}</SelectItem>)}</SelectContent></Select></div>
               {(projectLinks.data?.projects.length || 0) > 0 && <div className="space-y-2"><Label>Linked project management project</Label><Select value={form.project_link || 'none'} onValueChange={(value) => setForm({ ...form, project_link: value === 'none' ? '' : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">No linked project</SelectItem>{projectLinks.data?.projects.map((project) => <SelectItem key={`${project.workspace_id}:${project.project_id}`} value={`${project.workspace_id}:${project.project_id}`}>{project.name}</SelectItem>)}</SelectContent></Select></div>}
               <div className="grid grid-cols-2 gap-3">

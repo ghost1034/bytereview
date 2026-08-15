@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Building2, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 
 import {
@@ -37,6 +38,7 @@ export default function AnalyticsClientsPage() {
   const { data, isLoading } = useAnalyticsClients()
   const deleteMutation = useDeleteAnalyticsClient()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
 
   const clients: AnalyticsClient[] = data?.clients ?? []
 
@@ -86,6 +88,13 @@ export default function AnalyticsClientsPage() {
     setEditingClient(null)
     setModalOpen(true)
   }
+
+  useEffect(() => {
+    if (searchParams.get('addClient') === 'true') {
+      handleCreate()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
 
   const handleEdit = (client: AnalyticsClient) => {
     setEditingClient(client)
