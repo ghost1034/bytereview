@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import {
   BarChart3,
   Bot,
+  ClipboardCheck,
   Clock,
   FileSignature,
   FileText,
@@ -85,6 +86,12 @@ export const DOCS_SECTIONS: DocSectionConfig[] = [
     title: 'Tasklytic',
     icon: FolderKanban,
     description: 'Projects, tasks, and client delivery',
+  },
+  {
+    slug: 'prepared-by-client',
+    title: 'Prepared by Client',
+    icon: ClipboardCheck,
+    description: 'Secure client evidence collection and review',
   },
   {
     slug: 'e-signature',
