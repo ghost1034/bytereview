@@ -93,6 +93,7 @@ from services.tasklytic_integrations import (
     record_usage_event,
     upsert_connection,
 )
+from services.shared_clients import ensure_firm_for_token
 from services.tasklytic_service import (
     ENTITY_POLICIES,
     append_workspace_event,
@@ -868,6 +869,9 @@ def provision(
     bundle = body.get("bundle", body)
     if idempotency_key is not None and (not idempotency_key.strip() or len(idempotency_key.strip()) > 128):
         raise HTTPException(status_code=422, detail="Invalid Idempotency-Key header")
+    # Firm/profile setup may commit when this is the user's first product visit,
+    # so it must complete before the Tasklytic transactional command begins.
+    ensure_firm_for_token(db, token)
     result, _command, _replayed = execute_inline_command(
         db,
         command_type="domain.workspace.provision",

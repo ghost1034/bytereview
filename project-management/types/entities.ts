@@ -851,6 +851,7 @@ export type Client = {
   contactName?: string
   contactEmail?: string
   contactPhone?: string
+  fiscalYearEnd?: string
   billingAddress?: string
   taxId?: string
   paymentTerms: 'due_on_receipt' | 'net_15' | 'net_30' | 'net_45' | 'net_60'

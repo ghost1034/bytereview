@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from models.db_models import Client
 from services.analytics.audit_service import record_audit
+from services.shared_clients import delete_tasklytic_client_profiles
 
 
 _AUDITED_FIELDS = (
@@ -33,9 +34,13 @@ def list_clients(db: Session, firm_id) -> List[Client]:
 
 
 def get_client(db: Session, firm_id, client_id: str) -> Client:
+    try:
+        parsed_client_id = uuid.UUID(client_id)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=404, detail="Client not found") from None
     client = (
         db.query(Client)
-        .filter(Client.id == client_id, Client.firm_id == firm_id)
+        .filter(Client.id == parsed_client_id, Client.firm_id == firm_id)
         .first()
     )
     if client is None:
@@ -99,6 +104,7 @@ def update_client(
 def delete_client(db: Session, firm_id, client_id: str, *, actor_user_id: str) -> None:
     client = get_client(db, firm_id, client_id)
     snapshot = {"client_id": str(client.id), "name": client.name}
+    delete_tasklytic_client_profiles(db, firm_id, str(client.id))
     db.delete(client)
     db.commit()
 

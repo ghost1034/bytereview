@@ -867,12 +867,12 @@ class Client(Base):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
 
     firm = relationship("Firm", back_populates="clients")
-    projects = relationship("Project", back_populates="client")
-    analyses = relationship("Analysis", back_populates="client")
-    reconciliations = relationship("Reconciliation", back_populates="client")
-    amortizations = relationship("Amortization", back_populates="client")
-    chat_sessions = relationship("ChatSession", back_populates="client")
-    journal_entries = relationship("JournalEntry", back_populates="client")
+    projects = relationship("Project", back_populates="client", passive_deletes=True)
+    analyses = relationship("Analysis", back_populates="client", passive_deletes=True)
+    reconciliations = relationship("Reconciliation", back_populates="client", passive_deletes=True)
+    amortizations = relationship("Amortization", back_populates="client", passive_deletes=True)
+    chat_sessions = relationship("ChatSession", back_populates="client", passive_deletes=True)
+    journal_entries = relationship("JournalEntry", back_populates="client", passive_deletes=True)
 
 
 class Project(Base):

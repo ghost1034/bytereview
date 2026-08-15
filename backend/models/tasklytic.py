@@ -38,6 +38,12 @@ class TasklyticWorkspace(Base):
     __tablename__ = "tasklytic_workspaces"
 
     id = Column(String(128), primary_key=True)
+    firm_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("firms.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     payload = Column(JSON_PAYLOAD, nullable=False, default=dict)
     revision = Column(Integer, nullable=False, default=1, server_default="1")
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())

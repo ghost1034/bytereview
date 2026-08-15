@@ -22,6 +22,12 @@ from models.tasklytic import (
     TasklyticWorkspaceEvent,
     TasklyticWorkspaceMember,
 )
+from services.shared_clients import (
+    delete_shared_client,
+    firm_id_for_user,
+    list_tasklytic_clients,
+    sync_tasklytic_client,
+)
 
 
 MAX_JSON_BYTES = 2 * 1024 * 1024
@@ -891,6 +897,12 @@ def list_records(db: Session, kind: str, user_id: str, workspace_id: str | None 
     else:
         workspace_id = validate_id(workspace_id, "workspace_id")
         get_membership(db, workspace_id, user_id)
+        if kind == "clients":
+            shared = list_tasklytic_clients(
+                db, workspace_id, actor_user_id=user_id
+            )
+            if shared is not None:
+                return shared
         query = query.filter_by(workspace_id=workspace_id)
     result: list[dict[str, Any]] = []
     for row in query.order_by(TasklyticEntityRecord.created_at, TasklyticEntityRecord.record_id).all():
@@ -920,12 +932,18 @@ def upsert_workspace(
     if row is None:
         for field in MEMBERSHIP_PAYLOAD_FIELDS:
             data.pop(field, None)
-        row = TasklyticWorkspace(id=workspace_id, payload=data)
+        row = TasklyticWorkspace(
+            id=workspace_id,
+            firm_id=firm_id_for_user(db, user_id),
+            payload=data,
+        )
         db.add(row)
         db.flush()
         db.add(TasklyticWorkspaceMember(workspace_id=workspace_id, user_id=user_id, role="admin"))
     else:
         require_admin(db, workspace_id, user_id)
+        if row.firm_id is None:
+            row.firm_id = firm_id_for_user(db, user_id)
         if enforce_precondition and expected_revision is None:
             parse_revision_etag(None)
         if expected_revision is not None and row.revision != expected_revision:
@@ -1071,6 +1089,14 @@ def upsert_record(
         operation = "updated"
     db.flush()
     result = record_payload(existing)
+    if kind == "clients" and resolved_workspace_id:
+        result = sync_tasklytic_client(
+            db,
+            resolved_workspace_id,
+            result,
+            actor_user_id=user_id,
+            profile=existing,
+        )
     event = append_workspace_event(
         db, resolved_workspace_id, user_id, kind, record_id,
         operation, existing.revision, result,
@@ -1164,6 +1190,8 @@ def delete_record(
     else:
         workspace_id = validate_id(workspace_id, "workspace_id")
         get_membership(db, workspace_id, user_id)
+        if kind == "clients":
+            require_capability(db, workspace_id, user_id, "edit")
         row = _find_record(db, kind, record_id, workspace_id, lock=True)
         if row:
             authorize_mutation(db, kind, row.payload or {}, workspace_id, user_id, row.payload or {})
@@ -1180,6 +1208,13 @@ def delete_record(
         )
         db.delete(row)
         db.flush()
+    if kind == "clients" and workspace_id:
+        delete_shared_client(
+            db,
+            workspace_id,
+            record_id,
+            actor_user_id=user_id,
+        )
 
 
 def list_workspace_events(
@@ -1274,6 +1309,12 @@ def bootstrap(db: Session, user_id: str, workspace_id: str | None) -> dict[str, 
                     raise
             collections[row.entity_kind].append(record_payload(row))
 
+        shared_clients = list_tasklytic_clients(
+            db, workspace_id, actor_user_id=user_id
+        )
+        if shared_clients is not None:
+            collections["clients"] = shared_clients
+
         collections["workspaceInvitations"] = (
             list_invitations(db, workspace_id, user_id)
             if membership.role == "admin"
@@ -1290,6 +1331,7 @@ def bootstrap(db: Session, user_id: str, workspace_id: str | None) -> dict[str, 
 
 def provision_bundle(db: Session, bundle: Any, token: dict[str, Any]) -> dict[str, Any]:
     user_id = token["uid"]
+    firm_id = firm_id_for_user(db, user_id)
     existing = db.query(TasklyticWorkspaceMember).filter_by(user_id=user_id).order_by(TasklyticWorkspaceMember.created_at).first()
     if existing:
         return {"workspace": workspace_payload(db, db.get(TasklyticWorkspace, existing.workspace_id)), "bootstrap": bootstrap(db, user_id, existing.workspace_id), "created": False}
@@ -1299,7 +1341,13 @@ def provision_bundle(db: Session, bundle: Any, token: dict[str, Any]) -> dict[st
     workspace_id = workspace["id"]
     for field in MEMBERSHIP_PAYLOAD_FIELDS:
         workspace.pop(field, None)
-    db.add(TasklyticWorkspace(id=workspace_id, payload=workspace))
+    db.add(
+        TasklyticWorkspace(
+            id=workspace_id,
+            firm_id=firm_id,
+            payload=workspace,
+        )
+    )
     db.flush()
     db.add(TasklyticWorkspaceMember(workspace_id=workspace_id, user_id=user_id, role="admin"))
     db.flush()
