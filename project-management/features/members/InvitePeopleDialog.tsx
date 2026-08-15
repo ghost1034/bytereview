@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -49,6 +50,7 @@ export function InvitePeopleDialog({
   const [note, setNote] = useState('')
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<InviteResult[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   const reset = () => {
     setEmailsRaw('')
@@ -56,12 +58,19 @@ export function InvitePeopleDialog({
     setTeamId('none')
     setNote('')
     setResults([])
+    setError(null)
+  }
+
+  const close = () => {
+    reset()
+    onOpenChange(false)
   }
 
   const submit = async () => {
     const emails = parseInviteEmails(emailsRaw)
     if (emails.length === 0) return
     setLoading(true)
+    setError(null)
     try {
       const summary = await sendWorkspaceInvites({
         workspaceId,
@@ -74,6 +83,8 @@ export function InvitePeopleDialog({
         teamId: teamId === 'none' ? undefined : teamId,
       })
       setResults(summary)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Invitations could not be sent.')
     } finally {
       setLoading(false)
     }
@@ -90,6 +101,9 @@ export function InvitePeopleDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-sans text-xl">Invite people</DialogTitle>
+          <DialogDescription>
+            Send an invitation to one or more people to join {workspaceName}.
+          </DialogDescription>
         </DialogHeader>
         {results.length > 0 ? (
           <ul className="space-y-2 py-2">
@@ -150,12 +164,15 @@ export function InvitePeopleDialog({
             </div>
           </div>
         )}
+        {error ? (
+          <p className="text-sm text-destructive" role="alert">{error}</p>
+        ) : null}
         <DialogFooter>
           {results.length > 0 ? (
-            <Button className="" onClick={() => onOpenChange(false)}>Done</Button>
+            <Button className="" onClick={close}>Done</Button>
           ) : (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button variant="outline" onClick={close}>Cancel</Button>
               <Button className="" disabled={loading || !emailsRaw.trim()} onClick={() => void submit()}>
                 {loading ? 'Sending…' : 'Send invites'}
               </Button>
