@@ -3,8 +3,9 @@
 import * as React from 'react'
 import Link from 'next/link'
 import {
-  AlertTriangle, ArrowLeft, Bot, Check, ChevronRight, Download, File, FileSpreadsheet,
-  MessageSquare, Pencil, Plus, Send, Upload, X,
+  AlertTriangle, Archive, ArrowLeft, BellOff, BellRing, Bot, CalendarDays, Check,
+  ChevronDown, ChevronRight, Download, File, FileSpreadsheet, MessageSquare, Pencil,
+  Plus, Send, Upload, X,
 } from 'lucide-react'
 
 import { usePbcEngagement, useInvalidatePbc } from '@/hooks/usePbc'
@@ -18,6 +19,11 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { PbcClientAccess } from '@/components/pbc/PbcClientAccess'
 
@@ -26,10 +32,18 @@ const statusStyle: Record<string, string> = {
   needs_changes: 'bg-rose-50 text-rose-700', accepted: 'bg-emerald-50 text-emerald-700', waived: 'bg-slate-100 text-slate-500',
 }
 
+const engagementStatusStyle: Record<string, string> = {
+  draft: 'bg-surface-muted text-foreground-muted',
+  active: 'bg-primary-soft text-primary',
+  completed: 'bg-success-soft text-success',
+  archived: 'bg-surface-muted text-foreground-subtle',
+}
+
 const formatStatus = (value: string) => value.replace(/_/g, ' ').replace(/\b\w/g, (letter: string) => letter.toUpperCase())
 const formatBytes = (value: number) => value < 1024 * 1024 ? `${Math.ceil(value / 1024)} KB` : `${(value / 1024 / 1024).toFixed(1)} MB`
 
 type CompletenessFlag = { request_id: string; request_number: string; warnings: string[] }
+type EngagementDateForm = { period_start: string; period_end: string; due_date: string }
 
 type RequestFormValues = {
   request_number: string
@@ -75,6 +89,9 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
   const [editingRequest, setEditingRequest] = React.useState<PbcRequestItem | 'new' | null>(null)
   const [requestForm, setRequestForm] = React.useState<RequestFormValues>(() => emptyRequestForm(0))
   const [aiOpen, setAiOpen] = React.useState(false)
+  const [datesOpen, setDatesOpen] = React.useState(false)
+  const [archiveOpen, setArchiveOpen] = React.useState(false)
+  const [dateForm, setDateForm] = React.useState<EngagementDateForm>({ period_start: '', period_end: '', due_date: '' })
   const [busy, setBusy] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(null)
   const [comment, setComment] = React.useState('')
@@ -183,6 +200,42 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
     await run('flags', async () => { setFlags((await pbcApi.completeness(engagementId)).flags) })
   }
 
+  const openDates = () => {
+    if (!data) return
+    setDateForm({
+      period_start: data.period_start || '',
+      period_end: data.period_end || '',
+      due_date: data.due_date || '',
+    })
+    setDatesOpen(true)
+  }
+
+  const saveDates = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!data) return
+    if (dateForm.period_start && dateForm.period_end && dateForm.period_start > dateForm.period_end) {
+      setError('Period start must be on or before period end')
+      return
+    }
+    await run('dates', async () => {
+      await pbcApi.updateEngagement(engagementId, {
+        period_start: dateForm.period_start || null,
+        period_end: dateForm.period_end || null,
+        due_date: dateForm.due_date || null,
+        expected_revision: data.revision,
+      })
+      setDatesOpen(false)
+    })
+  }
+
+  const toggleReminders = () => {
+    if (!data) return Promise.resolve()
+    return pbcApi.updateEngagement(engagementId, {
+      reminders_paused: !data.reminders_paused,
+      expected_revision: data.revision,
+    })
+  }
+
   const addComment = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!selected || !comment.trim()) return
@@ -197,7 +250,7 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
           <Link href="/dashboard/pbc" className="mb-3 inline-flex items-center gap-1 text-sm text-foreground-muted hover:text-foreground"><ArrowLeft className="size-4" />PBC workspace</Link>
-          <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1><Badge className={statusStyle[data.status]}>{formatStatus(data.status)}</Badge></div>
+          <div className="flex flex-wrap items-center gap-2"><h1 className="text-2xl font-semibold tracking-tight">{data.name}</h1><Badge className={engagementStatusStyle[data.status]}>{formatStatus(data.status)}</Badge></div>
           <p className="mt-1 text-sm text-foreground-muted">{data.client_name}{data.period_end ? ` · Period ended ${data.period_end}` : ''}{data.due_date ? ` · Due ${data.due_date}` : ''}</p>
           <div className="mt-3 flex max-w-md items-center gap-3"><Progress value={data.progress} className="h-2" /><span className="text-sm font-medium tabular-nums">{data.progress}%</span></div>
         </div>
@@ -206,12 +259,21 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
           <Button variant="outline" onClick={loadAi} disabled={!!busy || data.status !== 'draft'}><Bot className="mr-2 size-4" />Draft with AI</Button>
           <Button variant="outline" onClick={() => run('export', () => pbcApi.downloadArtifact(engagementId, 'export.xlsx', `${data.name}-pbc.xlsx`))}><Download className="mr-2 size-4" />Tracker</Button>
           <Button variant="outline" onClick={() => run('package', () => pbcApi.downloadArtifact(engagementId, 'package.zip', `${data.name}-evidence-package.zip`))}><Download className="mr-2 size-4" />Package</Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button variant="outline" disabled={!!busy}><span>Manage</span><ChevronDown className="ml-2 size-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onSelect={openDates} disabled={data.status === 'archived'}><CalendarDays className="size-4" />Edit engagement dates</DropdownMenuItem>
+              {data.status === 'active' && <DropdownMenuItem onSelect={() => void run('reminders', toggleReminders)}>{data.reminders_paused ? <BellRing className="size-4" /> : <BellOff className="size-4" />}{data.reminders_paused ? 'Resume reminders' : 'Pause reminders'}</DropdownMenuItem>}
+              {(data.status === 'draft' || data.status === 'completed') && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setArchiveOpen(true)}><Archive className="size-4" />Archive engagement</DropdownMenuItem></>}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {data.status === 'draft' && <Button onClick={() => run('publish', () => pbcApi.publish(engagementId))} disabled={!!busy}><Send className="mr-2 size-4" />Publish</Button>}
           {data.status === 'active' && <Button onClick={() => run('complete-engagement', () => pbcApi.engagementAction(engagementId, 'complete'))} disabled={!!busy}><Check className="mr-2 size-4" />Complete</Button>}
         </div>
       </div>
 
       {error && <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span><button className="ml-auto" onClick={() => setError(null)} aria-label="Dismiss"><X className="size-4" /></button></div>}
+      {data.reminders_paused && data.status === 'active' && <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/30 bg-warning-soft px-4 py-3 text-sm"><BellOff className="size-4 shrink-0 text-warning" /><span className="flex-1"><strong>Automated reminders are paused.</strong> Clients will not receive scheduled reminder emails for this engagement.</span><Button size="sm" variant="outline" disabled={!!busy} onClick={() => void run('reminders', toggleReminders)}>{busy === 'reminders' ? 'Resuming…' : 'Resume reminders'}</Button></div>}
       {flags && flags.length === 0 && <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"><Check className="mt-0.5 size-4 shrink-0" /><span><strong>Completeness check passed.</strong> No items currently require attention.</span></div>}
       {flags && flags.length > 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-medium">Completeness review found {flags.length} item{flags.length === 1 ? '' : 's'} requiring attention.</p><ul className="mt-2 list-disc space-y-1 pl-5">{flags.slice(0, 5).map((flag) => <li key={flag.request_id}><button className="underline" onClick={() => setSelectedId(flag.request_id)}>{flag.request_number}</button>: {flag.warnings.join('; ')}</li>)}</ul></div>}
 
@@ -264,6 +326,25 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
         onOpenChange={(open) => { if (!open) setEditingRequest(null) }}
         onSubmit={saveRequest}
       />
+      <Dialog open={datesOpen} onOpenChange={setDatesOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit engagement dates</DialogTitle><DialogDescription>Update the reporting period and the default due date used for new requests. Existing request due dates are unchanged.</DialogDescription></DialogHeader>
+          <form className="space-y-5" onSubmit={saveDates}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2"><Label htmlFor="engagement-period-start">Period start</Label><Input id="engagement-period-start" type="date" max={dateForm.period_end || undefined} value={dateForm.period_start} onChange={(event) => setDateForm((current) => ({ ...current, period_start: event.target.value }))} /></div>
+              <div className="space-y-2"><Label htmlFor="engagement-period-end">Period end</Label><Input id="engagement-period-end" type="date" min={dateForm.period_start || undefined} value={dateForm.period_end} onChange={(event) => setDateForm((current) => ({ ...current, period_end: event.target.value }))} /></div>
+              <div className="space-y-2 sm:col-span-2"><Label htmlFor="engagement-due-date">Default due date</Label><Input id="engagement-due-date" type="date" value={dateForm.due_date} onChange={(event) => setDateForm((current) => ({ ...current, due_date: event.target.value }))} /></div>
+            </div>
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setDatesOpen(false)}>Cancel</Button><Button disabled={busy === 'dates'}>{busy === 'dates' ? 'Saving…' : 'Save dates'}</Button></div>
+          </form>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>Archive this engagement?</AlertDialogTitle><AlertDialogDescription>{data.status === 'draft' ? 'The draft request list will be locked and retained in the engagement history.' : 'The completed request list, evidence, and audit history will be retained but the engagement will be locked.'}</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={busy === 'archive'} onClick={() => void run('archive', async () => { await pbcApi.engagementAction(engagementId, 'archive'); setArchiveOpen(false) })}>{busy === 'archive' ? 'Archiving…' : 'Archive engagement'}</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Dialog open={aiOpen} onOpenChange={setAiOpen}><DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto"><DialogHeader><DialogTitle>AI request-list proposal</DialogTitle><DialogDescription>Review every suggestion before adding it. AI cannot publish or contact the client.</DialogDescription></DialogHeader>{busy === 'ai' && <p className="py-12 text-center text-sm text-foreground-muted">Drafting a request list from engagement metadata and firm templates…</p>}{ai && <div className="space-y-4"><p className="rounded-lg bg-surface-muted p-3 text-sm">{ai.summary}</p><div className="divide-y rounded-lg border">{ai.proposals.map((proposal, index) => <div key={index} className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-medium">{String(proposal.title)}</p><p className="mt-1 text-sm text-foreground-muted">{String(proposal.description || '')}</p></div><Badge variant="outline">{String(proposal.category || 'Other')}</Badge></div><p className="mt-2 text-xs text-foreground-muted">Why suggested: {String(proposal.rationale || 'Engagement context')}</p></div>)}</div><Button className="w-full" onClick={applyAi} disabled={busy === 'ai-apply'}>{busy === 'ai-apply' ? 'Adding requests…' : `Confirm and add ${ai.proposals.length} requests`}</Button></div>}</DialogContent></Dialog>
     </div>
   )

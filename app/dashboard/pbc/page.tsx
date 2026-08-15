@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { pbcApi } from '@/lib/pbc/api'
+import { parsePbcEngagementSource, pbcEngagementSourcePayload, pbcRolloverCandidates } from '@/lib/pbc/engagementForm'
 
 const statusTone: Record<string, string> = {
   draft: 'bg-surface-muted text-foreground-muted',
@@ -37,22 +38,30 @@ export default function PbcDashboardPage() {
   const [query, setQuery] = React.useState('')
   const [openingClientId, setOpeningClientId] = React.useState<string | null>(null)
   const [clientAccessError, setClientAccessError] = React.useState<string | null>(null)
-  const [form, setForm] = React.useState({ name: '', client_id: '', period_end: '', due_date: '', template_id: '', project_link: '' })
+  const [form, setForm] = React.useState({ name: '', client_id: '', period_start: '', period_end: '', due_date: '', source: 'blank', project_link: '' })
 
   const rows = (engagements.data?.engagements || []).filter((item) =>
     `${item.name} ${item.client_name}`.toLowerCase().includes(query.toLowerCase()),
   )
+  const rolloverCandidates = pbcRolloverCandidates(engagements.data?.engagements || [], form.client_id)
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     const linkedProject = projectLinks.data?.projects.find((item) => `${item.workspace_id}:${item.project_id}` === form.project_link)
+    const source = parsePbcEngagementSource(form.source)
+    const rolloverSource = source.kind === 'rollover'
+      ? rolloverCandidates.find((item) => item.id === source.id)
+      : undefined
     const result = await create.mutateAsync({
       name: form.name,
       client_id: form.client_id,
-      engagement_type: templates.data?.templates.find((template) => String(template.id) === form.template_id)?.engagement_type || 'audit',
+      engagement_type: source.kind === 'template'
+        ? templates.data?.templates.find((template) => String(template.id) === source.id)?.engagement_type || 'audit'
+        : rolloverSource?.engagement_type || 'audit',
+      period_start: form.period_start || null,
       period_end: form.period_end || null,
       due_date: form.due_date || null,
-      template_id: form.template_id || null,
+      ...pbcEngagementSourcePayload(source),
       tasklytic_workspace_id: linkedProject?.workspace_id || null,
       tasklytic_project_id: linkedProject?.project_id || null,
     })
@@ -99,11 +108,24 @@ export default function PbcDashboardPage() {
               <div className="space-y-2"><Label htmlFor="pbc-name">Engagement name</Label><Input id="pbc-name" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="2026 Financial Statement Audit" /></div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between"><Label>Client</Label><Button type="button" variant="link" size="sm" className="h-auto p-0 text-xs" asChild><Link href="/dashboard/analytics/clients?addClient=true"><UserPlus className="mr-1 size-3" />Add a new client</Link></Button></div>
-                <Select required value={form.client_id} onValueChange={(value) => setForm({ ...form, client_id: value })}><SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger><SelectContent>{(clients.data?.clients || []).map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}</SelectContent></Select>
+                <Select required value={form.client_id} onValueChange={(value) => setForm({ ...form, client_id: value, source: form.source.startsWith('rollover:') ? 'blank' : form.source })}><SelectTrigger><SelectValue placeholder="Select a client" /></SelectTrigger><SelectContent>{(clients.data?.clients || []).map((client) => <SelectItem key={client.id} value={client.id}>{client.name}</SelectItem>)}</SelectContent></Select>
               </div>
-              <div className="space-y-2"><Label>Request-list template</Label><Select value={form.template_id || 'blank'} onValueChange={(value) => setForm({ ...form, template_id: value === 'blank' ? '' : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="blank">Blank engagement</SelectItem>{(templates.data?.templates || []).map((template) => <SelectItem key={String(template.id)} value={String(template.id)}>{String(template.name)}</SelectItem>)}</SelectContent></Select></div>
+              <div className="space-y-2">
+                <Label>Start request list from</Label>
+                <Select value={form.source} onValueChange={(value) => setForm({ ...form, source: value })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="blank">Blank engagement</SelectItem>
+                    {(templates.data?.templates || []).map((template) => <SelectItem key={String(template.id)} value={`template:${String(template.id)}`}>Template · {String(template.name)}</SelectItem>)}
+                    {rolloverCandidates.map((engagement) => <SelectItem key={engagement.id} value={`rollover:${engagement.id}`}>Rollover · {engagement.name}{engagement.period_end ? ` (${engagement.period_end})` : ''}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {form.client_id && rolloverCandidates.length === 0 && <p className="text-xs text-foreground-muted">No prior engagements are available for this client yet.</p>}
+                {form.source.startsWith('rollover:') && <p className="text-xs text-foreground-muted">Request details and internal owners will be copied without prior evidence, comments, assignments, or statuses.</p>}
+              </div>
               {(projectLinks.data?.projects.length || 0) > 0 && <div className="space-y-2"><Label>Linked project management project</Label><Select value={form.project_link || 'none'} onValueChange={(value) => setForm({ ...form, project_link: value === 'none' ? '' : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="none">No linked project</SelectItem>{projectLinks.data?.projects.map((project) => <SelectItem key={`${project.workspace_id}:${project.project_id}`} value={`${project.workspace_id}:${project.project_id}`}>{project.name}</SelectItem>)}</SelectContent></Select></div>}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="space-y-2"><Label htmlFor="period-start">Period start</Label><Input id="period-start" type="date" value={form.period_start} onChange={(e) => setForm({ ...form, period_start: e.target.value })} /></div>
                 <div className="space-y-2"><Label htmlFor="period-end">Period end</Label><Input id="period-end" type="date" value={form.period_end} onChange={(e) => setForm({ ...form, period_end: e.target.value })} /></div>
                 <div className="space-y-2"><Label htmlFor="due-date">Default due date</Label><Input id="due-date" type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} /></div>
               </div>
