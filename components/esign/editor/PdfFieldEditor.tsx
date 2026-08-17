@@ -188,6 +188,61 @@ type Handle = typeof HANDLES[number]
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max)
 const newId = () => typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `f_${Math.random().toString(36).slice(2)}`
 
+type DropdownOption = { value: string; label: string }
+
+const dropdownOptionsText = (options: DropdownOption[]) => options.map((option) => option.label).join('\n')
+
+export function dropdownOptionsFromText(
+  text: string,
+  previousOptions: DropdownOption[],
+  createValue: () => string = () => `option_${newId()}`,
+): DropdownOption[] {
+  const labels = text.split('\n').filter(Boolean)
+  const matchedIndexes = new Set<number>()
+  const valuesByLabelIndex = labels.map((label) => {
+    const match = previousOptions.findIndex((option, index) => option.label === label && !matchedIndexes.has(index))
+    if (match < 0) return undefined
+    matchedIndexes.add(match)
+    return previousOptions[match].value
+  })
+
+  return labels.map((label, index) => {
+    const samePosition = previousOptions[index]
+    const value = valuesByLabelIndex[index]
+      ?? (samePosition && !matchedIndexes.has(index) ? samePosition.value : createValue())
+    matchedIndexes.add(index)
+    return { value, label }
+  })
+}
+
+function DropdownOptionsEditor({ options, onChange }: {
+  options: DropdownOption[]
+  onChange: (options: DropdownOption[]) => void
+}) {
+  const optionsText = dropdownOptionsText(options)
+  const [draft, setDraft] = React.useState(optionsText)
+  const expectedOptionsText = React.useRef(optionsText)
+
+  React.useEffect(() => {
+    if (optionsText !== expectedOptionsText.current) setDraft(optionsText)
+    expectedOptionsText.current = optionsText
+  }, [optionsText])
+
+  return <textarea
+    aria-label="Dropdown options"
+    className="mt-1 min-h-20 w-full rounded border border-border bg-background px-2 py-1"
+    value={draft}
+    onChange={(event) => {
+      const nextDraft = event.target.value
+      const nextOptions = dropdownOptionsFromText(nextDraft, options)
+      setDraft(nextDraft)
+      expectedOptionsText.current = dropdownOptionsText(nextOptions)
+      if (dropdownOptionsText(nextOptions) !== optionsText) onChange(nextOptions)
+    }}
+    onBlur={() => setDraft(expectedOptionsText.current)}
+  />
+}
+
 const REQUIRED_FIELD_TYPES = new Set<EditorFieldType>([
   'signature', 'initials', 'stamp', 'date', 'number', 'text', 'company', 'title',
   'checkbox', 'radio', 'dropdown', 'attachment',
@@ -343,9 +398,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove }: {
       </select>
     </label>}
     {field.fieldType === 'dropdown' && <label className="block">Options (one per line)
-      <textarea className="mt-1 min-h-20 w-full rounded border border-border bg-background px-2 py-1"
-        value={(properties.options ?? []).map((option) => option.label).join('\n')}
-        onChange={(event) => setProperties({ options: event.target.value.split('\n').filter(Boolean).map((label, index) => ({ value: properties.options?.[index]?.value ?? `option_${newId()}`, label })) })} />
+      <DropdownOptionsEditor key={field.id} options={properties.options ?? []} onChange={(options) => setProperties({ options })} />
     </label>}
     {field.fieldType === 'dropdown' && <label className="block">Default option<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''} onChange={(event) => setProperties({ sender_prefill: event.target.value || undefined })}><option value="">No default</option>{(properties.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>}
     {field.fieldType === 'radio' && <>

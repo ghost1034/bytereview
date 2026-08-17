@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { EditorField } from './PdfFieldEditor'
+import { dropdownOptionsFromText, type EditorField } from './PdfFieldEditor'
 import {
   DEFAULT_FIELD_VERTICAL_ALIGNMENT,
   defaultFieldHorizontalAlignment,
@@ -113,5 +113,30 @@ describe('configured text font rendering', () => {
       DEFAULT_TYPED_MARK_POINT_SIZE,
       DEFAULT_TYPED_MARK_HEIGHT_RATIO,
     )).toBe(21)
+  })
+})
+
+describe('dropdown option editing', () => {
+  it('accepts newline-delimited options while ignoring a temporary blank line', () => {
+    const existing = [{ value: 'option-1', label: 'Option 1' }]
+
+    expect(dropdownOptionsFromText('Option 1\n', existing, () => 'new-option')).toEqual(existing)
+    expect(dropdownOptionsFromText('Option 1\nOption 2', existing, () => 'new-option')).toEqual([
+      ...existing,
+      { value: 'new-option', label: 'Option 2' },
+    ])
+  })
+
+  it('keeps existing option values stable when a line is inserted', () => {
+    const existing = [
+      { value: 'first', label: 'First' },
+      { value: 'second', label: 'Second' },
+    ]
+
+    expect(dropdownOptionsFromText('First\nInserted\nSecond', existing, () => 'inserted')).toEqual([
+      existing[0],
+      { value: 'inserted', label: 'Inserted' },
+      existing[1],
+    ])
   })
 })
