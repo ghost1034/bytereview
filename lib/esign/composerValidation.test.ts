@@ -38,4 +38,17 @@ describe('collectFieldIssues', () => {
     expect(issues.some((issue) => issue.id === 'signature-signer-1')).toBe(false)
     expect(issues.find((issue) => issue.id === 'options-dropdown')?.fieldId).toBe('dropdown')
   })
+
+  it('reports inconsistent and impossible choice groups', () => {
+    const issues = collectFieldIssues([
+      { id: 'r1', participantId: 'signer-1', fieldType: 'radio', required: true, properties: { group: { id: 'radio', label: 'Entity' }, option_value: 'same', read_only: true, sender_prefill: 'false' } },
+      { id: 'r2', participantId: 'signer-1', fieldType: 'radio', required: true, properties: { group: { id: 'radio', label: 'Entity' }, option_value: 'same', read_only: true, sender_prefill: 'false' } },
+      { id: 'c1', participantId: 'signer-1', fieldType: 'checkbox', required: false, properties: { selection_group: { id: 'checks', label: 'Pick', minimum_selected: 3, maximum_selected: 1 }, read_only: true, sender_prefill: 'true' } },
+      { id: 'c2', participantId: 'signer-1', fieldType: 'checkbox', required: false, properties: { selection_group: { id: 'checks', label: 'Pick', minimum_selected: 3, maximum_selected: 1 }, read_only: true, sender_prefill: 'false' } },
+    ], ['signer-1'])
+
+    expect(issues.map((issue) => issue.id)).toEqual(expect.arrayContaining([
+      'radio-values-radio', 'radio-locked-radio', 'checkbox-rule-checks', 'checkbox-locked-checks',
+    ]))
+  })
 })

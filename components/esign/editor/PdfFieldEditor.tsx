@@ -2,8 +2,8 @@
 
 import * as React from 'react'
 import {
-  AlertTriangle, Calculator, CalendarDays, Check, CheckSquare, CircleDot, Copy,
-  FileInput, ListChecks, Loader2, Paperclip, PenLine, Redo2, Search, Sparkles, Trash2, Type, Undo2, UserRound, X,
+  AlertTriangle, ArrowDown, ArrowUp, Calculator, CalendarDays, Check, CheckSquare, CircleDot, Copy,
+  FileInput, ListChecks, Loader2, Paperclip, PenLine, Plus, Redo2, Search, Sparkles, Trash2, Type, Undo2, UserRound, X,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,19 @@ import { snapRect, type SnapGuide } from './snapping'
 import { configuredTextFontSize, textFontFamily, TEXT_FONT_OPTIONS } from './textAppearance'
 import { apiClient, type EsignAiFieldPlacementAction, type EsignAiFieldPlacementRun } from '@/lib/api'
 import { pollAiFieldPlacementRun } from './aiFieldPlacementPolling'
+import {
+  checkboxRuleFromPreset,
+  checkboxRulePreset,
+  createChoice,
+  normalizeCheckboxGroup,
+  normalizeDropdown,
+  normalizeRadioGroup,
+  validateChoiceDraft,
+  type CheckboxRulePreset,
+  type ChoiceDraft,
+  type ChoiceKind,
+  type ChoiceOption,
+} from './choiceFields'
 
 export type { EditorFieldType } from './anchorPlacement'
 
@@ -141,7 +154,13 @@ interface AnchorPlacementSession {
   matches: Array<{ document_id: string; page_number: number; x: number; y: number; width: number; height: number; anchor_x?: number | null; anchor_y?: number | null }>
 }
 
-const FIELD_TYPES: Array<{ type: EditorFieldType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+interface ChoicePlacementSession {
+  draft: ChoiceDraft
+  groupId: string
+  positions: Array<{ documentId: string; pageNumber: number; posX: number; posY: number }>
+}
+
+const FIELD_TYPES: Array<{ key?: string; type: EditorFieldType; label: string; icon: React.ComponentType<{ className?: string }>; setupKind?: ChoiceKind }> = [
   { type: 'signature', label: 'Signature', icon: PenLine },
   { type: 'initials', label: 'Initials', icon: Type },
   { type: 'stamp', label: 'Stamp', icon: PenLine },
@@ -157,9 +176,10 @@ const FIELD_TYPES: Array<{ type: EditorFieldType; label: string; icon: React.Com
   { type: 'title', label: 'Title', icon: UserRound },
   { type: 'note', label: 'Note', icon: Type },
   { type: 'auto_fill', label: 'Auto-fill', icon: UserRound },
-  { type: 'checkbox', label: 'Checkbox', icon: CheckSquare },
-  { type: 'radio', label: 'Radio group', icon: CircleDot },
-  { type: 'dropdown', label: 'Dropdown', icon: ListChecks },
+  { key: 'checkbox', type: 'checkbox', label: 'Checkbox', icon: CheckSquare },
+  { key: 'checkbox-group', type: 'checkbox', label: 'Checkbox group', icon: ListChecks, setupKind: 'checkbox-group' },
+  { key: 'radio', type: 'radio', label: 'Radio group', icon: CircleDot, setupKind: 'radio' },
+  { key: 'dropdown', type: 'dropdown', label: 'Dropdown', icon: ListChecks, setupKind: 'dropdown' },
   { type: 'attachment', label: 'Attachment', icon: Paperclip },
   { type: 'formula', label: 'Formula', icon: Calculator },
 ]
@@ -243,6 +263,77 @@ function DropdownOptionsEditor({ options, onChange }: {
   />
 }
 
+function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false, onChange, onDefaultsChange }: {
+  choices: ChoiceOption[]
+  defaultIds: string[]
+  multipleDefaults?: boolean
+  onChange: (choices: ChoiceOption[]) => void
+  onDefaultsChange: (ids: string[]) => void
+}) {
+  const move = (index: number, offset: number) => {
+    const target = index + offset
+    if (target < 0 || target >= choices.length) return
+    const next = [...choices]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    onChange(next)
+  }
+  const remove = (choice: ChoiceOption) => {
+    onChange(choices.filter((item) => item.id !== choice.id))
+  }
+  return <div className="space-y-2">
+    {choices.map((choice, index) => <div key={choice.id} className="flex items-center gap-1.5">
+      <input
+        aria-label={`Choice ${index + 1}`}
+        className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5"
+        value={choice.label}
+        onChange={(event) => onChange(choices.map((item) => item.id === choice.id ? { ...item, label: event.target.value } : item))}
+        onKeyDown={(event) => {
+          if (event.altKey && event.key === 'ArrowUp') { event.preventDefault(); move(index, -1) }
+          if (event.altKey && event.key === 'ArrowDown') { event.preventDefault(); move(index, 1) }
+          if (event.key === 'Enter') { event.preventDefault(); onChange([...choices, createChoice(`Choice ${choices.length + 1}`, newId)]) }
+        }}
+      />
+      <label className="flex size-7 shrink-0 items-center justify-center rounded border border-border" title="Default choice">
+        <input type={multipleDefaults ? 'checkbox' : 'radio'} aria-label={`${choice.label || `Choice ${index + 1}`} is selected initially`} checked={defaultIds.includes(choice.id)} onChange={(event) => onDefaultsChange(multipleDefaults
+          ? event.target.checked ? [...defaultIds, choice.id] : defaultIds.filter((id) => id !== choice.id)
+          : event.target.checked ? [choice.id] : [])} />
+      </label>
+      <button type="button" className="rounded p-1 text-foreground-muted hover:bg-surface-muted disabled:opacity-30" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${choice.label || `choice ${index + 1}`} up`}><ArrowUp className="size-3.5" /></button>
+      <button type="button" className="rounded p-1 text-foreground-muted hover:bg-surface-muted disabled:opacity-30" disabled={index === choices.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${choice.label || `choice ${index + 1}`} down`}><ArrowDown className="size-3.5" /></button>
+      <button type="button" className="rounded p-1 text-foreground-muted hover:bg-destructive-soft hover:text-destructive" onClick={() => remove(choice)} aria-label={`Remove ${choice.label || `choice ${index + 1}`} `}><X className="size-3.5" /></button>
+    </div>)}
+    <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => onChange([...choices, createChoice(`Choice ${choices.length + 1}`, newId)])}><Plus className="mr-1.5 size-3.5" /> Add choice</Button>
+    <p className="text-xs text-foreground-subtle">Use Alt+Up or Alt+Down to reorder. Press Enter to add another choice.</p>
+  </div>
+}
+
+function ChoiceSetupDialog({ draft, participants, errors, onChange, onCancel, onContinue }: {
+  draft: ChoiceDraft | null
+  participants: EditorParticipant[]
+  errors: string[]
+  onChange: (draft: ChoiceDraft) => void
+  onCancel: () => void
+  onContinue: () => void
+}) {
+  if (!draft) return null
+  const preset = checkboxRulePreset(draft.minimumSelected, draft.maximumSelected)
+  const title = draft.kind === 'dropdown' ? 'Set up dropdown' : draft.kind === 'radio' ? 'Set up radio group' : 'Set up checkbox group'
+  return <Dialog open onOpenChange={(open) => { if (!open) onCancel() }}>
+    <DialogContent className="sm:max-w-xl">
+      <DialogHeader><DialogTitle>{title}</DialogTitle><DialogDescription>Name the question and choices now. Internal values are generated and kept stable automatically.</DialogDescription></DialogHeader>
+      <div className="space-y-4">
+        <label className="block text-sm"><span className="mb-1 block font-medium">{draft.kind === 'dropdown' ? 'Question or field label' : 'Question or group label'}</span><Input autoFocus value={draft.label} onChange={(event) => onChange({ ...draft, label: event.target.value })} placeholder="e.g. What type of entity is this?" /></label>
+        <label className="block text-sm"><span className="mb-1 block font-medium">Assigned recipient</span><select className="w-full rounded border border-border bg-background px-2 py-2" value={draft.participantId} onChange={(event) => onChange({ ...draft, participantId: event.target.value })}>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.label}</option>)}</select></label>
+        <fieldset className="space-y-2"><legend className="text-sm font-medium">Choices <span className="font-normal text-foreground-muted">· default</span></legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} multipleDefaults={draft.kind === 'checkbox-group'} onChange={(choices) => onChange({ ...draft, choices, defaultIds: draft.defaultIds.filter((id) => choices.some((choice) => choice.id === id)) })} onDefaultsChange={(defaultIds) => onChange({ ...draft, defaultIds })} /></fieldset>
+        {draft.kind !== 'checkbox-group' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.required} onChange={(event) => onChange({ ...draft, required: event.target.checked })} /> Recipient must choose an option</label>}
+        {draft.kind === 'checkbox-group' && <fieldset className="space-y-2"><legend className="text-sm font-medium">How many may the recipient select?</legend><select aria-label="Selection rule" className="w-full rounded border border-border bg-background px-2 py-2" value={preset} onChange={(event) => onChange({ ...draft, ...checkboxRuleFromPreset(event.target.value as CheckboxRulePreset, draft.minimumSelected, draft.maximumSelected) })}><option value="any">Any number</option><option value="at-least-one">At least one</option><option value="at-most-one">At most one</option><option value="exactly-one">Exactly one</option><option value="custom">Custom minimum / maximum</option></select>{preset === 'custom' && <div className="grid grid-cols-2 gap-2"><label className="text-xs">Minimum<Input aria-label="Minimum selections" type="number" min={0} value={draft.minimumSelected ?? 0} onChange={(event) => onChange({ ...draft, minimumSelected: Number(event.target.value) })} /></label><label className="text-xs">Maximum<Input aria-label="Maximum selections" type="number" min={0} value={draft.maximumSelected ?? ''} onChange={(event) => onChange({ ...draft, maximumSelected: event.target.value === '' ? undefined : Number(event.target.value) })} /></label></div>}</fieldset>}
+        {!!errors.length && <div role="alert" className="rounded-md border border-destructive/30 bg-destructive-soft p-2 text-sm text-destructive">{errors.map((error) => <p key={error}>{error}</p>)}</div>}
+      </div>
+      <DialogFooter><Button type="button" variant="outline" onClick={onCancel}>Cancel</Button><Button type="button" onClick={onContinue}>Continue to placement</Button></DialogFooter>
+    </DialogContent>
+  </Dialog>
+}
+
 const REQUIRED_FIELD_TYPES = new Set<EditorFieldType>([
   'signature', 'initials', 'stamp', 'date', 'number', 'text', 'company', 'title',
   'checkbox', 'radio', 'dropdown', 'attachment',
@@ -258,7 +349,7 @@ function FieldFloatingToolbar({ field, participants, participantIndexById, pageS
   remove: () => void
 }) {
   const position = getFloatingToolbarPosition(field, pageSize.width, pageSize.height)
-  const canBeRequired = REQUIRED_FIELD_TYPES.has(field.fieldType)
+  const canBeRequired = REQUIRED_FIELD_TYPES.has(field.fieldType) && !(field.fieldType === 'checkbox' && field.properties?.selection_group?.id)
 
   return <div
     role="toolbar"
@@ -318,18 +409,154 @@ function defaultProperties(type: EditorFieldType, radioGroup: string | null): Ed
   return { schema_version: 2 }
 }
 
-function PropertiesPanel({ field, fields, update, updateRadioGroup, remove }: {
+function ChoiceAdvancedSettings({ members, allFields, replaceFields }: { members: EditorField[]; allFields: EditorField[]; replaceFields: (next: EditorField[]) => void }) {
+  const first = members[0]
+  if (!first) return null
+  const updateAllProperties = (patch: Partial<EditorFieldProperties>) => replaceFields(members.map((member) => ({ ...member, properties: { ...member.properties, ...patch } })))
+  const horizontalAlignment = first.properties?.appearance?.alignment ?? defaultFieldHorizontalAlignment(first.fieldType)
+  const verticalAlignment = first.properties?.appearance?.vertical_alignment ?? DEFAULT_FIELD_VERTICAL_ALIGNMENT
+  const setAppearance = (patch: Partial<NonNullable<EditorFieldProperties['appearance']>>) => replaceFields(members.map((member) => ({ ...member, properties: { ...member.properties, appearance: { ...member.properties?.appearance, alignment: horizontalAlignment, vertical_alignment: verticalAlignment, ...patch } } })))
+  const conditional = first.properties?.conditional
+  const memberIds = new Set(members.map((member) => member.id))
+  const conditionalCandidates = allFields.filter((item) => !memberIds.has(item.id) && item.participantId === first.participantId && !['signature', 'initials', 'stamp', 'attachment', 'formula', 'note'].includes(item.fieldType))
+    .filter((item, index, candidates) => item.fieldType !== 'radio' || candidates.findIndex((candidate) => candidate.fieldType === 'radio' && candidate.properties?.group?.id === item.properties?.group?.id) === index)
+  const conditionalParent = allFields.find((item) => item.id === conditional?.parent_field_id)
+  const conditionalChoices = conditionalParent?.fieldType === 'dropdown' ? conditionalParent.properties?.options ?? [] : conditionalParent?.fieldType === 'radio' ? allFields.filter((item) => item.fieldType === 'radio' && item.properties?.group?.id === conditionalParent.properties?.group?.id).map((item) => ({ value: item.properties?.option_value ?? '', label: item.label || item.properties?.option_value || 'Choice' })) : []
+  const setConditional = (next: EditorFieldProperties['conditional']) => updateAllProperties({ conditional: next })
+  return <details className="rounded-md border border-border p-2"><summary className="cursor-pointer text-xs font-medium">Advanced</summary><div className="mt-2 space-y-2">
+    <label className="block text-xs">Data label<input className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={first.properties?.data_label ?? ''} onChange={(event) => updateAllProperties({ data_label: event.target.value, shared_value: members.length > 1 || first.properties?.shared_value })} /></label>
+    <label className="block text-xs">Tooltip<input className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={first.properties?.tooltip ?? ''} onChange={(event) => updateAllProperties({ tooltip: event.target.value || undefined })} /></label>
+    <label className="flex gap-2 text-xs"><input type="checkbox" checked={first.properties?.read_only ?? false} onChange={(event) => updateAllProperties({ read_only: event.target.checked })} /> Read only</label>
+    <label className="flex gap-2 text-xs"><input type="checkbox" checked={first.properties?.shared_value ?? false} onChange={(event) => updateAllProperties({ shared_value: event.target.checked })} /> Share values with this data label</label>
+    <div className="grid grid-cols-2 gap-2"><label className="text-xs">Horizontal<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={horizontalAlignment} onChange={(event) => setAppearance({ alignment: event.target.value as FieldHorizontalAlignment })}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label><label className="text-xs">Vertical<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={verticalAlignment} onChange={(event) => setAppearance({ vertical_alignment: event.target.value as FieldVerticalAlignment })}><option value="top">Top</option><option value="middle">Middle</option><option value="bottom">Bottom</option></select></label></div>
+    {supportsTextAppearance(first.fieldType) && <div className="grid grid-cols-2 gap-2"><label className="text-xs">Font<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={first.properties?.appearance?.font ?? 'Helvetica'} onChange={(event) => setAppearance({ font: event.target.value })}>{TEXT_FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><label className="text-xs">Size (pt)<input type="number" min={4} max={144} className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={first.properties?.appearance?.font_size ?? ''} onChange={(event) => setAppearance({ font_size: event.target.value ? Number(event.target.value) : undefined })} /></label></div>}
+    <label className="block text-xs">Conditional behavior<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" disabled={!conditionalCandidates.length} value={conditional?.action ?? 'none'} onChange={(event) => setConditional(event.target.value === 'none' ? undefined : { parent_field_id: conditionalCandidates[0].id, operator: 'not_empty', values: [], action: event.target.value as 'show' | 'require' })}><option value="none">Always visible</option><option value="show">Show when…</option><option value="require">Require when…</option></select></label>
+    {conditional && <><select aria-label="Conditional source" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.parent_field_id} onChange={(event) => setConditional({ ...conditional, parent_field_id: event.target.value, values: [] })}>{conditionalCandidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.fieldType === 'radio' ? candidate.properties?.group?.label || candidate.label || 'Radio group' : candidate.label || SHORT[candidate.fieldType]}</option>)}</select><select aria-label="Conditional operator" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.operator} onChange={(event) => setConditional({ ...conditional, operator: event.target.value as NonNullable<EditorFieldProperties['conditional']>['operator'] })}><option value="not_empty">Is not empty</option><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="any_of">Any of</option></select>{!['not_empty', 'checked', 'unchecked'].includes(conditional.operator) && conditionalChoices.length > 0 && <select aria-label="Conditional choice" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.values?.[0] ?? ''} onChange={(event) => setConditional({ ...conditional, values: event.target.value ? [event.target.value] : [] })}><option value="">Choose a value…</option>{conditionalChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}</select>}</>}
+    <p className="text-xs text-foreground-subtle">Stored choice values and group IDs are managed automatically. Group changes apply to every member.</p>
+  </div></details>
+}
+
+function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField, remove }: {
+  field: EditorField
+  fields: EditorField[]
+  update: (patch: Partial<EditorField>) => void
+  commitFields: (next: EditorField[]) => void
+  focusField: (field: EditorField) => void
+  remove: () => void
+}) {
+  const replaceMembers = (members: EditorField[], nextMembers: EditorField[]) => {
+    const nextById = new Map(nextMembers.map((member) => [member.id, member]))
+    commitFields(fields.map((item) => nextById.get(item.id) ?? item).filter((item) => !members.some((member) => member.id === item.id) || nextById.has(item.id)))
+  }
+
+  if (field.fieldType === 'dropdown') {
+    const draft = normalizeDropdown(field)
+    const draftErrors = validateChoiceDraft(draft)
+    const setChoices = (choices: ChoiceOption[]) => update({ properties: { ...field.properties, options: choices.map((choice) => ({ value: choice.id, label: choice.label })), sender_prefill: choices.some((choice) => choice.id === draft.defaultIds[0]) ? draft.defaultIds[0] : undefined } })
+    return <div className="space-y-3 rounded-md border border-border bg-surface p-3 text-sm">
+      <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Dropdown</p>
+      <label className="block"><span className="mb-1 block font-medium">Question or field label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''} onChange={(event) => update({ label: event.target.value })} /></label>
+      <fieldset><legend className="mb-1 font-medium">Options · default</legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} onChange={setChoices} onDefaultsChange={(defaultIds) => update({ properties: { ...field.properties, sender_prefill: defaultIds[0] } })} /></fieldset>
+      {!!draft.defaultIds.length && <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => update({ properties: { ...field.properties, sender_prefill: undefined } })}>Clear default</Button>}
+      <label className="flex gap-2"><input type="checkbox" checked={field.required} onChange={(event) => update({ required: event.target.checked })} /> Recipient must choose an option</label>
+      <label className="block"><span className="mb-1 block font-medium">Preview</span><select disabled className="w-full rounded border border-border bg-background px-2 py-1.5" value={field.properties?.sender_prefill ?? ''}><option value="">Select…</option>{draft.choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>
+      {!!draftErrors.length && <div role="alert" className="rounded bg-destructive-soft p-2 text-xs text-destructive">{draftErrors.map((error) => <p key={error}>{error}</p>)}</div>}
+      <ChoiceAdvancedSettings members={[field]} allFields={fields} replaceFields={(members) => replaceMembers([field], members)} />
+      <Button type="button" variant="outline" size="sm" className="w-full text-destructive" onClick={remove}><Trash2 className="mr-1.5 size-3.5" /> Remove dropdown</Button>
+    </div>
+  }
+
+  const radioGroupId = field.fieldType === 'radio' ? field.properties?.group?.id : undefined
+  const checkboxGroupId = field.fieldType === 'checkbox' ? field.properties?.selection_group?.id : undefined
+  if (radioGroupId || checkboxGroupId) {
+    const isRadio = !!radioGroupId
+    const groupId = radioGroupId ?? checkboxGroupId!
+    const members = fields.filter((item) => isRadio ? item.fieldType === 'radio' && item.properties?.group?.id === groupId : item.fieldType === 'checkbox' && item.properties?.selection_group?.id === groupId)
+    const draft = isRadio ? normalizeRadioGroup(fields, groupId) : normalizeCheckboxGroup(fields, groupId)
+    const draftErrors = validateChoiceDraft(draft)
+    const rulePreset = checkboxRulePreset(draft.minimumSelected, draft.maximumSelected)
+    const updateGroupLabel = (label: string) => replaceMembers(members, members.map((member) => ({ ...member, properties: isRadio ? { ...member.properties, group: { id: groupId, label } } : { ...member.properties, selection_group: { ...(member.properties?.selection_group ?? {}), id: groupId, label } } })))
+    const updateChoices = (choices: ChoiceOption[]) => {
+      const choiceByFieldId = new Map(choices.map((choice) => [choice.fieldId, choice]))
+      const memberIndexes = fields.map((item, index) => members.some((member) => member.id === item.id) ? index : -1).filter((index) => index >= 0)
+      const reordered = choices.map((choice) => {
+        const member = members.find((item) => item.id === choice.fieldId)!
+        return { ...member, label: choice.label }
+      })
+      const next = [...fields]
+      memberIndexes.forEach((index, memberIndex) => { next[index] = reordered[memberIndex] })
+      if (choiceByFieldId.size) commitFields(next)
+    }
+    const setDefaults = (defaultIds: string[]) => replaceMembers(members, members.map((member) => ({ ...member, properties: { ...member.properties, sender_prefill: defaultIds.includes(isRadio ? member.properties?.option_value ?? '' : member.id) ? 'true' : 'false' } })))
+    const updateRule = (preset: CheckboxRulePreset, minimum = draft.minimumSelected, maximum = draft.maximumSelected) => {
+      const rule = checkboxRuleFromPreset(preset, minimum, maximum)
+      replaceMembers(members, members.map((member) => ({ ...member, properties: { ...member.properties, selection_group: { ...(member.properties?.selection_group ?? {}), id: groupId, label: draft.label, minimum_selected: rule.minimumSelected, maximum_selected: rule.maximumSelected } } })))
+    }
+    const addChoice = () => {
+      const last = members[members.length - 1]
+      const id = newId()
+      const next: EditorField = { ...last, id, posX: clamp(last.posX + 0.04, 0, 1 - last.width), posY: clamp(last.posY + 0.03, 0, 1 - last.height), label: `Choice ${members.length + 1}`, properties: { ...structuredClone(last.properties ?? {}), data_label: `${isRadio ? 'radio' : 'checkbox'}_${id.slice(0, 8)}`, sender_prefill: 'false', ...(isRadio ? { option_value: `option_${newId()}` } : {}) } }
+      commitFields([...fields, next]); focusField(next)
+    }
+    const removeChoice = (choice: ChoiceOption) => {
+      if (members.length <= 2 || !choice.fieldId) return
+      const removed = members.find((member) => member.id === choice.fieldId)
+      if (!removed) return
+      commitFields(fields.filter((item) => item.id !== removed.id)); focusField(members.find((member) => member.id !== removed.id)!)
+    }
+    return <div className="space-y-3 rounded-md border border-border bg-surface p-3 text-sm">
+      <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">{isRadio ? 'Radio group' : 'Checkbox group'}</p>
+      <label className="block"><span className="mb-1 block font-medium">Question or group label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={draft.label} onChange={(event) => updateGroupLabel(event.target.value)} /></label>
+      <div className="space-y-1"><p className="font-medium">Choices · default</p>{draft.choices.map((choice, index) => <div key={choice.fieldId ?? choice.id} className="flex items-center gap-1.5">
+        <input type={isRadio ? 'radio' : 'checkbox'} aria-label={`${choice.label} is selected initially`} checked={draft.defaultIds.includes(choice.id)} onChange={(event) => setDefaults(isRadio ? event.target.checked ? [choice.id] : [] : event.target.checked ? [...draft.defaultIds, choice.id] : draft.defaultIds.filter((id) => id !== choice.id))} />
+        <input aria-label={`Choice ${index + 1}`} className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1" value={choice.label} onChange={(event) => updateChoices(draft.choices.map((item) => item.id === choice.id ? { ...item, label: event.target.value } : item))} />
+        <button type="button" className="rounded p-1 text-primary hover:bg-primary-soft" onClick={() => { const member = members.find((item) => item.id === choice.fieldId); if (member) focusField(member) }} aria-label={`Focus ${choice.label} on document`}><Search className="size-3.5" /></button>
+        <button type="button" disabled={members.length <= 2} className="rounded p-1 text-destructive hover:bg-destructive-soft disabled:opacity-30" onClick={() => removeChoice(choice)} aria-label={`Remove ${choice.label}`}><X className="size-3.5" /></button>
+      </div>)}</div>
+      {isRadio ? <label className="flex gap-2"><input type="checkbox" checked={draft.required} onChange={(event) => replaceMembers(members, members.map((member) => ({ ...member, required: event.target.checked })))} /> Recipient must choose an option</label> : <fieldset className="space-y-2"><legend className="font-medium">Selection rule</legend><select className="w-full rounded border border-border bg-background px-2 py-1.5" value={rulePreset} onChange={(event) => updateRule(event.target.value as CheckboxRulePreset)}><option value="any">Any number</option><option value="at-least-one">At least one</option><option value="at-most-one">At most one</option><option value="exactly-one">Exactly one</option><option value="custom">Custom minimum / maximum</option></select>{rulePreset === 'custom' && <div className="grid grid-cols-2 gap-2"><Input aria-label="Minimum selections" type="number" min={0} max={members.length} value={draft.minimumSelected ?? 0} onChange={(event) => updateRule('custom', Number(event.target.value), draft.maximumSelected)} /><Input aria-label="Maximum selections" type="number" min={0} max={members.length} value={draft.maximumSelected ?? ''} onChange={(event) => updateRule('custom', draft.minimumSelected, event.target.value ? Number(event.target.value) : undefined)} /></div>}</fieldset>}
+      {!!draft.defaultIds.length && <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setDefaults([])}>Clear defaults</Button>}
+      {!!draftErrors.length && <div role="alert" className="rounded bg-destructive-soft p-2 text-xs text-destructive">{draftErrors.map((error) => <p key={error}>{error}</p>)}</div>}
+      <Button type="button" variant="outline" size="sm" className="w-full" onClick={addChoice}><Plus className="mr-1.5 size-3.5" /> Add choice</Button>
+      <ChoiceAdvancedSettings members={members} allFields={fields} replaceFields={(nextMembers) => replaceMembers(members, nextMembers)} />
+      <Button type="button" variant="outline" size="sm" className="w-full text-destructive" onClick={() => commitFields(fields.filter((item) => !members.some((member) => member.id === item.id)))}><Trash2 className="mr-1.5 size-3.5" /> Delete group</Button>
+    </div>
+  }
+
+  if (field.fieldType === 'checkbox') {
+    const convertToGroup = () => {
+      const groupId = newId(); const label = field.label || 'Choice 1'; const secondId = newId()
+      const selectionGroup = { id: groupId, label: 'Choose all that apply', minimum_selected: 1, maximum_selected: undefined }
+      const first = { ...field, required: false, label, properties: { ...field.properties, selection_group: selectionGroup } }
+      const second: EditorField = { ...first, id: secondId, label: 'Choice 2', posX: clamp(field.posX + 0.04, 0, 1 - field.width), posY: clamp(field.posY + 0.03, 0, 1 - field.height), properties: { ...first.properties, data_label: `checkbox_${secondId.slice(0, 8)}`, sender_prefill: 'false' } }
+      commitFields(fields.map((item) => item.id === field.id ? first : item).concat(second)); focusField(first)
+    }
+    return <div className="space-y-3 rounded-md border border-border bg-surface p-3 text-sm"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Checkbox</p><label className="block"><span className="mb-1 block font-medium">Label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''} onChange={(event) => update({ label: event.target.value })} /></label><label className="flex gap-2"><input type="checkbox" checked={field.required} onChange={(event) => update({ required: event.target.checked })} /> Recipient must check this box</label><label className="flex gap-2"><input type="checkbox" checked={field.properties?.sender_prefill === 'true'} onChange={(event) => update({ properties: { ...field.properties, sender_prefill: event.target.checked ? 'true' : 'false' } })} /> Checked initially</label><Button type="button" variant="outline" size="sm" className="w-full" onClick={convertToGroup}>Turn into a checkbox group</Button><ChoiceAdvancedSettings members={[field]} allFields={fields} replaceFields={(members) => replaceMembers([field], members)} /><Button type="button" variant="outline" size="sm" className="w-full text-destructive" onClick={remove}><Trash2 className="mr-1.5 size-3.5" /> Remove checkbox</Button></div>
+  }
+  return null
+}
+
+function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, commitFields, focusField }: {
   field: EditorField
   fields: EditorField[]
   update: (patch: Partial<EditorField>) => void
   updateRadioGroup: (transform: (member: EditorField) => EditorField) => void
   remove: () => void
+  commitFields: (next: EditorField[]) => void
+  focusField: (field: EditorField) => void
 }) {
   const properties = field.properties ?? {}
   const setProperties = (patch: Partial<EditorFieldProperties>) => update({ properties: { ...properties, ...patch } })
   const conditional = properties.conditional
-  const conditionalCandidates = fields.filter((item) => item.id !== field.id && item.participantId === field.participantId && !['signature', 'initials', 'stamp', 'attachment', 'formula', 'note'].includes(item.fieldType))
+  const conditionalCandidates = fields
+    .filter((item) => item.id !== field.id && item.participantId === field.participantId && !['signature', 'initials', 'stamp', 'attachment', 'formula', 'note'].includes(item.fieldType))
+    .filter((item, index, candidates) => item.fieldType !== 'radio' || candidates.findIndex((candidate) => candidate.fieldType === 'radio' && candidate.properties?.group?.id === item.properties?.group?.id) === index)
   const conditionalParent = conditionalCandidates.find((item) => item.id === conditional?.parent_field_id)
+    ?? fields.find((item) => item.id === conditional?.parent_field_id)
+  const conditionalChoices = conditionalParent?.fieldType === 'dropdown'
+    ? conditionalParent.properties?.options ?? []
+    : conditionalParent?.fieldType === 'radio'
+      ? fields.filter((item) => item.fieldType === 'radio' && item.properties?.group?.id === conditionalParent.properties?.group?.id).map((item) => ({ value: item.properties?.option_value ?? '', label: item.label || item.properties?.option_value || 'Choice' }))
+      : []
   const canStyleText = supportsTextAppearance(field.fieldType)
   const horizontalAlignment = properties.appearance?.alignment ?? defaultFieldHorizontalAlignment(field.fieldType)
   const verticalAlignment = properties.appearance?.vertical_alignment ?? DEFAULT_FIELD_VERTICAL_ALIGNMENT
@@ -337,6 +564,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove }: {
     appearance: { ...properties.appearance, alignment: horizontalAlignment, vertical_alignment: verticalAlignment, ...patch },
   })
   const [formulaError, setFormulaError] = React.useState('')
+  if (['dropdown', 'radio', 'checkbox'].includes(field.fieldType)) return <ChoicePropertiesPanel field={field} fields={fields} update={update} commitFields={commitFields} focusField={focusField} remove={remove} />
   return <div className="space-y-2 rounded-md border border-border bg-surface p-3 text-sm">
     <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Field properties</p>
     <input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''}
@@ -438,15 +666,15 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove }: {
     {conditional && <>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.parent_field_id}
         onChange={(event) => setProperties({ conditional: { ...conditional, parent_field_id: event.target.value } })}>
-        {conditionalCandidates.map((item) => <option key={item.id} value={item.id}>{item.label || SHORT[item.fieldType]}</option>)}
+        {conditionalCandidates.map((item) => <option key={item.id} value={item.id}>{item.fieldType === 'radio' ? item.properties?.group?.label || item.label || 'Radio group' : item.label || SHORT[item.fieldType]}</option>)}
       </select>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.operator}
         onChange={(event) => setProperties({ conditional: { ...conditional, operator: event.target.value as NonNullable<EditorFieldProperties['conditional']>['operator'] } })}>
         <option value="not_empty">Is not empty</option><option value="equals">Equals</option><option value="not_equals">Does not equal</option>
-        <option value="any_of">Any of</option>{['checkbox', 'radio'].includes(conditionalParent?.fieldType ?? '') && <><option value="checked">Checked</option><option value="unchecked">Unchecked</option></>}
+        <option value="any_of">Any of</option>{conditionalParent?.fieldType === 'checkbox' && <><option value="checked">Checked</option><option value="unchecked">Unchecked</option></>}
       </select>
-      {!['not_empty', 'checked', 'unchecked'].includes(conditional.operator) && <input className="w-full rounded border border-border bg-background px-2 py-1"
-        value={(conditional.values ?? []).join(', ')} onChange={(event) => setProperties({ conditional: { ...conditional, values: event.target.value.split(',').map((v) => v.trim()).filter(Boolean) } })} placeholder="Value(s), comma separated" />}
+      {!['not_empty', 'checked', 'unchecked'].includes(conditional.operator) && (conditionalChoices.length ? <select aria-label="Conditional choice" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.values?.[0] ?? ''} onChange={(event) => setProperties({ conditional: { ...conditional, values: event.target.value ? [event.target.value] : [] } })}><option value="">Choose a value…</option>{conditionalChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}</select> : <input className="w-full rounded border border-border bg-background px-2 py-1"
+        value={(conditional.values ?? []).join(', ')} onChange={(event) => setProperties({ conditional: { ...conditional, values: event.target.value.split(',').map((v) => v.trim()).filter(Boolean) } })} placeholder="Value(s), comma separated" />)}
     </>}
     <Button type="button" variant="outline" size="sm" className="w-full text-destructive" onClick={remove}><Trash2 className="mr-1.5 size-3.5" /> Remove</Button>
   </div>
@@ -457,6 +685,9 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [activeParticipantId, setActiveParticipantId] = React.useState(participants[0]?.id)
   const [armedType, setArmedType] = React.useState<EditorFieldType | null>(null)
   const [radioGroup, setRadioGroup] = React.useState<string | null>(null)
+  const [choiceSetupDraft, setChoiceSetupDraft] = React.useState<ChoiceDraft | null>(null)
+  const [choiceSetupErrors, setChoiceSetupErrors] = React.useState<string[]>([])
+  const [choicePlacement, setChoicePlacement] = React.useState<ChoicePlacementSession | null>(null)
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
   const [pdf, setPdf] = React.useState<PdfDocument | null>(null)
   const [loadError, setLoadError] = React.useState<string | null>(null)
@@ -624,14 +855,21 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     if (!source.length) return
     const idMap = new Map(source.map((field) => [field.id, newId()]))
     const fullRadioGroups = new Map<string, string>()
+    const fullCheckboxGroups = new Map<string, string>()
     for (const field of source.filter((item) => item.fieldType === 'radio')) {
       const group = field.properties?.group?.id
       const all = fields.filter((item) => item.fieldType === 'radio' && item.properties?.group?.id === group)
       if (group && all.every((item) => source.some((selected) => selected.id === item.id))) fullRadioGroups.set(group, newId())
     }
+    for (const field of source.filter((item) => item.fieldType === 'checkbox' && item.properties?.selection_group?.id)) {
+      const group = field.properties?.selection_group?.id
+      const all = fields.filter((item) => item.fieldType === 'checkbox' && item.properties?.selection_group?.id === group)
+      if (group && all.every((item) => source.some((selected) => selected.id === item.id))) fullCheckboxGroups.set(group, newId())
+    }
     const clones = source.map((field) => {
       const properties = structuredClone(field.properties ?? {})
       if (properties.group?.id && fullRadioGroups.has(properties.group.id)) properties.group.id = fullRadioGroups.get(properties.group.id)!
+      if (properties.selection_group?.id && fullCheckboxGroups.has(properties.selection_group.id)) properties.selection_group.id = fullCheckboxGroups.get(properties.selection_group.id)!
       if (properties.conditional?.parent_field_id && idMap.has(properties.conditional.parent_field_id)) properties.conditional.parent_field_id = idMap.get(properties.conditional.parent_field_id)!
       if (properties.formula?.expression) for (const [oldId, id] of idMap) properties.formula.expression = properties.formula.expression.split(`[${oldId}]`).join(`[${id}]`)
       return { ...field, id: idMap.get(field.id)!, posX: clamp(field.posX + offset, 0, 1 - field.width), posY: clamp(field.posY + offset, 0, 1 - field.height), properties }
@@ -641,7 +879,13 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
 
   const updateSelectedField = React.useCallback((patch: Partial<EditorField>) => {
     if (!selectedField) return
-    commit(fields.map((field) => field.id === selectedField.id ? { ...field, ...patch } : field))
+    const radioGroupId = selectedField.fieldType === 'radio' ? selectedField.properties?.group?.id : undefined
+    const checkboxGroupId = selectedField.fieldType === 'checkbox' ? selectedField.properties?.selection_group?.id : undefined
+    const groupWideRecipientUpdate = patch.participantId && (radioGroupId || checkboxGroupId)
+    commit(fields.map((field) => field.id === selectedField.id || groupWideRecipientUpdate && (
+      radioGroupId && field.fieldType === 'radio' && field.properties?.group?.id === radioGroupId
+      || checkboxGroupId && field.fieldType === 'checkbox' && field.properties?.selection_group?.id === checkboxGroupId
+    ) ? { ...field, ...patch } : field))
   }, [commit, fields, selectedField])
 
   const updateSelectedRequired = React.useCallback((required: boolean) => {
@@ -662,7 +906,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       if (mod && event.key.toLowerCase() === 'v') { event.preventDefault(); duplicate(clipboard.current); return }
       if (mod && event.key.toLowerCase() === 'd') { event.preventDefault(); duplicate(fields.filter((field) => selectedIds.has(field.id))); return }
       if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); removeSelected(); return }
-      if (event.key === 'Escape') { setArmedType(null); setRadioGroup(null); setSelectedIds(new Set()); return }
+      if (event.key === 'Escape') { setArmedType(null); setRadioGroup(null); setChoicePlacement(null); setChoiceSetupDraft(null); setChoiceSetupErrors([]); setSelectedIds(new Set()); return }
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) && selectedIds.size) {
         event.preventDefault(); const scale = event.shiftKey ? 10 : 1; const dx = (event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0) * 0.0015 * scale; const dy = (event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0) * 0.0015 * scale
         commit(fields.map((field) => selectedIds.has(field.id) ? { ...field, posX: clamp(field.posX + dx, 0, 1 - field.width), posY: clamp(field.posY + dy, 0, 1 - field.height) } : field))
@@ -674,6 +918,37 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const placeField = (pageNumber: number, x: number, y: number) => {
     if (!armedType || !activeDocument || !activeParticipantId) return
     const size = DEFAULT_SIZES[armedType]
+    if (choicePlacement) {
+      const position = { documentId: activeDocument.id, pageNumber, posX: clamp(x - size.width / 2, 0, 1 - size.width), posY: clamp(y - size.height / 2, 0, 1 - size.height) }
+      const { draft, groupId } = choicePlacement
+      if (draft.kind === 'dropdown') {
+        const id = newId()
+        const field: EditorField = {
+          id, ...position, participantId: draft.participantId, fieldType: 'dropdown', width: size.width, height: size.height,
+          required: draft.required, label: draft.label,
+          properties: { schema_version: 2, options: draft.choices.map((choice) => ({ value: choice.id, label: choice.label.trim() })), sender_prefill: draft.defaultIds[0], data_label: `dropdown_${id.slice(0, 8)}` },
+        }
+        commit([...fields, field]); setSelectedIds(new Set([id])); setChoicePlacement(null); setArmedType(null)
+        return
+      }
+      const positions = [...choicePlacement.positions, position]
+      if (positions.length < draft.choices.length) { setChoicePlacement({ ...choicePlacement, positions }); return }
+      const created = draft.choices.map((choice, index): EditorField => {
+        const id = newId()
+        if (draft.kind === 'radio') return {
+          id, ...positions[index], participantId: draft.participantId, fieldType: 'radio', width: size.width, height: size.height,
+          required: draft.required, label: choice.label.trim(),
+          properties: { schema_version: 2, group: { id: groupId, label: draft.label.trim() }, option_value: choice.id, sender_prefill: draft.defaultIds.includes(choice.id) ? 'true' : 'false', data_label: `radio_${id.slice(0, 8)}` },
+        }
+        return {
+          id, ...positions[index], participantId: draft.participantId, fieldType: 'checkbox', width: size.width, height: size.height,
+          required: false, label: choice.label.trim(),
+          properties: { schema_version: 2, sender_prefill: draft.defaultIds.includes(choice.id) ? 'true' : 'false', data_label: `checkbox_${id.slice(0, 8)}`, selection_group: { id: groupId, label: draft.label.trim(), minimum_selected: draft.minimumSelected ?? 0, maximum_selected: draft.maximumSelected } },
+        }
+      })
+      commit([...fields, ...created]); setSelectedIds(new Set(created.map((field) => field.id))); setChoicePlacement(null); setArmedType(null)
+      return
+    }
     const id = newId()
     const field: EditorField = { id, documentId: activeDocument.id, participantId: activeParticipantId, fieldType: armedType,
       pageNumber, posX: clamp(x - size.width / 2, 0, 1 - size.width), posY: clamp(y - size.height / 2, 0, 1 - size.height),
@@ -682,6 +957,31 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     commit([...fields, field]); setSelectedIds(new Set([id]))
     if (armedType === 'radio') setRadioGroup(field.properties?.group?.id ?? radioGroup)
     else setArmedType(null)
+  }
+
+  const openChoiceSetup = (kind: ChoiceKind) => {
+    const choiceCount = kind === 'dropdown' ? 1 : 2
+    setArmedType(null); setRadioGroup(null); setChoicePlacement(null); setChoiceSetupErrors([])
+    setChoiceSetupDraft({
+      kind,
+      label: kind === 'dropdown' ? 'Select an option' : kind === 'radio' ? 'Choose one' : 'Choose all that apply',
+      participantId: activeParticipantId ?? participants[0]?.id ?? '',
+      choices: Array.from({ length: choiceCount }, (_, index) => createChoice(`Choice ${index + 1}`, newId)),
+      required: kind !== 'checkbox-group',
+      defaultIds: [],
+      minimumSelected: kind === 'checkbox-group' ? 1 : undefined,
+      maximumSelected: undefined,
+    })
+  }
+
+  const beginChoicePlacement = () => {
+    if (!choiceSetupDraft) return
+    const errors = validateChoiceDraft(choiceSetupDraft)
+    if (errors.length) { setChoiceSetupErrors(errors); return }
+    setActiveParticipantId(choiceSetupDraft.participantId)
+    setChoicePlacement({ draft: choiceSetupDraft, groupId: newId(), positions: [] })
+    setArmedType(choiceSetupDraft.kind === 'dropdown' ? 'dropdown' : choiceSetupDraft.kind === 'radio' ? 'radio' : 'checkbox')
+    setChoiceSetupDraft(null); setChoiceSetupErrors([]); setSelectedIds(new Set())
   }
 
   const drag = React.useRef<null | { mode: 'move' | 'resize'; handle?: Handle; startX: number; startY: number; before: EditorField[]; field: EditorField; selected: Set<string>; pageWidth: number; pageHeight: number }>(null)
@@ -788,13 +1088,13 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     <aside className="w-full shrink-0 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-6rem)] lg:w-64 lg:self-start lg:overflow-y-auto lg:pr-1">
       {documents.length > 1 && <Select value={activeDocument?.id} onValueChange={(documentId) => { setActiveDocumentId(documentId); if (anchorSession?.documentId !== documentId) { setAnchorSession(null); setAnchorResult('') } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documents.map((doc) => <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>)}</SelectContent></Select>}
       <div className="space-y-1.5"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Assign to</p>{participants.map((participant, index) => {
-        const color = participantColor(index); return <button key={participant.id} type="button" onClick={() => setActiveParticipantId(participant.id)}
-          className={cn('flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm', participant.id === activeParticipantId ? 'border-primary bg-primary-soft' : 'border-border bg-surface')}>
+        const color = participantColor(index); return <button key={participant.id} type="button" disabled={!!choicePlacement} onClick={() => setActiveParticipantId(participant.id)}
+          className={cn('flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60', participant.id === activeParticipantId ? 'border-primary bg-primary-soft' : 'border-border bg-surface')}>
           <span className="size-2.5 rounded-full" style={{ backgroundColor: color.border }} /> <span className="truncate">{participant.label}</span></button>})}</div>
       <div className="space-y-1.5"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Fields</p>
-        <div className="grid grid-cols-2 gap-1.5">{FIELD_TYPES.map(({ type, label, icon: Icon }) => <button key={type} type="button" title={label}
-          onClick={() => { const next = armedType === type ? null : type; setArmedType(next); setRadioGroup(next === 'radio' ? newId() : null) }}
-          className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', armedType === type ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
+        <div className="grid grid-cols-2 gap-1.5">{FIELD_TYPES.map(({ key, type, label, icon: Icon, setupKind }) => <button key={key ?? type} type="button" title={label}
+          onClick={() => { if (setupKind) { openChoiceSetup(setupKind); return } const next = armedType === type && !choicePlacement ? null : type; setChoicePlacement(null); setArmedType(next); setRadioGroup(null) }}
+          className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', armedType === type && !choicePlacement ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
         {onImportFillableFields && activeDocument && <Button type="button" variant="outline" size="sm" className="w-full" disabled={importingFillableFields} onClick={() => onImportFillableFields(activeDocument.id)}>{importingFillableFields ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <FileInput className="mr-1.5 size-3.5" />} Import fillable fields</Button>}
         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setAnchorResult(''); setAnchorOpen(true) }}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
         {aiFieldPlacement && <Button type="button" variant="outline" size="sm" className="w-full" disabled={!!aiRun && ['queued', 'processing', 'completed'].includes(aiRun.status)} onClick={() => { setAiError(''); setAiDialogOpen(true) }}>{aiRun && ['queued', 'processing'].includes(aiRun.status) ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Sparkles className="mr-1.5 size-3.5" />} {aiRun && ['queued', 'processing'].includes(aiRun.status) ? 'AI analysis running' : aiRun?.status === 'completed' ? 'Review AI suggestions below' : 'Place fields with AI'}</Button>}
@@ -816,10 +1116,16 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
             if (next >= 0) focusAnchorMatch(anchorSession.ruleId, next)
           }}>Next unplaced</Button><Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => { setAnchorSession(null); setAnchorResult('') }}>Done</Button></div>
         </div>}
+        {choicePlacement && <div className="space-y-2 rounded-md border border-primary/30 bg-primary-soft p-2.5 text-xs" role="status" aria-live="polite">
+          <div className="flex items-center justify-between gap-2"><span className="font-medium text-foreground">Place {choicePlacement.draft.kind === 'dropdown' ? 'dropdown' : 'group choices'}</span><span className="rounded-full bg-surface px-2 py-0.5 font-medium text-primary">{choicePlacement.draft.kind === 'dropdown' ? '1 click' : `${choicePlacement.positions.length}/${choicePlacement.draft.choices.length}`}</span></div>
+          <p className="font-medium text-foreground">{choicePlacement.draft.kind === 'dropdown' ? choicePlacement.draft.label : `Choice ${choicePlacement.positions.length + 1} of ${choicePlacement.draft.choices.length}: ${choicePlacement.draft.choices[choicePlacement.positions.length]?.label}`}</p>
+          <p className="text-foreground-muted">Assigned to {participants.find((participant) => participant.id === choicePlacement.draft.participantId)?.label}. Escape cancels without saving.</p>
+          <Button type="button" variant="outline" size="sm" className="h-7 w-full text-xs" onClick={() => { setChoicePlacement(null); setArmedType(null) }}>Cancel placement</Button>
+        </div>}
         <div className="flex gap-1"><Button type="button" variant="ghost" size="sm" onClick={undo} title="Undo"><Undo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={redo} title="Redo"><Redo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={() => duplicate(fields.filter((field) => selectedIds.has(field.id)))} title="Duplicate"><Copy className="size-4" /></Button></div>
-        <p className="text-xs text-foreground-subtle">{armedType ? armedType === 'radio' ? 'Click repeatedly to add options; Escape ends the group.' : 'Click a page to place.' : 'Shift/Cmd-click or drag a marquee to multi-select. Alt disables snapping.'}</p>
+        <p className="text-xs text-foreground-subtle">{choicePlacement ? 'Click the PDF at each requested position.' : armedType ? 'Click a page to place.' : 'Shift/Cmd-click or drag a marquee to multi-select. Alt disables snapping.'}</p>
       </div>
-      {selectedField && <PropertiesPanel field={selectedField} fields={fields} update={updateSelectedField} updateRadioGroup={(transform) => { const group = selectedField.properties?.group?.id; commit(fields.map((field) => field.fieldType === 'radio' && field.properties?.group?.id === group ? transform(field) : field)) }} remove={removeSelected} />}
+      {selectedField && <PropertiesPanel field={selectedField} fields={fields} update={updateSelectedField} updateRadioGroup={(transform) => { const group = selectedField.properties?.group?.id; commit(fields.map((field) => field.fieldType === 'radio' && field.properties?.group?.id === group ? transform(field) : field)) }} commitFields={(next) => commit(next)} focusField={(target) => { setActiveDocumentId(target.documentId); setActiveParticipantId(target.participantId); setSelectedIds(new Set([target.id])); window.setTimeout(() => document.getElementById(`esign-editor-field-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0) }} remove={removeSelected} />}
     </aside>
     <main className={cn('min-w-0 flex-1 space-y-4 rounded-lg bg-surface-muted p-3 sm:p-4', armedType && 'cursor-crosshair')}>
       {loadError && <p className="text-sm text-destructive">{loadError}</p>}
@@ -834,6 +1140,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         }} onPointerDown={(event) => { if (armedType) { const rect = event.currentTarget.getBoundingClientRect(); placeField(pageIndex, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height) } else { const rect = event.currentTarget.getBoundingClientRect(); setSelectedIds(new Set()); setMarquee({ page: pageIndex, x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height, width: 0, height: 0 }) } }}>
           <AlignmentGuides guides={guides} width={size.width} height={size.height} />
           {marquee?.page === pageIndex && <span className="pointer-events-none absolute border border-primary bg-primary/10" style={{ left: Math.min(marquee.x, marquee.x + marquee.width) * size.width, top: Math.min(marquee.y, marquee.y + marquee.height) * size.height, width: Math.abs(marquee.width) * size.width, height: Math.abs(marquee.height) * size.height }} />}
+          {choicePlacement?.positions.filter((position) => position.documentId === activeDocument.id && position.pageNumber === pageIndex).map((position, index) => <span key={`${position.documentId}-${position.pageNumber}-${index}`} data-testid="staged-choice-position" className="pointer-events-none absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/20 text-[10px] font-semibold text-primary ring-2 ring-primary/20" style={{ left: position.posX * size.width, top: position.posY * size.height, width: DEFAULT_SIZES[armedType ?? 'checkbox'].width * size.width, height: DEFAULT_SIZES[armedType ?? 'checkbox'].height * size.height }}><span className="absolute -top-5 whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-[9px] text-primary-foreground">{index + 1}. {choicePlacement.draft.choices[index]?.label}</span><Check className="size-3" /></span>)}
           {anchorSession?.documentId === activeDocument.id && anchorSession.matches.map((match, matchIndex) => {
             if (match.page_number !== pageIndex) return null
             const placed = placedAnchorMatchIndexes.has(matchIndex)
@@ -857,11 +1164,11 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
               </button>}
             </React.Fragment>
           })}
-          {fields.filter((field) => field.documentId === activeDocument.id && field.pageNumber === pageIndex).map((field) => { const color = participantColor(participantIndexById.get(field.participantId) ?? 0); const selected = selectedIds.has(field.id); const isConditionalParent = selectedField?.properties?.conditional?.parent_field_id === field.id; const canStyleText = supportsTextAppearance(field.fieldType); const appearance = field.properties?.appearance; const horizontalAlignment = appearance?.alignment ?? defaultFieldHorizontalAlignment(field.fieldType); const verticalAlignment = appearance?.vertical_alignment ?? DEFAULT_FIELD_VERTICAL_ALIGNMENT
+          {fields.filter((field) => field.documentId === activeDocument.id && field.pageNumber === pageIndex).map((field) => { const color = participantColor(participantIndexById.get(field.participantId) ?? 0); const selected = selectedIds.has(field.id); const selectedRadioGroup = selectedField?.fieldType === 'radio' ? selectedField.properties?.group?.id : undefined; const selectedCheckboxGroup = selectedField?.fieldType === 'checkbox' ? selectedField.properties?.selection_group?.id : undefined; const peer = !selected && (field.fieldType === 'radio' && !!selectedRadioGroup && field.properties?.group?.id === selectedRadioGroup || field.fieldType === 'checkbox' && !!selectedCheckboxGroup && field.properties?.selection_group?.id === selectedCheckboxGroup); const isConditionalParent = selectedField?.properties?.conditional?.parent_field_id === field.id; const canStyleText = supportsTextAppearance(field.fieldType); const appearance = field.properties?.appearance; const horizontalAlignment = appearance?.alignment ?? defaultFieldHorizontalAlignment(field.fieldType); const verticalAlignment = appearance?.vertical_alignment ?? DEFAULT_FIELD_VERTICAL_ALIGNMENT; const choiceLabel = field.fieldType === 'radio' || field.properties?.selection_group?.id ? field.label || field.properties?.option_value : field.fieldType === 'dropdown' ? field.label : undefined
             return <div key={field.id} id={`esign-editor-field-${field.id}`} onPointerDown={(event) => startInteraction(event, field, 'move', size)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
-              className={cn('absolute flex touch-none select-none items-center justify-center overflow-visible rounded-sm border text-[10px] font-medium', selected && 'ring-2 ring-offset-1', isConditionalParent && 'ring-2 ring-fuchsia-500 ring-offset-1')}
+              className={cn('absolute flex touch-none select-none items-center justify-center overflow-visible rounded-sm border text-[10px] font-medium', selected && 'ring-2 ring-offset-1', peer && 'ring-2 ring-primary/50 ring-offset-1', isConditionalParent && 'ring-2 ring-fuchsia-500 ring-offset-1')}
               style={{ left: field.posX * size.width, top: field.posY * size.height, width: field.width * size.width, height: field.height * size.height, borderColor: color.border, backgroundColor: color.bg, color: canStyleText && appearance?.color ? appearance.color : color.text, cursor: 'move', justifyContent: ({ left: 'flex-start', center: 'center', right: 'flex-end' } as const)[horizontalAlignment], alignItems: ({ top: 'flex-start', middle: 'center', bottom: 'flex-end' } as const)[verticalAlignment], textAlign: horizontalAlignment, fontFamily: canStyleText ? textFontFamily(appearance?.font) : undefined, fontSize: canStyleText ? configuredTextFontSize(appearance?.font_size, size.scale, field.height * size.height) : undefined, fontWeight: canStyleText && appearance?.bold ? 700 : undefined, fontStyle: canStyleText && appearance?.italic ? 'italic' : undefined, textDecoration: canStyleText && appearance?.underline ? 'underline' : undefined }}>
-              <span className="pointer-events-none truncate px-1">{SHORT[field.fieldType]}</span>{field.properties?.conditional && <span className="absolute -right-1 -top-1 size-2 rounded-full bg-fuchsia-500" />}
+              <span className="pointer-events-none truncate px-1">{choiceLabel || SHORT[field.fieldType]}</span>{choiceLabel && (field.fieldType === 'radio' || field.properties?.selection_group?.id) && <span className="pointer-events-none absolute -left-1 -top-4 max-w-36 truncate rounded bg-surface px-1 text-[9px] shadow">{choiceLabel}</span>}{field.properties?.conditional && <span className="absolute -right-1 -top-1 size-2 rounded-full bg-fuchsia-500" />}
               {selected && HANDLES.map((handle) => <span key={handle} onPointerDown={(event) => startInteraction(event, field, 'resize', size, handle)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
                 className="absolute size-2 rounded-[1px] border border-white bg-primary" style={{ cursor: `${handle}-resize`, left: handle.includes('w') ? -4 : handle.includes('e') ? 'calc(100% - 4px)' : 'calc(50% - 4px)', top: handle.includes('n') ? -4 : handle.includes('s') ? 'calc(100% - 4px)' : 'calc(50% - 4px)' }} />)}
             </div>})}
@@ -877,6 +1184,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           />}
         </div>} /></div>)}
     </main>
+    <ChoiceSetupDialog draft={choiceSetupDraft} participants={participants} errors={choiceSetupErrors} onChange={(draft) => { setChoiceSetupDraft(draft); setChoiceSetupErrors([]) }} onCancel={() => { setChoiceSetupDraft(null); setChoiceSetupErrors([]) }} onContinue={beginChoicePlacement} />
     <Dialog open={anchorOpen} onOpenChange={setAnchorOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>Place fields by anchor</DialogTitle><DialogDescription>Find matching text in the active document, review every highlighted location, then place fields one at a time.</DialogDescription></DialogHeader>

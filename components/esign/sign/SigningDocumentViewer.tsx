@@ -151,17 +151,17 @@ export function SigningDocumentViewer({
           }
           if (field.field_type === 'checkbox') {
             const checked = fieldValues[field.id] === 'true'
-            return <button key={field.id} id={`esign-field-${field.id}`} title={tooltip} type="button" onClick={() => onTextChange(field.id, checked ? 'false' : 'true')} className={cn('absolute flex items-center justify-center rounded-sm border text-sm font-bold', checked ? 'border-success bg-surface text-foreground' : 'border-2', activeRing)} style={{ ...style, ...(checked ? {} : { borderColor: color.border, backgroundColor: color.bg }) }}>{checked ? 'X' : ''}</button>
+            return <button key={field.id} id={`esign-field-${field.id}`} title={tooltip} aria-label={field.label || field.properties?.selection_group?.label || 'Checkbox'} aria-pressed={checked} type="button" onClick={() => onTextChange(field.id, checked ? 'false' : 'true')} className={cn('absolute flex items-center justify-center rounded-sm border text-sm font-bold', checked ? 'border-success bg-surface text-foreground' : 'border-2', activeRing)} style={{ ...style, ...(checked ? {} : { borderColor: color.border, backgroundColor: color.bg }) }}>{checked ? 'X' : ''}</button>
           }
           if (field.field_type === 'radio') {
             const selected = fieldValues[field.id] === 'true'
-            return <button key={field.id} id={`esign-field-${field.id}`} type="button" aria-pressed={selected} aria-label={field.properties?.option_value || field.label || 'Radio option'} onClick={() => {
+            return <button key={field.id} id={`esign-field-${field.id}`} type="button" aria-pressed={selected} aria-label={field.label || field.properties?.option_value || 'Radio option'} onClick={() => {
               const group = field.properties?.group?.id
               fields.filter((item) => item.field_type === 'radio' && item.properties?.group?.id === group).forEach((item) => onTextChange(item.id, item.id === field.id ? 'true' : 'false'))
             }} className={cn('absolute flex items-center justify-center rounded-full border-2', activeRing)} style={{ ...style, borderColor: color.border, backgroundColor: 'white' }}>{selected && <span className="size-2/3 rounded-full" style={{ backgroundColor: color.border }} />}</button>
           }
           if (field.field_type === 'dropdown') {
-            return <select key={field.id} id={`esign-field-${field.id}`} title={tooltip} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground', activeRing)} style={{ ...style, ...controlVerticalPadding, boxSizing: 'border-box', borderColor: color.border }}><option value="">Select…</option>{(field.properties?.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+            return <select key={field.id} id={`esign-field-${field.id}`} title={tooltip} aria-label={field.label || 'Select an option'} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground', activeRing)} style={{ ...style, ...controlVerticalPadding, boxSizing: 'border-box', borderColor: color.border }}><option value="">Select…</option>{(field.properties?.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
           }
           if (field.field_type === 'attachment') {
             const attachment = attachments.find((item) => item.field_id === field.id)
