@@ -198,10 +198,10 @@ const DEFAULT_SIZES: Record<EditorFieldType, { width: number; height: number }> 
   title: { width: 0.2, height: 0.03 }, note: { width: 0.28, height: 0.04 },
 }
 
-const SHORT: Record<EditorFieldType, string> = {
-  signature: 'Sign', initials: 'Initials', date_signed: 'Date', text: 'Text', checkbox: '☐',
+export const FIELD_PREVIEW_LABELS: Record<EditorFieldType, string> = {
+  signature: 'Sign', initials: 'Initials', date_signed: 'Date (date signed)', text: 'Text', checkbox: '☐',
   radio: '○', dropdown: 'Select ▾', attachment: 'Attach', formula: 'ƒx', auto_fill: 'Auto',
-  stamp: 'Stamp', date: 'Date', number: '123', first_name: 'First name', last_name: 'Last name',
+  stamp: 'Stamp', date: 'Date (signer enters)', number: '123', first_name: 'First name', last_name: 'Last name',
   full_name: 'Full name', email: 'Email', company: 'Company', title: 'Title', note: 'Note',
 }
 const HANDLES = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const
@@ -354,7 +354,7 @@ function FieldFloatingToolbar({ field, participants, participantIndexById, pageS
 
   return <div
     role="toolbar"
-    aria-label={`${field.label || SHORT[field.fieldType]} field actions`}
+    aria-label={`${field.label || FIELD_PREVIEW_LABELS[field.fieldType]} field actions`}
     data-esign-field-toolbar={field.id}
     className={cn(
       'absolute z-30 flex h-10 items-center gap-1 rounded-lg border border-border bg-surface px-1.5 text-foreground shadow-lg',
@@ -377,7 +377,7 @@ function FieldFloatingToolbar({ field, participants, participantIndexById, pageS
       style={{ left: position.arrowLeft - 4 }}
     />
     <span className="shrink-0 rounded bg-surface-muted px-1.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-foreground-muted">
-      {SHORT[field.fieldType]}
+      {FIELD_PREVIEW_LABELS[field.fieldType]}
     </span>
     <Select value={field.participantId} onValueChange={(participantId) => update({ participantId })}>
       <SelectTrigger className="h-7 min-w-0 flex-1 border-0 bg-transparent px-1.5 text-xs shadow-none focus:ring-1 focus:ring-ring focus:ring-offset-0" aria-label="Assign field to recipient">
@@ -432,7 +432,7 @@ function ChoiceAdvancedSettings({ members, allFields, replaceFields }: { members
     <div className="grid grid-cols-2 gap-2"><label className="text-xs">Horizontal<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={horizontalAlignment} onChange={(event) => setAppearance({ alignment: event.target.value as FieldHorizontalAlignment })}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label><label className="text-xs">Vertical<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={verticalAlignment} onChange={(event) => setAppearance({ vertical_alignment: event.target.value as FieldVerticalAlignment })}><option value="top">Top</option><option value="middle">Middle</option><option value="bottom">Bottom</option></select></label></div>
     {supportsTextAppearance(first.fieldType) && <div className="grid grid-cols-2 gap-2"><label className="text-xs">Font<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={first.properties?.appearance?.font ?? 'Helvetica'} onChange={(event) => setAppearance({ font: event.target.value })}>{TEXT_FONT_OPTIONS.map((font) => <option key={font} value={font}>{font}</option>)}</select></label><label className="text-xs">Size (pt)<input type="number" min={4} max={144} className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value={first.properties?.appearance?.font_size ?? ''} onChange={(event) => setAppearance({ font_size: event.target.value ? Number(event.target.value) : undefined })} /></label></div>}
     <label className="block text-xs">Conditional behavior<select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" disabled={!conditionalCandidates.length} value={conditional?.action ?? 'none'} onChange={(event) => setConditional(event.target.value === 'none' ? undefined : { parent_field_id: conditionalCandidates[0].id, operator: 'not_empty', values: [], action: event.target.value as 'show' | 'require' })}><option value="none">Always visible</option><option value="show">Show when…</option><option value="require">Require when…</option></select></label>
-    {conditional && <><select aria-label="Conditional source" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.parent_field_id} onChange={(event) => setConditional({ ...conditional, parent_field_id: event.target.value, values: [] })}>{conditionalCandidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.fieldType === 'radio' ? candidate.properties?.group?.label || candidate.label || 'Radio group' : candidate.label || SHORT[candidate.fieldType]}</option>)}</select><select aria-label="Conditional operator" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.operator} onChange={(event) => setConditional({ ...conditional, operator: event.target.value as NonNullable<EditorFieldProperties['conditional']>['operator'] })}><option value="not_empty">Is not empty</option><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="any_of">Any of</option></select>{!['not_empty', 'checked', 'unchecked'].includes(conditional.operator) && conditionalChoices.length > 0 && <select aria-label="Conditional choice" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.values?.[0] ?? ''} onChange={(event) => setConditional({ ...conditional, values: event.target.value ? [event.target.value] : [] })}><option value="">Choose a value…</option>{conditionalChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}</select>}</>}
+    {conditional && <><select aria-label="Conditional source" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.parent_field_id} onChange={(event) => setConditional({ ...conditional, parent_field_id: event.target.value, values: [] })}>{conditionalCandidates.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.fieldType === 'radio' ? candidate.properties?.group?.label || candidate.label || 'Radio group' : candidate.label || FIELD_PREVIEW_LABELS[candidate.fieldType]}</option>)}</select><select aria-label="Conditional operator" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.operator} onChange={(event) => setConditional({ ...conditional, operator: event.target.value as NonNullable<EditorFieldProperties['conditional']>['operator'] })}><option value="not_empty">Is not empty</option><option value="equals">Equals</option><option value="not_equals">Does not equal</option><option value="any_of">Any of</option></select>{!['not_empty', 'checked', 'unchecked'].includes(conditional.operator) && conditionalChoices.length > 0 && <select aria-label="Conditional choice" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.values?.[0] ?? ''} onChange={(event) => setConditional({ ...conditional, values: event.target.value ? [event.target.value] : [] })}><option value="">Choose a value…</option>{conditionalChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}</select>}</>}
     <p className="text-xs text-foreground-subtle">Stored choice values and group IDs are managed automatically. Group changes apply to every member.</p>
   </div></details>
 }
@@ -669,7 +669,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
     {conditional && <>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.parent_field_id}
         onChange={(event) => setProperties({ conditional: { ...conditional, parent_field_id: event.target.value } })}>
-        {conditionalCandidates.map((item) => <option key={item.id} value={item.id}>{item.fieldType === 'radio' ? item.properties?.group?.label || item.label || 'Radio group' : item.label || SHORT[item.fieldType]}</option>)}
+        {conditionalCandidates.map((item) => <option key={item.id} value={item.id}>{item.fieldType === 'radio' ? item.properties?.group?.label || item.label || 'Radio group' : item.label || FIELD_PREVIEW_LABELS[item.fieldType]}</option>)}
       </select>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.operator}
         onChange={(event) => setProperties({ conditional: { ...conditional, operator: event.target.value as NonNullable<EditorFieldProperties['conditional']>['operator'] } })}>
@@ -1129,7 +1129,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         {aiRun?.status === 'failed' && <div className="rounded-md border border-destructive/30 bg-destructive-soft p-2.5 text-xs text-destructive">{aiRun.error || 'AI analysis failed. You can place fields manually or try again.'}</div>}
         {anchorSession && <div className="space-y-2 rounded-md border border-primary/30 bg-primary-soft p-2.5 text-xs">
           <div className="flex items-center justify-between gap-2"><span className="font-medium text-foreground">Anchor matches</span><span className="rounded-full bg-surface px-2 py-0.5 font-medium text-primary">{placedAnchorMatchIndexes.size}/{anchorSession.matches.length} placed</span></div>
-          <p className="text-foreground-muted">Select a dashed box to place {SHORT[anchorSession.type].toLowerCase()}.</p>
+          <p className="text-foreground-muted">Select a dashed box to place {FIELD_PREVIEW_LABELS[anchorSession.type].toLowerCase()}.</p>
           {anchorResult && <p className="text-foreground-muted" role="status" aria-live="polite">{anchorResult}</p>}
           <div className="flex gap-1.5"><Button type="button" variant="outline" size="sm" className="h-7 flex-1 text-xs" disabled={placedAnchorMatchIndexes.size === anchorSession.matches.length} onClick={() => {
             const next = anchorSession.matches.findIndex((_, index) => !placedAnchorMatchIndexes.has(index))
@@ -1205,7 +1205,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
                 aria-label={`Place ${anchorSession.type.replace(/_/g, ' ')} field at anchor match ${matchIndex + 1}`}
                 title={`Match ${matchIndex + 1}: place ${anchorSession.type.replace(/_/g, ' ')} field`}
                 onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); placeAnchorMatch(matchIndex) }}>
-                <span className="pointer-events-none truncate px-1">+ {SHORT[anchorSession.type]}</span>
+                <span className="pointer-events-none truncate px-1">+ {FIELD_PREVIEW_LABELS[anchorSession.type]}</span>
               </button>}
             </React.Fragment>
           })}
@@ -1213,7 +1213,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
             return <div key={field.id} id={`esign-editor-field-${field.id}`} onPointerDown={(event) => startInteraction(event, field, 'move', size)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
               className={cn('absolute flex touch-none select-none items-center justify-center overflow-visible rounded-sm border text-[10px] font-medium', selected && 'ring-2 ring-offset-1', peer && 'ring-2 ring-primary/50 ring-offset-1', isConditionalParent && 'ring-2 ring-fuchsia-500 ring-offset-1')}
               style={{ left: field.posX * size.width, top: field.posY * size.height, width: field.width * size.width, height: field.height * size.height, borderColor: color.border, backgroundColor: color.bg, color: canStyleText && appearance?.color ? appearance.color : color.text, cursor: 'move', justifyContent: ({ left: 'flex-start', center: 'center', right: 'flex-end' } as const)[horizontalAlignment], alignItems: ({ top: 'flex-start', middle: 'center', bottom: 'flex-end' } as const)[verticalAlignment], textAlign: horizontalAlignment, fontFamily: canStyleText ? textFontFamily(appearance?.font) : undefined, fontSize: canStyleText ? configuredTextFontSize(appearance?.font_size, size.scale, field.height * size.height) : undefined, fontWeight: canStyleText && appearance?.bold ? 700 : undefined, fontStyle: canStyleText && appearance?.italic ? 'italic' : undefined, textDecoration: canStyleText && appearance?.underline ? 'underline' : undefined }}>
-              <span className="pointer-events-none truncate px-1">{choiceLabel || SHORT[field.fieldType]}</span>{choiceLabel && (field.fieldType === 'radio' || field.properties?.selection_group?.id) && <span className="pointer-events-none absolute -left-1 -top-4 max-w-36 truncate rounded bg-surface px-1 text-[9px] shadow">{choiceLabel}</span>}{field.properties?.conditional && <span className="absolute -right-1 -top-1 size-2 rounded-full bg-fuchsia-500" />}
+              <span className="pointer-events-none truncate px-1">{choiceLabel || FIELD_PREVIEW_LABELS[field.fieldType]}</span>{choiceLabel && (field.fieldType === 'radio' || field.properties?.selection_group?.id) && <span className="pointer-events-none absolute -left-1 -top-4 max-w-36 truncate rounded bg-surface px-1 text-[9px] shadow">{choiceLabel}</span>}{field.properties?.conditional && <span className="absolute -right-1 -top-1 size-2 rounded-full bg-fuchsia-500" />}
               {selected && HANDLES.map((handle) => <span key={handle} onPointerDown={(event) => startInteraction(event, field, 'resize', size, handle)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
                 className="absolute size-2 rounded-[1px] border border-white bg-primary" style={{ cursor: `${handle}-resize`, left: handle.includes('w') ? -4 : handle.includes('e') ? 'calc(100% - 4px)' : 'calc(50% - 4px)', top: handle.includes('n') ? -4 : handle.includes('s') ? 'calc(100% - 4px)' : 'calc(50% - 4px)' }} />)}
             </div>})}

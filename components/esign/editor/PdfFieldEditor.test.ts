@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { dropdownOptionsFromText, type EditorField } from './PdfFieldEditor'
+import { dropdownOptionsFromText, FIELD_PREVIEW_LABELS, type EditorField } from './PdfFieldEditor'
 import {
   DEFAULT_FIELD_VERTICAL_ALIGNMENT,
   defaultFieldHorizontalAlignment,
@@ -54,6 +54,13 @@ describe('floating field toolbar positioning', () => {
 
     expect(left.left).toBe(8)
     expect(right.left + right.width).toBe(760)
+  })
+})
+
+describe('field preview labels', () => {
+  it('distinguishes signer-entered dates from automatic signing dates', () => {
+    expect(FIELD_PREVIEW_LABELS.date).toBe('Date (signer enters)')
+    expect(FIELD_PREVIEW_LABELS.date_signed).toBe('Date (date signed)')
   })
 })
 
