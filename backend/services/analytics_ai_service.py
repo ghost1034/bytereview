@@ -18,7 +18,7 @@ import json
 import logging
 import os
 import re
-from datetime import date
+from datetime import date, datetime
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from google import genai
@@ -1045,6 +1045,16 @@ def _parse_display_number(token: str) -> float:
     return -abs(value) if negative_parentheses else value
 
 
+def _month_year_key(token: str) -> Optional[str]:
+    """Return YYYY-MM for a generated month/year label, if it is valid."""
+    for format_ in ("%B %Y", "%b %Y"):
+        try:
+            return datetime.strptime(token, format_).strftime("%Y-%m")
+        except ValueError:
+            continue
+    return None
+
+
 def _validate_variance_memo(
     text: str,
     flagged_details: List[Dict[str, Any]],
@@ -1081,8 +1091,18 @@ def _validate_variance_memo(
     mentioned_dates.update(_MONTH_DATE_RE.findall(fact_text))
     mentioned_dates.update(_MONTH_YEAR_RE.findall(fact_text))
     mentioned_dates.update(_PERIOD_LABEL_RE.findall(fact_text))
-    for mentioned in sorted(mentioned_dates - allowed_dates):
-        unsupported.append(f"unsupported date: {mentioned}")
+    allowed_months = {
+        value[:7]
+        for value in allowed_dates
+        if _ISO_DATE_RE.fullmatch(value)
+    }
+    for mentioned in sorted(mentioned_dates):
+        supported_month = (
+            _MONTH_YEAR_RE.fullmatch(mentioned) is not None
+            and _month_year_key(mentioned) in allowed_months
+        )
+        if mentioned not in allowed_dates and not supported_month:
+            unsupported.append(f"unsupported date: {mentioned}")
     allowed_years = {value[:4] for value in allowed_dates if _ISO_DATE_RE.fullmatch(value)}
     for mentioned in sorted(set(_YEAR_RE.findall(fact_text)) - allowed_years):
         if not any(mentioned in date_token for date_token in mentioned_dates):

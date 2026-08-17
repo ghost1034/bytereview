@@ -118,6 +118,47 @@ async def test_variance_memo_rejects_unsupported_generated_facts(monkeypatch):
     assert "unsupported percentage: 88%" in unsupported
 
 
+def test_variance_memo_accepts_supported_month_year_labels():
+    flagged_details = [
+        {
+            "account": "1000 Cash",
+            "base": 100.0,
+            "comp": 120.0,
+            "variance": 20.0,
+            "variancePercent": 20.0,
+        }
+    ]
+
+    analytics_ai_service._validate_variance_memo(
+        "### 1000 Cash\nActivity increased by $20.00 (20%) in February 2026.",
+        flagged_details,
+        CONFIG,
+        "2026-03-01",
+    )
+
+
+def test_variance_memo_rejects_unsupported_month_year_labels():
+    flagged_details = [
+        {
+            "account": "1000 Cash",
+            "base": 100.0,
+            "comp": 120.0,
+            "variance": 20.0,
+            "variancePercent": 20.0,
+        }
+    ]
+
+    with pytest.raises(analytics_ai_service.VarianceMemoValidationError) as exc_info:
+        analytics_ai_service._validate_variance_memo(
+            "### 1000 Cash\nActivity increased by $20.00 (20%) in February 2025.",
+            flagged_details,
+            CONFIG,
+            "2026-03-01",
+        )
+
+    assert "unsupported date: February 2025" in exc_info.value.unsupported_facts
+
+
 @pytest.mark.asyncio
 async def test_variance_memo_route_uses_firm_scoped_persisted_analysis(monkeypatch):
     captured = {}
