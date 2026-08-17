@@ -3,7 +3,8 @@
 /**
  * TaskDetailPane — 640px right slide-in (or full-screen) task editor driven by ?task=.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useAuthStore } from '../../stores/auth'
 import { useTasksStore } from '../../stores/entities'
 import { AttachmentsZone } from '../attachments/AttachmentsZone'
@@ -32,6 +33,11 @@ type Props = {
   /** When set (full-screen route), ignores ?task= param. */
   taskId?: string | null
   mode?: 'overlay' | 'fullscreen'
+}
+
+function TaskDetailPortal({ children }: { children: ReactNode }) {
+  if (typeof document === 'undefined') return null
+  return createPortal(children, document.body)
 }
 
 export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'overlay' }: Props) {
@@ -66,7 +72,7 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
 
   if (!hydrated || !task) {
     return mode === 'overlay' ? (
-      <>
+      <TaskDetailPortal>
         <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" aria-hidden="true" />
         <aside
           className="fixed inset-0 z-50 flex flex-col lg:inset-y-0 lg:left-auto lg:w-full lg:max-w-[640px] lg:border-l tasklytic-root"
@@ -77,7 +83,7 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
         >
           <TaskDetailSkeleton />
         </aside>
-      </>
+      </TaskDetailPortal>
     ) : (
       <div className="tasklytic-root min-h-screen">
         <TaskDetailSkeleton />
@@ -167,7 +173,7 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
   }
 
   return (
-    <>
+    <TaskDetailPortal>
       <button
         type="button"
         className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:block"
@@ -175,6 +181,6 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
         onClick={close}
       />
       {pane}
-    </>
+    </TaskDetailPortal>
   )
 }

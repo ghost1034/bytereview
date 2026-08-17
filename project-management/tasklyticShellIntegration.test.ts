@@ -119,6 +119,16 @@ describe('Tasklytic dashboard shell integration', () => {
     expect(resizeHandle).toContain('e.clientX - sidebarLeft.current')
   })
 
+  it('portals task detail overlays beyond the clipped dashboard content', () => {
+    const taskDetail = read(
+      'project-management/features/tasks/TaskDetailPane.tsx',
+    )
+
+    expect(taskDetail).toContain("import { createPortal } from 'react-dom'")
+    expect(taskDetail).toContain('return createPortal(children, document.body)')
+    expect(taskDetail.match(/<TaskDetailPortal>/g)).toHaveLength(2)
+  })
+
   it('removes superseded module-owned shell and portal compatibility code', () => {
     const removedFiles = [
       'project-management/components/branding/Logo.tsx',
