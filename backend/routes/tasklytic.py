@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import html
@@ -13,6 +14,7 @@ import secrets
 import uuid
 from collections.abc import Callable
 from datetime import timedelta
+from decimal import Decimal
 from pathlib import PurePath
 from typing import Any
 from urllib.parse import quote
@@ -73,6 +75,7 @@ from services.tasklytic_reporting import reporting_sources_payload
 from services.tasklytic_psa import execute_psa_action
 from services.tasklytic_billing import (
     create_fx_quote,
+    finalize_invoice_delivery,
     generate_invoice,
     invoice_action,
     invoice_pdf,
@@ -202,6 +205,15 @@ async def _verify_completed_object(row: TasklyticFileUpload) -> None:
     content_type = getattr(blob, "content_type", None)
     if content_type and content_type != row.mime_type:
         raise HTTPException(status_code=409, detail="Uploaded object MIME type does not match")
+    if row.scope_type == "invoice_brand":
+        content = await asyncio.to_thread(blob.download_as_bytes)
+        signature_ok = (
+            row.mime_type == "image/png" and content.startswith(b"\x89PNG\r\n\x1a\n")
+        ) or (
+            row.mime_type == "image/jpeg" and content.startswith(b"\xff\xd8\xff")
+        )
+        if not signature_ok:
+            raise HTTPException(status_code=415, detail="Invoice logos must be valid PNG or JPEG images")
 
 
 def _published_form_row(db: Session, form_key: str) -> TasklyticEntityRecord:
@@ -1213,8 +1225,14 @@ async def initiate_file(body: dict[str, Any] = Body(...), token: dict = Depends(
     workspace_id = validate_id(body.get("workspace_id"), "workspace_id")
     get_membership(db, workspace_id, token["uid"])
     scope_type = body.get("scope")
+    if scope_type == "invoice_brand":
+        require_admin(db, workspace_id, token["uid"])
+        if mime_type not in {"image/png", "image/jpeg"}:
+            raise HTTPException(status_code=415, detail="Invoice logos must be PNG or JPEG images")
+        if size > 2 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail="Invoice logos may not exceed 2 MB")
     parent_kind = {"task": "tasks", "comment": "comments", "project": "projects"}.get(scope_type)
-    if not parent_kind and scope_type != "receipt":
+    if not parent_kind and scope_type not in {"receipt", "invoice_brand"}:
         raise HTTPException(status_code=422, detail="Unsupported upload scope")
     parent = _find_record(db, parent_kind, validate_id(body.get("scope_id"), "scope_id"), workspace_id) if parent_kind else None
     if parent_kind and parent is None:
@@ -1268,6 +1286,8 @@ async def download_file_url(
 @router.delete("/files")
 async def delete_file(object_name: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
     row = _get_upload(db, object_name, lock=True)
+    if row.scope_type in {"invoice_brand", "invoice_pdf"}:
+        raise HTTPException(status_code=409, detail="Issued invoice and branding objects are immutable")
     member = get_membership(db, row.workspace_id, token["uid"])
     parent_kind = {"task": "tasks", "comment": "comments", "project": "projects"}.get(row.scope_type)
     parent = _find_record(db, parent_kind, row.scope_id, row.workspace_id) if parent_kind else None
@@ -1484,6 +1504,24 @@ def _idempotency_key(header_value: str | None, body: dict[str, Any]) -> str:
     return key
 
 
+def _invoice_email_template(template: str, invoice: dict[str, Any], payment_url: str | None = None) -> str:
+    snapshot = invoice.get("documentSnapshot") or {}
+    issuer = snapshot.get("issuer") or {}
+    values = {
+        "{invoiceNumber}": str(invoice.get("invoiceNumber") or invoice.get("id") or ""),
+        "{issuerName}": str(issuer.get("issuerDisplayName") or "your service provider"),
+        "{amountDue}": f"{invoice.get('currency') or ''} {Decimal(str(invoice.get('amountOutstanding') or 0)):.2f}".strip(),
+        "{dueDate}": str(invoice.get("dueOn") or ""),
+        "{paymentLink}": payment_url or "",
+    }
+    result = template
+    for placeholder, value in values.items():
+        result = result.replace(placeholder, value)
+    if payment_url and "{paymentLink}" not in template:
+        result = f"{result.rstrip()}\n\nPay securely: {payment_url}"
+    return result
+
+
 @router.post("/billing/invoices:generate")
 def billing_generate_invoice(
     body: dict[str, Any] = Body(...),
@@ -1512,39 +1550,86 @@ def billing_invoice_action(
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
     key = _idempotency_key(idempotency_key, body)
+    action_body = dict(body)
+    payment_link = None
+    if action in {"send", "resend"} and body.get("method") == "email":
+        invoice_row = _find_record(db, "invoices", invoice_id, workspace_id)
+        if invoice_row is None:
+            raise HTTPException(status_code=404, detail="Invoice not found")
+        current_invoice = dict(invoice_row.payload or {})
+        snapshot = current_invoice.get("documentSnapshot") or {}
+        snapshotted_email = str(((snapshot.get("billTo") or {}).get("email")) or "").strip().lower()
+        action_body["recipient"] = str(body.get("recipient") or snapshotted_email).strip().lower()
+        if body.get("includePaymentLink") is True:
+            base_url = frontend_base_url().rstrip("/")
+            payment_link = create_stripe_payment_link(
+                db, workspace_id=workspace_id, actor_id=token["uid"], invoice_id=invoice_id,
+                success_url=str(body.get("successUrl") or f"{base_url}/dashboard/project-management?payment=success"),
+                cancel_url=str(body.get("cancelUrl") or base_url),
+                idempotency_key=f"invoice-payment-link:{invoice_id}:{key}",
+            )
     operation = (
         (lambda: record_payment(
             db, invoice_id=invoice_id, workspace_id=workspace_id,
-            actor_id=token["uid"], body=body,
+            actor_id=token["uid"], body=action_body,
         ))
         if action == "payment"
         else (lambda: invoice_action(
             db, invoice_id=invoice_id, action=action, workspace_id=workspace_id,
-            actor_id=token["uid"], body=body,
+            actor_id=token["uid"], body=action_body,
         ))
     )
     result, _command, replayed = execute_inline_command(
         db, command_type="domain.billing.payment.apply" if action == "payment" else f"domain.billing.invoice.{action}",
         deduplication_key=f"billing:{workspace_id}:invoice:{invoice_id}:{action}:{key}",
-        payload=body, actor_id=token["uid"], workspace_id=workspace_id,
+        payload=action_body, actor_id=token["uid"], workspace_id=workspace_id,
         operation=operation,
     )
     delivery = None
-    if action in {"send", "resend"} and body.get("method") == "email":
-        recipient = str(body.get("recipient") or "").strip().lower()
+    if action in {"send", "resend"} and action_body.get("method") == "email":
+        recipient = str(action_body.get("recipient") or "").strip().lower()
         invoice = result.get("invoice") or {}
+        snapshot = invoice.get("documentSnapshot") or {}
+        workspace = db.get(TasklyticWorkspace, workspace_id)
+        billing_settings = ((workspace.payload or {}).get("billingSettings") or {}) if workspace else {}
+        subject_template = str(action_body.get("subject") or billing_settings.get("emailSubjectTemplate") or "Invoice {invoiceNumber} from {issuerName}")
+        message_template = str(action_body.get("message") or billing_settings.get("emailMessageTemplate") or "Please find invoice {invoiceNumber} attached. Amount due: {amountDue}.")
+        if len(subject_template) > 998 or len(message_template) > 10000:
+            raise HTTPException(status_code=422, detail="Invoice email content exceeds the allowed length")
+        payment_url = str((payment_link or {}).get("url") or "") or None
+        subject = _invoice_email_template(subject_template, invoice, payment_url)
+        message = _invoice_email_template(message_template, invoice, payment_url)
+        pdf_content, _digest = invoice_pdf(db, invoice_id=invoice_id, workspace_id=workspace_id, actor_id=token["uid"])
+        delivery_id = str(((invoice.get("deliveryHistory") or [{}])[-1]).get("id") or "")
         command, email_replayed = queue_email_delivery(
             db, workspace_id=workspace_id, actor_id=token["uid"],
             idempotency_key=f"invoice:{invoice_id}:{action}:{key}",
             require_workspace_admin=False,
             body={
                 "to": recipient,
-                "subject": f"Invoice {invoice.get('invoiceNumber') or invoice_id}",
-                "bodyText": f"Invoice {invoice.get('invoiceNumber') or invoice_id} from your service provider is ready. Amount due: {invoice.get('amountOutstanding')} {invoice.get('currency')}.",
-                "bodyHtml": f"<p>Invoice <strong>{html.escape(str(invoice.get('invoiceNumber') or invoice_id))}</strong> is ready.</p><p>Amount due: {html.escape(str(invoice.get('amountOutstanding')))} {html.escape(str(invoice.get('currency') or ''))}</p>",
+                "subject": subject,
+                "bodyText": message,
+                "bodyHtml": "".join(f"<p>{html.escape(part)}</p>" for part in message.split("\n\n") if part),
+                "attachments": [{
+                    "filename": f"{invoice.get('invoiceNumber') or invoice_id}.pdf",
+                    "mimeType": "application/pdf",
+                    "contentBase64": base64.b64encode(pdf_content).decode("ascii"),
+                }],
+                "invoiceDelivery": {"invoiceId": invoice_id, "deliveryId": delivery_id},
             },
         )
-        delivery = {"commandId": str(command.id), "status": command.status, "replayed": email_replayed}
+        delivery_status = "sent" if command.status == "succeeded" else "failed" if command.status == "failed" else "queued"
+        final_invoice = finalize_invoice_delivery(
+            db, invoice_id=invoice_id, delivery_id=delivery_id,
+            workspace_id=workspace_id, actor_id=token["uid"],
+            delivery_status=delivery_status, command_id=str(command.id),
+            error=command.failure_detail,
+        )
+        result = {**result, "invoice": final_invoice}
+        delivery = {
+            "commandId": str(command.id), "status": delivery_status,
+            "replayed": email_replayed, "paymentLink": payment_url,
+        }
     _commit(db)
     return {**result, "replayed": replayed, "delivery": delivery}
 

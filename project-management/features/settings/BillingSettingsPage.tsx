@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
@@ -18,6 +19,8 @@ import { now } from '../../lib/time'
 import { UTBMS_ACTIVITY_CODES } from '../../lib/psa/constants'
 import { BillingRatesPanel } from '../psa/billing/BillingRatesPanel'
 import { formatMoney } from '../../lib/billing/formatMoney'
+import { gcsFileStorageAdapter } from '../../lib/fileStorage/gcsAdapter'
+import { InvoiceDocumentPreview } from '../psa/invoicing/InvoiceDocumentPreview'
 
 export function BillingSettingsPage() {
   const { workspaceId, workspace } = useWorkspaceContext()
@@ -81,6 +84,7 @@ function ActivityCodes({ workspaceId, editable }: { workspaceId: string; editabl
 
 function InvoicingSettings({ editable }: { editable: boolean }) {
   const { workspace } = useWorkspaceContext()
+  const user = useCurrentUser()
   const update = useWorkspacesStore((state) => state.update)
   const [prefix, setPrefix] = useState(workspace?.invoicePrefix ?? 'INV-')
   const [start, setStart] = useState(String(workspace?.invoiceStartNumber ?? 1000))
@@ -89,9 +93,63 @@ function InvoicingSettings({ editable }: { editable: boolean }) {
   const [terms, setTerms] = useState(workspace?.billingSettings?.defaultPaymentTerms ?? 'net_30')
   const [trustThreshold, setTrustThreshold] = useState(String(workspace?.billingSettings?.trustLowBalanceThreshold ?? 5000))
   const [budgetWarning, setBudgetWarning] = useState(String(workspace?.billingSettings?.budgetWarningPercent ?? 80))
+  const settings = workspace?.billingSettings
+  const [issuerName, setIssuerName] = useState(settings?.issuerDisplayName ?? settings?.brandedHeader ?? workspace?.name ?? '')
+  const [issuerAddress, setIssuerAddress] = useState(settings?.issuerAddress ?? '')
+  const [issuerEmail, setIssuerEmail] = useState(settings?.issuerEmail ?? '')
+  const [issuerPhone, setIssuerPhone] = useState(settings?.issuerPhone ?? '')
+  const [issuerWebsite, setIssuerWebsite] = useState(settings?.issuerWebsite ?? '')
+  const [accentColor, setAccentColor] = useState(settings?.accentColor ?? '#2563EB')
+  const [paymentInstructions, setPaymentInstructions] = useState(settings?.paymentInstructions ?? '')
+  const [taxLabel, setTaxLabel] = useState(settings?.taxLabel ?? 'Tax')
+  const [taxRegistrationText, setTaxRegistrationText] = useState(settings?.taxRegistrationText ?? '')
+  const [linePresentation, setLinePresentation] = useState<'detailed' | 'summary'>(settings?.defaultLinePresentation ?? (workspace?.psaMode === 'legal' ? 'detailed' : 'summary'))
+  const [pageSize, setPageSize] = useState<'letter' | 'a4'>(settings?.pageSize ?? 'letter')
+  const [emailSubject, setEmailSubject] = useState(settings?.emailSubjectTemplate ?? 'Invoice {invoiceNumber} from {issuerName}')
+  const [emailMessage, setEmailMessage] = useState(settings?.emailMessageTemplate ?? 'Please find invoice {invoiceNumber} attached. Amount due: {amountDue}.')
+  const [logoObjectName, setLogoObjectName] = useState(settings?.logoObjectName ?? '')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
   if (!workspace) return null
-  const save = () => update(workspace.id, { invoicePrefix: prefix, invoiceStartNumber: Number(start), billingSettings: { ...workspace.billingSettings, defaultFooter: footer, brandedHeader: header, defaultPaymentTerms: terms, trustLowBalanceThreshold: Number(trustThreshold), budgetWarningPercent: Number(budgetWarning) } })
-  return <div className="rounded-lg border border-border bg-card text-card-foreground grid max-w-2xl gap-3 p-4"><Field label="Invoice prefix"><Input disabled={!editable} value={prefix} onChange={(event) => setPrefix(event.target.value)} /></Field><Field label="Starting number"><Input disabled={!editable} type="number" value={start} onChange={(event) => setStart(event.target.value)} /></Field><Field label="Default payment terms"><select disabled={!editable} className="rounded-md border border-input bg-background text-foreground h-10 rounded-md border px-3" value={terms} onChange={(event) => setTerms(event.target.value as typeof terms)}>{['due_on_receipt', 'net_15', 'net_30', 'net_45', 'net_60'].map((term) => <option key={term} value={term}>{term.replace(/_/g, ' ')}</option>)}</select></Field><Field label="Trust low-balance warning"><Input disabled={!editable} type="number" value={trustThreshold} onChange={(event) => setTrustThreshold(event.target.value)} /></Field><Field label="Budget warning percent"><Input disabled={!editable} type="number" min="1" max="100" value={budgetWarning} onChange={(event) => setBudgetWarning(event.target.value)} /></Field><Field label="Branded header"><Input disabled={!editable} value={header} onChange={(event) => setHeader(event.target.value)} /></Field><Field label="Default footer"><Input disabled={!editable} value={footer} onChange={(event) => setFooter(event.target.value)} /></Field>{editable && <Button className="w-fit" onClick={() => void save()}>Save invoicing settings</Button>}</div>
+  const uploadLogo = async (file?: File) => {
+    if (!file || !user) return
+    setError('')
+    if (!['image/png', 'image/jpeg'].includes(file.type) || file.size > 2 * 1024 * 1024) { setError('Logo must be a PNG or JPEG no larger than 2 MB.'); return }
+    try {
+      const result = await gcsFileStorageAdapter.upload({ file, ownerId: user.id, workspaceId: workspace.id, scope: 'invoice_brand', scopeId: workspace.id })
+      setLogoObjectName(result.ref)
+      setLogoUrl(URL.createObjectURL(file))
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Logo upload failed.') }
+  }
+  const save = async () => {
+    setError('')
+    if (!/^#[0-9a-fA-F]{6}$/.test(accentColor)) { setError('Accent color must be a six-digit hex color.'); return }
+    setSaving(true)
+    try {
+      await update(workspace.id, { invoicePrefix: prefix, invoiceStartNumber: Number(start), billingSettings: { ...workspace.billingSettings, defaultFooter: footer, brandedHeader: header, defaultPaymentTerms: terms, trustLowBalanceThreshold: Number(trustThreshold), budgetWarningPercent: Number(budgetWarning), issuerDisplayName: issuerName, issuerAddress, issuerEmail, issuerPhone, issuerWebsite, accentColor, paymentInstructions, logoObjectName: logoObjectName || undefined, taxLabel, taxRegistrationText, defaultLinePresentation: linePresentation, pageSize, emailSubjectTemplate: emailSubject, emailMessageTemplate: emailMessage } })
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Invoicing settings could not be saved.') } finally { setSaving(false) }
+  }
+  return <div className="grid gap-5 xl:grid-cols-[minmax(22rem,34rem)_minmax(30rem,1fr)]">
+    <div className="rounded-lg border border-border bg-card text-card-foreground grid gap-3 p-4">
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Invoice prefix"><Input disabled={!editable} maxLength={30} value={prefix} onChange={(event) => setPrefix(event.target.value)} /></Field><Field label="Starting number"><Input disabled={!editable} type="number" value={start} onChange={(event) => setStart(event.target.value)} /></Field></div>
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Default payment terms"><select disabled={!editable} className="h-10 rounded-md border border-input bg-background px-3 text-foreground" value={terms} onChange={(event) => setTerms(event.target.value as typeof terms)}>{['due_on_receipt', 'net_15', 'net_30', 'net_45', 'net_60'].map((term) => <option key={term} value={term}>{term.replace(/_/g, ' ')}</option>)}</select></Field><Field label="Default line presentation"><select aria-label="Default line presentation" disabled={!editable} className="h-10 rounded-md border border-input bg-background px-3" value={linePresentation} onChange={(event) => setLinePresentation(event.target.value as typeof linePresentation)}><option value="detailed">Detailed</option><option value="summary">Summarized</option></select></Field></div>
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Page size"><select aria-label="Invoice page size" disabled={!editable} className="h-10 rounded-md border border-input bg-background px-3" value={pageSize} onChange={(event) => setPageSize(event.target.value as typeof pageSize)}><option value="letter">US Letter</option><option value="a4">A4</option></select></Field><Field label="Accent color"><div className="flex gap-2"><Input aria-label="Accent color picker" className="w-14 p-1" disabled={!editable} type="color" value={accentColor} onChange={(event) => setAccentColor(event.target.value)} /><Input aria-label="Accent color hex" disabled={!editable} maxLength={7} value={accentColor} onChange={(event) => setAccentColor(event.target.value)} /></div></Field></div>
+      <Field label="Logo (PNG or JPEG, maximum 2 MB)"><Input aria-label="Invoice logo" accept="image/png,image/jpeg" disabled={!editable} type="file" onChange={(event) => void uploadLogo(event.target.files?.[0])} />{logoObjectName ? <p className="text-xs text-muted-foreground">An immutable private logo is configured. Upload another file to replace it for future invoices.</p> : null}</Field>
+      <Field label="Issuer display name"><Input aria-label="Issuer display name" disabled={!editable} maxLength={200} value={issuerName} onChange={(event) => { setIssuerName(event.target.value); setHeader(event.target.value) }} /></Field>
+      <Field label="Issuer address"><Textarea disabled={!editable} maxLength={1000} value={issuerAddress} onChange={(event) => setIssuerAddress(event.target.value)} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Issuer email"><Input disabled={!editable} maxLength={320} type="email" value={issuerEmail} onChange={(event) => setIssuerEmail(event.target.value)} /></Field><Field label="Issuer phone"><Input disabled={!editable} maxLength={100} value={issuerPhone} onChange={(event) => setIssuerPhone(event.target.value)} /></Field></div>
+      <Field label="Issuer website"><Input disabled={!editable} maxLength={500} value={issuerWebsite} onChange={(event) => setIssuerWebsite(event.target.value)} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Tax label"><Input disabled={!editable} maxLength={80} value={taxLabel} onChange={(event) => setTaxLabel(event.target.value)} /></Field><Field label="Tax registration text"><Input disabled={!editable} maxLength={500} value={taxRegistrationText} onChange={(event) => setTaxRegistrationText(event.target.value)} /></Field></div>
+      <Field label="Payment / remittance instructions"><Textarea disabled={!editable} maxLength={4000} value={paymentInstructions} onChange={(event) => setPaymentInstructions(event.target.value)} /></Field>
+      <Field label="Default footer"><Input disabled={!editable} maxLength={1000} value={footer} onChange={(event) => setFooter(event.target.value)} /></Field>
+      <Field label="Email subject template"><Input disabled={!editable} maxLength={998} value={emailSubject} onChange={(event) => setEmailSubject(event.target.value)} /></Field>
+      <Field label="Email message template"><Textarea disabled={!editable} maxLength={10000} value={emailMessage} onChange={(event) => setEmailMessage(event.target.value)} /></Field>
+      <div className="grid gap-3 sm:grid-cols-2"><Field label="Trust low-balance warning"><Input disabled={!editable} type="number" value={trustThreshold} onChange={(event) => setTrustThreshold(event.target.value)} /></Field><Field label="Budget warning percent"><Input disabled={!editable} type="number" min="1" max="100" value={budgetWarning} onChange={(event) => setBudgetWarning(event.target.value)} /></Field></div>
+      {error ? <p className="text-sm text-destructive" role="alert">{error}</p> : null}{editable && <Button className="w-fit" disabled={saving} onClick={() => void save()}>{saving ? 'Saving…' : 'Save invoicing settings'}</Button>}
+    </div>
+    <div className="xl:sticky xl:top-4 xl:self-start"><InvoiceDocumentPreview issuerName={issuerName} issuerDetails={[issuerAddress, issuerEmail, issuerPhone, issuerWebsite, taxRegistrationText].filter(Boolean).join('\n')} billToName="Sample Client" billToDetails={'Accounts Payable\n100 Client Avenue\nclient@example.com'} invoiceNumber={`${prefix}${start}`} issueDate="2026-08-17" dueOn="2026-09-16" periodStart="2026-08-01" periodEnd="2026-08-15" currency={workspace.defaultCurrency} accentColor={accentColor} linePresentation={linePresentation} lines={linePresentation === 'detailed' ? [{ id: '1', serviceDate: '2026-08-04', description: 'Monthly close review and advisory services', professionalCategory: 'Alex Morgan - Manager', quantity: 2.5, rate: 250, amount: 625 }] : [{ id: '1', matterProjectLabel: 'August close', description: 'Professional services', amount: 625 }]} subtotal={625} tax={50} taxLabel={taxLabel} total={675} paymentInstructions={paymentInstructions} footer={footer} logoUrl={logoUrl} /></div>
+  </div>
 }
 
 function InvoiceApprovals({ editable }: { editable: boolean }) {

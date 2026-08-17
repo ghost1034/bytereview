@@ -127,10 +127,14 @@ describe('Phase 9 browser exit gate', () => {
     for (const name of ['Rates', 'Rate cards', 'Activity codes', 'Invoicing', 'Approvals', 'Budgets', 'FX rates']) await expect.element(owner.getByRole('tab', { name, exact: true })).toBeVisible()
     await owner.getByRole('tab', { name: 'Invoicing' }).click()
     await expect.element(owner.getByRole('button', { name: 'Save invoicing settings' })).toBeVisible()
+    await expect.element(owner.getByLabelText('Issuer display name')).toBeEnabled()
+    await expect.element(owner.getByLabelText('Invoice logo')).toBeEnabled()
+    await expect.element(owner.getByLabelText('Invoice document preview')).toBeVisible()
     owner.unmount(); seed('member')
     const member = render(<BillingSettingsPage />)
     await member.getByRole('tab', { name: 'Invoicing' }).click()
     await expect.element(member.getByRole('button', { name: 'Save invoicing settings' })).not.toBeInTheDocument()
+    await expect.element(member.getByLabelText('Issuer display name')).toBeDisabled()
   })
 
   it('records trust deposits through the append-only financial command', async () => {

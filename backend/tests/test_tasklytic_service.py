@@ -256,6 +256,20 @@ def test_workspace_membership_is_authoritative_and_admin_mutable(db):
     assert exc.value.status_code == 403
 
 
+def test_invoice_branding_settings_validate_document_contract(db):
+    provision_bundle(db, starter_bundle(), {"uid": "owner", "email": "owner@example.com"})
+    current = workspace_payload(db, db.get(TasklyticWorkspace, "w1"))
+    with pytest.raises(HTTPException) as accent:
+        upsert_workspace(db, {**current, "billingSettings": {"accentColor": "blue"}}, "owner")
+    assert accent.value.detail == "billingSettings.accentColor must be a six-digit hex color"
+    with pytest.raises(HTTPException) as page_size:
+        upsert_workspace(db, {**current, "billingSettings": {"pageSize": "legal"}}, "owner")
+    assert page_size.value.detail == "billingSettings.pageSize must be letter or a4"
+    with pytest.raises(HTTPException) as logo:
+        upsert_workspace(db, {**current, "billingSettings": {"logoObjectName": "tasklytic/w1/missing.png"}}, "owner")
+    assert "completed invoice brand image" in logo.value.detail
+
+
 def test_private_project_and_dependents_are_hidden_from_guest(db):
     provision_bundle(db, starter_bundle(), {"uid": "owner", "email": "owner@example.com"})
     db.add(TasklyticWorkspaceMember(workspace_id="w1", user_id="guest", role="guest"))

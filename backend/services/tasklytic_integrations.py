@@ -8,6 +8,8 @@ secret manager; these records contain capability and reconciliation state only.
 from __future__ import annotations
 
 import hashlib
+import base64
+import binascii
 import json
 import os
 import re
@@ -35,7 +37,7 @@ from services.analytics_ai_service import _get_resp_text, get_client
 from services.email_service import email_service
 from services.gcs_service import get_storage_service
 from services.google_service import google_service
-from services.tasklytic_billing import record_payment
+from services.tasklytic_billing import finalize_invoice_delivery, record_payment
 from services.tasklytic_commands import complete_command, enqueue_command, fail_command
 from services.tasklytic_service import (
     _find_record,
@@ -43,6 +45,7 @@ from services.tasklytic_service import (
     get_membership,
     record_payload,
     require_admin,
+    require_capability,
     upsert_record,
     utcnow,
     validate_id,
@@ -375,7 +378,32 @@ def queue_email_delivery(
     payload = {
         "recipients": recipients, "subject": str(body.get("subject") or "")[:998],
         "bodyHtml": str(body.get("bodyHtml") or ""), "bodyText": str(body.get("bodyText") or ""),
+        "attachments": [],
     }
+    if isinstance(body.get("invoiceDelivery"), dict):
+        invoice_delivery = body["invoiceDelivery"]
+        payload["invoiceDelivery"] = {
+            "invoiceId": validate_id(invoice_delivery.get("invoiceId"), "invoiceId"),
+            "deliveryId": validate_id(invoice_delivery.get("deliveryId"), "deliveryId"),
+        }
+    attachments = body.get("attachments") or []
+    if not isinstance(attachments, list) or len(attachments) > 10:
+        raise HTTPException(status_code=422, detail="Invalid email attachments")
+    total_size = 0
+    for item in attachments:
+        if not isinstance(item, dict):
+            raise HTTPException(status_code=422, detail="Invalid email attachment")
+        filename = str(item.get("filename") or "attachment")[:255]
+        mime_type = str(item.get("mimeType") or "application/octet-stream")[:255]
+        encoded = str(item.get("contentBase64") or "")
+        try:
+            size = len(base64.b64decode(encoded, validate=True))
+        except (ValueError, binascii.Error) as exc:
+            raise HTTPException(status_code=422, detail="Invalid email attachment encoding") from exc
+        total_size += size
+        payload["attachments"].append({"filename": filename, "mimeType": mime_type, "contentBase64": encoded})
+    if total_size > 15 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Email attachments exceed 15 MB")
     command, created = enqueue_command(
         db, command_type="maintenance.integration_email",
         deduplication_key=f"email:{idempotency_key}", payload=payload,
@@ -395,29 +423,63 @@ def queue_email_delivery(
         result = deliver_email_command(db, command, sender=sender)
         complete_command(db, command.id, worker_id="request", result=result)
     except Exception as exc:
-        fail_command(db, command.id, worker_id="request", error=exc)
+        failed = fail_command(db, command.id, worker_id="request", error=exc)
+        invoice_delivery = payload.get("invoiceDelivery") or {}
+        if invoice_delivery:
+            finalize_invoice_delivery(
+                db, workspace_id=workspace_id, actor_id=actor_id,
+                invoice_id=invoice_delivery["invoiceId"], delivery_id=invoice_delivery["deliveryId"],
+                delivery_status="failed" if failed.status == "failed" else "queued",
+                command_id=str(command.id), error=failed.failure_detail,
+            )
     return command, False
 
 
 def deliver_email_command(db: Session, command: TasklyticCommand, *, sender=email_service) -> dict[str, Any]:
     payload = dict(command.payload or {})
+    invoice_delivery = payload.get("invoiceDelivery") or {}
+
+    def update_invoice_delivery(status: str, error: str | None = None) -> None:
+        if not invoice_delivery or not command.workspace_id or not command.actor_id:
+            return
+        finalize_invoice_delivery(
+            db, workspace_id=command.workspace_id, actor_id=command.actor_id,
+            invoice_id=invoice_delivery["invoiceId"], delivery_id=invoice_delivery["deliveryId"],
+            delivery_status=status, command_id=str(command.id), error=error,
+        )
+
+    attachments = [
+        (
+            str(item.get("filename") or "attachment"),
+            base64.b64decode(str(item.get("contentBase64") or ""), validate=True),
+            str(item.get("mimeType") or "application/octet-stream"),
+        )
+        for item in payload.get("attachments") or []
+    ]
     sent_ids = []
     for recipient in payload.get("recipients") or []:
-        ok = sender.send_html_email(
-            recipient, str(payload.get("subject") or ""), str(payload.get("bodyHtml") or ""),
-            str(payload.get("bodyText") or ""),
-        )
-        if not ok:
-            raise RuntimeError(f"Gmail delivery failed for {recipient}")
+        kwargs = {"attachments": attachments} if attachments else {}
+        try:
+            ok = sender.send_html_email(
+                recipient, str(payload.get("subject") or ""), str(payload.get("bodyHtml") or ""),
+                str(payload.get("bodyText") or ""), **kwargs,
+            )
+            if not ok:
+                raise RuntimeError(f"Gmail delivery failed for {recipient}")
+        except Exception as exc:
+            update_invoice_delivery("failed" if command.attempt_count >= command.max_attempts else "queued", str(exc))
+            raise
         sent_ids.append(str(uuid.uuid4()))
+    update_invoice_delivery("sent")
     return {"ids": sent_ids, "provider": "gmail"}
 
 
 def create_stripe_payment_link(
     db: Session, *, workspace_id: str, actor_id: str, invoice_id: str,
     success_url: str, cancel_url: str, stripe_client=stripe,
+    idempotency_key: str | None = None,
 ) -> dict[str, Any]:
-    require_admin(db, workspace_id, actor_id)
+    require_capability(db, workspace_id, actor_id, "bill")
     connection = _connection(db, workspace_id, "stripe_connect")
     if connection is None or connection.status != "active" or not connection.external_account_id:
         raise HTTPException(status_code=409, detail={"code": "integration_unavailable", "provider": "stripe_connect"})
@@ -425,7 +487,7 @@ def create_stripe_payment_link(
     if invoice_row is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
     invoice = record_payload(invoice_row)
-    if invoice.get("status") not in {"sent", "partial", "overdue"}:
+    if invoice.get("status") not in {"approved", "sent", "partial", "overdue"}:
         raise HTTPException(status_code=409, detail={"code": "invoice_not_payable"})
     amount = Decimal(str(invoice.get("amountOutstanding") or 0))
     if amount <= 0:
@@ -444,6 +506,7 @@ def create_stripe_payment_link(
             }, "quantity": 1}],
             metadata=metadata, payment_intent_data={"metadata": metadata},
             stripe_account=connection.external_account_id,
+            **({"idempotency_key": idempotency_key} if idempotency_key else {}),
         )
         session_id = str(session.get("id") if isinstance(session, dict) else session.id)
         url = str(session.get("url") if isinstance(session, dict) else session.url)

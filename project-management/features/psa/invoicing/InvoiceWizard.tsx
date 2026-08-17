@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DialogContent, Dialog, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import { buildInvoiceFromEntries } from '../../../lib/psa/invoiceActions'
 import { createFxQuote, generateInvoice } from '../../../lib/billing/actions'
 import { formatMoney } from '../../../lib/billing/formatMoney'
@@ -15,6 +16,7 @@ import { useClientsStore, useExpensesStore, useInvoicesStore, useMattersStore, u
 import { useAuthStore } from '../../../stores/auth'
 import { invoicePeriodDefaults, isWithinInvoicePeriod, normalizeInvoicePeriod } from './invoicePeriod'
 import { matchesBillingScope, matterForBillingScope } from './invoiceScope'
+import { InvoiceDocumentPreview } from './InvoiceDocumentPreview'
 
 type Props = { open: boolean; onOpenChange: (v: boolean) => void; workspaceId: string }
 
@@ -37,6 +39,14 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
   const [discountReason, setDiscountReason] = useState('')
   const [notes, setNotes] = useState('')
   const [dueOn, setDueOn] = useState('')
+  const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10))
+  const [linePresentation, setLinePresentation] = useState<'detailed' | 'summary'>(workspace?.billingSettings?.defaultLinePresentation ?? (workspace?.psaMode === 'legal' ? 'detailed' : 'summary'))
+  const [billToName, setBillToName] = useState('')
+  const [billToContact, setBillToContact] = useState('')
+  const [billToEmail, setBillToEmail] = useState('')
+  const [billToPhone, setBillToPhone] = useState('')
+  const [billToAddress, setBillToAddress] = useState('')
+  const [billToTaxId, setBillToTaxId] = useState('')
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set())
   const [writeOffIds, setWriteOffIds] = useState<Set<string>>(new Set())
   const [writeOffReason, setWriteOffReason] = useState('')
@@ -84,7 +94,8 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
     : 0
   useEffect(() => {
     setBillingScope('all'); setPeriodStart(''); setPeriodEnd(''); setExcludedIds(new Set()); setWriteOffIds(new Set()); setNarratives({})
-  }, [clientId])
+    setBillToName(client?.name ?? ''); setBillToContact(client?.contactName ?? ''); setBillToEmail(client?.contactEmail ?? ''); setBillToPhone(client?.contactPhone ?? ''); setBillToAddress(client?.billingAddress ?? ''); setBillToTaxId(client?.taxId ?? '')
+  }, [clientId, client])
   const invoiceTime = useMemo(() => unbilledTime.filter((entry) => !excludedIds.has(entry.id) && !writeOffIds.has(entry.id)), [unbilledTime, excludedIds, writeOffIds])
   const invoiceExpenses = useMemo(() => unbilledExp.filter((expense) => !excludedIds.has(expense.id) && !writeOffIds.has(expense.id)), [unbilledExp, excludedIds, writeOffIds])
 
@@ -106,6 +117,16 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
       discountAmount: parseFloat(discount) || 0,
     })
   }, [client, clientId, invoiceTime, invoiceExpenses, invoicePeriod, taxAmount, discount, workspace, workspaceId])
+  const previewLines = useMemo(() => {
+    const detailed = [
+      ...invoiceTime.map((entry) => ({ id: entry.id, serviceDate: entry.date, description: narratives[entry.id] ?? entry.description, professionalCategory: 'Professional services', matterProjectLabel: projects.find((project) => project.id === entry.projectId)?.name ?? 'General', quantity: entry.hours, rate: entry.rateSnapshot ?? ((entry.amount ?? 0) / (entry.hours || 1)), amount: entry.amount ?? (entry.hours * (entry.rateSnapshot ?? 0)) })),
+      ...invoiceExpenses.map((entry) => ({ id: entry.id, serviceDate: entry.date, description: narratives[entry.id] ?? entry.description, professionalCategory: entry.category.replace(/_/g, ' '), matterProjectLabel: projects.find((project) => project.id === entry.projectId)?.name ?? 'General', quantity: 1, rate: entry.billableAmount ?? entry.totalAmount ?? entry.amount, amount: entry.billableAmount ?? entry.totalAmount ?? entry.amount })),
+    ]
+    if (linePresentation === 'detailed') return detailed
+    const grouped = new Map<string, typeof detailed[number]>()
+    detailed.forEach((line) => { const key = `${line.matterProjectLabel}:${line.professionalCategory === 'Professional services' ? 'services' : 'expenses'}`; const current = grouped.get(key); grouped.set(key, current ? { ...current, amount: current.amount + line.amount, description: current.professionalCategory === 'Professional services' ? 'Professional services' : 'Reimbursable expenses' } : { ...line, id: key, description: line.professionalCategory === 'Professional services' ? 'Professional services' : 'Reimbursable expenses' }) })
+    return [...grouped.values()]
+  }, [invoiceExpenses, invoiceTime, linePresentation, narratives, projects])
 
   const generate = async () => {
     if (!preview || !userId || !invoicePeriod) return
@@ -136,9 +157,12 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
         narratives, currency: invoiceCurrency, fxQuoteIds,
         periodStart: submittedPeriodStart,
         periodEnd: submittedPeriodEnd,
-        issueDate: new Date().toISOString().slice(0, 10), dueOn: dueOn || undefined,
+        issueDate, dueOn: dueOn || undefined,
         taxAmount: Number(taxAmount) || 0, discountAmount: Number(discount) || 0,
-        discountReason, notes,
+        discountReason, notes, linePresentation,
+        pageSize: workspace?.billingSettings?.pageSize ?? 'letter',
+        taxLabel: workspace?.billingSettings?.taxLabel ?? 'Tax',
+        billTo: { name: billToName, contactName: billToContact, email: billToEmail, phone: billToPhone, address: billToAddress, taxId: billToTaxId },
       })
       onOpenChange(false)
       setStep(1)
@@ -183,7 +207,7 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent aria-describedby={undefined} className="max-w-lg">
+      <DialogContent aria-describedby={undefined} className="max-h-[92vh] max-w-5xl overflow-y-auto">
         <DialogHeader><DialogTitle className="font-sans text-xl">Generate invoice — step {step}/5</DialogTitle></DialogHeader>
         {step === 1 && (
           <div className="grid gap-3 py-2">
@@ -210,19 +234,19 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
             {[...unbilledTime, ...unbilledExp].map((entry) => <div key={entry.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-2 border-b pb-2"><input aria-label={`Include ${entry.description}`} type="checkbox" checked={!excludedIds.has(entry.id)} onChange={() => setExcludedIds((old) => { const next = new Set(old); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next })} /><Input aria-label={`Narrative ${entry.description}`} value={narratives[entry.id] ?? entry.description} onChange={(event) => setNarratives((old) => ({ ...old, [entry.id]: event.target.value }))} /><label className="text-xs"><input type="checkbox" checked={writeOffIds.has(entry.id)} onChange={() => setWriteOffIds((old) => { const next = new Set(old); if (next.has(entry.id)) next.delete(entry.id); else next.add(entry.id); return next })} /> Write off</label></div>)}
             <div className="flex justify-between border-t pt-2 font-medium"><span>Total</span><span className="font-mono tabular-nums">{formatMoney(preview.total ?? preview.amount)}</span></div>
             {writeOffIds.size > 0 && <Input aria-label="Write-off reason" placeholder="Write-off reason" value={writeOffReason} onChange={(event) => setWriteOffReason(event.target.value)} />}
-            <Input placeholder="Tax" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
+            <Input aria-label="Tax amount" placeholder="Tax" value={taxAmount} onChange={(e) => setTaxAmount(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
             <Input placeholder="Discount" value={discount} onChange={(e) => setDiscount(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
             <Input placeholder="Discount reason" value={discountReason} onChange={(e) => setDiscountReason(e.target.value)} className="rounded-md border border-input bg-background text-foreground" />
           </div>
         )}
-        {step === 5 && <div className="grid gap-3 py-2"><div><Label>Due date</Label><Input type="date" value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></div><div><Label>Invoice notes</Label><Input value={notes} onChange={(event) => setNotes(event.target.value)} /></div><p className="text-sm">Create a draft invoice. Submit and deliver it from the invoice detail page.</p></div>}
+        {step === 5 && preview && <div className="grid gap-5 py-2 lg:grid-cols-[20rem_1fr]"><div className="grid content-start gap-3"><div className="grid grid-cols-2 gap-2"><div><Label>Issue date</Label><Input aria-label="Issue date" type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} /></div><div><Label>Due date</Label><Input aria-label="Due date" type="date" value={dueOn} min={issueDate} onChange={(event) => setDueOn(event.target.value)} /></div></div><div><Label>Line presentation</Label><select aria-label="Line presentation" className="h-10 w-full rounded-md border border-input bg-background px-3" value={linePresentation} onChange={(event) => setLinePresentation(event.target.value as typeof linePresentation)}><option value="detailed">Detailed</option><option value="summary">Summarized</option></select></div><Input aria-label="Bill-to name" placeholder="Bill-to name" maxLength={300} value={billToName} onChange={(event) => setBillToName(event.target.value)} /><Input aria-label="Bill-to contact" placeholder="Contact name" maxLength={200} value={billToContact} onChange={(event) => setBillToContact(event.target.value)} /><Input aria-label="Bill-to email" placeholder="Email" maxLength={320} type="email" value={billToEmail} onChange={(event) => setBillToEmail(event.target.value)} /><Input aria-label="Bill-to phone" placeholder="Phone" maxLength={100} value={billToPhone} onChange={(event) => setBillToPhone(event.target.value)} /><Textarea aria-label="Bill-to address" placeholder="Billing address" maxLength={1000} value={billToAddress} onChange={(event) => setBillToAddress(event.target.value)} /><Input aria-label="Bill-to tax ID" placeholder="Tax ID" maxLength={200} value={billToTaxId} onChange={(event) => setBillToTaxId(event.target.value)} /><div><Label>Invoice notes</Label><Textarea maxLength={10000} value={notes} onChange={(event) => setNotes(event.target.value)} /></div><p className="text-sm">This creates an editable draft. Submission freezes the client-ready document.</p></div><InvoiceDocumentPreview issuerName={workspace?.billingSettings?.issuerDisplayName ?? workspace?.billingSettings?.brandedHeader ?? workspace?.name ?? 'Invoice'} issuerDetails={[workspace?.billingSettings?.issuerAddress, workspace?.billingSettings?.issuerEmail, workspace?.billingSettings?.issuerPhone].filter(Boolean).join('\n')} billToName={billToName} billToDetails={[billToContact, billToAddress, billToEmail, billToPhone, billToTaxId ? `Tax ID: ${billToTaxId}` : ''].filter(Boolean).join('\n')} invoiceNumber={preview.invoiceNumber} issueDate={issueDate} dueOn={dueOn} periodStart={invoicePeriod?.start} periodEnd={invoicePeriod?.end} currency={preview.currency} accentColor={workspace?.billingSettings?.accentColor} linePresentation={linePresentation} lines={previewLines} subtotal={(preview.subtotalFees ?? 0) + (preview.subtotalExpenses ?? 0)} discount={Number(discount) || 0} tax={Number(taxAmount) || 0} taxLabel={workspace?.billingSettings?.taxLabel} total={preview.total ?? preview.amount} notes={notes} paymentInstructions={workspace?.billingSettings?.paymentInstructions} footer={workspace?.billingSettings?.defaultFooter} /></div>}
         {error && <div id="invoice-generation-error" role="alert" className="space-y-1 text-sm text-destructive"><p>{error}</p>{errorDiagnostics.length > 0 && <p className="font-mono text-xs">{errorDiagnostics.join(' · ')}</p>}</div>}
         <DialogFooter>
           {step > 1 && <Button variant="ghost" onClick={() => setStep((s) => s - 1)}>Back</Button>}
           {step < 5 ? (
             <Button className=" border-0" disabled={(step === 1 && !clientId) || (step === 3 && !invoicePeriod)} onClick={advance}>Next</Button>
           ) : (
-            <Button className=" border-0" disabled={loading || !preview || (writeOffIds.size > 0 && !writeOffReason) || (Number(discount) > 0 && !discountReason)} onClick={() => void generate()}>Create invoice</Button>
+            <Button className=" border-0" disabled={loading || !preview || Boolean(dueOn && dueOn < issueDate) || (writeOffIds.size > 0 && !writeOffReason) || (Number(discount) > 0 && !discountReason)} onClick={() => void generate()}>Create invoice</Button>
           )}
         </DialogFooter>
       </DialogContent>

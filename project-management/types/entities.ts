@@ -108,6 +108,20 @@ export type Workspace = {
     invoiceApproverIds?: ID[]
     budgetWarningPercent?: number
     trustLowBalanceThreshold?: number
+    issuerDisplayName?: string
+    issuerAddress?: string
+    issuerEmail?: string
+    issuerPhone?: string
+    issuerWebsite?: string
+    accentColor?: string
+    paymentInstructions?: string
+    logoObjectName?: string
+    taxLabel?: string
+    taxRegistrationText?: string
+    defaultLinePresentation?: 'detailed' | 'summary'
+    pageSize?: 'letter' | 'a4'
+    emailSubjectTemplate?: string
+    emailMessageTemplate?: string
   }
   fxOverrides?: Record<string, { rate: number; effectiveOn: ISODate; note?: string }>
   psaMode?: 'legal' | 'accounting' | 'generic' | 'advisory'
@@ -941,6 +955,42 @@ export type InvoiceLineItem = {
   fxQuoteId?: ID
   writtenOff?: boolean
   writeOffReason?: string
+  serviceDate?: ISODate
+  professionalCategory?: string
+  matterProjectLabel?: string
+  projectLabel?: string
+  matterId?: ID
+  projectId?: ID
+  activityCode?: string
+  sourceKind?: 'timeEntries' | 'expenses'
+}
+
+export type InvoiceDisplayLine = {
+  id: ID
+  serviceDate?: ISODate
+  description: string
+  professionalCategory?: string
+  matterProjectLabel?: string
+  activityCode?: string
+  quantity?: number
+  rate?: number
+  amount: number
+  chargeType: 'time' | 'expense' | 'fee'
+  sourceIds: ID[]
+}
+
+export type InvoiceDocumentSnapshot = {
+  version: number
+  issuer: Record<string, string>
+  billTo: { name: string; contactName?: string; email?: string; phone?: string; address?: string; taxId?: string }
+  branding: { accentColor: string; logoObjectName?: string }
+  paymentInstructions?: string
+  pageSize: 'letter' | 'a4'
+  linePresentation: 'detailed' | 'summary'
+  taxLabel: string
+  footer?: string
+  document: Record<string, unknown> & { displayLines: InvoiceDisplayLine[] }
+  freeze?: { frozenAt: ISODateTime; frozenById: ID }
 }
 
 export type InvoiceStatus =
@@ -976,6 +1026,7 @@ export type Invoice = {
   discountAmount?: number
   discountReason?: string
   taxAmount?: number
+  taxLabel?: string
   total?: number
   amountPaid?: number
   amountOutstanding?: number
@@ -984,17 +1035,28 @@ export type Invoice = {
   notes?: string
   footer?: string
   narrative?: string
+  paymentInstructions?: string
+  billTo?: { name?: string; contactName?: string; email?: string; phone?: string; address?: string; taxId?: string }
+  pageSize?: 'letter' | 'a4'
+  linePresentation?: 'detailed' | 'summary'
+  displayLines?: InvoiceDisplayLine[]
+  documentSnapshot?: InvoiceDocumentSnapshot
   lineItems: InvoiceLineItem[]
   deliveryHistory?: Array<{
     id: ID
     method: 'email' | 'mail' | 'pdf' | 'manual'
     recipient?: string
     status: 'recorded' | 'queued' | 'sent' | 'failed'
-    sentAt: ISODateTime
+    queuedAt?: ISODateTime
+    sentAt?: ISODateTime
+    failedAt?: ISODateTime
+    error?: string
+    commandId?: ID
     sentById: ID
     resendOfId?: ID
   }>
   pdfSha256?: string
+  pdfObjectName?: string
   pdfGeneratedAt?: ISODateTime
   submittedAt?: ISODateTime
   approvedAt?: ISODateTime

@@ -157,6 +157,16 @@ def test_stripe_connect_link_reconciliation_and_replay_are_invoice_scoped(db):
     assert db.query(TasklyticEntityRecord).filter_by(entity_kind="invoices", record_id="i1").one().payload["status"] == "paid"
 
 
+def test_billing_member_can_create_payment_link_for_approved_invoice(db):
+    invoice = _seed_invoice(db)
+    upsert_record(db, "invoices", {**invoice, "status": "approved"}, "owner", "w1", invoice["revision"], internal_billing_action=True)
+    db.add(TasklyticWorkspaceMember(workspace_id="w1", user_id="billing", role="member"))
+    upsert_record(db, "users", {"id": "billing", "name": "Billing", "email": "billing@example.com", "avatarColor": "#123456", "role": "member", "roleFlags": {"canBill": True}, "createdAt": "2026-01-01T00:00:00Z"}, "owner", "w1")
+    upsert_connection(db, workspace_id="w1", provider="stripe_connect", owner_user_id="owner", external_account_id="acct_client")
+    link = create_stripe_payment_link(db, workspace_id="w1", actor_id="billing", invoice_id="i1", success_url="https://app.test/success", cancel_url="https://app.test/cancel", stripe_client=FakeStripe, idempotency_key="invoice-i1")
+    assert link["url"] == "https://checkout.stripe.test/cs_1"
+
+
 def test_workspace_plan_stripe_event_is_ignored_by_client_invoice_reconciler(db):
     event = {"id": "evt_plan", "type": "checkout.session.completed", "data": {"object": {"metadata": {"scope": "workspace_plan"}}}}
     assert reconcile_stripe_event(db, event)["status"] == "ignored"

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import io
 import json
 import uuid
 import urllib.request
@@ -15,7 +14,16 @@ from typing import Any, Callable
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from models.tasklytic import TasklyticEntityRecord, TasklyticWorkspace, TasklyticWorkspaceMember
+from models.tasklytic import TasklyticEntityRecord, TasklyticFileUpload, TasklyticWorkspace, TasklyticWorkspaceMember
+from services.gcs_service import get_storage_service
+from services.tasklytic_invoice_document import (
+    LINE_PRESENTATIONS,
+    PAGE_SIZES,
+    build_document_snapshot,
+    canonical_display_lines,
+    normalize_billing_settings,
+    render_invoice_pdf,
+)
 from services.tasklytic_service import (
     _find_record,
     capabilities_for_user,
@@ -30,6 +38,119 @@ from services.tasklytic_service import (
 MONEY = Decimal("0.01")
 ECB_URL = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist-90d.xml"
 SOURCE_KINDS = {"timeEntries", "expenses"}
+
+
+def _limited_text(value: Any, label: str, limit: int, *, required: bool = False) -> str | None:
+    if value is None:
+        if required:
+            raise HTTPException(status_code=422, detail=f"{label} is required")
+        return None
+    if not isinstance(value, str):
+        raise HTTPException(status_code=422, detail=f"{label} must be text")
+    result = value.strip()
+    if required and not result:
+        raise HTTPException(status_code=422, detail=f"{label} is required")
+    if len(result) > limit:
+        raise HTTPException(status_code=422, detail=f"{label} exceeds {limit} characters")
+    return result or None
+
+
+def _bill_to(value: Any) -> dict[str, str | None]:
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise HTTPException(status_code=422, detail="billTo must be an object")
+    allowed = {"name", "contactName", "email", "phone", "address", "taxId"}
+    if set(value) - allowed:
+        raise HTTPException(status_code=422, detail="billTo contains unsupported fields")
+    limits = {"name": 300, "contactName": 200, "email": 320, "phone": 100, "address": 1000, "taxId": 200}
+    return {key: _limited_text(value.get(key), f"billTo.{key}", limit) for key, limit in limits.items() if key in value}
+
+
+def _related_label(db: Session, workspace_id: str, source: dict[str, Any]) -> tuple[str, str]:
+    matter_label = ""
+    project_label = ""
+    if source.get("matterId"):
+        row = _find_record(db, "matters", str(source["matterId"]), workspace_id)
+        if row:
+            matter = record_payload(row)
+            matter_label = str(matter.get("matterNumber") or matter.get("name") or "")
+    if source.get("projectId"):
+        row = _find_record(db, "projects", str(source["projectId"]), workspace_id)
+        if row:
+            project_label = str((record_payload(row)).get("name") or "")
+    return " / ".join(value for value in (matter_label, project_label) if value) or "General", project_label
+
+
+def _professional_label(db: Session, workspace_id: str, source: dict[str, Any], kind: str) -> str:
+    if kind == "expenses":
+        return str(source.get("category") or "Expense").replace("_", " ").title()
+    user_id = source.get("userId")
+    if not user_id:
+        return str(source.get("timekeeperRole") or "Professional")
+    row = _find_record(db, "users", str(user_id), workspace_id)
+    if not row:
+        return str(source.get("timekeeperRole") or "Professional")
+    user = record_payload(row)
+    name = str(user.get("name") or "Professional")
+    role = str(source.get("timekeeperRole") or user.get("timekeeperRole") or user.get("jobTitle") or "")
+    return f"{name} - {role}" if role else name
+
+
+def _invoice_logo_bytes(db: Session, workspace_id: str, snapshot: dict[str, Any]) -> bytes | None:
+    object_name = str(((snapshot.get("branding") or {}).get("logoObjectName")) or "")
+    if not object_name:
+        return None
+    row = db.query(TasklyticFileUpload).filter_by(object_name=object_name).one_or_none()
+    if row is None or row.workspace_id != workspace_id or row.scope_type != "invoice_brand" or row.state not in {"completed", "consumed"}:
+        raise HTTPException(status_code=409, detail={"code": "invoice_brand_unavailable"})
+    try:
+        content = get_storage_service().bucket.blob(object_name).download_as_bytes()
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail={"code": "invoice_brand_unavailable"}) from exc
+    if len(content) > 2 * 1024 * 1024 or not (content.startswith(b"\x89PNG\r\n\x1a\n") or content.startswith(b"\xff\xd8\xff")):
+        raise HTTPException(status_code=409, detail={"code": "invoice_brand_invalid"})
+    return content
+
+
+def _persist_invoice_pdf(
+    db: Session, *, workspace_id: str, invoice_id: str, actor_id: str,
+    content: bytes, digest: str,
+) -> str:
+    object_name = f"tasklytic/{workspace_id}/invoices/{invoice_id}/{digest}.pdf"
+    try:
+        get_storage_service().bucket.blob(object_name).upload_from_string(content, content_type="application/pdf")
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail={"code": "invoice_pdf_persistence_failed"}) from exc
+    existing = db.query(TasklyticFileUpload).filter_by(object_name=object_name).one_or_none()
+    if existing is None:
+        now = utcnow()
+        db.add(TasklyticFileUpload(
+            id=uuid.uuid4(), object_name=object_name, workspace_id=workspace_id,
+            uploader_id=actor_id, scope_type="invoice_pdf", scope_id=invoice_id,
+            filename=f"invoice-{invoice_id}.pdf", mime_type="application/pdf",
+            size_bytes=len(content), state="consumed", expires_at=now + timedelta(days=36500),
+            completed_at=now, consumed_at=now,
+        ))
+        db.flush()
+    return object_name
+
+
+def _stored_invoice_pdf(db: Session, workspace_id: str, invoice: dict[str, Any]) -> bytes | None:
+    object_name = str(invoice.get("pdfObjectName") or "")
+    if not object_name:
+        return None
+    row = db.query(TasklyticFileUpload).filter_by(object_name=object_name).one_or_none()
+    if row is None or row.workspace_id != workspace_id or row.scope_type != "invoice_pdf" or row.scope_id != invoice.get("id"):
+        raise HTTPException(status_code=409, detail={"code": "invoice_pdf_unavailable"})
+    try:
+        content = get_storage_service().bucket.blob(object_name).download_as_bytes()
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail={"code": "invoice_pdf_unavailable"}) from exc
+    digest = hashlib.sha256(content).hexdigest()
+    if invoice.get("pdfSha256") and digest != invoice["pdfSha256"]:
+        raise HTTPException(status_code=409, detail={"code": "invoice_pdf_digest_mismatch"})
+    return content
 
 
 def _money(value: Any, label: str, *, allow_zero: bool = True) -> Decimal:
@@ -230,12 +351,20 @@ def generate_invoice(
             continue
         quantity = Decimal(str(source.get("hours") or 1)) if kind == "timeEntries" else Decimal("1")
         rate = amount / quantity if quantity else Decimal("0")
+        matter_project_label, project_label = _related_label(db, workspace_id, source)
         line_items.append({
             "id": str(uuid.uuid4()),
-            "description": str(narratives.get(source["id"]) or source.get("description") or "Professional services"),
+            "description": _limited_text(narratives.get(source["id"]) or source.get("description") or "Professional services", "line narrative", 4000, required=True),
             "quantity": float(quantity), "rate": _number(rate), "amount": _number(amount),
             "currency": invoice_currency, "type": "time" if kind == "timeEntries" else "expense",
-            "sourceId": source["id"], "sourceCurrency": source.get("currency") or invoice_currency,
+            "serviceDate": source.get("date"),
+            "professionalCategory": _professional_label(db, workspace_id, source, kind),
+            "matterProjectLabel": matter_project_label,
+            "projectLabel": project_label or None,
+            "matterId": source.get("matterId"), "projectId": source.get("projectId"),
+            "activityCode": source.get("activityCode") or source.get("activityCodeId"),
+            "sourceId": source["id"], "sourceKind": kind,
+            "sourceCurrency": source.get("currency") or invoice_currency,
             "fxQuoteId": quote.get("id") if quote else None,
         })
         if quote:
@@ -260,6 +389,13 @@ def generate_invoice(
     due_on = _iso_date(body.get("dueOn") or default_due, "dueOn")
     if due_on < issue_date:
         raise HTTPException(status_code=422, detail="dueOn cannot precede issueDate")
+    billing_settings = normalize_billing_settings(workspace.payload or {})
+    line_presentation = str(body.get("linePresentation") or billing_settings["defaultLinePresentation"])
+    if line_presentation not in LINE_PRESENTATIONS:
+        raise HTTPException(status_code=422, detail="linePresentation must be detailed or summary")
+    page_size = str(body.get("pageSize") or billing_settings["pageSize"]).lower()
+    if page_size not in PAGE_SIZES:
+        raise HTTPException(status_code=422, detail="pageSize must be letter or a4")
     now = utcnow().isoformat()
     invoice = {
         "id": invoice_id, "workspaceId": workspace_id, "clientId": client["id"],
@@ -276,12 +412,18 @@ def generate_invoice(
         ),
         "subtotalFees": _number(subtotal_fees), "subtotalExpenses": _number(subtotal_expenses),
         "discountAmount": _number(discount), "discountReason": str(body.get("discountReason") or "").strip() or None,
-        "taxAmount": _number(tax), "total": _number(total), "amount": _number(total),
+        "taxAmount": _number(tax), "taxLabel": _limited_text(body.get("taxLabel") or billing_settings["taxLabel"], "taxLabel", 80),
+        "total": _number(total), "amount": _number(total),
         "amountPaid": 0.0, "amountOutstanding": _number(total), "currency": invoice_currency,
-        "notes": str(body.get("notes") or "").strip() or None,
+        "notes": _limited_text(body.get("notes"), "notes", 10000),
         "footer": str(body.get("footer") or ((workspace.payload or {}).get("billingSettings") or {}).get("defaultFooter") or "").strip() or None,
-        "narrative": str(body.get("narrative") or "").strip() or None,
-        "lineItems": line_items, "status": "draft", "deliveryHistory": [],
+        "narrative": _limited_text(body.get("narrative"), "narrative", 4000),
+        "paymentInstructions": _limited_text(body.get("paymentInstructions"), "paymentInstructions", 4000),
+        "billTo": _bill_to(body.get("billTo")),
+        "pageSize": page_size, "linePresentation": line_presentation,
+        "lineItems": line_items,
+        "displayLines": canonical_display_lines(line_items, line_presentation),
+        "status": "draft", "deliveryHistory": [],
         "fxQuoteIds": sorted(fx_quote_ids_used), "createdAt": now, "createdById": actor_id,
     }
     saved_invoice = _save(db, "invoices", invoice, actor_id, workspace_id)
@@ -340,18 +482,50 @@ def invoice_action(
         patch = body.get("patch") or {}
         if not isinstance(patch, dict):
             raise HTTPException(status_code=422, detail="patch must be an object")
-        allowed = {"narrative", "notes", "footer", "dueOn", "discountAmount", "discountReason", "taxAmount", "lineNarratives"}
+        allowed = {
+            "narrative", "notes", "footer", "issueDate", "dueOn", "discountAmount",
+            "discountReason", "taxAmount", "taxLabel", "lineNarratives",
+            "displayLineNarratives", "billTo", "paymentInstructions", "pageSize",
+            "linePresentation",
+        }
         if set(patch) - allowed:
             raise HTTPException(status_code=422, detail="Invoice patch contains lifecycle-controlled fields")
+        for field, limit in (("narrative", 4000), ("notes", 10000), ("footer", 1000), ("paymentInstructions", 4000), ("taxLabel", 80)):
+            if field in patch:
+                patch[field] = _limited_text(patch[field], field, limit)
+        if "issueDate" in patch:
+            patch["issueDate"] = _iso_date(patch["issueDate"], "issueDate")
         if "dueOn" in patch:
             patch["dueOn"] = _iso_date(patch["dueOn"], "dueOn")
+        effective_issue_date = str(patch.get("issueDate") or invoice.get("issueDate"))
+        effective_due_on = str(patch.get("dueOn") or invoice.get("dueOn"))
+        if effective_due_on < effective_issue_date:
+            raise HTTPException(status_code=422, detail="dueOn cannot precede issueDate")
+        if "billTo" in patch:
+            patch["billTo"] = {**(invoice.get("billTo") or {}), **_bill_to(patch["billTo"])}
+        if "pageSize" in patch and str(patch["pageSize"]).lower() not in PAGE_SIZES:
+            raise HTTPException(status_code=422, detail="pageSize must be letter or a4")
+        if "pageSize" in patch:
+            patch["pageSize"] = str(patch["pageSize"]).lower()
+        if "linePresentation" in patch and patch["linePresentation"] not in LINE_PRESENTATIONS:
+            raise HTTPException(status_code=422, detail="linePresentation must be detailed or summary")
         if "lineNarratives" in patch:
             line_narratives = patch.pop("lineNarratives")
             if not isinstance(line_narratives, dict):
                 raise HTTPException(status_code=422, detail="lineNarratives must be an object")
             updated["lineItems"] = [
-                {**line, "description": str(line_narratives.get(line.get("id"), line.get("description")))}
+                {**line, "description": _limited_text(line_narratives.get(line.get("id"), line.get("description")), "line narrative", 4000, required=True)}
                 for line in invoice.get("lineItems") or []
+            ]
+        presentation = str(patch.get("linePresentation") or invoice.get("linePresentation") or "detailed")
+        updated["displayLines"] = canonical_display_lines(list(updated.get("lineItems") or []), presentation)
+        if "displayLineNarratives" in patch:
+            display_narratives = patch.pop("displayLineNarratives")
+            if not isinstance(display_narratives, dict):
+                raise HTTPException(status_code=422, detail="displayLineNarratives must be an object")
+            updated["displayLines"] = [
+                {**line, "description": _limited_text(display_narratives.get(line.get("id"), line.get("description")), "display line narrative", 4000, required=True)}
+                for line in updated["displayLines"]
             ]
         discount = _money(patch.get("discountAmount", invoice.get("discountAmount", 0)), "discountAmount")
         tax = _money(patch.get("taxAmount", invoice.get("taxAmount", 0)), "taxAmount")
@@ -367,6 +541,29 @@ def invoice_action(
     elif action == "submit":
         if status != "draft":
             raise HTTPException(status_code=409, detail={"code": "invalid_invoice_transition", "from": status, "action": action})
+        workspace_payload = _workspace(db, workspace_id).payload or {}
+        client = _record(db, "clients", validate_id(invoice.get("clientId"), "clientId"), workspace_id, lock=False)
+        snapshot = build_document_snapshot(
+            updated, workspace_payload, client, frozen_at=now, frozen_by_id=actor_id,
+        )
+        try:
+            logo_bytes = _invoice_logo_bytes(db, workspace_id, snapshot)
+            pdf_content = render_invoice_pdf(updated | {"documentSnapshot": snapshot}, workspace_payload, client=client, logo_bytes=logo_bytes)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=409, detail={"code": "invoice_pdf_generation_failed"}) from exc
+        pdf_digest = hashlib.sha256(pdf_content).hexdigest()
+        pdf_object_name = _persist_invoice_pdf(
+            db, workspace_id=workspace_id, invoice_id=invoice_id, actor_id=actor_id,
+            content=pdf_content, digest=pdf_digest,
+        )
+        updated.update({
+            "documentSnapshot": snapshot,
+            "pdfSha256": pdf_digest,
+            "pdfObjectName": pdf_object_name,
+            "pdfGeneratedAt": now,
+        })
         required, _approvers = _invoice_approval_settings(db, workspace_id)
         updated.update({"status": "pending_approval" if required else "approved", "submittedAt": now})
         if not required:
@@ -380,8 +577,7 @@ def invoice_action(
             raise HTTPException(status_code=403, detail={"code": "self_approval_denied"})
         updated.update({"status": "approved", "approvedAt": now, "approvedById": actor_id})
     elif action in {"send", "resend"}:
-        required, _approvers = _invoice_approval_settings(db, workspace_id)
-        allowed = {"approved"} if required else {"draft", "approved"}
+        allowed = {"approved"}
         if action == "resend": allowed = {"sent", "partial", "overdue"}
         if status not in allowed:
             raise HTTPException(status_code=409, detail={"code": "invalid_invoice_transition", "from": status, "action": action})
@@ -392,11 +588,17 @@ def invoice_action(
         delivery = {
             "id": str(uuid.uuid4()), "method": method,
             "recipient": str(body.get("recipient") or "").strip() or None,
-            "status": "queued" if method == "email" else "recorded", "sentAt": now, "sentById": actor_id,
+            "status": "queued" if method == "email" else "recorded",
+            "queuedAt": now if method == "email" else None,
+            "sentAt": now if method != "email" else None,
+            "sentById": actor_id,
             "resendOfId": history[-1]["id"] if action == "resend" and history else None,
         }
         history.append(delivery)
-        updated.update({"status": "sent" if status not in {"partial", "overdue"} else status, "sentAt": invoice.get("sentAt") or now, "deliveryHistory": history})
+        if method == "email":
+            updated.update({"deliveryHistory": history})
+        else:
+            updated.update({"status": "sent" if status == "approved" else status, "sentAt": invoice.get("sentAt") or now, "deliveryHistory": history})
         details = delivery
     elif action == "void":
         if status in {"void", "written_off"}:
@@ -431,6 +633,58 @@ def invoice_action(
     saved = _save(db, "invoices", updated, actor_id, workspace_id, invoice["revision"])
     audit = _audit(db, workspace_id=workspace_id, actor_id=actor_id, resource_type="invoice", resource_id=invoice_id, action=action, details=details)
     return {"invoice": saved, "audit": audit}
+
+
+def finalize_invoice_delivery(
+    db: Session,
+    *,
+    invoice_id: str,
+    delivery_id: str,
+    workspace_id: str,
+    actor_id: str,
+    delivery_status: str,
+    command_id: str,
+    error: str | None = None,
+) -> dict[str, Any]:
+    """Apply provider outcome without falsely marking failed email as sent."""
+    require_capability(db, workspace_id, actor_id, "bill")
+    if delivery_status not in {"queued", "sent", "failed"}:
+        raise HTTPException(status_code=422, detail="Invalid delivery status")
+    invoice = _record(db, "invoices", invoice_id, workspace_id)
+    history = list(invoice.get("deliveryHistory") or [])
+    matched = False
+    now = utcnow().isoformat()
+    for index, delivery in enumerate(history):
+        if delivery.get("id") != delivery_id:
+            continue
+        matched = True
+        if delivery_status in {"sent", "failed"} and delivery.get("status") == delivery_status and delivery.get("commandId") == command_id:
+            return invoice
+        history[index] = {
+            **delivery,
+            "status": delivery_status,
+            "commandId": command_id,
+            "sentAt": now if delivery_status == "sent" else None,
+            "failedAt": now if delivery_status == "failed" else None,
+            "lastAttemptAt": now,
+            "error": None if delivery_status == "sent" else _limited_text(error or "Email delivery is pending retry", "delivery error", 1000),
+        }
+        break
+    if not matched:
+        raise HTTPException(status_code=409, detail={"code": "invoice_delivery_missing"})
+    updated = {**invoice, "deliveryHistory": history}
+    if delivery_status == "sent":
+        if invoice.get("status") == "approved":
+            updated["status"] = "sent"
+        updated["sentAt"] = invoice.get("sentAt") or now
+    saved = _save(db, "invoices", updated, actor_id, workspace_id, invoice["revision"])
+    _audit(
+        db, workspace_id=workspace_id, actor_id=actor_id,
+        resource_type="invoice", resource_id=invoice_id,
+        action=f"delivery_{delivery_status}",
+        details={"deliveryId": delivery_id, "commandId": command_id, "error": error if delivery_status != "sent" else None},
+    )
+    return saved
 
 
 def _trust_rows(db: Session, workspace_id: str, client_id: str, currency: str) -> list[dict[str, Any]]:
@@ -681,58 +935,18 @@ def create_fx_quote(
     return {"quote": saved, "audit": audit}
 
 
-def _pdf_escape(value: Any) -> str:
-    return str(value or "").encode("latin-1", "replace").decode("latin-1").replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
-
-
-def render_invoice_pdf(invoice: dict[str, Any], workspace: dict[str, Any]) -> bytes:
-    """Render a deterministic, dependency-free one-page PDF for delivery/archival."""
-
-    lines = [
-        str((workspace.get("billingSettings") or {}).get("brandedHeader") or workspace.get("name") or "Invoice"),
-        f"Invoice {invoice.get('invoiceNumber')}",
-        f"Client: {invoice.get('clientName')}",
-        f"Issued: {invoice.get('issueDate')}   Due: {invoice.get('dueOn')}",
-        "",
-    ]
-    for line in invoice.get("lineItems") or []:
-        amount = line.get("amount", Decimal(str(line.get("quantity") or 0)) * Decimal(str(line.get("rate") or 0)))
-        lines.append(f"{line.get('description')}  {invoice.get('currency')} {Decimal(str(amount)):.2f}")
-    lines.extend([
-        "",
-        f"Subtotal: {invoice.get('currency')} {Decimal(str(invoice.get('subtotalFees', 0))) + Decimal(str(invoice.get('subtotalExpenses', 0))):.2f}",
-        f"Discount: {invoice.get('currency')} {Decimal(str(invoice.get('discountAmount', 0))):.2f}",
-        f"Tax: {invoice.get('currency')} {Decimal(str(invoice.get('taxAmount', 0))):.2f}",
-        f"Total: {invoice.get('currency')} {Decimal(str(invoice.get('total', invoice.get('amount', 0)))):.2f}",
-        str(invoice.get("notes") or ""), str(invoice.get("footer") or ""),
-    ])
-    commands = ["BT", "/F1 10 Tf", "50 760 Td"]
-    first = True
-    for line in lines[:48]:
-        if not first: commands.append("0 -15 Td")
-        commands.append(f"({_pdf_escape(line)}) Tj")
-        first = False
-    commands.append("ET")
-    stream = "\n".join(commands).encode("latin-1")
-    objects = [
-        b"<< /Type /Catalog /Pages 2 0 R >>",
-        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>",
-        f"<< /Length {len(stream)} >>\nstream\n".encode() + stream + b"\nendstream",
-        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    ]
-    output = io.BytesIO(); output.write(b"%PDF-1.4\n")
-    offsets = [0]
-    for index, obj in enumerate(objects, 1):
-        offsets.append(output.tell()); output.write(f"{index} 0 obj\n".encode()); output.write(obj); output.write(b"\nendobj\n")
-    xref = output.tell(); output.write(f"xref\n0 {len(objects) + 1}\n".encode()); output.write(b"0000000000 65535 f \n")
-    for offset in offsets[1:]: output.write(f"{offset:010d} 00000 n \n".encode())
-    output.write(f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode())
-    return output.getvalue()
-
-
 def invoice_pdf(db: Session, *, invoice_id: str, workspace_id: str, actor_id: str) -> tuple[bytes, str]:
     require_capability(db, workspace_id, actor_id, "view")
     invoice = _record(db, "invoices", invoice_id, workspace_id, lock=False)
-    content = render_invoice_pdf(invoice, _workspace(db, workspace_id).payload or {})
-    return content, hashlib.sha256(content).hexdigest()
+    stored = _stored_invoice_pdf(db, workspace_id, invoice)
+    if stored is not None:
+        return stored, hashlib.sha256(stored).hexdigest()
+    workspace = _workspace(db, workspace_id).payload or {}
+    client = _record(db, "clients", validate_id(invoice.get("clientId"), "clientId"), workspace_id, lock=False) if invoice.get("clientId") else {}
+    snapshot = invoice.get("documentSnapshot")
+    logo_bytes = _invoice_logo_bytes(db, workspace_id, snapshot) if isinstance(snapshot, dict) else None
+    content = render_invoice_pdf(invoice, workspace, client=client, logo_bytes=logo_bytes)
+    digest = hashlib.sha256(content).hexdigest()
+    if isinstance(snapshot, dict) and invoice.get("pdfSha256") and digest != invoice["pdfSha256"]:
+        raise HTTPException(status_code=409, detail={"code": "invoice_pdf_digest_mismatch"})
+    return content, digest

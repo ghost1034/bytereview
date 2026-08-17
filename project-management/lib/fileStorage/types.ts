@@ -5,7 +5,7 @@ export type FileStorageKind = Attachment['storage']
 export type FileUploadInput = {
   file: File
   ownerId: ID
-  scope: 'task' | 'comment' | 'project' | 'receipt'
+  scope: 'task' | 'comment' | 'project' | 'receipt' | 'invoice_brand'
   scopeId: ID
   workspaceId?: ID
 }

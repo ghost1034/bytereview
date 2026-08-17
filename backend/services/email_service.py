@@ -85,8 +85,9 @@ class EmailService:
         text_body: str,
         reply_to: Optional[str] = None,
         inline_images: Optional[list[tuple[str, bytes, str, str]]] = None,
+        attachments: Optional[list[tuple[str, bytes, str]]] = None,
     ) -> bool:
-        """Send a multipart/alternative email (HTML with plain-text fallback)."""
+        """Send HTML/text alternatives with optional inline images and attachments."""
         if is_local():
             logger.info("Local HTML email sink: to=%s subject=%s", to_email, subject)
             return True
@@ -95,26 +96,36 @@ class EmailService:
             if not service:
                 raise RuntimeError("Gmail service is unavailable")
 
-            message = MIMEMultipart("related") if inline_images else MIMEMultipart("alternative")
+            message = MIMEMultipart("mixed") if attachments else (MIMEMultipart("related") if inline_images else MIMEMultipart("alternative"))
             message["to"] = to_email
             message["from"] = self.FROM_ALIAS
             message["subject"] = subject
             if reply_to:
                 message["reply-to"] = reply_to
-            alternative = MIMEMultipart("alternative") if inline_images else message
+            related = MIMEMultipart("related") if attachments and inline_images else message
+            alternative = MIMEMultipart("alternative") if inline_images or attachments else message
             # Order matters: last alternative is preferred by capable clients.
             alternative.attach(MIMEText(text_body, "plain"))
             alternative.attach(MIMEText(html_body, "html"))
-            if inline_images:
-                message.attach(alternative)
-                for content_id, content, mime_type, filename in inline_images:
+            if inline_images or attachments:
+                related.attach(alternative)
+                for content_id, content, mime_type, filename in inline_images or []:
                     major, _, subtype = mime_type.partition("/")
                     image = MIMEBase(major or "application", subtype or "octet-stream")
                     image.set_payload(content)
                     encoders.encode_base64(image)
                     image.add_header("Content-ID", f"<{content_id}>")
                     image.add_header("Content-Disposition", "inline", filename=filename)
-                    message.attach(image)
+                    related.attach(image)
+                if attachments and related is not message:
+                    message.attach(related)
+            for filename, content, mime_type in attachments or []:
+                major, _, subtype = mime_type.partition("/")
+                attachment = MIMEBase(major or "application", subtype or "octet-stream")
+                attachment.set_payload(content)
+                encoders.encode_base64(attachment)
+                attachment.add_header("Content-Disposition", "attachment", filename=filename)
+                message.attach(attachment)
             raw = base64.urlsafe_b64encode(message.as_bytes()).decode("utf-8")
             result = service.users().messages().send(userId="me", body={"raw": raw}).execute()
             logger.info(f"HTML email sent to {to_email}: messageId={result.get('id')}")

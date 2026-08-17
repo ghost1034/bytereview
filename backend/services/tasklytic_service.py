@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from models.tasklytic import (
     TasklyticEntityRecord,
+    TasklyticFileUpload,
     TasklyticInvitation,
     TasklyticWorkspace,
     TasklyticWorkspaceEvent,
@@ -1056,6 +1057,31 @@ def upsert_workspace(
         approver_ids = set(approval_settings.get("invoiceApproverIds") or []) | set(billing_settings.get("invoiceApproverIds") or [])
         if any(not isinstance(value, str) or value not in effective_member_ids for value in approver_ids):
             raise HTTPException(status_code=422, detail="Invoice approvers must be workspace members")
+        billing_text_limits = {
+            "issuerDisplayName": 200, "issuerAddress": 1000, "issuerEmail": 320,
+            "issuerPhone": 100, "issuerWebsite": 500, "paymentInstructions": 4000,
+            "taxLabel": 80, "taxRegistrationText": 500, "defaultFooter": 1000,
+            "brandedHeader": 200, "emailSubjectTemplate": 998,
+            "emailMessageTemplate": 10000,
+        }
+        for field, limit in billing_text_limits.items():
+            value = billing_settings.get(field)
+            if value is not None and (not isinstance(value, str) or len(value) > limit):
+                raise HTTPException(status_code=422, detail=f"billingSettings.{field} must be text up to {limit} characters")
+        if billing_settings.get("issuerEmail") and not EMAIL_RE.fullmatch(str(billing_settings["issuerEmail"])):
+            raise HTTPException(status_code=422, detail="billingSettings.issuerEmail must be a valid email")
+        accent = billing_settings.get("accentColor")
+        if accent is not None and (not isinstance(accent, str) or not re.fullmatch(r"#[0-9A-Fa-f]{6}", accent)):
+            raise HTTPException(status_code=422, detail="billingSettings.accentColor must be a six-digit hex color")
+        if billing_settings.get("pageSize") not in {None, "letter", "a4"}:
+            raise HTTPException(status_code=422, detail="billingSettings.pageSize must be letter or a4")
+        if billing_settings.get("defaultLinePresentation") not in {None, "detailed", "summary"}:
+            raise HTTPException(status_code=422, detail="billingSettings.defaultLinePresentation must be detailed or summary")
+        logo_object_name = billing_settings.get("logoObjectName")
+        if logo_object_name:
+            logo = db.query(TasklyticFileUpload).filter_by(object_name=str(logo_object_name)).one_or_none()
+            if logo is None or logo.workspace_id != workspace_id or logo.scope_type != "invoice_brand" or logo.state not in {"completed", "consumed"}:
+                raise HTTPException(status_code=422, detail="billingSettings.logoObjectName must reference a completed invoice brand image")
         fx_overrides = data.get("fxOverrides") or {}
         if not isinstance(fx_overrides, dict):
             raise HTTPException(status_code=422, detail="FX overrides must be an object")
