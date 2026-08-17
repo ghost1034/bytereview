@@ -365,13 +365,22 @@ def project_links(actor: User = Depends(require_role(*READER_ROLES)), db: Sessio
     ).all()
     projects = []
     for row in rows:
+        payload = row.payload or {}
+        if payload.get("archived") is True:
+            continue
         try:
             validate_tasklytic_link(db, actor.id, row.workspace_id, row.record_id)
         except HTTPException:
             continue
-        projects.append({"workspace_id": row.workspace_id, "project_id": row.record_id,
-                         "name": str((row.payload or {}).get("name") or "Untitled project")})
-    return {"projects": sorted(projects, key=lambda item: item["name"].lower())}
+        name = str(payload.get("name") or "Untitled project")
+        short_id = row.record_id[-8:]
+        projects.append({
+            "workspace_id": row.workspace_id,
+            "project_id": row.record_id,
+            "name": name,
+            "label": f"{name} · #{short_id}",
+        })
+    return {"projects": sorted(projects, key=lambda item: (item["name"].lower(), item["project_id"]))}
 
 
 @router.get("/settings")

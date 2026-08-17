@@ -19,11 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { exportMemoToPdf, exportMemoToWord } from '@/lib/analytics/memoExport'
 import type { AnalyticsAnalysis } from '@/lib/analytics/types'
-import {
-  readVarianceConfig,
-  readVarianceData,
-  type VarianceConfig,
-} from '@/lib/analytics/varianceTypes'
+import { readVarianceData } from '@/lib/analytics/varianceTypes'
 
 interface VarianceMemoTabProps {
   record: AnalyticsAnalysis
@@ -36,9 +32,9 @@ export function VarianceMemoTab({ record }: VarianceMemoTabProps) {
   const [isExporting, setIsExporting] = useState<'word' | 'pdf' | null>(null)
 
   const memo = record.memo_content ?? ''
-  const config = readVarianceConfig(record) as VarianceConfig
   const data = readVarianceData(record)
   const processed = data.processed ?? []
+  const canExport = record.status === 'Approved' || record.status === 'Finalized'
 
   const handleGenerate = async () => {
     if (processed.length === 0) {
@@ -47,14 +43,16 @@ export function VarianceMemoTab({ record }: VarianceMemoTabProps) {
     }
     try {
       const response = await memoMutation.mutateAsync({
-        data: processed as unknown as Record<string, unknown>[],
-        config: config as unknown as Record<string, unknown>,
+        analysisId: record.id,
       })
       await updateMutation.mutateAsync({
         analysisId: record.id,
-        data: { memo_content: response.text },
+        data: { memo_content: response.text, status: 'Draft' },
       })
-      toast({ title: 'Memo generated' })
+      toast({
+        title: 'Draft memo generated',
+        description: 'Review and approve the analysis before exporting the memo.',
+      })
     } catch (error) {
       toast({
         title: 'Memo generation failed',
@@ -67,6 +65,13 @@ export function VarianceMemoTab({ record }: VarianceMemoTabProps) {
   const handleExport = async (format: 'word' | 'pdf') => {
     if (!memo) {
       toast({ title: 'Nothing to export' })
+      return
+    }
+    if (!canExport) {
+      toast({
+        title: 'Approval required',
+        description: 'Review and approve the analysis before exporting this draft.',
+      })
       return
     }
     setIsExporting(format)
@@ -112,7 +117,12 @@ export function VarianceMemoTab({ record }: VarianceMemoTabProps) {
           {memo && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" disabled={isExporting !== null}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isExporting !== null || !canExport}
+                  title={canExport ? undefined : 'Approve the analysis before exporting this draft'}
+                >
                   {isExporting ? (
                     <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden />
                   ) : (
@@ -135,9 +145,20 @@ export function VarianceMemoTab({ record }: VarianceMemoTabProps) {
       </div>
 
       {memo ? (
-        <article className="prose prose-sm max-w-none rounded-xl border border-border bg-card p-6 dark:prose-invert">
-          <ReactMarkdown>{memo}</ReactMarkdown>
-        </article>
+        <div className="space-y-3">
+          {!canExport && (
+            <Alert>
+              <AlertTitle>Review-required draft</AlertTitle>
+              <AlertDescription>
+                Verify the generated statements against the source rows, then approve the analysis
+                to enable Word or PDF export.
+              </AlertDescription>
+            </Alert>
+          )}
+          <article className="prose prose-sm max-w-none rounded-xl border border-border bg-card p-6 dark:prose-invert">
+            <ReactMarkdown>{memo}</ReactMarkdown>
+          </article>
+        </div>
       ) : (
         <Alert>
           <AlertTitle>No memo yet</AlertTitle>

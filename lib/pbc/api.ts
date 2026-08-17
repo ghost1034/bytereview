@@ -3,6 +3,23 @@
 import { getCurrentAuthToken } from '@/lib/firebase'
 import type { PbcClientEngagement, PbcContact, PbcDashboard, PbcDocument, PbcEngagement, PbcRequestItem, PbcTemplate } from './types'
 
+export type PbcApiErrorDetail = string | {
+  message?: string
+  invalid_requests?: unknown
+  [key: string]: unknown
+}
+
+export class PbcApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly detail: PbcApiErrorDetail | undefined,
+  ) {
+    super(message)
+    this.name = 'PbcApiError'
+  }
+}
+
 async function firmRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = await getCurrentAuthToken()
   const response = await fetch(`/api/pbc${path}`, {
@@ -15,8 +32,13 @@ async function firmRequest<T>(path: string, options: RequestInit = {}): Promise<
   })
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
-    const detail = body.detail
-    throw new Error(typeof detail === 'string' ? detail : detail?.message || `Request failed (${response.status})`)
+    const detail = body.detail as PbcApiErrorDetail | undefined
+    const message = typeof detail === 'string'
+      ? detail
+      : typeof detail?.message === 'string'
+        ? detail.message
+        : `Request failed (${response.status})`
+    throw new PbcApiError(message, response.status, detail)
   }
   if (response.status === 204) return undefined as T
   return response.json()
@@ -26,7 +48,7 @@ export const pbcApi = {
   dashboard: () => firmRequest<PbcDashboard>('/dashboard'),
   clientEngagements: () => firmRequest<{ engagements: PbcClientEngagement[] }>('/client/engagements'),
   openClientEngagement: (id: string) => firmRequest<{ csrf_token: string; engagement_id: string }>(`/client/engagements/${id}/session`, { method: 'POST' }),
-  projectLinks: () => firmRequest<{ projects: Array<{ workspace_id: string; project_id: string; name: string }> }>('/project-links'),
+  projectLinks: () => firmRequest<{ projects: Array<{ workspace_id: string; project_id: string; name: string; label: string }> }>('/project-links'),
   engagements: () => firmRequest<{ engagements: PbcEngagement[] }>('/engagements'),
   engagement: (id: string) => firmRequest<PbcEngagement>(`/engagements/${id}`),
   createEngagement: (payload: Record<string, unknown>) => firmRequest<PbcEngagement>('/engagements', { method: 'POST', body: JSON.stringify(payload) }),

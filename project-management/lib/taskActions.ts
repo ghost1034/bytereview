@@ -18,7 +18,7 @@ import { now } from './time'
 
 import type { ApprovalStatus, Task, TaskSubtype } from '../types'
 
-import { useTasksStore } from '../stores/entities'
+import { useSectionsStore, useTasksStore } from '../stores/entities'
 
 import { pushTaskUndo } from '../stores/taskUndo'
 
@@ -243,6 +243,18 @@ export async function createSubtask(
 /** Create a new task and optionally attach to a project section. */
 
 export async function createTask(input: CreateTaskInput): Promise<Task> {
+
+  if (input.sectionId) {
+
+    const section = useSectionsStore.getState().getById(input.sectionId)
+
+    if (!input.projectId || !section || section.projectId !== input.projectId) {
+
+      throw new Error('The selected section is not available in this project.')
+
+    }
+
+  }
 
   const task: Task = {
 
@@ -625,6 +637,16 @@ export async function removeFromProject(
 
 /** Update section assignment within a project. */
 
+function isCanonicalDoneSection(sectionId: string | undefined, projectId: string): boolean {
+
+  if (!sectionId) return false
+
+  const section = useSectionsStore.getState().getById(sectionId)
+
+  return section?.projectId === projectId && section.name.trim().toLowerCase() === 'done'
+
+}
+
 export async function setSectionForProject(
 
   taskId: string,
@@ -641,15 +663,36 @@ export async function setSectionForProject(
 
   if (!task || !task.projectIds.includes(projectId)) return
 
-  await updateTask(
+  const currentSectionId = task.sectionIdByProject[projectId]
+  const enteringDone =
+    !isCanonicalDoneSection(currentSectionId, projectId) &&
+    isCanonicalDoneSection(sectionId, projectId)
+  const leavingDone =
+    isCanonicalDoneSection(currentSectionId, projectId) &&
+    !isCanonicalDoneSection(sectionId, projectId)
+  const patch: Partial<Task> = {
+    sectionIdByProject: { ...task.sectionIdByProject, [projectId]: sectionId },
+  }
 
-    taskId,
+  if (enteringDone && !task.completed) {
 
-    { sectionIdByProject: { ...task.sectionIdByProject, [projectId]: sectionId } },
+    patch.completed = true
 
-    actorId
+    patch.completedAt = now()
 
-  )
+    patch.completedById = actorId
+
+  } else if (leavingDone && task.completed) {
+
+    patch.completed = false
+
+    patch.completedAt = undefined
+
+    patch.completedById = undefined
+
+  }
+
+  await updateTask(taskId, patch, actorId)
 
 }
 

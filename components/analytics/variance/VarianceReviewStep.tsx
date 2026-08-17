@@ -11,9 +11,10 @@ import { useToast } from '@/hooks/use-toast'
 import { formatCurrency } from '@/lib/analytics/format'
 import type { AnalyticsAnalysis } from '@/lib/analytics/types'
 import {
-  aggregateVariances,
+  aggregateVariancesWithStats,
   summarizeProcessed,
 } from '@/lib/analytics/varianceEngine'
+import { validateVariancePeriods } from '@/lib/analytics/variancePeriodValidation'
 import {
   readVarianceConfig,
   readVarianceData,
@@ -45,10 +46,20 @@ export function VarianceReviewStep({ record, onBack, onComplete }: VarianceRevie
   const data = readVarianceData(record)
   const rowCount = (data.rawData ?? []).length
 
+  const periodValidation = useMemo(
+    () =>
+      validateVariancePeriods({
+        config,
+        rawData: data.rawData ?? [],
+        columnMap: config.columnMapping ?? {},
+      }),
+    [config, data.rawData],
+  )
+
   const preview = useMemo(() => {
     if (!data.rawData || data.rawData.length === 0) return null
     try {
-      return aggregateVariances({
+      return aggregateVariancesWithStats({
         rawData: data.rawData,
         columnMap: config.columnMapping ?? {},
         customColumns: config.customColumns ?? [],
@@ -60,20 +71,33 @@ export function VarianceReviewStep({ record, onBack, onComplete }: VarianceRevie
     }
   }, [data.rawData, config])
 
-  const previewFlagged = preview?.filter((r) => r.isFlagged) ?? []
+  const previewRows = preview?.variances ?? []
+  const previewFlagged = previewRows.filter((r) => r.isFlagged)
+  const hasEmptyPeriod = Boolean(
+    preview && (preview.rowCounts.baseRows === 0 || preview.rowCounts.comparisonRows === 0),
+  )
 
   const handleRun = async () => {
-    if (!preview || preview.length === 0) {
+    if (!periodValidation.isValid) return
+    if (hasEmptyPeriod) {
+      toast({
+        title: 'Selected period is empty',
+        description: 'Both the base and comparison periods must contain at least one row.',
+        variant: 'destructive',
+      })
+      return
+    }
+    if (!preview || previewRows.length === 0) {
       toast({ title: 'Nothing to aggregate', variant: 'destructive' })
       return
     }
     setIsRunning(true)
     try {
-      const summary = summarizeProcessed(preview)
+      const summary = summarizeProcessed(previewRows)
       const nextData: VarianceRecordData = {
         rawData: data.rawData,
         headers: data.headers,
-        processed: preview,
+        processed: previewRows,
       }
       await updateMutation.mutateAsync({
         analysisId: record.id,
@@ -155,20 +179,45 @@ export function VarianceReviewStep({ record, onBack, onComplete }: VarianceRevie
       </div>
 
       {preview && (
-        <div className="rounded-xl border border-border bg-card p-4 text-sm">
+        <div className="space-y-2 rounded-xl border border-border bg-card p-4 text-sm">
           <div className="mb-1 font-semibold text-foreground">Expected result</div>
           <p className="text-foreground-muted">
-            Aggregation will produce <strong>{preview.length}</strong> grouped row(s), of which{' '}
+            Aggregation will produce <strong>{previewRows.length}</strong> grouped row(s), of which{' '}
             <strong>{previewFlagged.length}</strong> would be flagged at the current thresholds.
           </p>
+          <p className="text-foreground-muted">
+            <strong>{preview.rowCounts.baseRows}</strong> base rows,{' '}
+            <strong>{preview.rowCounts.comparisonRows}</strong> comparison rows,{' '}
+            <strong>{preview.rowCounts.excludedRows}</strong> excluded rows.
+          </p>
         </div>
+      )}
+
+      {!periodValidation.isValid && (
+        <Alert variant="destructive">
+          <AlertTitle>Period setup needs attention</AlertTitle>
+          <AlertDescription>{periodValidation.error}</AlertDescription>
+        </Alert>
+      )}
+
+      {periodValidation.isValid && hasEmptyPeriod && (
+        <Alert variant="destructive">
+          <AlertTitle>Selected period is empty</AlertTitle>
+          <AlertDescription>
+            Both the base and comparison periods must contain at least one row before the analysis
+            can run.
+          </AlertDescription>
+        </Alert>
       )}
 
       <div className="flex items-center justify-between">
         <Button variant="ghost" onClick={onBack}>
           <ChevronLeft className="mr-1.5 size-4" aria-hidden /> Back to thresholds
         </Button>
-        <Button onClick={handleRun} disabled={isRunning || !preview}>
+        <Button
+          onClick={handleRun}
+          disabled={isRunning || !preview || !periodValidation.isValid || hasEmptyPeriod}
+        >
           {isRunning ? (
             <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
           ) : (

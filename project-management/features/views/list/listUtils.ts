@@ -48,7 +48,7 @@ function appendTaskRows(
   task: Task,
   depth: number,
   groupKey: string,
-  sectionId: string,
+  sectionId: string | undefined,
   expandedTaskIds: Set<string>,
   getChildren: (parentId: string) => Task[]
 ): void {
@@ -81,8 +81,9 @@ export function buildListRows(input: BuildRowsInput): ListRow[] {
 
   groups.forEach((group) => {
     const section = groupBySection ? sections.find((s) => s.id === group.key) : undefined
-    const sectionId =
-      section?.id ?? group.tasks[0]?.sectionIdByProject[project.id] ?? sections[0]?.id ?? group.key
+    const sectionId = groupBySection
+      ? section?.id
+      : group.tasks[0]?.sectionIdByProject[project.id] ?? sections[0]?.id
     const order = groupBySection && section ? project.taskOrderBySection?.[section.id] : undefined
     const ordered = orderTasksInSection(group.tasks, order)
     const taskIds = ordered.map((t) => t.id)

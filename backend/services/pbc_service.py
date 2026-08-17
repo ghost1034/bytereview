@@ -315,6 +315,8 @@ def validate_tasklytic_link(db: Session, user_id: str, workspace_id: str | None,
     ).first()
     if membership is None or project is None:
         raise HTTPException(status_code=403, detail="Project Management link is not accessible")
+    if (project.payload or {}).get("archived") is True:
+        raise HTTPException(status_code=422, detail="Archived Project Management projects cannot be linked")
     authorize_record(db, "projects", project.payload or {}, workspace_id, user_id)
 
 

@@ -494,8 +494,9 @@ class VarianceAnalyzeResponse(BaseModel):
 
 
 class VarianceMemoRequest(BaseModel):
-    data: List[Dict[str, Any]] = Field(default_factory=list)
-    config: Dict[str, Any] = Field(default_factory=dict)
+    analysis_id: str = Field(..., min_length=1, alias="analysisId")
+
+    model_config = {"populate_by_name": True}
 
 
 class VarianceMemoResponse(BaseModel):

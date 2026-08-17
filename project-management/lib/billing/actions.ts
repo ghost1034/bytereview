@@ -1,4 +1,5 @@
 import { tasklyticApiFetch, tasklyticApiJson } from '../tasklyticApi'
+import { getRepository } from '../repository'
 import {
   useBillingAuditRecordsStore,
   useBillingLocksStore,
@@ -17,7 +18,11 @@ type PaymentResult = { invoice: Invoice; payment: Payment; trustTransaction?: Tr
 
 const headers = () => ({ 'Idempotency-Key': crypto.randomUUID() })
 
-async function refreshBilling(options: { sources?: boolean; payments?: boolean; trust?: boolean; fx?: boolean } = {}) {
+async function refreshBilling(
+  workspaceId: string,
+  options: { sources?: boolean; payments?: boolean; trust?: boolean; fx?: boolean } = {},
+) {
+  await getRepository().refreshSnapshot?.(workspaceId)
   await Promise.all([
     useInvoicesStore.getState().hydrate(),
     useBillingAuditRecordsStore.getState().hydrate(),
@@ -38,7 +43,7 @@ export async function generateInvoice(
   const result = await tasklyticApiJson<InvoiceResult>('/billing/invoices:generate', {
     method: 'POST', headers: headers(), body: JSON.stringify({ workspaceId, ...payload }),
   })
-  await refreshBilling({ sources: true })
+  await refreshBilling(workspaceId, { sources: true })
   return result.invoice
 }
 
@@ -51,7 +56,7 @@ export async function runInvoiceAction(
   const result = await tasklyticApiJson<InvoiceResult>(`/billing/invoices/${invoiceId}:${action}`, {
     method: 'POST', headers: headers(), body: JSON.stringify({ workspaceId, ...payload }),
   })
-  await refreshBilling({ sources: action === 'void' })
+  await refreshBilling(workspaceId, { sources: action === 'void' })
   return result.invoice
 }
 
@@ -63,7 +68,7 @@ export async function applyInvoicePayment(
   const result = await tasklyticApiJson<PaymentResult>(`/billing/invoices/${invoiceId}:payment`, {
     method: 'POST', headers: headers(), body: JSON.stringify({ workspaceId, ...payload }),
   })
-  await refreshBilling({ payments: true, trust: payload.method === 'trust_application' })
+  await refreshBilling(workspaceId, { payments: true, trust: payload.method === 'trust_application' })
   return result
 }
 
@@ -75,7 +80,7 @@ export async function reverseInvoicePayment(
   await tasklyticApiJson(`/billing/payments/${paymentId}:reverse`, {
     method: 'POST', headers: headers(), body: JSON.stringify({ workspaceId, reason }),
   })
-  await refreshBilling({ payments: true, trust: true })
+  await refreshBilling(workspaceId, { payments: true, trust: true })
 }
 
 export async function recordTrustTransaction(
@@ -85,7 +90,7 @@ export async function recordTrustTransaction(
   const result = await tasklyticApiJson<{ transaction: TrustTransaction }>('/billing/trust:record', {
     method: 'POST', headers: headers(), body: JSON.stringify({ workspaceId, ...payload }),
   })
-  await refreshBilling({ trust: true })
+  await refreshBilling(workspaceId, { trust: true })
   return result.transaction
 }
 
@@ -97,7 +102,7 @@ export async function reverseTrustTransaction(
   await tasklyticApiJson(`/billing/trust/${transactionId}:reverse`, {
     method: 'POST', headers: headers(), body: JSON.stringify({ workspaceId, reason }),
   })
-  await refreshBilling({ trust: true })
+  await refreshBilling(workspaceId, { trust: true })
 }
 
 export async function createFxQuote(
@@ -107,7 +112,7 @@ export async function createFxQuote(
   const result = await tasklyticApiJson<{ quote: FxQuote }>('/billing/fx:quote', {
     method: 'POST', headers: headers(), body: JSON.stringify({ workspaceId, ...payload }),
   })
-  await refreshBilling({ fx: true })
+  await refreshBilling(workspaceId, { fx: true })
   return result.quote
 }
 

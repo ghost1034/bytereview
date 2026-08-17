@@ -18,6 +18,7 @@ import {
 import { useUpdateAnalyticsVariance } from '@/hooks/useAnalyticsVariance'
 import { useToast } from '@/hooks/use-toast'
 import type { AnalyticsAnalysis } from '@/lib/analytics/types'
+import { inferVariancePeriodDefaults } from '@/lib/analytics/varianceHelpers'
 import {
   readVarianceConfig,
   readVarianceData,
@@ -91,6 +92,15 @@ export function VarianceMappingStep({ record, onBack, onComplete }: VarianceMapp
       return
     }
     try {
+      const shouldInferPeriods =
+        config.uploadMode === 'single' && config.periodDefaultsSource !== 'user'
+      const periodDefaults = shouldInferPeriods
+        ? inferVariancePeriodDefaults(
+            config.type ?? 'QoQ',
+            data.rawData ?? [],
+            columnMap.period,
+          )
+        : {}
       await updateMutation.mutateAsync({
         analysisId: record.id,
         data: {
@@ -99,6 +109,8 @@ export function VarianceMappingStep({ record, onBack, onComplete }: VarianceMapp
             columnMapping: columnMap,
             customColumns,
             customColumnMapping,
+            ...periodDefaults,
+            ...(shouldInferPeriods ? { periodDefaultsSource: 'uploaded-data' as const } : {}),
           } as unknown as Record<string, unknown>,
         },
       })

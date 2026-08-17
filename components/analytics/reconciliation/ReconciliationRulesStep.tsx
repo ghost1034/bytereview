@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
-  BrainCircuit,
   GripVertical,
   Loader2,
   Plus,
@@ -68,6 +67,7 @@ import {
   INITIAL_SOURCE_A,
   INITIAL_SOURCE_B,
 } from '@/lib/analytics/mockReconData'
+import { ReconciliationMatchProgress } from './ReconciliationMatchProgress'
 
 const MATCH_TYPES: MatchGroupType[] = ['1:1', '1:Many', 'Many:1', 'Many:Many']
 
@@ -134,24 +134,6 @@ export function ReconciliationRulesStep({
     matchMutation.isPending ||
     basicMutation.isPending ||
     updateMutation.isPending
-
-  // Synthetic AI Match progress — backend doesn't stream pass progress, so we
-  // animate currentPass from 1 → N-1 while the request is in flight and snap
-  // to N when it resolves.
-  const totalPasses = Math.max(passes.length, 1)
-  const [matchProgress, setMatchProgress] = useState(0)
-  useEffect(() => {
-    if (!matchMutation.isPending) {
-      setMatchProgress(0)
-      return
-    }
-    setMatchProgress(1)
-    const intervalMs = 800
-    const id = setInterval(() => {
-      setMatchProgress((p) => (p < totalPasses - 1 ? p + 1 : p))
-    }, intervalMs)
-    return () => clearInterval(id)
-  }, [matchMutation.isPending, totalPasses])
 
   useEffect(() => {
     // Auto-generate the initial pass set when the user lands here with no rules.
@@ -580,36 +562,7 @@ export function ReconciliationRulesStep({
         <div className="relative flex flex-col gap-4 lg:flex-row">
           {/* AI Matching Engine overlay */}
           {matchMutation.isPending && (
-            <div className="absolute inset-0 z-30 flex items-center justify-center rounded-2xl bg-background/80 backdrop-blur-sm">
-              <div className="w-full max-w-md space-y-5 rounded-2xl border border-border bg-card p-8 text-center shadow-xl">
-                <div className="relative mx-auto size-20">
-                  <div className="absolute inset-0 rounded-full border-4 border-primary/20" aria-hidden />
-                  <div
-                    className="absolute inset-0 animate-spin rounded-full border-4 border-primary border-t-transparent"
-                    style={{ animationDuration: '1.5s' }}
-                    aria-hidden
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center text-primary">
-                    <BrainCircuit className="size-8" aria-hidden />
-                  </div>
-                </div>
-                <div>
-                  <h3 className="text-xl font-semibold text-foreground">AI Matching Engine</h3>
-                  <p className="mt-1 text-sm text-foreground-muted">
-                    Applying {totalPasses} pass{totalPasses === 1 ? '' : 'es'} across your sources…
-                  </p>
-                </div>
-                <div className="h-2 w-full overflow-hidden rounded-full bg-surface-muted">
-                  <div
-                    className="h-full bg-primary transition-all duration-500 ease-out"
-                    style={{ width: `${(matchProgress / totalPasses) * 100}%` }}
-                  />
-                </div>
-                <p className="text-xs font-semibold uppercase tracking-widest text-foreground-muted">
-                  Pass {Math.max(1, matchProgress)} of {totalPasses}
-                </p>
-              </div>
-            </div>
+            <ReconciliationMatchProgress configuredPassCount={passes.length} />
           )}
 
           <RuleLibrary categories={availableRules} disabled={locked} />

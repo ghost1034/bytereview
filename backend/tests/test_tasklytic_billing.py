@@ -27,6 +27,7 @@ from services.tasklytic_billing import (
     reverse_trust_transaction,
 )
 from services.tasklytic_reporting import reporting_sources_payload
+from services.tasklytic_psa import execute_psa_action
 from services.tasklytic_service import delete_record, provision_bundle, upsert_record
 
 
@@ -137,6 +138,89 @@ def test_invoice_generation_is_atomic_locks_sources_and_financial_records_are_im
     with pytest.raises(HTTPException) as delete_exc:
         delete_record(db, "invoices", invoice["id"], "owner", "w1", invoice["revision"])
     assert delete_exc.value.detail["code"] == "immutable_billing_record"
+
+
+def test_invoice_generation_requires_an_explicit_period(db):
+    seed_source(db, "time1")
+
+    with pytest.raises(HTTPException) as missing_start:
+        generate(db, periodStart=None)
+    assert missing_start.value.status_code == 422
+    assert missing_start.value.detail == "periodStart must be an ISO date"
+
+    with pytest.raises(HTTPException) as missing_end:
+        generate(db, periodEnd=None)
+    assert missing_end.value.status_code == 422
+    assert missing_end.value.detail == "periodEnd must be an ISO date"
+
+
+def test_task_time_inherits_linked_matter_context_and_reaches_invoice(db):
+    upsert_record(db, "tasks", {
+        "id": "task-from-project", "workspaceId": "w1", "name": "Prepare return",
+        "projectIds": ["p1"], "sectionIdByProject": {},
+    }, "owner", "w1")
+    upsert_record(db, "matters", {
+        "id": "m1", "workspaceId": "w1", "projectId": "p1", "clientId": "c1",
+        "matterNumber": "ENG-1", "practiceArea": "Tax", "responsibleAttorneyId": "owner",
+        "originatingAttorneyId": "owner", "feeArrangement": "hourly", "openedAt": "2026-01-01",
+        "status": "active", "conflictStatus": "cleared",
+    }, "owner", "w1")
+    entry = upsert_record(db, "timeEntries", {
+        "id": "time1", "workspaceId": "w1", "userId": "owner", "taskId": "task-from-project",
+        "description": "Prepare return", "hours": 2, "date": "2026-08-11",
+        "billable": True, "rateSnapshot": 200, "rateSource": "matter", "amount": 400,
+        "currency": "USD", "status": "draft", "createdAt": "2026-08-11T00:00:00Z",
+    }, "owner", "w1")
+
+    assert entry["projectId"] == "p1"
+    assert entry["matterId"] == "m1"
+    assert entry["clientId"] == "c1"
+
+    execute_psa_action(
+        db, kind="timeEntries", record_id="time1", action="submit", body={},
+        actor_id="owner", workspace_id="w1",
+    )
+    execute_psa_action(
+        db, kind="timeEntries", record_id="time1", action="approve", body={},
+        actor_id="approver", workspace_id="w1",
+    )
+    invoice = generate(db)["invoice"]
+    assert invoice["total"] == 400
+    assert invoice["matterIds"] == ["m1"]
+
+
+def test_zero_rate_override_requires_a_reason(db):
+    payload = {
+        "id": "zero-time", "workspaceId": "w1", "userId": "owner", "projectId": "p1",
+        "clientId": "c1", "description": "Courtesy work", "hours": 1, "date": "2026-08-11",
+        "billable": True, "rateSnapshot": 0, "rateSource": "override", "amount": 0,
+        "currency": "USD", "status": "draft", "createdAt": "2026-08-11T00:00:00Z",
+    }
+    with pytest.raises(HTTPException) as missing_reason:
+        upsert_record(db, "timeEntries", payload, "owner", "w1")
+    assert missing_reason.value.detail["code"] == "zero_rate_reason_required"
+
+    saved = upsert_record(
+        db, "timeEntries", {**payload, "rateOverrideReason": "Approved courtesy"}, "owner", "w1",
+    )
+    assert saved["rateOverrideReason"] == "Approved courtesy"
+
+
+def test_matter_invoice_includes_and_backfills_legacy_project_sources(db):
+    upsert_record(db, "matters", {
+        "id": "matter1", "workspaceId": "w1", "projectId": "p1", "clientId": "c1",
+        "matterNumber": "ENG-2026-071", "practiceArea": "Tax",
+        "responsibleAttorneyId": "owner", "originatingAttorneyId": "owner",
+        "feeArrangement": "hourly", "openedAt": "2026-01-01",
+        "status": "active", "conflictStatus": "cleared",
+    }, "owner", "w1")
+    seed_source(db, "time1")
+
+    invoice = generate(db, matterId="matter1")["invoice"]
+
+    assert invoice["matterIds"] == ["matter1"]
+    source = db.query(TasklyticEntityRecord).filter_by(entity_kind="timeEntries", record_id="time1").one().payload
+    assert source["matterId"] == "matter1"
 
 
 def test_currency_separation_requires_an_explicit_quote_and_ecb_cache_is_reused(db):

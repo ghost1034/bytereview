@@ -15522,14 +15522,8 @@ export interface components {
         };
         /** VarianceMemoRequest */
         VarianceMemoRequest: {
-            /** Data */
-            data?: {
-                [key: string]: unknown;
-            }[];
-            /** Config */
-            config?: {
-                [key: string]: unknown;
-            };
+            /** Analysisid */
+            analysisId: string;
         };
         /** VarianceMemoResponse */
         VarianceMemoResponse: {

@@ -318,6 +318,26 @@ def test_cross_workspace_parent_reference_and_privilege_escalation_are_rejected(
     assert exc.value.status_code == 422
 
 
+def test_task_sections_must_belong_to_their_mapped_project(db):
+    provision_bundle(db, starter_bundle(), {"uid": "owner", "email": "owner@example.com"})
+    upsert_record(db, "projects", {
+        "id": "project2", "workspaceId": "w1", "teamId": "team1", "name": "Other",
+        "privacy": "private_to_members", "memberIds": ["owner"], "ownerId": "owner",
+    }, "owner", "w1")
+    upsert_record(db, "sections", {
+        "id": "section2", "workspaceId": "w1", "projectId": "project2", "name": "Todo",
+    }, "owner", "w1")
+
+    with pytest.raises(HTTPException) as mismatched:
+        upsert_record(db, "tasks", {
+            "id": "task-invalid-section", "workspaceId": "w1", "name": "Invalid",
+            "projectIds": ["project1"], "sectionIdByProject": {"project1": "section2"},
+        }, "owner", "w1")
+
+    assert mismatched.value.status_code == 422
+    assert mismatched.value.detail == "Task section does not belong to its project"
+
+
 def test_collection_replace_removes_omitted_records_and_rejects_unknown_kind(db):
     provision_bundle(db, starter_bundle(), {"uid": "owner", "email": "owner@example.com"})
     replace_collection(db, "tags", [

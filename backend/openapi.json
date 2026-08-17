@@ -47727,21 +47727,16 @@
       },
       "VarianceMemoRequest": {
         "properties": {
-          "data": {
-            "items": {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            "type": "array",
-            "title": "Data"
-          },
-          "config": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Config"
+          "analysisId": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Analysisid"
           }
         },
         "type": "object",
+        "required": [
+          "analysisId"
+        ],
         "title": "VarianceMemoRequest"
       },
       "VarianceMemoResponse": {

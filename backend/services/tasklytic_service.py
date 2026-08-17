@@ -545,8 +545,15 @@ def validate_references(db: Session, kind: str, payload: dict[str, Any], workspa
         for project_id in project_ids:
             _assert_same_workspace_ref(db, "projects", project_id, workspace_id, optional=False)
         _assert_same_workspace_ref(db, "tasks", payload.get("parentId"), workspace_id)
-        for section_id in (payload.get("sectionIdByProject") or {}).values():
-            _assert_same_workspace_ref(db, "sections", section_id, workspace_id)
+        section_ids = payload.get("sectionIdByProject") or {}
+        if not isinstance(section_ids, dict):
+            raise HTTPException(status_code=422, detail="task.sectionIdByProject must be an object")
+        for project_id, section_id in section_ids.items():
+            if project_id not in project_ids:
+                raise HTTPException(status_code=422, detail="Task section project is not linked to the task")
+            section = _require_parent(db, "sections", section_id, workspace_id)
+            if (section.payload or {}).get("projectId") != project_id:
+                raise HTTPException(status_code=422, detail="Task section does not belong to its project")
         _assert_workspace_member(db, payload.get("assigneeId"), workspace_id)
         for value in payload.get("collaboratorIds") or []:
             _assert_workspace_member(db, value, workspace_id, optional=False)
@@ -613,8 +620,12 @@ def validate_references(db: Session, kind: str, payload: dict[str, Any], workspa
         if not any(isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0 for value in amounts):
             raise HTTPException(status_code=422, detail="Billing budget requires a positive amount or hours")
     elif kind in {"timeEntries", "expenses"}:
-        _assert_same_workspace_ref(db, "projects", payload.get("projectId"), workspace_id)
         _assert_same_workspace_ref(db, "tasks", payload.get("taskId"), workspace_id)
+        if kind == "timeEntries":
+            _normalize_time_entry_context(db, payload, workspace_id)
+        _assert_same_workspace_ref(db, "projects", payload.get("projectId"), workspace_id)
+        _assert_same_workspace_ref(db, "matters", payload.get("matterId"), workspace_id)
+        _assert_same_workspace_ref(db, "clients", payload.get("clientId"), workspace_id)
     elif kind == "dashboards":
         if payload.get("visibility", "private") not in {"private", "people", "workspace"}:
             raise HTTPException(status_code=422, detail="Dashboard visibility is invalid")
@@ -643,6 +654,72 @@ def validate_references(db: Session, kind: str, payload: dict[str, Any], workspa
                 datetime.fromisoformat(str(schedule.get("nextRunAt") or "").replace("Z", "+00:00"))
             except ValueError as exc:
                 raise HTTPException(status_code=422, detail="Dashboard schedule nextRunAt is invalid") from exc
+
+
+def _normalize_time_entry_context(
+    db: Session,
+    payload: dict[str, Any],
+    workspace_id: str,
+) -> None:
+    """Persist the project, matter, and client implied by task-based time."""
+
+    task = _find_record(db, "tasks", payload.get("taskId"), workspace_id) if payload.get("taskId") else None
+    task_project_ids = (task.payload or {}).get("projectIds") if task else []
+    if not payload.get("projectId") and isinstance(task_project_ids, list) and task_project_ids:
+        payload["projectId"] = task_project_ids[0]
+    if (
+        payload.get("projectId") and isinstance(task_project_ids, list)
+        and task_project_ids and payload["projectId"] not in task_project_ids
+    ):
+        raise HTTPException(status_code=422, detail="Time entry project is not linked to its task")
+
+    project = _find_record(db, "projects", payload.get("projectId"), workspace_id) if payload.get("projectId") else None
+    project_payload = (project.payload or {}) if project else {}
+    requested_matter_id = payload.get("matterId")
+    matter = _find_record(db, "matters", requested_matter_id, workspace_id) if requested_matter_id else None
+
+    if matter is None and not requested_matter_id and project is not None:
+        linked_matter_id = project_payload.get("matterId")
+        if linked_matter_id:
+            matter = _find_record(db, "matters", linked_matter_id, workspace_id)
+        if matter is None:
+            candidates = [
+                row for row in db.query(TasklyticEntityRecord).filter_by(
+                    entity_kind="matters", workspace_id=workspace_id,
+                ).all()
+                if (row.payload or {}).get("projectId") == project.record_id
+            ]
+            if len(candidates) > 1:
+                raise HTTPException(status_code=409, detail="Multiple matters are linked to the time entry project")
+            matter = candidates[0] if candidates else None
+
+    if matter is not None:
+        matter_payload = matter.payload or {}
+        linked_project_id = matter_payload.get("projectId")
+        if payload.get("projectId") and linked_project_id != payload["projectId"]:
+            raise HTTPException(status_code=422, detail="Time entry matter does not belong to its project")
+        payload["matterId"] = matter.record_id
+        payload["projectId"] = linked_project_id
+        linked_client_id = matter_payload.get("clientId")
+        if payload.get("clientId") and linked_client_id != payload["clientId"]:
+            raise HTTPException(status_code=422, detail="Time entry client does not own its matter")
+        payload["clientId"] = linked_client_id
+    elif project_payload.get("clientId"):
+        linked_client_id = project_payload["clientId"]
+        if payload.get("clientId") and linked_client_id != payload["clientId"]:
+            raise HTTPException(status_code=422, detail="Time entry client does not own its project")
+        payload["clientId"] = linked_client_id
+
+    if payload.get("billable") and payload.get("rateSource") == "override":
+        try:
+            is_zero_rate = float(payload.get("rateSnapshot")) == 0
+        except (TypeError, ValueError):
+            is_zero_rate = False
+        if is_zero_rate and not str(payload.get("rateOverrideReason") or "").strip():
+            raise HTTPException(status_code=422, detail={
+                "code": "zero_rate_reason_required",
+                "message": "A reason is required for a zero-rate override",
+            })
 
 
 def _user_flags(db: Session, workspace_id: str, user_id: str) -> dict[str, Any]:

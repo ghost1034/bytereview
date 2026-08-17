@@ -12,19 +12,21 @@ import {
   useWorkspacesStore,
 } from '../../../stores/entities'
 import { resolveRate } from '../../../lib/billing/resolveRate'
+import { resolveLinkedMatter } from '../../../lib/psa/resolvePsaLinks'
 import type { ID } from '../../../types'
 
 export function usePsaContext(workspaceId: ID, userId: ID, projectId?: ID, matterId?: ID, clientId?: ID) {
   const user = useUsersStore((s) => s.getById(userId))
   const workspace = useWorkspacesStore((s) => s.getById(workspaceId))
   const project = useProjectsStore((s) => projectId ? s.getById(projectId) : undefined)
-  const matter = useMattersStore((s) => matterId ? s.getById(matterId) : undefined)
   const billingRates = useBillingRatesStore((s) => s.list())
   const rateCards = useRateCardsStore((s) => s.list())
   const clients = useClientsStore((s) => s.list().filter((c) => c.workspaceId === workspaceId && !c.archived))
   const matters = useMattersStore((s) => s.list().filter((m) => m.workspaceId === workspaceId))
+  const matter = resolveLinkedMatter(matters, project, matterId)
 
   const resolvedClientId = clientId ?? matter?.clientId ?? project?.clientId
+  const resolvedMatterId = matter?.id
   const client = clients.find((candidate) => candidate.id === resolvedClientId)
 
   const rate = useMemo(
@@ -33,7 +35,7 @@ export function usePsaContext(workspaceId: ID, userId: ID, projectId?: ID, matte
         workspaceId,
         userId,
         user,
-        matterId,
+        matterId: resolvedMatterId,
         projectId,
         clientId: resolvedClientId,
         client,
@@ -43,8 +45,8 @@ export function usePsaContext(workspaceId: ID, userId: ID, projectId?: ID, matte
         rateCards,
         defaultCurrency: workspace?.defaultCurrency,
       }),
-    [workspaceId, userId, user, matterId, projectId, resolvedClientId, client, matter, project, billingRates, rateCards, workspace]
+    [workspaceId, userId, user, resolvedMatterId, projectId, resolvedClientId, client, matter, project, billingRates, rateCards, workspace]
   )
 
-  return { user, workspace, project, matter, clients, matters, rate, resolvedClientId }
+  return { user, workspace, project, matter, clients, matters, rate, resolvedMatterId, resolvedClientId }
 }

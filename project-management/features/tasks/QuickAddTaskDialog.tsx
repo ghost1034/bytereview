@@ -3,7 +3,7 @@
 /**
  * QuickAddTaskDialog — global quick add (name, assignee, due, project/section, hotkey c).
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -48,6 +48,8 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
   const [assigneeId, setAssigneeId] = useState('')
   const [dueOn, setDueOn] = useState('')
   const [openAfter, setOpenAfter] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const busyRef = useRef(false)
 
   const projects = useProjectsStore((s) => s.list().filter((p) => p.workspaceId === workspaceId && !p.archived))
   const sections = useSectionsStore((s) => s.list().filter((s) => s.projectId === projectId))
@@ -68,8 +70,9 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
       setSectionId('')
       return
     }
-    const first = sections[0]?.id
-    if (first && !sectionId) setSectionId(first)
+    if (!sections.some((section) => section.id === sectionId)) {
+      setSectionId(sections[0]?.id ?? '')
+    }
   }, [projectId, sections, sectionId])
 
   const openTask = (taskId: string) => {
@@ -79,37 +82,48 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
   }
 
   const submit = async () => {
-    if (!currentUserId || !name.trim()) return
-    const task = await createTask({
-      workspaceId,
-      name: name.trim(),
-      projectId: projectId || undefined,
-      sectionId: projectId && sectionId ? sectionId : undefined,
-      assigneeId: assigneeId || undefined,
-      dueOn: dueOn || undefined,
-      actorId: currentUserId,
-    })
-    setName('')
-    setDueOn('')
-    setAssigneeId('')
-    onOpenChange(false)
-    toast({
-      title: 'Task created',
-      description: task.name,
-      className: 'tl-toast border-l-4',
-      style: { borderLeftColor: 'hsl(var(--success))' },
-      action: (
-        <ToastAction altText="Open task" onClick={() => openTask(task.id)}>
-          Open task
-        </ToastAction>
-      ),
-    })
-    if (openAfter) openTask(task.id)
+    if (busyRef.current || !currentUserId || !name.trim()) return
+
+    // State alone does not close the gap between two events in the same render.
+    // Set the ref synchronously so rapid Enter/click submissions share one lock.
+    busyRef.current = true
+    setBusy(true)
+
+    try {
+      const task = await createTask({
+        workspaceId,
+        name: name.trim(),
+        projectId: projectId || undefined,
+        sectionId: projectId && sectionId ? sectionId : undefined,
+        assigneeId: assigneeId || undefined,
+        dueOn: dueOn || undefined,
+        actorId: currentUserId,
+      })
+      setName('')
+      setDueOn('')
+      setAssigneeId('')
+      onOpenChange(false)
+      toast({
+        title: 'Task created',
+        description: task.name,
+        className: 'tl-toast border-l-4',
+        style: { borderLeftColor: 'hsl(var(--success))' },
+        action: (
+          <ToastAction altText="Open task" onClick={() => openTask(task.id)}>
+            Open task
+          </ToastAction>
+        ),
+      })
+      if (openAfter) openTask(task.id)
+    } finally {
+      busyRef.current = false
+      setBusy(false)
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent aria-describedby={undefined} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-sans">Quick add task</DialogTitle>
         </DialogHeader>
@@ -121,6 +135,7 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="rounded-md border border-input bg-background text-foreground"
+              disabled={busy}
               autoFocus
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void submit()
@@ -199,8 +214,8 @@ export function QuickAddTaskDialog({ open, onOpenChange, workspaceId, defaultPro
           </div>
         </div>
         <DialogFooter>
-          <Button className=" border-0" disabled={!name.trim()} onClick={() => void submit()}>
-            Add task
+          <Button className=" border-0" disabled={busy || !name.trim()} onClick={() => void submit()}>
+            {busy ? 'Adding task…' : 'Add task'}
           </Button>
         </DialogFooter>
       </DialogContent>

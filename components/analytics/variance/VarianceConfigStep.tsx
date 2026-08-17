@@ -25,8 +25,10 @@ import {
   ACCOUNT_TYPE_OPTIONS,
   ANALYSIS_TYPE_OPTIONS,
   defaultVarianceConfig,
+  inferVariancePeriodDefaults,
   LOGIC_OPTIONS,
 } from '@/lib/analytics/varianceHelpers'
+import { validateVariancePeriods } from '@/lib/analytics/variancePeriodValidation'
 import type { AnalyticsAnalysis } from '@/lib/analytics/types'
 import {
   readVarianceConfig,
@@ -62,6 +64,39 @@ export function VarianceConfigStep({ record, onBack, onComplete }: VarianceConfi
   } as VarianceConfig)
 
   const [suggestion, setSuggestion] = useState<VarianceAISuggestion | null>(null)
+
+  const setManualPeriod = (
+    field: 'basePeriodStart' | 'basePeriodEnd' | 'compPeriodStart' | 'compPeriodEnd',
+    value: string,
+  ) => {
+    setConfig((prev) => ({ ...prev, [field]: value, periodDefaultsSource: 'user' }))
+  }
+
+  const setAnalysisType = (type: VarianceAnalysisType) => {
+    setConfig((prev) => {
+      if (prev.uploadMode !== 'single') return { ...prev, type }
+      return {
+        ...prev,
+        type,
+        ...inferVariancePeriodDefaults(
+          type,
+          data.rawData ?? [],
+          prev.columnMapping.period,
+        ),
+        periodDefaultsSource: 'uploaded-data',
+      }
+    })
+  }
+
+  const periodValidation = useMemo(
+    () =>
+      validateVariancePeriods({
+        config,
+        rawData: data.rawData ?? [],
+        columnMap: config.columnMapping,
+      }),
+    [config, data.rawData],
+  )
 
   const anchorOptions = useMemo(() => {
     const opts = ['Account']
@@ -126,6 +161,7 @@ export function VarianceConfigStep({ record, onBack, onComplete }: VarianceConfi
       toast({ title: 'Invalid percent threshold', variant: 'destructive' })
       return
     }
+    if (!periodValidation.isValid) return
     try {
       await updateMutation.mutateAsync({
         analysisId: record.id,
@@ -255,9 +291,7 @@ export function VarianceConfigStep({ record, onBack, onComplete }: VarianceConfi
             <Label htmlFor="analysis-type">Comparison type</Label>
             <Select
               value={config.type}
-              onValueChange={(v) =>
-                setConfig((prev) => ({ ...prev, type: v as VarianceAnalysisType }))
-              }
+              onValueChange={(v) => setAnalysisType(v as VarianceAnalysisType)}
             >
               <SelectTrigger id="analysis-type">
                 <SelectValue />
@@ -330,9 +364,7 @@ export function VarianceConfigStep({ record, onBack, onComplete }: VarianceConfi
                     id="base-start"
                     type="date"
                     value={config.basePeriodStart}
-                    onChange={(e) =>
-                      setConfig((prev) => ({ ...prev, basePeriodStart: e.target.value }))
-                    }
+                    onChange={(e) => setManualPeriod('basePeriodStart', e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -341,9 +373,7 @@ export function VarianceConfigStep({ record, onBack, onComplete }: VarianceConfi
                     id="base-end"
                     type="date"
                     value={config.basePeriodEnd}
-                    onChange={(e) =>
-                      setConfig((prev) => ({ ...prev, basePeriodEnd: e.target.value }))
-                    }
+                    onChange={(e) => setManualPeriod('basePeriodEnd', e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -352,9 +382,7 @@ export function VarianceConfigStep({ record, onBack, onComplete }: VarianceConfi
                     id="comp-start"
                     type="date"
                     value={config.compPeriodStart}
-                    onChange={(e) =>
-                      setConfig((prev) => ({ ...prev, compPeriodStart: e.target.value }))
-                    }
+                    onChange={(e) => setManualPeriod('compPeriodStart', e.target.value)}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -363,12 +391,15 @@ export function VarianceConfigStep({ record, onBack, onComplete }: VarianceConfi
                     id="comp-end"
                     type="date"
                     value={config.compPeriodEnd}
-                    onChange={(e) =>
-                      setConfig((prev) => ({ ...prev, compPeriodEnd: e.target.value }))
-                    }
+                    onChange={(e) => setManualPeriod('compPeriodEnd', e.target.value)}
                   />
                 </div>
               </div>
+              {!periodValidation.isValid && (
+                <p role="alert" className="text-sm text-destructive">
+                  {periodValidation.error}
+                </p>
+              )}
             </div>
           )}
 

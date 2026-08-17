@@ -20,10 +20,13 @@ import { TimesheetSubmitDialog } from './time/TimesheetSubmitDialog'
 import { TimeApprovalsTab } from './time/TimeApprovalsTab'
 import { TimeEntryRow } from './time/TimeEntryRow'
 import { runPsaAction } from '../../lib/psa/actions'
+import { resolveLinkedMatter } from '../../lib/psa/resolvePsaLinks'
 import { canPerformWorkspaceAction } from '../../lib/permissions'
 import type { TimeEntry } from '../../types'
 import {
   useBillingRatesStore,
+  useMattersStore,
+  useProjectsStore,
   useRateCardsStore,
   useUsersStore,
 } from '../../stores/entities'
@@ -72,6 +75,8 @@ export function TimeTrackingPage() {
   const onCellSave = async (taskId: string | undefined, projectId: string | undefined, date: string, hours: number) => {
     if (!workspaceId || !userId || hours <= 0) return
     const user = useUsersStore.getState().getById(userId)
+    const project = projectId ? useProjectsStore.getState().getById(projectId) : undefined
+    const matter = resolveLinkedMatter(useMattersStore.getState().list(), project)
     const entry = buildTimeEntry({
       workspaceId,
       userId,
@@ -83,6 +88,10 @@ export function TimeTrackingPage() {
       billable: true,
       taskId,
       projectId,
+      matterId: matter?.id,
+      clientId: matter?.clientId ?? project?.clientId,
+      matter,
+      project,
       billingRates: useBillingRatesStore.getState().list(),
       rateCards: useRateCardsStore.getState().list(),
     })

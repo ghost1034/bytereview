@@ -16,12 +16,13 @@ import { LIST_ROW_HEIGHT } from './listTypes'
 import { useProjectsStore, useTemplatesStore } from '../../../stores/entities'
 import { instantiateTemplateTasksFromTemplates } from '../../../lib/templates/instantiateTasks'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { tasklyticToast } from '../../ui/tasklyticToast'
 
 type Props = {
   gridTemplate: string
   workspaceId: string
   projectId: string
-  sectionId: string
+  sectionId?: string
   parentId?: string
   allTasks: Task[]
   placeholder?: string
@@ -54,6 +55,25 @@ export function InlineNewTaskRow({
   const cancel = () => {
     setLocalActive(false)
     onCancel?.()
+  }
+
+  const createFromTemplate = async (templateId: string) => {
+    const template = taskTemplates.find((item) => item.id === templateId)
+    if (!template || !project || !currentUserId) return
+    try {
+      await instantiateTemplateTasksFromTemplates(template.taskTemplates, {
+        workspaceId,
+        projectId,
+        sectionId,
+        ownerId: currentUserId,
+        projectStart: project.startOn ?? new Date().toISOString().slice(0, 10),
+      })
+    } catch (error) {
+      tasklyticToast('Tasks could not be created', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+        status: 'error',
+      })
+    }
   }
 
   if (parentId) {
@@ -131,9 +151,7 @@ export function InlineNewTaskRow({
           />
         </div>
         {currentUserId && taskTemplates.length ? <Select value="" onValueChange={(templateId) => {
-          const template = taskTemplates.find((item) => item.id === templateId)
-          if (!template || !project) return
-          void instantiateTemplateTasksFromTemplates(template.taskTemplates, { workspaceId, projectId, sectionId, ownerId: currentUserId, projectStart: project.startOn ?? new Date().toISOString().slice(0, 10) })
+          void createFromTemplate(templateId)
         }}><SelectTrigger className="h-7 w-36 text-xs" aria-label="Create task from template"><SelectValue placeholder="From template" /></SelectTrigger><SelectContent>{taskTemplates.map((template) => <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>)}</SelectContent></Select> : null}
         <Button
           type="button"

@@ -662,6 +662,7 @@ export type RateSource =
   | 'project'
   | 'matter'
   | 'client'
+  | 'unconfigured'
   | 'override'
 
 export type TimeEntry = {
@@ -681,6 +682,7 @@ export type TimeEntry = {
   billable: boolean
   rateSnapshot?: number
   rateSource?: RateSource
+  rateOverrideReason?: string
   currency?: string
   amount?: number
   activityCode?: string

@@ -3,7 +3,7 @@
 /** Matters / engagements list. */
 import { useState } from 'react'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { usePageMeta } from '../../hooks/usePageMeta'
@@ -15,6 +15,7 @@ import { entryHours } from '../../lib/psa/timeEntryUtils'
 import { MatterDialog } from './matters/MatterDialog'
 import { useWorkspacesStore } from '../../stores/entities'
 import { matterTerminology } from '../../lib/psa/terminology'
+import type { Matter } from '../../types'
 
 export function MattersPage() {
   const { workspaceId } = useWorkspaceContext()
@@ -26,6 +27,17 @@ export function MattersPage() {
   const users = useUsersStore((s) => s.list())
   const entries = useTimeEntriesStore((s) => s.list())
   const [open, setOpen] = useState(false)
+  const [selectedMatter, setSelectedMatter] = useState<Matter>()
+
+  const openCreateDialog = () => {
+    setSelectedMatter(undefined)
+    setOpen(true)
+  }
+
+  const openEditDialog = (matter: Matter) => {
+    setSelectedMatter(matter)
+    setOpen(true)
+  }
 
   usePageMeta({ breadcrumbs: [{ label: terms.plural }] })
 
@@ -35,14 +47,14 @@ export function MattersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="font-sans text-2xl">{terms.plural}</h1>
-        <Button className=" border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New {terms.singular.toLowerCase()}</Button>
+        <Button className=" border-0" size="sm" onClick={openCreateDialog}><Plus className="mr-1 h-4 w-4" /> New {terms.singular.toLowerCase()}</Button>
       </div>
       <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left" style={{ borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground-muted))' }}>
             <th className="px-4 py-2">#</th><th className="px-4 py-2">Name</th><th className="px-4 py-2">Client</th>
             <th className="px-4 py-2">Practice</th><th className="px-4 py-2">Attorney</th><th className="px-4 py-2">Status</th>
-            <th className="px-4 py-2 text-right">WIP</th><th className="px-4 py-2">Flags</th>
+            <th className="px-4 py-2 text-right">WIP</th><th className="px-4 py-2">Flags</th><th className="px-4 py-2" />
           </tr></thead>
           <tbody>
             {matters.map((m) => {
@@ -65,13 +77,14 @@ export function MattersPage() {
                     {m.utbmsEnabled && <Badge variant="outline">UTBMS</Badge>}
                     {m.trustEnabled && <Badge variant="secondary">Trust</Badge>}
                   </td>
+                  <td className="px-4 py-2 text-right"><Button variant="ghost" size="sm" onClick={() => openEditDialog(m)}><Pencil className="mr-1 h-3.5 w-3.5" /> Edit</Button></td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
-      <MatterDialog open={open} onOpenChange={setOpen} workspaceId={workspaceId} />
+      {open && <MatterDialog open onOpenChange={setOpen} workspaceId={workspaceId} matter={selectedMatter} />}
     </div>
   )
 }

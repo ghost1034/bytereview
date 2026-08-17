@@ -137,7 +137,8 @@ export default function DataUploadFlow({ module, uploadType = 'bulk', varianceMo
         maxFiles: 2,
         roles: ['Source A', 'Source B'],
         templateName: 'Reconciliation_Template.csv',
-        requiredColumns: ['Transaction Date', 'Description', 'Amount']
+        requiredColumns: ['Transaction Date', 'Description', 'Amount'],
+        optionalColumns: ['Reference ID']
       };
     }
     if (module === 'amortization' || module === 'waterfall') {

@@ -14,6 +14,9 @@ export default defineConfig({
   resolve: {
     alias: { '@': path.resolve(__dirname) },
   },
+  optimizeDeps: {
+    include: ['@radix-ui/react-radio-group'],
+  },
   test: {
     include: ['project-management/**/*.browser.tsx'],
     browser: {

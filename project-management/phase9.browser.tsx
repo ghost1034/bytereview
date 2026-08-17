@@ -78,6 +78,50 @@ describe('Phase 9 browser exit gate', () => {
     expect(billing.runInvoiceAction).toHaveBeenCalledWith('i1', 'resend', 'w1', { method: 'manual' })
   })
 
+  it('awaits an invoice transition and renders the refetched approved invoice', async () => {
+    const draft = { ...invoices[0], status: 'draft' as const }
+    useInvoicesStore.setState({ items: { i1: draft }, hydrated: true })
+    let finishTransition: (() => void) | undefined
+    billing.runInvoiceAction.mockImplementationOnce(() => new Promise((resolve) => {
+      finishTransition = () => {
+        const approved = { ...draft, status: 'approved' as const }
+        useInvoicesStore.setState({ items: { i1: approved }, hydrated: true })
+        resolve(approved)
+      }
+    }))
+
+    const screen = render(<InvoiceDetailPage invoiceId="i1" />)
+    await screen.getByRole('button', { name: 'Submit invoice' }).click()
+    await expect.element(screen.getByRole('button', { name: 'Submitting…' })).toBeDisabled()
+    finishTransition?.()
+
+    await expect.element(screen.getByText('Approved', { exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Record delivery' })).toBeVisible()
+  })
+
+  it('contains invoice lifecycle failures within the detail page', async () => {
+    const draft = { ...invoices[0], status: 'draft' as const }
+    useInvoicesStore.setState({ items: { i1: draft }, hydrated: true })
+    billing.runInvoiceAction.mockRejectedValueOnce(new Error('Approval service unavailable'))
+    const screen = render(<InvoiceDetailPage invoiceId="i1" />)
+
+    await screen.getByRole('button', { name: 'Submit invoice' }).click()
+    await expect.element(screen.getByRole('alert')).toHaveTextContent('Approval service unavailable')
+    await expect.element(screen.getByRole('button', { name: 'Submit invoice' })).toBeEnabled()
+  })
+
+  it('safely renders an incompletely hydrated invoice after a hard refresh', async () => {
+    const incomplete = { ...invoices[0], status: undefined, lineItems: undefined, currency: 'invalid' } as unknown as Invoice
+    useInvoicesStore.setState({ items: { i1: incomplete }, hydrated: true })
+    const screen = render(<InvoiceDetailPage invoiceId="i1" />)
+
+    await expect.element(screen.getByRole('heading', { name: 'INV-1001' })).toBeVisible()
+    await expect.element(screen.getByText('Status unavailable')).toBeVisible()
+    await expect.element(screen.getByRole('alert')).toHaveTextContent('Some invoice fields were unavailable')
+    await expect.element(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled()
+    await expect.element(screen.getByRole('complementary').getByText('$200.00', { exact: true })).toBeVisible()
+  })
+
   it('shows the complete billing settings surface and enforces administrator editing', async () => {
     const owner = render(<BillingSettingsPage />)
     for (const name of ['Rates', 'Rate cards', 'Activity codes', 'Invoicing', 'Approvals', 'Budgets', 'FX rates']) await expect.element(owner.getByRole('tab', { name, exact: true })).toBeVisible()

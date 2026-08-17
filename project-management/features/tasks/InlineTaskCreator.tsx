@@ -7,6 +7,7 @@ import { useRef, useState } from 'react'
 import { Input } from '@/components/ui/input'
 import { createTask } from '../../lib/taskActions'
 import { useAuthStore } from '../../stores/auth'
+import { tasklyticToast } from '../ui/tasklyticToast'
 
 type Props = {
   workspaceId: string
@@ -44,6 +45,11 @@ export function InlineTaskCreator({
       setName('')
       onCreated?.(task.id)
       inputRef.current?.focus()
+    } catch (error) {
+      tasklyticToast('Task could not be created', {
+        description: error instanceof Error ? error.message : 'Please try again.',
+        status: 'error',
+      })
     } finally {
       setBusy(false)
     }

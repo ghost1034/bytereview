@@ -22,6 +22,7 @@ export interface ReconciliationTransaction {
   date: string
   description: string
   amount: number
+  referenceId?: string
   source: 'A' | 'B'
   status: TransactionStatus
   matchGroupId?: string
@@ -81,12 +82,17 @@ const RULE_KEY_BLOCKLIST = new Set([
   'id',
   'source',
   'status',
-  'matchGroupId',
-  'exceptionCategory',
-  'exceptionReasoning',
-  '_fileRole',
-  '_fileName',
+  'matchgroupid',
+  'exceptioncategory',
+  'exceptionreasoning',
+  'source file path(s)',
 ])
+
+const normalizeKey = (key: string) => key.trim().toLowerCase()
+
+const RULE_CATEGORY_LABELS: Record<string, string> = {
+  referenceid: 'Reference ID',
+}
 
 /**
  * Inspect a sample of transactions and build the rule library that the
@@ -96,33 +102,41 @@ export function buildAvailableRules(
   sourceA: ReconciliationTransaction[],
   sourceB: ReconciliationTransaction[],
 ): AvailableRuleCategory[] {
-  const keyTypes = new Map<string, 'amount' | 'date' | 'text'>()
+  const keyTypes = new Map<
+    string,
+    { key: string; type: 'amount' | 'date' | 'text' }
+  >()
   const sampleSize = Math.min(100, sourceA.length + sourceB.length)
   const combined = [...sourceA, ...sourceB].slice(0, sampleSize)
 
   for (const txn of combined) {
     for (const key of Object.keys(txn)) {
-      if (RULE_KEY_BLOCKLIST.has(key)) continue
-      if (keyTypes.has(key)) continue
+      const normalizedKey = normalizeKey(key)
+      if (key.startsWith('_') || RULE_KEY_BLOCKLIST.has(normalizedKey)) continue
+      if (keyTypes.has(normalizedKey)) continue
       const value = (txn as Record<string, unknown>)[key]
-      const lower = key.toLowerCase()
+      const lower = normalizedKey
       if (typeof value === 'number') {
-        keyTypes.set(key, 'amount')
+        keyTypes.set(normalizedKey, { key, type: 'amount' })
       } else if (lower.includes('date')) {
-        keyTypes.set(key, 'date')
+        keyTypes.set(normalizedKey, { key, type: 'date' })
       } else if (lower.includes('amount') || lower.includes('balance')) {
-        keyTypes.set(key, 'amount')
+        keyTypes.set(normalizedKey, { key, type: 'amount' })
       } else {
-        keyTypes.set(key, 'text')
+        keyTypes.set(normalizedKey, { key, type: 'text' })
       }
     }
   }
 
   const titleCase = (k: string) => k.charAt(0).toUpperCase() + k.slice(1)
   const out: AvailableRuleCategory[] = []
+  const seenCategories = new Set<string>()
 
-  for (const [key, type] of keyTypes.entries()) {
-    const display = titleCase(key)
+  for (const [normalizedKey, { key, type }] of keyTypes.entries()) {
+    const display = RULE_CATEGORY_LABELS[normalizedKey] ?? titleCase(key)
+    const normalizedDisplay = normalizeKey(display)
+    if (seenCategories.has(normalizedDisplay)) continue
+    seenCategories.add(normalizedDisplay)
     if (type === 'amount') {
       out.push({
         category: display,
@@ -180,25 +194,39 @@ export function normalizeUploadedRow(
   const idCol = mapping['Reference ID'] || mapping['Reference']
 
   const rawAmount = amountCol ? row[amountCol] : undefined
+  const rawReferenceId = idCol ? row[idCol] : undefined
+  const referenceId =
+    rawReferenceId == null || String(rawReferenceId).trim() === ''
+      ? undefined
+      : String(rawReferenceId)
   const amount =
     typeof rawAmount === 'number'
       ? rawAmount
       : parseFloat(String(rawAmount ?? '').replace(/[^0-9.\-]/g, '')) || 0
 
   const txn: ReconciliationTransaction = {
-    id: (idCol && row[idCol] ? String(row[idCol]) : null) || `${source.toLowerCase()}-${index + 1}`,
+    id: referenceId ?? `${source.toLowerCase()}-${index + 1}`,
     date: dateCol ? String(row[dateCol] ?? '') : '',
     description: descCol ? String(row[descCol] ?? '') : '',
     amount,
+    ...(referenceId ? { referenceId } : {}),
     source,
     status: 'unmatched',
   }
 
   // Carry through other columns verbatim so they're available to the rule
-  // builder + LLM matcher. Don't overwrite the canonical keys.
+  // builder + LLM matcher. Don't duplicate mapped columns or metadata.
+  const mappedSourceKeys = new Set(
+    [dateCol, descCol, amountCol, idCol]
+      .filter((key): key is string => Boolean(key))
+      .map(normalizeKey),
+  )
   for (const [key, value] of Object.entries(row)) {
-    if (key in txn) continue
+    const normalizedKey = normalizeKey(key)
+    if (mappedSourceKeys.has(normalizedKey)) continue
+    if (RULE_KEY_BLOCKLIST.has(normalizedKey)) continue
     if (key.startsWith('_')) continue
+    if (key in txn) continue
     ;(txn as Record<string, unknown>)[key] = value
   }
 

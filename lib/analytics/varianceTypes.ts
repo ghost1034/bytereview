@@ -9,6 +9,8 @@ import type { AnalyticsAnalysis } from './types'
 
 export type VarianceUploadMode = 'single' | 'dual'
 
+export type VariancePeriodDefaultsSource = 'current-date' | 'uploaded-data' | 'user'
+
 export type VarianceAnalysisType =
   | 'MoM'
   | 'QoQ'
@@ -58,6 +60,8 @@ export interface VarianceConfig {
   basePeriodEnd: string
   compPeriodStart: string
   compPeriodEnd: string
+  /** How single-file period dates were last chosen. Manual dates survive mapping changes. */
+  periodDefaultsSource?: VariancePeriodDefaultsSource
   /** Upload mode chosen at creation: 'single' (one combined file) or 'dual' (two files). */
   uploadMode: VarianceUploadMode
   /** Canonical-field-name → uploaded-column-name. Persisted across steps. */

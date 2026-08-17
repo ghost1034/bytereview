@@ -3,7 +3,7 @@
 /** Clients list and CRUD. */
 import { useState } from 'react'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Pencil, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { usePageMeta } from '../../hooks/usePageMeta'
 import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
@@ -12,6 +12,7 @@ import { wipTotal } from '../../lib/billing/selectors'
 import { useTimeEntriesStore, useExpensesStore } from '../../stores/entities'
 import { formatMoney } from '../../lib/billing/formatMoney'
 import { ClientDialog } from './clients/ClientDialog'
+import type { Client } from '../../types'
 
 export function ClientsPage() {
   const { workspaceId } = useWorkspaceContext()
@@ -22,6 +23,17 @@ export function ClientsPage() {
   const expenses = useExpensesStore((s) => s.list())
   const update = useClientsStore((s) => s.update)
   const [open, setOpen] = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client>()
+
+  const openCreateDialog = () => {
+    setSelectedClient(undefined)
+    setOpen(true)
+  }
+
+  const openEditDialog = (client: Client) => {
+    setSelectedClient(client)
+    setOpen(true)
+  }
 
   usePageMeta({ breadcrumbs: [{ label: 'Clients' }] })
 
@@ -31,7 +43,7 @@ export function ClientsPage() {
     <div className="space-y-4" data-tour-page="clients">
       <div className="flex items-center justify-between">
         <h1 className="font-sans text-2xl">Clients</h1>
-        <Button className=" border-0" size="sm" onClick={() => setOpen(true)}><Plus className="mr-1 h-4 w-4" /> New client</Button>
+        <Button className=" border-0" size="sm" onClick={openCreateDialog}><Plus className="mr-1 h-4 w-4" /> New client</Button>
       </div>
       <div className="rounded-lg border border-border bg-card text-card-foreground overflow-hidden shadow-sm">
         <table className="w-full text-sm">
@@ -54,14 +66,19 @@ export function ClientsPage() {
                   <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(wip)}</td>
                   <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(ar)}</td>
                   <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(c.retainerBalance ?? 0)}</td>
-                  <td className="px-4 py-2"><Button variant="ghost" size="sm" onClick={() => void update(c.id, { archived: true })}>Archive</Button></td>
+                  <td className="px-4 py-2">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openEditDialog(c)}><Pencil className="mr-1 h-3.5 w-3.5" /> Edit</Button>
+                      <Button variant="ghost" size="sm" onClick={() => void update(c.id, { archived: true })}>Archive</Button>
+                    </div>
+                  </td>
                 </tr>
               )
             })}
           </tbody>
         </table>
       </div>
-      <ClientDialog open={open} onOpenChange={setOpen} workspaceId={workspaceId} />
+      {open && <ClientDialog open onOpenChange={setOpen} workspaceId={workspaceId} client={selectedClient} />}
     </div>
   )
 }

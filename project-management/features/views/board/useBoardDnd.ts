@@ -15,7 +15,7 @@ import {
 import { arrayMove } from '@dnd-kit/sortable'
 import type { Project, Section, Task } from '../../../types'
 import { useProjectsStore } from '../../../stores/entities'
-import { updateTask } from '../../../lib/taskActions'
+import { setSectionForProject } from '../../../lib/taskActions'
 import { now } from '../../../lib/time'
 import { wouldBlockWipDrop } from './boardUtils'
 
@@ -74,11 +74,7 @@ export function useBoardDnd({ project, sections, tasks, tasksBySection, currentU
       if (movingAcross && wouldBlockWipDrop(targetList.length, targetSection?.wipLimit)) return
 
       if (movingAcross) {
-        await updateTask(
-          taskId,
-          { sectionIdByProject: { ...task.sectionIdByProject, [project.id]: targetSectionId } },
-          currentUserId
-        )
+        await setSectionForProject(taskId, project.id, targetSectionId, currentUserId)
       }
 
       const currentOrder = (project.taskOrderBySection?.[targetSectionId] ?? targetList.map((t) => t.id)).filter(

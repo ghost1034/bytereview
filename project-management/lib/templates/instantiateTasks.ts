@@ -39,7 +39,7 @@ export async function createTaskFromTaskTemplate(
   ctx: {
     workspaceId: string
     projectId: string
-    sectionId: string
+    sectionId?: string
     ownerId: string
     projectStart: string
     parentId?: string
@@ -65,7 +65,7 @@ export async function createTaskFromTaskTemplate(
     dueOn: resolveRelativeDate(tpl.defaults.dueOn, ctx.projectStart),
     parentId: ctx.parentId,
     projectIds: [ctx.projectId],
-    sectionIdByProject: { [ctx.projectId]: ctx.sectionId },
+    sectionIdByProject: ctx.sectionId ? { [ctx.projectId]: ctx.sectionId } : {},
     tagIds,
     customFieldValues: tpl.defaults.customFieldValues ?? {},
     dependencyIds: [],
@@ -87,7 +87,7 @@ export async function instantiateTemplateTasksFromTemplates(
   ctx: {
     workspaceId: string
     projectId: string
-    sectionId: string
+    sectionId?: string
     ownerId: string
     projectStart: string
   }

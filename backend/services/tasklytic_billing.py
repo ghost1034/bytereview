@@ -144,9 +144,14 @@ def generate_invoice(
 ) -> dict[str, Any]:
     require_capability(db, workspace_id, actor_id, "bill")
     client = _record(db, "clients", validate_id(body.get("clientId"), "clientId"), workspace_id)
+    scope_matter: dict[str, Any] | None = None
+    if body.get("matterId"):
+        scope_matter = _record(db, "matters", validate_id(body["matterId"], "matterId"), workspace_id)
+        if scope_matter.get("clientId") != client["id"]:
+            raise HTTPException(status_code=422, detail="The billing matter must belong to the invoice client")
     workspace = _workspace(db, workspace_id, lock=True)
-    period_start = _iso_date(body.get("periodStart") or date.today().isoformat(), "periodStart")
-    period_end = _iso_date(body.get("periodEnd") or date.today().isoformat(), "periodEnd")
+    period_start = _iso_date(body.get("periodStart"), "periodStart")
+    period_end = _iso_date(body.get("periodEnd"), "periodEnd")
     if period_end < period_start:
         raise HTTPException(status_code=422, detail="periodEnd cannot precede periodStart")
     invoice_currency = _currency(body.get("currency") or client.get("defaultCurrency") or (workspace.payload or {}).get("defaultCurrency") or "USD")
@@ -170,6 +175,16 @@ def generate_invoice(
                 raise HTTPException(status_code=409, detail={"code": "source_not_billable", "sourceId": source_id})
             if source.get("clientId") != client["id"]:
                 raise HTTPException(status_code=422, detail="Every source must belong to the invoice client")
+            if scope_matter:
+                belongs_to_matter = source.get("matterId") == scope_matter["id"]
+                belongs_to_project = source.get("projectId") == scope_matter.get("projectId")
+                if not belongs_to_matter and not belongs_to_project:
+                    raise HTTPException(status_code=422, detail={
+                        "code": "source_outside_matter_scope", "sourceId": source_id,
+                        "matterId": scope_matter["id"],
+                    })
+                if not source.get("matterId") and belongs_to_project:
+                    source = {**source, "matterId": scope_matter["id"]}
             if not period_start <= str(source.get("date") or "") <= period_end:
                 raise HTTPException(status_code=422, detail={"code": "source_outside_invoice_period", "sourceId": source_id})
             lock_row = _find_record(db, "billingLocks", f"{kind}:{source_id}", workspace_id, lock=True)
@@ -255,7 +270,10 @@ def generate_invoice(
         "timeEntryIds": [line[1]["id"] for line in included if line[0] == "timeEntries" and line[1]["id"] not in write_off_ids],
         "expenseIds": [line[1]["id"] for line in included if line[0] == "expenses" and line[1]["id"] not in write_off_ids],
         "projectIds": sorted({source.get("projectId") for _, source, _, _ in included if source.get("projectId")}),
-        "matterIds": sorted({source.get("matterId") for _, source, _, _ in included if source.get("matterId")}),
+        "matterIds": sorted(
+            {source.get("matterId") for _, source, _, _ in included if source.get("matterId")}
+            | ({scope_matter["id"]} if scope_matter else set())
+        ),
         "subtotalFees": _number(subtotal_fees), "subtotalExpenses": _number(subtotal_expenses),
         "discountAmount": _number(discount), "discountReason": str(body.get("discountReason") or "").strip() or None,
         "taxAmount": _number(tax), "total": _number(total), "amount": _number(total),

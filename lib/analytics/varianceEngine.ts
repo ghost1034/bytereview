@@ -9,9 +9,7 @@
  *  - Dual mode keyed off `__role === 'Base Period' | 'Comparison Period'` markers
  *    that `DataUploadFlow` stamps onto rows
  *  - Single mode keyed off a parsed Period column (date range first, then string
- *    fallback "Q3/Base" vs "Q4/Comp"). The final synthetic 1.1× fallback in the
- *    source is preserved so demo CSVs without proper period columns still
- *    produce a result.
+ *    fallback "Q3/Base" vs "Q4/Comp"). Rows outside both periods are excluded.
  *  - Variance % is `'N/M'` when baseAmount is 0 and compAmount isn't
  *  - Flagging: Either = OR, Both = AND
  *  - Favorability: Revenue/Liability/Equity favorable when variance > 0;
@@ -23,6 +21,7 @@ import type {
   VarianceData,
   VarianceColumnMap,
 } from './varianceTypes'
+import { parseVariancePeriodDate } from './varianceHelpers'
 import { initialVarianceRowStatus, countReviewedVarianceRows } from './varianceHelpers'
 
 function cleanNum(val: unknown): number {
@@ -63,7 +62,54 @@ interface GroupAccumulator {
   customAttributes: Record<string, unknown>
 }
 
-export function aggregateVariances(input: AggregationInput): VarianceData[] {
+export interface VariancePeriodRowCounts {
+  baseRows: number
+  comparisonRows: number
+  excludedRows: number
+}
+
+export interface VarianceAggregationResult {
+  variances: VarianceData[]
+  rowCounts: VariancePeriodRowCounts
+}
+
+type RowPeriod = 'base' | 'comparison' | 'excluded'
+
+function classifyRowPeriod(
+  row: Record<string, unknown>,
+  columnMap: VarianceColumnMap,
+  config: AggregationInput['config'],
+): RowPeriod {
+  if (config.uploadMode === 'dual') {
+    if (row.__role === 'Base Period') return 'base'
+    if (row.__role === 'Comparison Period') return 'comparison'
+    return 'excluded'
+  }
+
+  const periodVal = columnMap.period ? row[columnMap.period] : (row.Period ?? row.Date)
+  const rowDate = parseVariancePeriodDate(periodVal)
+
+  if (rowDate) {
+    const baseStart = new Date(config.basePeriodStart)
+    const baseEnd = new Date(config.basePeriodEnd)
+    const compStart = new Date(config.compPeriodStart)
+    const compEnd = new Date(config.compPeriodEnd)
+
+    if (rowDate >= baseStart && rowDate <= baseEnd) return 'base'
+    if (rowDate >= compStart && rowDate <= compEnd) return 'comparison'
+    return 'excluded'
+  }
+
+  if (typeof periodVal === 'string' && (periodVal.includes('Q3') || periodVal.includes('Base'))) {
+    return 'base'
+  }
+  if (typeof periodVal === 'string' && (periodVal.includes('Q4') || periodVal.includes('Comp'))) {
+    return 'comparison'
+  }
+  return 'excluded'
+}
+
+export function aggregateVariancesWithStats(input: AggregationInput): VarianceAggregationResult {
   const {
     rawData,
     columnMap,
@@ -74,8 +120,21 @@ export function aggregateVariances(input: AggregationInput): VarianceData[] {
 
   const anchors = config.analysisAnchors.length > 0 ? config.analysisAnchors : ['Account']
   const grouped: Record<string, GroupAccumulator> = {}
+  const rowCounts: VariancePeriodRowCounts = {
+    baseRows: 0,
+    comparisonRows: 0,
+    excludedRows: 0,
+  }
 
   for (const row of rawData) {
+    const rowPeriod = classifyRowPeriod(row, columnMap, config)
+    if (rowPeriod === 'base') rowCounts.baseRows += 1
+    else if (rowPeriod === 'comparison') rowCounts.comparisonRows += 1
+    else {
+      rowCounts.excludedRows += 1
+      continue
+    }
+
     const anchorValues: Record<string, string> = {}
     const keys = anchors.map((anchor) => {
       let val = 'Unassigned'
@@ -150,50 +209,11 @@ export function aggregateVariances(input: AggregationInput): VarianceData[] {
       }
     }
 
-    if (config.uploadMode === 'single') {
-      const periodVal = columnMap.period
-        ? (row[columnMap.period] as string | undefined)
-        : ((row.Period as string | undefined) ?? (row.Date as string | undefined))
-
-      const rowDate = periodVal ? new Date(periodVal) : new Date(Number.NaN)
-      if (!Number.isNaN(rowDate.getTime())) {
-        const baseStart = new Date(config.basePeriodStart)
-        const baseEnd = new Date(config.basePeriodEnd)
-        const compStart = new Date(config.compPeriodStart)
-        const compEnd = new Date(config.compPeriodEnd)
-
-        if (rowDate >= baseStart && rowDate <= baseEnd) {
-          grouped[groupKey].baseAmount += amt
-        } else if (rowDate >= compStart && rowDate <= compEnd) {
-          grouped[groupKey].compAmount += amt
-        } else if (typeof periodVal === 'string' && (periodVal.includes('Q3') || periodVal.includes('Base'))) {
-          grouped[groupKey].baseAmount += amt
-        } else if (typeof periodVal === 'string' && (periodVal.includes('Q4') || periodVal.includes('Comp'))) {
-          grouped[groupKey].compAmount += amt
-        }
-      } else if (typeof periodVal === 'string' && (periodVal.includes('Q3') || periodVal.includes('Base'))) {
-        grouped[groupKey].baseAmount += amt
-      } else if (typeof periodVal === 'string' && (periodVal.includes('Q4') || periodVal.includes('Comp'))) {
-        grouped[groupKey].compAmount += amt
-      } else {
-        // Fallback for demo data with no period column at all — mirrors source behavior.
-        grouped[groupKey].baseAmount += amt
-        grouped[groupKey].compAmount += amt * 1.1
-      }
-    } else {
-      const role = (row as Record<string, unknown>).__role
-      if (role === 'Base Period') {
-        grouped[groupKey].baseAmount += amt
-      } else if (role === 'Comparison Period') {
-        grouped[groupKey].compAmount += amt
-      } else {
-        grouped[groupKey].baseAmount += amt
-        grouped[groupKey].compAmount += amt * 1.1
-      }
-    }
+    if (rowPeriod === 'base') grouped[groupKey].baseAmount += amt
+    else grouped[groupKey].compAmount += amt
   }
 
-  return Object.values(grouped).map((g) => {
+  const variances = Object.values(grouped).map((g) => {
     const variance = g.compAmount - g.baseAmount
     const absVariance = Math.abs(variance)
     let variancePercent: number | 'N/M' = 0
@@ -239,6 +259,12 @@ export function aggregateVariances(input: AggregationInput): VarianceData[] {
       customAttributes: g.customAttributes,
     }
   })
+
+  return { variances, rowCounts }
+}
+
+export function aggregateVariances(input: AggregationInput): VarianceData[] {
+  return aggregateVariancesWithStats(input).variances
 }
 
 /** Summarize processed rows for the `results` JSONB column. */

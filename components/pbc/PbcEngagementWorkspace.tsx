@@ -9,7 +9,8 @@ import {
 } from 'lucide-react'
 
 import { usePbcEngagement, useInvalidatePbc } from '@/hooks/usePbc'
-import { pbcApi } from '@/lib/pbc/api'
+import { PbcApiError, pbcApi } from '@/lib/pbc/api'
+import { getInvalidPbcRequestNumbers, getPbcPublishIssues } from '@/lib/pbc/publishValidation'
 import type { PbcRequestItem } from '@/lib/pbc/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -98,12 +99,23 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
   const [commentVisibility, setCommentVisibility] = React.useState<'client' | 'internal'>('client')
   const [ai, setAi] = React.useState<{ summary: string; proposals: Array<Record<string, unknown>> } | null>(null)
   const [flags, setFlags] = React.useState<CompletenessFlag[] | null>(null)
+  const [publishValidation, setPublishValidation] = React.useState<{ message: string; invalidRequestNumbers: string[] } | null>(null)
   const fileRef = React.useRef<HTMLInputElement>(null)
   const importRef = React.useRef<HTMLInputElement>(null)
+  const requestRowRefs = React.useRef(new Map<string, HTMLButtonElement>())
 
   const data = engagement.data
   const requests = React.useMemo(() => data?.requests || [], [data?.requests])
   const selected = requests.find((item) => item.id === selectedId) || null
+  const publishIssues = React.useMemo(() => getPbcPublishIssues(
+    requests,
+    data?.contacts || [],
+    publishValidation?.invalidRequestNumbers || [],
+  ), [data?.contacts, publishValidation?.invalidRequestNumbers, requests])
+  const invalidRequestNumbers = React.useMemo(
+    () => new Set(publishValidation?.invalidRequestNumbers || []),
+    [publishValidation?.invalidRequestNumbers],
+  )
 
   React.useEffect(() => {
     if ((!selectedId || !requests.some((item) => item.id === selectedId)) && requests[0]) setSelectedId(requests[0].id)
@@ -200,6 +212,31 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
     await run('flags', async () => { setFlags((await pbcApi.completeness(engagementId)).flags) })
   }
 
+  const focusRequest = (requestId: string) => {
+    setSelectedId(requestId)
+    window.requestAnimationFrame(() => requestRowRefs.current.get(requestId)?.focus())
+  }
+
+  const publishEngagement = async () => {
+    setBusy('publish'); setError(null); setPublishValidation(null)
+    try {
+      await pbcApi.publish(engagementId)
+      await invalidate()
+      await engagement.refetch()
+    } catch (err) {
+      const invalidRequestNumbers = err instanceof PbcApiError ? getInvalidPbcRequestNumbers(err.detail) : null
+      if (err instanceof PbcApiError && err.status === 422 && invalidRequestNumbers) {
+        setPublishValidation({ message: err.message, invalidRequestNumbers })
+        const firstInvalidRequest = requests.find((request) => invalidRequestNumbers.includes(request.request_number))
+        if (firstInvalidRequest) focusRequest(firstInvalidRequest.id)
+      } else {
+        setError(err instanceof Error ? err.message : 'Something went wrong')
+      }
+    } finally {
+      setBusy(null)
+    }
+  }
+
   const openDates = () => {
     if (!data) return
     setDateForm({
@@ -267,12 +304,18 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
               {(data.status === 'draft' || data.status === 'completed') && <><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive focus:text-destructive" onSelect={() => setArchiveOpen(true)}><Archive className="size-4" />Archive engagement</DropdownMenuItem></>}
             </DropdownMenuContent>
           </DropdownMenu>
-          {data.status === 'draft' && <Button onClick={() => run('publish', () => pbcApi.publish(engagementId))} disabled={!!busy}><Send className="mr-2 size-4" />Publish</Button>}
+          {data.status === 'draft' && <Button onClick={() => void publishEngagement()} disabled={!!busy}><Send className="mr-2 size-4" />{busy === 'publish' ? 'Publishing…' : 'Publish'}</Button>}
           {data.status === 'active' && <Button onClick={() => run('complete-engagement', () => pbcApi.engagementAction(engagementId, 'complete'))} disabled={!!busy}><Check className="mr-2 size-4" />Complete</Button>}
         </div>
       </div>
 
       {error && <div className="flex items-start gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><span>{error}</span><button className="ml-auto" onClick={() => setError(null)} aria-label="Dismiss"><X className="size-4" /></button></div>}
+      {publishValidation && <div role="alert" className="rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+        <div className="flex items-start gap-2"><AlertTriangle className="mt-0.5 size-4 shrink-0" /><div className="flex-1"><p className="font-medium">Engagement isn’t ready to publish</p><p className="mt-1">{publishValidation.message}</p></div><button onClick={() => setPublishValidation(null)} aria-label="Dismiss publish validation"><X className="size-4" /></button></div>
+        {requests.length === 0 && <p className="mt-2 pl-6">Add at least one request.</p>}
+        {(data.contacts || []).length === 0 && <p className="mt-2 pl-6">Add at least one client contact.</p>}
+        {publishIssues.length > 0 && <ul className="mt-2 list-disc space-y-1 pl-11">{publishIssues.map((issue) => <li key={issue.requestId}><button className="font-medium underline" onClick={() => focusRequest(issue.requestId)}>{issue.requestNumber}</button>: {issue.missingFields.length > 0 ? `Missing ${issue.missingFields.join(', ')}` : 'Review the required request metadata'}</li>)}</ul>}
+      </div>}
       {data.reminders_paused && data.status === 'active' && <div className="flex flex-wrap items-center gap-3 rounded-lg border border-warning/30 bg-warning-soft px-4 py-3 text-sm"><BellOff className="size-4 shrink-0 text-warning" /><span className="flex-1"><strong>Automated reminders are paused.</strong> Clients will not receive scheduled reminder emails for this engagement.</span><Button size="sm" variant="outline" disabled={!!busy} onClick={() => void run('reminders', toggleReminders)}>{busy === 'reminders' ? 'Resuming…' : 'Resume reminders'}</Button></div>}
       {flags && flags.length === 0 && <div className="flex items-start gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"><Check className="mt-0.5 size-4 shrink-0" /><span><strong>Completeness check passed.</strong> No items currently require attention.</span></div>}
       {flags && flags.length > 0 && <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><p className="font-medium">Completeness review found {flags.length} item{flags.length === 1 ? '' : 's'} requiring attention.</p><ul className="mt-2 list-disc space-y-1 pl-5">{flags.slice(0, 5).map((flag) => <li key={flag.request_id}><button className="underline" onClick={() => setSelectedId(flag.request_id)}>{flag.request_number}</button>: {flag.warnings.join('; ')}</li>)}</ul></div>}
@@ -292,7 +335,17 @@ export function PbcEngagementWorkspace({ engagementId }: { engagementId: string 
               <div className="grid grid-cols-[90px_minmax(260px,1fr)_120px_120px_110px_24px] gap-3 bg-surface-muted/40 px-4 py-2 text-xs font-medium uppercase tracking-wide text-foreground-muted"><span>Number</span><span>Request</span><span>Due</span><span>Status</span><span>Files</span><span /></div>
               {requests.length === 0 && <div className="p-12 text-center"><File className="mx-auto size-8 text-foreground-muted" /><p className="mt-3 font-medium">Build the request list</p><p className="mt-1 text-sm text-foreground-muted">Add requests, import a spreadsheet, or ask AI for a proposal.</p></div>}
               {requests.map((item) => (
-                <button key={item.id} onClick={() => setSelectedId(item.id)} className={cn('grid w-full grid-cols-[90px_minmax(260px,1fr)_120px_120px_110px_24px] items-center gap-3 px-4 py-3 text-left text-sm hover:bg-surface-muted/50', selectedId === item.id && 'bg-primary/5')}>
+                <button
+                  key={item.id}
+                  ref={(element) => { if (element) requestRowRefs.current.set(item.id, element); else requestRowRefs.current.delete(item.id) }}
+                  onClick={() => setSelectedId(item.id)}
+                  data-invalid={invalidRequestNumbers.has(item.request_number) || undefined}
+                  className={cn(
+                    'grid w-full grid-cols-[90px_minmax(260px,1fr)_120px_120px_110px_24px] items-center gap-3 px-4 py-3 text-left text-sm hover:bg-surface-muted/50',
+                    selectedId === item.id && 'bg-primary/5',
+                    invalidRequestNumbers.has(item.request_number) && 'bg-destructive/5 ring-1 ring-inset ring-destructive/30',
+                  )}
+                >
                   <span className="font-mono text-xs text-foreground-muted">{item.request_number}</span>
                   <span className="min-w-0"><span className="block truncate font-medium">{item.title}</span><span className="block truncate text-xs text-foreground-muted">{item.category || 'Uncategorized'} · {item.owner_name || 'Unassigned'}</span></span>
                   <span className={cn('tabular-nums', item.due_date && new Date(`${item.due_date}T23:59:00`) < new Date() && !['accepted', 'waived'].includes(item.status) && 'text-destructive')}>{item.due_date || '—'}</span>

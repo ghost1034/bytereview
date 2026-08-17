@@ -29,6 +29,7 @@ export type BuildTimeEntryInput = {
   activityCode?: string
   taskCode?: string
   rateOverride?: number
+  rateOverrideReason?: string
   startedAt?: string
   stoppedAt?: string
   workspace?: Workspace
@@ -41,6 +42,7 @@ export type BuildTimeEntryInput = {
 /** Build a draft time entry with resolved rate snapshot. */
 export function buildTimeEntry(input: BuildTimeEntryInput): TimeEntry {
   const resolved = resolveRate({
+    workspaceId: input.workspaceId,
     userId: input.userId,
     user: input.user,
     date: input.date,
@@ -72,7 +74,8 @@ export function buildTimeEntry(input: BuildTimeEntryInput): TimeEntry {
     stoppedAt: input.stoppedAt,
     billable: input.billable,
     rateSnapshot: rate,
-    rateSource: input.rateOverride ? ('override' as RateSource) : resolved.rateSource,
+    rateSource: input.rateOverride !== undefined ? ('override' as RateSource) : resolved.rateSource,
+    rateOverrideReason: rate === 0 ? input.rateOverrideReason?.trim() || undefined : undefined,
     currency: resolved.currency,
     amount,
     activityCode: input.activityCode,

@@ -32,7 +32,172 @@ export const LOGIC_OPTIONS: { value: VarianceLogic; label: string; hint: string 
   { value: 'Both', label: 'Both ($ AND %)', hint: 'Flag only if BOTH thresholds are exceeded.' },
 ]
 
+export interface VariancePeriodDefaults {
+  basePeriodStart: string
+  basePeriodEnd: string
+  compPeriodStart: string
+  compPeriodEnd: string
+}
+
+interface CalendarPeriod {
+  start: Date
+  end: Date
+}
+
+type CalendarPeriodUnit = 'month' | 'quarter' | 'year'
+
+function periodUnit(type: VarianceAnalysisType): CalendarPeriodUnit {
+  if (type === 'MoM') return 'month'
+  if (type === 'QoQ') return 'quarter'
+  return 'year'
+}
+
+function calendarPeriod(date: Date, unit: CalendarPeriodUnit): CalendarPeriod {
+  const year = date.getUTCFullYear()
+  const month = date.getUTCMonth()
+
+  if (unit === 'month') {
+    return {
+      start: new Date(Date.UTC(year, month, 1)),
+      end: new Date(Date.UTC(year, month + 1, 0)),
+    }
+  }
+
+  if (unit === 'quarter') {
+    const startMonth = Math.floor(month / 3) * 3
+    return {
+      start: new Date(Date.UTC(year, startMonth, 1)),
+      end: new Date(Date.UTC(year, startMonth + 3, 0)),
+    }
+  }
+
+  return {
+    start: new Date(Date.UTC(year, 0, 1)),
+    end: new Date(Date.UTC(year, 12, 0)),
+  }
+}
+
+function previousCalendarPeriod(period: CalendarPeriod, unit: CalendarPeriodUnit): CalendarPeriod {
+  const previousDate = new Date(period.start)
+  if (unit === 'month') previousDate.setUTCMonth(previousDate.getUTCMonth() - 1)
+  else if (unit === 'quarter') previousDate.setUTCMonth(previousDate.getUTCMonth() - 3)
+  else previousDate.setUTCFullYear(previousDate.getUTCFullYear() - 1)
+  return calendarPeriod(previousDate, unit)
+}
+
+function formatDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+function toVariancePeriodDefaults(base: CalendarPeriod, comparison: CalendarPeriod): VariancePeriodDefaults {
+  return {
+    basePeriodStart: formatDate(base.start),
+    basePeriodEnd: formatDate(base.end),
+    compPeriodStart: formatDate(comparison.start),
+    compPeriodEnd: formatDate(comparison.end),
+  }
+}
+
+export function parseVariancePeriodDate(value: unknown): Date | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime())
+      ? null
+      : new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()))
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    // XLSX may leave date cells as Excel serial values.
+    if (value > 0 && value < 100_000) {
+      return new Date(Date.UTC(1899, 11, 30) + Math.floor(value) * 86_400_000)
+    }
+    const timestamp = new Date(value)
+    return Number.isNaN(timestamp.getTime())
+      ? null
+      : new Date(Date.UTC(timestamp.getUTCFullYear(), timestamp.getUTCMonth(), timestamp.getUTCDate()))
+  }
+
+  if (typeof value !== 'string' || !value.trim()) return null
+  const input = value.trim()
+  const dateOnly = input.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/)
+  if (dateOnly) {
+    const [, rawYear, rawMonth, rawDay] = dateOnly
+    const year = Number(rawYear)
+    const month = Number(rawMonth)
+    const day = Number(rawDay)
+    const parsed = new Date(Date.UTC(year, month - 1, day))
+    if (
+      parsed.getUTCFullYear() !== year ||
+      parsed.getUTCMonth() !== month - 1 ||
+      parsed.getUTCDate() !== day
+    ) {
+      return null
+    }
+    return parsed
+  }
+
+  const quarter = input.match(/^(?:Q([1-4])\s*[-/]?\s*(\d{4})|(\d{4})\s*[-/]?\s*Q([1-4]))$/i)
+  if (quarter) {
+    const year = Number(quarter[2] ?? quarter[3])
+    const quarterNumber = Number(quarter[1] ?? quarter[4])
+    return new Date(Date.UTC(year, (quarterNumber - 1) * 3, 1))
+  }
+
+  const timestamp = Date.parse(input)
+  if (Number.isNaN(timestamp)) return null
+  const parsed = new Date(timestamp)
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
+}
+
+/** Return the latest two completed calendar periods relative to today. */
+export function currentVariancePeriodDefaults(
+  type: VarianceAnalysisType,
+  now: Date = new Date(),
+): VariancePeriodDefaults {
+  const unit = periodUnit(type)
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+  const current = calendarPeriod(today, unit)
+  const comparison = previousCalendarPeriod(current, unit)
+  const base = previousCalendarPeriod(comparison, unit)
+  return toVariancePeriodDefaults(base, comparison)
+}
+
+/**
+ * Prefer the latest two completed periods represented in a single-file upload.
+ * If the mapped column has fewer than two completed periods, use calendar defaults.
+ */
+export function inferVariancePeriodDefaults(
+  type: VarianceAnalysisType,
+  rows: Record<string, unknown>[],
+  dateColumn: string | undefined,
+  now: Date = new Date(),
+): VariancePeriodDefaults {
+  if (!dateColumn) return currentVariancePeriodDefaults(type, now)
+
+  const unit = periodUnit(type)
+  const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+  const periods = new Map<string, CalendarPeriod>()
+
+  for (const row of rows) {
+    const parsed = parseVariancePeriodDate(row[dateColumn])
+    if (!parsed) continue
+    const period = calendarPeriod(parsed, unit)
+    if (period.end >= today) continue
+    periods.set(formatDate(period.start), period)
+  }
+
+  const available = Array.from(periods.values()).sort(
+    (left, right) => left.start.getTime() - right.start.getTime(),
+  )
+  if (available.length < 2) return currentVariancePeriodDefaults(type, now)
+
+  return toVariancePeriodDefaults(
+    available[available.length - 2],
+    available[available.length - 1],
+  )
+}
+
 export function defaultVarianceConfig(uploadMode: VarianceUploadMode): VarianceConfig {
+  const periods = currentVariancePeriodDefaults('QoQ')
   return {
     name: 'New Variance Analysis',
     type: 'QoQ',
@@ -42,10 +207,8 @@ export function defaultVarianceConfig(uploadMode: VarianceUploadMode): VarianceC
     accountType: 'Expense',
     analysisAnchors: ['Account'],
     positiveIs: 'Debit',
-    basePeriodStart: '2025-07-01',
-    basePeriodEnd: '2025-09-30',
-    compPeriodStart: '2025-10-01',
-    compPeriodEnd: '2025-12-31',
+    ...periods,
+    periodDefaultsSource: 'current-date',
     uploadMode,
     columnMapping: {},
     customColumns: [],

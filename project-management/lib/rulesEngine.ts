@@ -5,7 +5,7 @@ import { addDays, differenceInCalendarDays, format, parseISO, startOfDay } from 
 import { emitActivity } from './activity'
 import { newId } from './ids'
 import { createNotification } from './notifications'
-import { createSubtask, updateTask } from './taskActions'
+import { createSubtask, setSectionForProject, updateTask } from './taskActions'
 import { now } from './time'
 import type { Rule, RuleAction, Task } from '../types'
 import {
@@ -248,11 +248,7 @@ async function applyAction(
       return `assign_to:${userId}`
     }
     case 'move_to_section': {
-      await updateTask(
-        task.id,
-        { sectionIdByProject: { ...task.sectionIdByProject, [rule.projectId]: action.sectionId } },
-        actorId
-      )
+      await setSectionForProject(task.id, rule.projectId, action.sectionId, actorId)
       return `move_to_section:${action.sectionId}`
     }
     case 'set_due_in_days': {

@@ -74,11 +74,11 @@ export type ListRow =
 
     }
 
-  | { kind: 'add-task'; groupKey: string; sectionId: string }
+  | { kind: 'add-task'; groupKey: string; sectionId?: string }
 
-  | { kind: 'task'; task: Task; depth: number; groupKey: string; sectionId: string }
+  | { kind: 'task'; task: Task; depth: number; groupKey: string; sectionId?: string }
 
-  | { kind: 'add-subtask'; parentId: string; groupKey: string; sectionId: string }
+  | { kind: 'add-subtask'; parentId: string; groupKey: string; sectionId?: string }
 
   | { kind: 'add-section' }
 

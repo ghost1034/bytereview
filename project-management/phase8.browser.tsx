@@ -64,6 +64,27 @@ describe('Phase 8 browser exit gate', () => {
     await expect.element(detail.getByRole('heading', { name: 'Engagements' })).toBeVisible()
   })
 
+  it('exposes client and engagement editing from list and detail pages', async () => {
+    const clientList = render(<ProjectManagementWorkspaceRouter workspaceId="w1" segments={['psa', 'clients']} />)
+    await clientList.getByRole('button', { name: 'Edit' }).click()
+    await expect.element(clientList.getByRole('heading', { name: 'Edit client' })).toBeVisible()
+    clientList.unmount()
+
+    const clientDetail = render(<ProjectManagementWorkspaceRouter workspaceId="w1" segments={['psa', 'clients', 'c1']} />)
+    await clientDetail.getByRole('button', { name: 'Edit client' }).click()
+    await expect.element(clientDetail.getByRole('heading', { name: 'Edit client' })).toBeVisible()
+    clientDetail.unmount()
+
+    const matterList = render(<ProjectManagementWorkspaceRouter workspaceId="w1" segments={['psa', 'engagements']} />)
+    await matterList.getByRole('button', { name: 'Edit' }).click()
+    await expect.element(matterList.getByRole('heading', { name: 'Edit engagement' })).toBeVisible()
+    matterList.unmount()
+
+    const matterDetail = render(<ProjectManagementWorkspaceRouter workspaceId="w1" segments={['psa', 'engagements', 'm1']} />)
+    await matterDetail.getByRole('button', { name: 'Edit engagement' }).click()
+    await expect.element(matterDetail.getByRole('heading', { name: 'Edit engagement' })).toBeVisible()
+  })
+
   it('shows unified approval settings as editable only to workspace administrators', async () => {
     seed('member')
     const member = render(<ApprovalsSettingsPage />)

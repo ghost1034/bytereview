@@ -130,7 +130,7 @@ export function resolveRate(args: ResolveRateArgs): ResolvedRate {
   }
 
   console.warn('[resolveRate] No rate found; using 0', args)
-  return { hourlyRate: 0, currency, rateSource: 'override', label: 'No rate configured' }
+  return { hourlyRate: 0, currency, rateSource: 'unconfigured', label: 'No rate configured' }
 }
 
 /** Compute billable amount from hours and hourly rate. */

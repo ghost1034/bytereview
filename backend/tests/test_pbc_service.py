@@ -13,8 +13,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from models.db_models import Base
 from models.pbc import PbcAccessToken, PbcContact, PbcEngagement, PbcRequest
+from models.tasklytic import TasklyticEntityRecord, TasklyticWorkspace, TasklyticWorkspaceMember
 from routes import pbc as pbc_routes
 from routes.pbc import _cell_bool, _complete_upload, _request_assignment_ids
 from models.pbc_schemas import PbcPortalExchange, PbcRequestCreate, PbcRequestUpdate, PbcTemplateCreate, PbcTemplateUpdate
@@ -102,6 +107,58 @@ def engagement_and_request(status="open", revision=1):
         title="Trial balance", status=status, revision=revision, expected_formats=[], dependency_ids=[],
     )
     return engagement, request
+
+
+def test_project_links_exclude_archived_projects_and_distinguish_duplicate_names():
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine, tables=[
+        TasklyticWorkspace.__table__,
+        TasklyticWorkspaceMember.__table__,
+        TasklyticEntityRecord.__table__,
+    ])
+    db = sessionmaker(bind=engine)()
+    try:
+        db.add(TasklyticWorkspace(id="workspace-1", payload={"id": "workspace-1", "name": "Audit"}))
+        db.add(TasklyticWorkspaceMember(workspace_id="workspace-1", user_id="owner", role="admin"))
+        for project_id, archived in (
+            ("project-active-a1b2c3d4", False),
+            ("project-active-e5f6g7h8", False),
+            ("project-archive-z9y8x7w6", True),
+        ):
+            db.add(TasklyticEntityRecord(
+                entity_kind="projects",
+                record_id=project_id,
+                scope_key="w:workspace-1",
+                workspace_id="workspace-1",
+                payload={
+                    "id": project_id,
+                    "workspaceId": "workspace-1",
+                    "name": "Year-end audit",
+                    "privacy": "public_to_workspace",
+                    "archived": archived,
+                },
+            ))
+        db.commit()
+
+        result = pbc_routes.project_links(actor=SimpleNamespace(id="owner"), db=db)
+
+        assert [project["project_id"] for project in result["projects"]] == [
+            "project-active-a1b2c3d4",
+            "project-active-e5f6g7h8",
+        ]
+        assert [project["label"] for project in result["projects"]] == [
+            "Year-end audit · #a1b2c3d4",
+            "Year-end audit · #e5f6g7h8",
+        ]
+
+        with pytest.raises(HTTPException) as archived_link:
+            pbc_routes.validate_tasklytic_link(
+                db, "owner", "workspace-1", "project-archive-z9y8x7w6"
+            )
+        assert archived_link.value.status_code == 422
+    finally:
+        db.close()
+        engine.dispose()
 
 
 def test_client_can_submit_available_evidence_and_event_is_append_only():

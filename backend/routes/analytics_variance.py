@@ -117,8 +117,36 @@ async def generate_memo(
     actor: User = Depends(require_role(*LLM_ROLES)),
     db: Session = Depends(get_db),
 ):
+    firm_id = require_firm_id(db, actor.id)
+    row = analyses_service.get_analysis(db, firm_id, payload.analysis_id)
+    if row.type != "variance":
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    stored_data = row.data if isinstance(row.data, dict) else {}
+    processed = stored_data.get("processed")
+    if not isinstance(processed, list) or not processed:
+        raise HTTPException(
+            status_code=422,
+            detail="Run the variance analysis before generating a memo",
+        )
+
     preflight_check(db, actor.id, "analytics_variance_memo")
-    text, usage = await analytics_ai_service.variance_memo(payload.data, payload.config)
+    try:
+        text, usage = await analytics_ai_service.variance_memo(
+            processed,
+            row.config if isinstance(row.config, dict) else {},
+            analysis_name=row.name,
+            client_name=row.client.name if row.client is not None else "Not provided",
+        )
+    except analytics_ai_service.VarianceMemoValidationError as exc:
+        logger.warning("Rejected unsupported variance memo content: %s", exc)
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                "The generated memo contained facts that could not be verified against "
+                "the analysis. Generate it again."
+            ),
+        ) from exc
     record_call(
         db,
         actor.id,

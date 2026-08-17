@@ -39,8 +39,10 @@ export function ManualTimeEntryDialog(props: Props) {
   const add = useTimeEntriesStore((s) => s.add)
   const billingRates = useBillingRatesStore((s) => s.list())
   const rateCards = useRateCardsStore((s) => s.list())
-  const pid = props.projectId ?? props.task?.projectIds[0]
-  const ctx = usePsaContext(props.workspaceId, props.userId, pid, props.matterId, props.clientId)
+  const pid = props.projectId ?? props.task?.projectIds[0] ?? props.entry?.projectId
+  const matterId = props.matterId ?? props.entry?.matterId
+  const clientId = props.clientId ?? props.entry?.clientId
+  const ctx = usePsaContext(props.workspaceId, props.userId, pid, matterId, clientId)
   const initialHours = props.entry?.hours ?? props.defaultHours ?? 1
   const [description, setDescription] = useState(props.entry?.description ?? props.defaultDescription ?? '')
   const [duration, setDuration] = useState(formatHoursHMM(initialHours))
@@ -49,7 +51,16 @@ export function ManualTimeEntryDialog(props: Props) {
   const [billable, setBillable] = useState(props.entry?.billable ?? true)
   const [activityCode, setActivityCode] = useState(props.entry?.activityCode ?? '')
   const [rateOverride, setRateOverride] = useState(props.entry?.rateSource === 'override' ? String(props.entry.rateSnapshot ?? '') : '')
+  const [rateOverrideReason, setRateOverrideReason] = useState(props.entry?.rateOverrideReason ?? '')
   const [loading, setLoading] = useState(false)
+
+  const rawRateOverride = rateOverride.trim() === '' ? undefined : Number(rateOverride)
+  const parsedRateOverride = rawRateOverride !== undefined && Number.isFinite(rawRateOverride) && rawRateOverride >= 0
+    ? rawRateOverride
+    : undefined
+  const invalidRateOverride = rateOverride.trim() !== '' && parsedRateOverride === undefined
+  const previewRate = parsedRateOverride ?? ctx.rate.hourlyRate
+  const requiresZeroRateReason = billable && parsedRateOverride === 0
 
   const syncDuration = (raw: string, from: 'hmm' | 'dec') => {
     const hours = parseDurationInput(raw)
@@ -65,7 +76,7 @@ export function ManualTimeEntryDialog(props: Props) {
 
   const submit = async () => {
     const hours = parseDurationInput(decimalHours) ?? parseDurationInput(duration)
-    if (!description.trim() || !hours || hours <= 0) return
+    if (!description.trim() || !hours || hours <= 0 || invalidRateOverride || (requiresZeroRateReason && !rateOverrideReason.trim())) return
     setLoading(true)
     try {
       const entry = buildTimeEntry({
@@ -79,10 +90,11 @@ export function ManualTimeEntryDialog(props: Props) {
         billable,
         taskId: props.task?.id,
         projectId: pid,
-        matterId: props.matterId ?? ctx.matter?.id,
-        clientId: props.clientId ?? ctx.resolvedClientId,
+        matterId: ctx.resolvedMatterId,
+        clientId: ctx.resolvedClientId,
         activityCode: activityCode || undefined,
-        rateOverride: rateOverride ? parseFloat(rateOverride) : undefined,
+        rateOverride: parsedRateOverride,
+        rateOverrideReason: requiresZeroRateReason ? rateOverrideReason : undefined,
         matter: ctx.matter,
         project: ctx.project,
         billingRates,
@@ -93,7 +105,9 @@ export function ManualTimeEntryDialog(props: Props) {
           description: entry.description, date: entry.date, hours: entry.hours,
           durationMinutes: entry.durationMinutes, billable: entry.billable,
           activityCode: entry.activityCode, rateSnapshot: entry.rateSnapshot,
-          rateSource: entry.rateSource, amount: entry.amount,
+          rateSource: entry.rateSource, rateOverrideReason: entry.rateOverrideReason,
+          amount: entry.amount, matterId: entry.matterId, projectId: entry.projectId,
+          clientId: entry.clientId,
         } })
       } else await add(entry)
       props.onOpenChange(false)
@@ -102,7 +116,6 @@ export function ManualTimeEntryDialog(props: Props) {
     }
   }
 
-  const previewRate = rateOverride ? parseFloat(rateOverride) || 0 : ctx.rate.hourlyRate
   const previewAmt = billable ? (parseFloat(decimalHours) || 0) * previewRate : 0
 
   return (
@@ -125,11 +138,18 @@ export function ManualTimeEntryDialog(props: Props) {
           </Select>
           <div className="flex justify-between text-sm"><span style={{ color: 'hsl(var(--foreground-muted))' }}>{ctx.rate.label}</span><span className="font-mono tabular-nums">{formatMoney(previewRate, ctx.rate.currency)}/hr</span></div>
           <Input placeholder="Rate override (optional)" value={rateOverride} onChange={(e) => setRateOverride(e.target.value)} className="rounded-md border border-input bg-background text-foreground font-mono tabular-nums" />
+          {invalidRateOverride && <p className="text-sm text-destructive">Enter a non-negative rate.</p>}
+          {requiresZeroRateReason && (
+            <div className="grid gap-1">
+              <Label htmlFor="zero-rate-reason">Zero-rate reason</Label>
+              <Input id="zero-rate-reason" value={rateOverrideReason} onChange={(e) => setRateOverrideReason(e.target.value)} placeholder="Explain why this time has no charge" />
+            </div>
+          )}
           <div className="flex items-center gap-2"><Switch checked={billable} onCheckedChange={setBillable} /><Label>Billable</Label><span className="ml-auto font-mono tabular-nums text-sm">{formatMoney(previewAmt)}</span></div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => props.onOpenChange(false)}>Cancel</Button>
-          <Button className=" border-0" disabled={loading} onClick={() => void submit()}>Save</Button>
+          <Button className=" border-0" disabled={loading || invalidRateOverride || (requiresZeroRateReason && !rateOverrideReason.trim())} onClick={() => void submit()}>Save</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

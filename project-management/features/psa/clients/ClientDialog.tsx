@@ -59,7 +59,7 @@ export function ClientDialog({ open, onOpenChange, workspaceId, client }: Props)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent aria-describedby={undefined} className="max-w-md">
         <DialogHeader><DialogTitle className="font-sans text-xl">{client ? 'Edit client' : 'New client'}</DialogTitle></DialogHeader>
         <div className="grid gap-3 py-2">
           <div><Label>Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} className="rounded-md border border-input bg-background text-foreground" /></div>

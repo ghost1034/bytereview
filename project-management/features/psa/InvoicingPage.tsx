@@ -11,13 +11,10 @@ import { useWorkspaceContext } from '../../hooks/useWorkspaceContext'
 import { useAuthStore } from '../../stores/auth'
 import { useInvoicesStore, useUsersStore } from '../../stores/entities'
 import { formatMoney } from '../../lib/billing/formatMoney'
+import { formatInvoiceCount, INVOICE_STATUS_LABELS } from '../../lib/billing/invoicePresentation'
 import { invoiceOutstandingByCurrency } from '../../lib/billing/selectors'
 import { canPerformWorkspaceAction } from '../../lib/permissions'
 import { InvoiceWizard } from './invoicing/InvoiceWizard'
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Draft', sent: 'Sent', paid: 'Paid', partial: 'Partial', overdue: 'Overdue', void: 'Void',
-}
 
 export function InvoicingPage() {
   const { workspaceId, workspace } = useWorkspaceContext()
@@ -41,7 +38,7 @@ export function InvoicingPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-sans text-2xl">Invoicing</h1>
-          <p className="text-sm font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{Object.entries(outstanding).map(([currency, amount]) => formatMoney(amount, currency)).join(' + ') || formatMoney(0, workspace?.defaultCurrency)} outstanding · {invoices.length} invoices</p>
+          <p className="text-sm font-mono tabular-nums" style={{ color: 'hsl(var(--foreground-muted))' }}>{Object.entries(outstanding).map(([currency, amount]) => formatMoney(amount, currency)).join(' + ') || formatMoney(0, workspace?.defaultCurrency)} outstanding · {formatInvoiceCount(invoices.length)}</p>
         </div>
         {canBill && <Button className=" border-0" size="sm" onClick={() => setWizardOpen(true)}><Plus className="mr-1 h-4 w-4" /> Generate invoice</Button>}
       </div>
@@ -58,7 +55,7 @@ export function InvoicingPage() {
               <tr key={inv.id} className="border-b" style={{ borderColor: 'hsl(var(--border))' }}>
                 <td className="px-4 py-2 font-medium"><Link className="hover:underline" href={`/dashboard/project-management/w/${workspaceId}/psa/invoicing/${inv.id}`}>{inv.invoiceNumber}</Link></td>
                 <td className="px-4 py-2">{inv.clientName}</td>
-                <td className="px-4 py-2"><Badge variant="outline">{STATUS_LABELS[inv.status] ?? inv.status}</Badge></td>
+                <td className="px-4 py-2"><Badge variant="outline">{INVOICE_STATUS_LABELS[inv.status]}</Badge></td>
                 <td className="px-4 py-2 font-mono tabular-nums">{inv.dueOn}</td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(inv.total ?? inv.amount, inv.currency)}</td>
                 <td className="px-4 py-2 text-right font-mono tabular-nums">{formatMoney(inv.amountOutstanding ?? inv.amount - (inv.amountPaid ?? 0), inv.currency)}</td>
