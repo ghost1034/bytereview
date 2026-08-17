@@ -176,7 +176,6 @@ const FIELD_TYPES: Array<{ key?: string; type: EditorFieldType; label: string; i
   { type: 'company', label: 'Company', icon: UserRound },
   { type: 'title', label: 'Title', icon: UserRound },
   { type: 'note', label: 'Note', icon: Type },
-  { type: 'auto_fill', label: 'Auto-fill', icon: UserRound },
   { key: 'checkbox', type: 'checkbox', label: 'Checkbox', icon: CheckSquare },
   { key: 'checkbox-group', type: 'checkbox', label: 'Checkbox group', icon: ListChecks, setupKind: 'checkbox-group' },
   { key: 'radio', type: 'radio', label: 'Radio group', icon: CircleDot, setupKind: 'radio' },
