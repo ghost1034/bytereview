@@ -81,6 +81,7 @@ export default function EnvelopeFieldsPage() {
   const [inspectingWidgets, setInspectingWidgets] = React.useState(false)
   const [convertingWidgets, setConvertingWidgets] = React.useState(false)
   const [aiPlacementPending, setAiPlacementPending] = React.useState(false)
+  const [formulaSetupPending, setFormulaSetupPending] = React.useState(false)
   const lastSaved = React.useRef('')
   const queuedSnapshot = React.useRef('')
   const draftRevision = React.useRef(1)
@@ -175,6 +176,7 @@ export default function EnvelopeFieldsPage() {
   const signers = envelope?.recipients.filter((recipient) => ['signer', 'witness', 'in_person_signer'].includes(recipient.role)) ?? []
   const issues = collectFieldIssues(editorFields, signers.map((recipient) => ({ id: recipient.id, label: recipient.name || recipient.role_label || recipient.role.replace(/_/g, ' ') })))
   if (aiPlacementPending) issues.push({ id: 'ai-field-placement-review', message: 'Apply or discard the staged AI field suggestions.' })
+  if (formulaSetupPending) issues.push({ id: 'formula-setup-review', message: 'Finish or cancel the formula field being configured.' })
   const inspectWidgets = async (documentId: string) => {
     setInspectingWidgets(true)
     try {
@@ -258,6 +260,7 @@ export default function EnvelopeFieldsPage() {
             focusFieldId={focusFieldId}
             importingFillableFields={inspectingWidgets}
             onImportFillableFields={(documentId) => void inspectWidgets(documentId)}
+            onFormulaSetupPendingChange={setFormulaSetupPending}
             onAnchorSearch={(request) => apiClient.searchEsignAnchors(envelopeId, request)}
             aiFieldPlacement={esignContext.data?.features.ai_field_placement !== false ? {
               targetType: 'envelope', targetId: envelopeId,

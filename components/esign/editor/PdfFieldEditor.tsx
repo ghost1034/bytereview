@@ -12,10 +12,10 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { validateFormula } from '@/lib/esign/fieldLogic'
 import { openPdfFromUrl, participantColor, type PdfDocument } from '../pdf'
 import { PdfPageCanvas } from '../PdfPageCanvas'
 import { AlignmentGuides } from './AlignmentGuides'
+import { FormulaPropertiesPanel } from './FormulaPropertiesPanel'
 import {
   anchorPreviewPosition,
   anchorInstancesShareValue,
@@ -119,6 +119,7 @@ interface PdfFieldEditorProps {
   focusFieldId?: string | null
   importingFillableFields?: boolean
   onImportFillableFields?: (documentId: string) => void
+  onFormulaSetupPendingChange?: (pending: boolean) => void
   onAnchorSearch?: (payload: {
     anchor: string; case_sensitive: boolean; whole_word: boolean; document_ids: string[]
     match_mode: 'first' | 'all'; relative_position: AnchorRelativePosition
@@ -535,7 +536,7 @@ function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField
   return null
 }
 
-function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, commitFields, focusField }: {
+function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, commitFields, focusField, cancelSelection }: {
   field: EditorField
   fields: EditorField[]
   update: (patch: Partial<EditorField>) => void
@@ -543,6 +544,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
   remove: () => void
   commitFields: (next: EditorField[]) => void
   focusField: (field: EditorField) => void
+  cancelSelection: () => void
 }) {
   const properties = field.properties ?? {}
   const setProperties = (patch: Partial<EditorFieldProperties>) => update({ properties: { ...properties, ...patch } })
@@ -563,8 +565,23 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
   const setAppearance = (patch: Partial<NonNullable<EditorFieldProperties['appearance']>>) => setProperties({
     appearance: { ...properties.appearance, alignment: horizontalAlignment, vertical_alignment: verticalAlignment, ...patch },
   })
-  const [formulaError, setFormulaError] = React.useState('')
   if (['dropdown', 'radio', 'checkbox'].includes(field.fieldType)) return <ChoicePropertiesPanel field={field} fields={fields} update={update} commitFields={commitFields} focusField={focusField} remove={remove} />
+  if (field.fieldType === 'formula') return <FormulaPropertiesPanel
+    key={`${field.id}:${field.properties?.formula?.expression ?? ''}`}
+    field={field}
+    fields={fields}
+    onApply={(value) => update({
+      label: value.label,
+      properties: {
+        ...field.properties,
+        data_label: value.dataLabel,
+        tooltip: value.tooltip,
+        formula: { expression: value.expression, decimal_places: value.decimalPlaces },
+      },
+    })}
+    onCancel={cancelSelection}
+    onRemove={remove}
+  />
   return <div className="space-y-2 rounded-md border border-border bg-surface p-3 text-sm">
     <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Field properties</p>
     <input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''}
@@ -639,20 +656,6 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
     {field.fieldType === 'attachment' && <fieldset className="space-y-1"><legend className="text-xs font-medium">Allowed file types</legend>{[
       ['application/pdf', 'PDF'], ['image/png', 'PNG'], ['image/jpeg', 'JPG'],
     ].map(([mime, label]) => <label key={mime} className="mr-3 inline-flex items-center gap-1"><input type="checkbox" checked={(properties.allowed_types ?? []).includes(mime)} onChange={(event) => setProperties({ allowed_types: event.target.checked ? [...new Set([...(properties.allowed_types ?? []), mime])] : (properties.allowed_types ?? []).filter((item) => item !== mime) })} /> {label}</label>)}</fieldset>}
-    {field.fieldType === 'formula' && <label className="block">Expression
-      <input className="mt-1 w-full rounded border border-border bg-background px-2 py-1 font-mono" value={properties.formula?.expression ?? ''}
-        onChange={(event) => setProperties({ formula: { decimal_places: properties.formula?.decimal_places ?? 2, expression: event.target.value } })}
-        onBlur={(event) => { try { validateFormula(event.target.value); setFormulaError('') } catch (error) { setFormulaError(error instanceof Error ? error.message : 'Invalid formula') } }} />
-      <select className="mt-1 w-full rounded border border-border bg-background px-2 py-1" value=""
-        onChange={(event) => {
-          if (!event.target.value) return
-          setProperties({ formula: { decimal_places: properties.formula?.decimal_places ?? 2, expression: `${properties.formula?.expression ?? ''}[${event.target.value}]` } })
-        }}>
-        <option value="">Insert field reference…</option>
-        {fields.filter((item) => item.id !== field.id && item.participantId === field.participantId && !['signature', 'initials', 'stamp', 'attachment'].includes(item.fieldType)).map((item) => <option key={item.id} value={item.properties?.data_label ?? item.id}>{item.label || SHORT[item.fieldType]}</option>)}
-      </select>
-      {formulaError && <span className="text-xs text-destructive">{formulaError}</span>}
-    </label>}
     <label className="block">Conditional behavior
       <select className="mt-1 w-full rounded border border-border bg-background px-2 py-1"
         disabled={conditionalCandidates.length === 0}
@@ -680,7 +683,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
   </div>
 }
 
-export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId, importingFillableFields = false, onImportFillableFields, onAnchorSearch, aiFieldPlacement }: PdfFieldEditorProps) {
+export function PdfFieldEditor({ documents, participants, fields, onChange, className, focusFieldId, importingFillableFields = false, onImportFillableFields, onFormulaSetupPendingChange, onAnchorSearch, aiFieldPlacement }: PdfFieldEditorProps) {
   const [activeDocumentId, setActiveDocumentId] = React.useState(documents[0]?.id)
   const [activeParticipantId, setActiveParticipantId] = React.useState(participants[0]?.id)
   const [armedType, setArmedType] = React.useState<EditorFieldType | null>(null)
@@ -688,6 +691,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [choiceSetupDraft, setChoiceSetupDraft] = React.useState<ChoiceDraft | null>(null)
   const [choiceSetupErrors, setChoiceSetupErrors] = React.useState<string[]>([])
   const [choicePlacement, setChoicePlacement] = React.useState<ChoicePlacementSession | null>(null)
+  const [stagedFormula, setStagedFormula] = React.useState<EditorField | null>(null)
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set())
   const [pdf, setPdf] = React.useState<PdfDocument | null>(null)
   const [loadError, setLoadError] = React.useState<string | null>(null)
@@ -728,6 +732,11 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     return anchorSession && anchor?.rule_id === anchorSession.ruleId && anchor.match_index !== undefined ? [anchor.match_index] : []
   })), [anchorSession, fields])
   const stagedAiProposals = React.useMemo(() => (aiRun?.proposals ?? []).filter((proposal) => acceptedAiIds.has(proposal.id)), [acceptedAiIds, aiRun])
+
+  React.useEffect(() => {
+    onFormulaSetupPendingChange?.(!!stagedFormula)
+    return () => onFormulaSetupPendingChange?.(false)
+  }, [onFormulaSetupPendingChange, stagedFormula])
 
   React.useEffect(() => {
     if (!aiFieldPlacement) return
@@ -819,6 +828,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     if (!focusFieldId) return
     const field = fields.find((item) => item.id === focusFieldId)
     if (!field) return
+    setStagedFormula(null)
     setActiveDocumentId(field.documentId)
     setActiveParticipantId(field.participantId)
     setSelectedIds(new Set([field.id]))
@@ -906,7 +916,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       if (mod && event.key.toLowerCase() === 'v') { event.preventDefault(); duplicate(clipboard.current); return }
       if (mod && event.key.toLowerCase() === 'd') { event.preventDefault(); duplicate(fields.filter((field) => selectedIds.has(field.id))); return }
       if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); removeSelected(); return }
-      if (event.key === 'Escape') { setArmedType(null); setRadioGroup(null); setChoicePlacement(null); setChoiceSetupDraft(null); setChoiceSetupErrors([]); setSelectedIds(new Set()); return }
+      if (event.key === 'Escape') { setArmedType(null); setRadioGroup(null); setChoicePlacement(null); setChoiceSetupDraft(null); setChoiceSetupErrors([]); setStagedFormula(null); setSelectedIds(new Set()); return }
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key) && selectedIds.size) {
         event.preventDefault(); const scale = event.shiftKey ? 10 : 1; const dx = (event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0) * 0.0015 * scale; const dy = (event.key === 'ArrowUp' ? -1 : event.key === 'ArrowDown' ? 1 : 0) * 0.0015 * scale
         commit(fields.map((field) => selectedIds.has(field.id) ? { ...field, posX: clamp(field.posX + dx, 0, 1 - field.width), posY: clamp(field.posY + dy, 0, 1 - field.height) } : field))
@@ -954,6 +964,11 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       pageNumber, posX: clamp(x - size.width / 2, 0, 1 - size.width), posY: clamp(y - size.height / 2, 0, 1 - size.height),
       width: size.width, height: size.height, required: !['formula', 'note'].includes(armedType),
       properties: { ...defaultProperties(armedType, radioGroup), data_label: `${armedType}_${newId().slice(0, 8)}`, read_only: armedType === 'note' } }
+    if (armedType === 'formula') {
+      field.properties = { ...field.properties, formula: { expression: '', decimal_places: 2 } }
+      setStagedFormula(field); setSelectedIds(new Set()); setArmedType(null)
+      return
+    }
     commit([...fields, field]); setSelectedIds(new Set([id]))
     if (armedType === 'radio') setRadioGroup(field.properties?.group?.id ?? radioGroup)
     else setArmedType(null)
@@ -961,7 +976,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
 
   const openChoiceSetup = (kind: ChoiceKind) => {
     const choiceCount = kind === 'dropdown' ? 1 : 2
-    setArmedType(null); setRadioGroup(null); setChoicePlacement(null); setChoiceSetupErrors([])
+    setArmedType(null); setRadioGroup(null); setChoicePlacement(null); setChoiceSetupErrors([]); setStagedFormula(null)
     setChoiceSetupDraft({
       kind,
       label: kind === 'dropdown' ? 'Select an option' : kind === 'radio' ? 'Choose one' : 'Choose all that apply',
@@ -1077,6 +1092,11 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           document_ids: [anchorSession.documentId], ...serializeAnchorPosition(anchorSession.placement, anchorSession.alignment),
           offset_x: anchorSession.offsetX, offset_y: anchorSession.offsetY, offset_unit: anchorSession.offsetUnit,
           match_mode: anchorSession.firstOnly ? 'first' : 'all', placement_mode: 'individual' } } }
+    if (field.fieldType === 'formula') {
+      field.properties = { ...field.properties, formula: { expression: '', decimal_places: 2 } }
+      setStagedFormula(field); setSelectedIds(new Set()); setAnchorSession(null); setAnchorResult('')
+      return
+    }
     commit([...fields, field]); setSelectedIds(new Set([id])); setAnchorResult('')
     const placedCount = placedAnchorMatchIndexes.size + 1
     if (placedCount === anchorSession.matches.length) setAnchorSession(null)
@@ -1085,15 +1105,15 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   if (!documents.length || !participants.length) return <p className="text-sm text-foreground-muted">Add documents and recipients before placing fields.</p>
 
   return <div ref={containerRef} tabIndex={0} className={cn('flex flex-col gap-4 outline-none lg:flex-row', className)}>
-    <aside className="w-full shrink-0 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-6rem)] lg:w-64 lg:self-start lg:overflow-y-auto lg:pr-1">
+    <aside className={cn('w-full shrink-0 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-6rem)] lg:self-start lg:overflow-y-auto lg:pr-1', stagedFormula || selectedField?.fieldType === 'formula' ? 'lg:w-80' : 'lg:w-64')}>
       {documents.length > 1 && <Select value={activeDocument?.id} onValueChange={(documentId) => { setActiveDocumentId(documentId); if (anchorSession?.documentId !== documentId) { setAnchorSession(null); setAnchorResult('') } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documents.map((doc) => <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>)}</SelectContent></Select>}
       <div className="space-y-1.5"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Assign to</p>{participants.map((participant, index) => {
-        const color = participantColor(index); return <button key={participant.id} type="button" disabled={!!choicePlacement} onClick={() => setActiveParticipantId(participant.id)}
+        const color = participantColor(index); return <button key={participant.id} type="button" disabled={!!choicePlacement || !!stagedFormula} onClick={() => setActiveParticipantId(participant.id)}
           className={cn('flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60', participant.id === activeParticipantId ? 'border-primary bg-primary-soft' : 'border-border bg-surface')}>
           <span className="size-2.5 rounded-full" style={{ backgroundColor: color.border }} /> <span className="truncate">{participant.label}</span></button>})}</div>
       <div className="space-y-1.5"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Fields</p>
         <div className="grid grid-cols-2 gap-1.5">{FIELD_TYPES.map(({ key, type, label, icon: Icon, setupKind }) => <button key={key ?? type} type="button" title={label}
-          onClick={() => { if (setupKind) { openChoiceSetup(setupKind); return } const next = armedType === type && !choicePlacement ? null : type; setChoicePlacement(null); setArmedType(next); setRadioGroup(null) }}
+          onClick={() => { setStagedFormula(null); if (setupKind) { openChoiceSetup(setupKind); return } const next = armedType === type && !choicePlacement ? null : type; setChoicePlacement(null); setArmedType(next); setRadioGroup(null) }}
           className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', armedType === type && !choicePlacement ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
         {onImportFillableFields && activeDocument && <Button type="button" variant="outline" size="sm" className="w-full" disabled={importingFillableFields} onClick={() => onImportFillableFields(activeDocument.id)}>{importingFillableFields ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <FileInput className="mr-1.5 size-3.5" />} Import fillable fields</Button>}
         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setAnchorResult(''); setAnchorOpen(true) }}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
@@ -1125,7 +1145,27 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
         <div className="flex gap-1"><Button type="button" variant="ghost" size="sm" onClick={undo} title="Undo"><Undo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={redo} title="Redo"><Redo2 className="size-4" /></Button><Button type="button" variant="ghost" size="sm" onClick={() => duplicate(fields.filter((field) => selectedIds.has(field.id)))} title="Duplicate"><Copy className="size-4" /></Button></div>
         <p className="text-xs text-foreground-subtle">{choicePlacement ? 'Click the PDF at each requested position.' : armedType ? 'Click a page to place.' : 'Shift/Cmd-click or drag a marquee to multi-select. Alt disables snapping.'}</p>
       </div>
-      {selectedField && <PropertiesPanel field={selectedField} fields={fields} update={updateSelectedField} updateRadioGroup={(transform) => { const group = selectedField.properties?.group?.id; commit(fields.map((field) => field.fieldType === 'radio' && field.properties?.group?.id === group ? transform(field) : field)) }} commitFields={(next) => commit(next)} focusField={(target) => { setActiveDocumentId(target.documentId); setActiveParticipantId(target.participantId); setSelectedIds(new Set([target.id])); window.setTimeout(() => document.getElementById(`esign-editor-field-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0) }} remove={removeSelected} />}
+      {stagedFormula && <FormulaPropertiesPanel
+        key={stagedFormula.id}
+        field={stagedFormula}
+        fields={fields}
+        isNew
+        onApply={(value) => {
+          const completed: EditorField = {
+            ...stagedFormula,
+            label: value.label,
+            properties: {
+              ...stagedFormula.properties,
+              data_label: value.dataLabel,
+              tooltip: value.tooltip,
+              formula: { expression: value.expression, decimal_places: value.decimalPlaces },
+            },
+          }
+          commit([...fields, completed]); setStagedFormula(null); setSelectedIds(new Set([completed.id]))
+        }}
+        onCancel={() => setStagedFormula(null)}
+      />}
+      {!stagedFormula && selectedField && <PropertiesPanel field={selectedField} fields={fields} update={updateSelectedField} updateRadioGroup={(transform) => { const group = selectedField.properties?.group?.id; commit(fields.map((field) => field.fieldType === 'radio' && field.properties?.group?.id === group ? transform(field) : field)) }} commitFields={(next) => commit(next)} focusField={(target) => { setActiveDocumentId(target.documentId); setActiveParticipantId(target.participantId); setSelectedIds(new Set([target.id])); window.setTimeout(() => document.getElementById(`esign-editor-field-${target.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0) }} remove={removeSelected} cancelSelection={() => setSelectedIds(new Set())} />}
     </aside>
     <main className={cn('min-w-0 flex-1 space-y-4 rounded-lg bg-surface-muted p-3 sm:p-4', armedType && 'cursor-crosshair')}>
       {loadError && <p className="text-sm text-destructive">{loadError}</p>}
@@ -1139,6 +1179,11 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           setSelectedIds(new Set(fields.filter((field) => field.documentId === activeDocument.id && field.pageNumber === pageIndex && field.posX >= x0 && field.posY >= y0 && field.posX + field.width <= x1 && field.posY + field.height <= y1).map((field) => field.id))); setMarquee(null)
         }} onPointerDown={(event) => { if (armedType) { const rect = event.currentTarget.getBoundingClientRect(); placeField(pageIndex, (event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height) } else { const rect = event.currentTarget.getBoundingClientRect(); setSelectedIds(new Set()); setMarquee({ page: pageIndex, x: (event.clientX - rect.left) / rect.width, y: (event.clientY - rect.top) / rect.height, width: 0, height: 0 }) } }}>
           <AlignmentGuides guides={guides} width={size.width} height={size.height} />
+          {stagedFormula?.documentId === activeDocument.id && stagedFormula.pageNumber === pageIndex && <div
+            data-testid="staged-formula-field"
+            className="pointer-events-none absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/20 text-[10px] font-semibold text-primary ring-2 ring-primary/20"
+            style={{ left: stagedFormula.posX * size.width, top: stagedFormula.posY * size.height, width: stagedFormula.width * size.width, height: stagedFormula.height * size.height }}
+          ><Calculator className="mr-1 size-3" /> ƒx</div>}
           {marquee?.page === pageIndex && <span className="pointer-events-none absolute border border-primary bg-primary/10" style={{ left: Math.min(marquee.x, marquee.x + marquee.width) * size.width, top: Math.min(marquee.y, marquee.y + marquee.height) * size.height, width: Math.abs(marquee.width) * size.width, height: Math.abs(marquee.height) * size.height }} />}
           {choicePlacement?.positions.filter((position) => position.documentId === activeDocument.id && position.pageNumber === pageIndex).map((position, index) => <span key={`${position.documentId}-${position.pageNumber}-${index}`} data-testid="staged-choice-position" className="pointer-events-none absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-primary bg-primary/20 text-[10px] font-semibold text-primary ring-2 ring-primary/20" style={{ left: position.posX * size.width, top: position.posY * size.height, width: DEFAULT_SIZES[armedType ?? 'checkbox'].width * size.width, height: DEFAULT_SIZES[armedType ?? 'checkbox'].height * size.height }}><span className="absolute -top-5 whitespace-nowrap rounded bg-primary px-1.5 py-0.5 text-[9px] text-primary-foreground">{index + 1}. {choicePlacement.draft.choices[index]?.label}</span><Check className="size-3" /></span>)}
           {anchorSession?.documentId === activeDocument.id && anchorSession.matches.map((match, matchIndex) => {

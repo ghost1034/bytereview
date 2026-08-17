@@ -38,6 +38,11 @@ const REF = /\[([^\[\]]+)\]/g
 
 type FormulaValue = number | string | boolean | Date
 
+export interface FormulaEvaluationResult {
+  value?: string
+  error?: string
+}
+
 function roundHalfAwayFromZero(value: number, places: number): number {
   const factor = 10 ** places
   const magnitude = Math.abs(value) * factor
@@ -57,7 +62,11 @@ function decimalResult(value: number): number {
 
 class FormulaParser {
   private pos = 0
-  constructor(private readonly source: string, private readonly values: Record<string, unknown>) {}
+  constructor(
+    private readonly source: string,
+    private readonly values: Record<string, unknown>,
+    private readonly validateOnly = false,
+  ) {}
 
   parse(): FormulaValue {
     const value = this.comparison()
@@ -71,7 +80,7 @@ class FormulaParser {
     return false
   }
   private comparison(): FormulaValue {
-    let value = this.expression()
+    const value = this.expression()
     this.space()
     for (const operator of ['>=', '<=', '!=', '==', '>', '<']) {
       if (!this.take(operator)) continue
@@ -88,6 +97,7 @@ class FormulaParser {
     return value
   }
   private numeric(value: FormulaValue): number {
+    if (this.validateOnly) return 1
     const result = typeof value === 'number' ? value : Number(String(value).replace(/[$,]/g, '').trim())
     if (!Number.isFinite(result)) throw new Error('Value is not numeric')
     return result
@@ -132,14 +142,30 @@ class FormulaParser {
       const numeric = Number(String(raw).replace(/[$,]/g, '').trim())
       return Number.isFinite(numeric) ? numeric : String(raw)
     }
-    const quoted = /^(['"])(.*?)\1/.exec(this.source.slice(this.pos))
-    if (quoted) { this.pos += quoted[0].length; return quoted[2] }
+    const quote = this.source[this.pos]
+    if (quote === '"' || quote === "'") {
+      this.pos += 1
+      let value = ''
+      while (this.pos < this.source.length) {
+        const char = this.source[this.pos]
+        if (char === quote) { this.pos += 1; return value }
+        if (char === '\\' && this.pos + 1 < this.source.length) {
+          value += this.source[this.pos + 1]; this.pos += 2; continue
+        }
+        value += char; this.pos += 1
+      }
+      throw new Error('Unclosed text value')
+    }
     const fn = /^([A-Za-z][A-Za-z0-9_]*)\s*\(/.exec(this.source.slice(this.pos))
     if (fn) {
       this.pos += fn[0].length
       if (fn[1].toUpperCase() === 'IF') {
         const sources = this.readCallArguments()
         if (sources.length !== 3) throw new Error('IF requires three arguments')
+        if (this.validateOnly) {
+          sources.forEach((source) => new FormulaParser(source, this.values, true).parse())
+          return 1
+        }
         const condition = new FormulaParser(sources[0], this.values).parse()
         return new FormulaParser(condition ? sources[1] : sources[2], this.values).parse()
       }
@@ -176,6 +202,15 @@ class FormulaParser {
     throw new Error('Unclosed function call')
   }
   private call(name: string, args: FormulaValue[]): FormulaValue {
+    if (this.validateOnly) {
+      const valid = name === 'ROUND' && args.length >= 1 && args.length <= 2
+        || ['MIN', 'MAX'].includes(name) && args.length > 0
+        || name === 'SUM' && args.length > 0
+        || ['FLOOR', 'CEILING'].includes(name) && args.length === 1
+        || ['DATEADD', 'DATEDIFF'].includes(name) && (args.length === 2 || args.length === 3)
+      if (valid) return 1
+      throw new Error(`Unsupported function ${name}`)
+    }
     const numbers = () => args.map((value) => this.numeric(value))
     const dateValue = (value: FormulaValue) => value instanceof Date ? new Date(value.valueOf()) : new Date(`${String(value)}T00:00:00Z`)
     if (name === 'IF' && args.length === 3) return args[0] ? args[1] : args[2]
@@ -185,7 +220,7 @@ class FormulaParser {
     }
     if (name === 'MIN' && args.length) return Math.min(...numbers())
     if (name === 'MAX' && args.length) return Math.max(...numbers())
-    if (name === 'SUM') return numbers().reduce((total, value) => decimalResult(total + value), 0)
+    if (name === 'SUM' && args.length) return numbers().reduce((total, value) => decimalResult(total + value), 0)
     if (name === 'FLOOR' && args.length === 1) return Math.floor(this.numeric(args[0]))
     if (name === 'CEILING' && args.length === 1) return Math.ceil(this.numeric(args[0]))
     if (name === 'DATEADD' && (args.length === 2 || args.length === 3)) {
@@ -210,7 +245,7 @@ export function formulaReferences(expression: string): string[] {
 
 export function validateFormula(expression: string): string[] {
   const refs = formulaReferences(expression)
-  new FormulaParser(expression, Object.fromEntries(refs.map((id) => [id, 1]))).parse()
+  new FormulaParser(expression, Object.fromEntries(refs.map((id) => [id, 1])), true).parse()
   return refs
 }
 
@@ -219,17 +254,25 @@ export function evaluateFormula(
   values: Record<string, unknown>,
   decimalPlaces = 2,
 ): string {
+  return evaluateFormulaDiagnostic(expression, values, decimalPlaces).value ?? ''
+}
+
+export function evaluateFormulaDiagnostic(
+  expression: string,
+  values: Record<string, unknown>,
+  decimalPlaces = 2,
+): FormulaEvaluationResult {
   try {
     const result = new FormulaParser(expression, values).parse()
-    if (result instanceof Date) return result.toISOString().slice(0, 10)
-    if (typeof result === 'boolean') return result ? 'true' : 'false'
+    if (result instanceof Date) return { value: result.toISOString().slice(0, 10) }
+    if (typeof result === 'boolean') return { value: result ? 'true' : 'false' }
     if (typeof result === 'number' && Number.isFinite(result)) {
       const places = Math.max(0, Math.min(10, decimalPlaces))
-      return roundHalfAwayFromZero(result, places).toFixed(places)
+      return { value: roundHalfAwayFromZero(result, places).toFixed(places) }
     }
-    return String(result)
-  } catch {
-    return ''
+    return { value: String(result) }
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Formula could not be evaluated' }
   }
 }
 

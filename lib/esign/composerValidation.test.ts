@@ -23,6 +23,16 @@ describe('recipientValidationError', () => {
     ], [{ id: 'signer-1', label: 'Client signer' }])
     expect(issues.some((issue) => issue.id.startsWith('cycle-'))).toBe(true)
   })
+
+  it('reports formula cycles before review', () => {
+    const issues = collectFieldIssues([
+      { id: 'a', participantId: 'signer-1', fieldType: 'formula', required: false, properties: { data_label: 'a', formula: { expression: '[b] + 1', decimal_places: 2 } } },
+      { id: 'b', participantId: 'signer-1', fieldType: 'formula', required: false, properties: { data_label: 'b', formula: { expression: '[a] + 1', decimal_places: 2 } } },
+      { id: 'sig', participantId: 'signer-1', fieldType: 'signature', required: true },
+    ], [{ id: 'signer-1', label: 'Client signer' }])
+
+    expect(issues.some((issue) => issue.id.startsWith('cycle-'))).toBe(true)
+  })
 })
 
 describe('collectFieldIssues', () => {

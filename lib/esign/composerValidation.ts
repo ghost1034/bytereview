@@ -80,8 +80,12 @@ export function collectFieldIssues(
         const expression = field.properties?.formula?.expression ?? ''
         validateFormula(expression)
         const candidates = fields.filter((candidate) => candidate.participantId === field.participantId)
-        if (formulaReferences(expression).some((reference) => !candidates.some((candidate) => candidate.id === reference || candidate.properties?.data_label === reference))) {
+        const referenced = formulaReferences(expression).map((reference) => candidates.find((candidate) => candidate.id === reference || candidate.properties?.data_label === reference))
+        if (referenced.some((candidate) => !candidate)) {
           issues.push({ id: `formula-owner-${field.id}`, fieldId: field.id, message: 'Formula references must belong to the same signer.' })
+        }
+        if (referenced.some((candidate) => candidate && ['signature', 'initials', 'stamp', 'attachment'].includes(candidate.fieldType))) {
+          issues.push({ id: `formula-type-${field.id}`, fieldId: field.id, message: 'Formula cannot reference signature, initials, stamp, or attachment fields.' })
         }
       }
       catch { issues.push({ id: `formula-${field.id}`, fieldId: field.id, message: 'Formula expression is invalid.' }) }
@@ -146,7 +150,14 @@ export function collectFieldIssues(
     if (visited.has(field.id)) return false
     visiting.add(field.id)
     const parent = field.properties?.conditional?.parent_field_id
+    const formulaDependencies = field.fieldType === 'formula'
+      ? formulaReferences(field.properties?.formula?.expression ?? '').flatMap((reference) => {
+          const target = byId.get(reference) ?? labelsByOwner.get(`${field.participantId}:${reference}`)
+          return target ? [target] : []
+        })
+      : []
     const cyclic = !!parent && !!byId.get(parent) && visit(byId.get(parent)!)
+      || formulaDependencies.some((dependency) => visit(dependency))
     visiting.delete(field.id); visited.add(field.id)
     return cyclic
   }

@@ -1,10 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import vectors from '../../backend/tests/fixtures/field_logic_vectors.json'
-import { conditionMatches, evaluateFormula, fieldValueError, incompleteFields, resolveVisibility, type ConditionalRule, type LogicField } from './fieldLogic'
+import { conditionMatches, evaluateFormula, evaluateFormulaDiagnostic, fieldValueError, incompleteFields, resolveVisibility, validateFormula, type ConditionalRule, type LogicField } from './fieldLogic'
 
 describe('field logic parity vectors', () => {
   it('evaluates formulas safely', () => {
     for (const vector of vectors.formulas) expect(evaluateFormula(vector.expression, vector.values, vector.places)).toBe(vector.expected)
+  })
+  it('returns actionable preview diagnostics without changing tolerant signing evaluation', () => {
+    expect(evaluateFormulaDiagnostic('[amount] / 0', { amount: '10' }, 2)).toEqual({ error: 'Division by zero' })
+    expect(evaluateFormulaDiagnostic('[amount] + 1', {}, 2)).toEqual({ error: 'Unresolved field' })
+    expect(evaluateFormula('[amount] / 0', { amount: '10' }, 2)).toBe('')
+  })
+  it('validates date recipes and every conditional branch without evaluating sample types', () => {
+    expect(validateFormula("DATEDIFF([start], DATEADD([start], 5, 'days'))")).toEqual(['start', 'start'])
+    expect(() => validateFormula('IF(1, 2, 3 +)')).toThrow()
+  })
+  it('supports escaped quotes in guided text results', () => {
+    expect(evaluateFormula("IF([approved] == 'yes', 'Manager\\'s approval', 'Review')", { approved: 'yes' }, 2)).toBe("Manager's approval")
+  })
+  it('rejects an empty SUM before it can produce a blank signer result', () => {
+    expect(() => validateFormula('SUM()')).toThrow('Unsupported function SUM')
+    expect(evaluateFormula('SUM()', {}, 2)).toBe('')
   })
   it('evaluates conditions', () => {
     const parent: LogicField = { id: 'parent', field_type: 'text', properties: {} }
