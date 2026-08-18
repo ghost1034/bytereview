@@ -89,7 +89,7 @@ function CellEditor({ hours, onSave }: { hours: number; onSave: (h: number) => v
   const [val, setVal] = useState(hours ? String(hours) : '')
   return (
     <Input
-      className="h-8 w-14 px-1 text-center font-mono tabular-nums text-xs"
+      className="mx-auto h-8 w-14 px-1 text-center font-mono tabular-nums text-xs"
       value={val}
       onChange={(e) => setVal(e.target.value)}
       onBlur={() => {
