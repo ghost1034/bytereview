@@ -43,6 +43,7 @@ const invoices: Invoice[] = [
 const payment: Payment = { id: 'pay1', workspaceId: 'w1', invoiceId: 'i1', amount: 50, currency: 'USD', method: 'check', paidAt: '2026-08-10', recordedById: 'owner', status: 'posted', createdAt: timestamp }
 const trust: TrustTransaction = { id: 'tr1', workspaceId: 'w1', clientId: 'c1', type: 'deposit', amount: 500, currency: 'USD', balanceAfter: 500, recordedById: 'owner', createdAt: timestamp }
 const audit: BillingAuditRecord = { id: 'a1', workspaceId: 'w1', resourceType: 'invoice', resourceId: 'i1', action: 'generated', actorId: 'owner', at: timestamp }
+const submittedAudit: BillingAuditRecord = { ...audit, id: 'a2', action: 'submit', at: '2026-08-12T00:01:00Z' }
 
 function seed(userId = 'owner') {
   useAuthStore.setState({ currentUserId: userId, hydrated: true }); useUiStore.setState({ activeWorkspaceId: 'w1' })
@@ -86,6 +87,7 @@ describe('Phase 9 browser exit gate', () => {
       finishTransition = () => {
         const approved = { ...draft, status: 'approved' as const }
         useInvoicesStore.setState({ items: { i1: approved }, hydrated: true })
+        useBillingAuditRecordsStore.setState({ items: { a1: audit, a2: submittedAudit }, hydrated: true })
         resolve(approved)
       }
     }))
@@ -97,6 +99,7 @@ describe('Phase 9 browser exit gate', () => {
 
     await expect.element(screen.getByText('Approved', { exact: true })).toBeVisible()
     await expect.element(screen.getByRole('button', { name: 'Record delivery' })).toBeVisible()
+    await expect.element(screen.getByText('submit', { exact: true })).toBeVisible()
   })
 
   it('contains invoice lifecycle failures within the detail page', async () => {
