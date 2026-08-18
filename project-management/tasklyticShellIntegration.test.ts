@@ -127,6 +127,7 @@ describe('Tasklytic dashboard shell integration', () => {
     expect(taskDetail).toContain("import { createPortal } from 'react-dom'")
     expect(taskDetail).toContain('return createPortal(children, document.body)')
     expect(taskDetail.match(/<TaskDetailPortal>/g)).toHaveLength(2)
+    expect(taskDetail.match(/bg-background(?:\s|\")/g)).toHaveLength(2)
   })
 
   it('removes superseded module-owned shell and portal compatibility code', () => {

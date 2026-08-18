@@ -75,7 +75,7 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
       <TaskDetailPortal>
         <div className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm" aria-hidden="true" />
         <aside
-          className="fixed inset-0 z-50 flex flex-col lg:inset-y-0 lg:left-auto lg:w-full lg:max-w-[640px] lg:border-l tasklytic-root"
+          className="fixed inset-0 z-50 flex flex-col bg-background lg:inset-y-0 lg:left-auto lg:w-full lg:max-w-[640px] lg:border-l tasklytic-root"
           style={{ borderColor: 'hsl(var(--border))' }}
           role="dialog"
           aria-label="Loading task"
@@ -111,7 +111,7 @@ export function TaskDetailPane({ workspaceId, taskId: explicitTaskId, mode = 'ov
       className={
         mode === 'fullscreen'
           ? 'flex h-full min-h-screen w-full flex-col tasklytic-root'
-          : 'fixed inset-0 z-50 flex h-full w-full flex-col border-l shadow-lg lg:inset-y-0 lg:left-auto lg:max-w-[640px] tasklytic-root'
+          : 'fixed inset-0 z-50 flex h-full w-full flex-col border-l bg-background shadow-lg lg:inset-y-0 lg:left-auto lg:max-w-[640px] tasklytic-root'
       }
       style={{ borderColor: 'hsl(var(--border))' }}
       role="dialog"
