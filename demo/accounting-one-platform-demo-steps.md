@@ -1,13 +1,91 @@
 # Accounting One-Platform Demo Steps
 
-This runbook reproduces the complete Riverstone Manufacturing demo from setup through the approved invoice. Use the exact names, dates, labels, and values below.
+This runbook reproduces the complete Riverstone Manufacturing demo from setup through the approved invoice.
+
+Target length: **10 minutes**. Presenter: **Ian Stewart, Senior Accountant at Sterling & Brooks CPA**. Client contact: **Ray Sang, Controller at Riverstone Manufacturing**. Both names and organizations are already identified as fictional in the repository.
+
+## Synthetic documents to generate before recording
+
+All entities, people, account numbers, transactions, and financial results in this demo are fictional. Add a small footer to every source PDF: **“Synthetic demo document — not a real bank or company record.”** Do not use a real bank logo, routing number, account number, signature, address, or tax identifier.
+
+### 1. `Riverstone_Bank_Statement_2026-07.pdf`
+
+- Format: polished, text-based, two-page PDF resembling a generic commercial-bank statement without copying a real bank’s trade dress.
+- Fictional customer: **Riverstone Manufacturing**.
+- Account label: **Operating Checking · ending 4821**.
+- Statement period: **July 1–31, 2026**.
+- Beginning balance: **$120,000.00**.
+- Ending balance: **$178,910.00**.
+- Include this transaction table:
+
+| Reference ID | Date | Description | Amount |
+| --- | --- | --- | ---: |
+| BS-0702 | 2026-07-02 | ACH CUSTOMER RECEIPT INV-1042 | 52,000.00 |
+| BS-0703 | 2026-07-03 | PAYROLL ACH | -28,400.00 |
+| BS-0707 | 2026-07-07 | VENDOR PAYMENT STEELWORKS | -12,750.00 |
+| BS-0710 | 2026-07-10 | ACH CUSTOMER RECEIPT INV-1046 | 18,500.00 |
+| BS-0715 | 2026-07-15 | SOFTWARE SUBSCRIPTION ERP CLOUD | -3,600.00 |
+| BS-0718 | 2026-07-18 | BATCH CUSTOMER DEPOSIT | 41,250.00 |
+| BS-0725 | 2026-07-25 | FACILITY RENT | -8,000.00 |
+| BS-0728 | 2026-07-28 | BANK SERVICE CHARGE | -125.00 |
+| BS-0731 | 2026-07-31 | INTEREST CREDIT | 35.00 |
+
+Design intent: six 1:1 matches, one 1:Many batch-deposit match, and two bank-only reconciling items.
+
+### 2. `Riverstone_GL_Cash_Detail_2026-07.pdf`
+
+- Format: text-based, two-page accounting-system report.
+- Header: **Cash GL Detail · Account 1010 · July 1–31, 2026**.
+- Opening balance: **$120,000.00**.
+- Unadjusted ending balance: **$174,750.00**.
+- Include this transaction table:
+
+| Reference ID | Date | Description | Amount |
+| --- | --- | --- | ---: |
+| GL-0702 | 2026-07-02 | Customer receipt INV-1042 | 52,000.00 |
+| GL-0703 | 2026-07-03 | Payroll ACH | -28,400.00 |
+| GL-0707 | 2026-07-07 | Steelworks vendor payment | -12,750.00 |
+| GL-0710 | 2026-07-10 | Customer receipt INV-1046 | 18,500.00 |
+| GL-0715 | 2026-07-15 | ERP Cloud subscription | -3,600.00 |
+| GL-0718A | 2026-07-18 | Customer receipt INV-1048 | 25,000.00 |
+| GL-0718B | 2026-07-18 | Customer receipt INV-1051 | 16,250.00 |
+| GL-0725 | 2026-07-25 | Facility rent | -8,000.00 |
+| GL-0731 | 2026-07-31 | Outstanding check 8824 | -4,250.00 |
+
+Design intent: the $41,250 bank deposit matches the two July 18 GL receipts; the outstanding check is GL-only. The bank fee and interest remain unrecorded in the GL. The unreconciled source difference is **$4,160** and the three reconciling items bridge the balances exactly.
+
+### 3. `Riverstone_Comparative_Operating_Expense_Detail_Jun-Jul_2026.pdf`
+
+- Format: text-based, two- or three-page management-report PDF.
+- Header: **Comparative Operating Expense Detail · June and July 2026**.
+- Present the data as 16 structured rows with columns **Period/Date**, **Account Name/Number**, **Class/Department**, **Description/Memo**, and **Amount**.
+- Repeat the same management note for both periods of an account so it remains attached after aggregation.
+
+| Period/Date | Account Name/Number | Class/Department | Description/Memo | Amount |
+| --- | --- | --- | --- | ---: |
+| 2026-06-30 | 6000 Salaries | Operations | Normal staffing; July includes scheduled merit increases | 42,000.00 |
+| 2026-07-31 | 6000 Salaries | Operations | Normal staffing; July includes scheduled merit increases | 43,500.00 |
+| 2026-06-30 | 6100 Marketing | Sales & Marketing | July summer product launch campaign | 12,000.00 |
+| 2026-07-31 | 6100 Marketing | Sales & Marketing | July summer product launch campaign | 29,500.00 |
+| 2026-06-30 | 6200 Freight | Operations | July expedited inbound materials for customer backlog | 18,500.00 |
+| 2026-07-31 | 6200 Freight | Operations | July expedited inbound materials for customer backlog | 27,800.00 |
+| 2026-06-30 | 6300 Software | G&A | July annual ERP support renewal | 6,200.00 |
+| 2026-07-31 | 6300 Software | G&A | July annual ERP support renewal | 9,800.00 |
+| 2026-06-30 | 6400 Professional Fees | G&A | July ERP implementation consulting milestone | 4,500.00 |
+| 2026-07-31 | 6400 Professional Fees | G&A | July ERP implementation consulting milestone | 16,500.00 |
+| 2026-06-30 | 6500 Rent | Operations | Fixed monthly facility rent | 8,000.00 |
+| 2026-07-31 | 6500 Rent | Operations | Fixed monthly facility rent | 8,000.00 |
+| 2026-06-30 | 6600 Utilities | Operations | Normal seasonal usage | 2,200.00 |
+| 2026-07-31 | 6600 Utilities | Operations | Normal seasonal usage | 2,450.00 |
+| 2026-06-30 | 6700 Travel | Operations | July supplier qualification site visit | 1,200.00 |
+| 2026-07-31 | 6700 Travel | Operations | July supplier qualification site visit | 5,900.00 |
+
+Control totals: June **$94,600**, July **$143,450**, increase **$48,850**. With a **$5,000 OR 20%** threshold, Marketing, Freight, Software, Professional Fees, and Travel should be flagged.
 
 ## Prerequisites
 
-1. Open Google Chrome with the ChatGPT browser extension connected.
-2. In `chrome://extensions`, open **Details** for the ChatGPT browser extension and enable **Allow access to file URLs**.
-3. Sign in to CPAAutomation and open `https://cpaautomation.ai/dashboard`.
-4. Confirm these source files exist in `demo/pdf/`:
+1. Sign in to CPAAutomation and open `https://cpaautomation.ai/dashboard`.
+2. Confirm these source files exist in `demo/pdf/`:
    - `Riverstone_Bank_Statement_2026-07.pdf`
    - `Riverstone_GL_Cash_Detail_2026-07.pdf`
    - `Riverstone_Comparative_Operating_Expense_Detail_Jun-Jul_2026.pdf`
@@ -168,11 +246,11 @@ Perform the following for each of `PBC-001`, `PBC-002`, and `PBC-003`:
 
 1. In **Client access**, click **Invite contact**.
 2. Enter:
-   - **Name:** `Alex Rivera`
+   - **Name:** `Ray Sang`
    - **Email:** `alex.rivera@riverstone.example`
    - **Role:** `Coordinator — all requests`
 3. Click **Add contact and send link**.
-4. Confirm Alex Rivera appears with:
+4. Confirm Ray Sang appears with:
    - Role `Coordinator`
    - Access `All requests`
    - `Full engagement access`
@@ -188,11 +266,11 @@ The `.example` domain is reserved and keeps this synthetic demo contact non-deli
 
 ## 11. Open the secure client portal
 
-1. In Alex Rivera's client-access row, open **More controls for Alex Rivera**.
+1. In Ray Sang's client-access row, open **More controls for Ray Sang**.
 2. Click **Copy new link**.
 3. Open the copied link in a new Chrome tab.
 4. Wait for the secure PBC portal to load.
-5. Confirm the portal says `Welcome, Alex Rivera.`
+5. Confirm the portal says `Welcome, Ray Sang.`
 6. Confirm **Your requests** lists all three items with due date `2026-08-07`.
 7. Confirm the progress indicator shows `0 of 3 ready` before uploading.
 
