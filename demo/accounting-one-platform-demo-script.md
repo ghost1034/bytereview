@@ -170,13 +170,28 @@ validate.
 
 **On screen:** Confirm each source contains **9 rows**. Show the four generated
 passes—**Exact Match**, **Near Match**, **Group Match**, and **Complex Group
-Match**—then click **Run AI Match**.
+Match**. Pause briefly so the conditions within the passes are visible.
+
+**AI feature callout 1:** `AI-generated matching rules — reviewable before use`
+
+**Say:**
+
+> This is the first AI feature. Generative AI proposes four reviewable matching
+> passes based on the available columns and supported rule types, from exact
+> transaction logic to grouped sum matching. It is drafting the approach, not
+> silently posting a result. I can inspect or change these rules before using
+> them, which matters because not every real-world deposit is one-to-one.
+
+**On screen:** Click **Run AI Match** and keep the **AI Matching Engine** overlay
+visible briefly during processing.
+
+**AI feature callout 2:** `AI Match — proposes groups and classifies exceptions`
 
 **Say during processing:**
 
-> The engine proposes four matching passes, from exact transaction logic to
-> grouped sum matching. That matters because not every real-world deposit is a
-> one-to-one entry.
+> The second AI feature applies those passes across both sources. It proposes
+> one-to-one and grouped matches and classifies what remains as exceptions. The
+> output still comes back to me for review and approval.
 
 **On screen:** On Review results, deliberately point to:
 
@@ -195,8 +210,9 @@ receipts. Approve all seven groups using a jump cut after the first approval.
 > Fifteen of eighteen rows match across seven groups. Six are one-to-one. The
 > seventh is the key exception to simple matching: a single forty-one-thousand,
 > two-hundred-fifty-dollar bank deposit equals two customer receipts of
-> twenty-five thousand and sixteen thousand, two hundred fifty. I can inspect
-> the supporting rows before approving every group.
+> twenty-five thousand and sixteen thousand, two hundred fifty. These are AI-
+> proposed groups, not automatic approvals. I inspect the supporting rows before
+> approving every group.
 
 **On screen:** Open **Exceptions (3)** and resolve each item with its note:
 
@@ -208,8 +224,9 @@ receipts. Approve all seven groups using a jump cut after the first approval.
 
 > The remaining four-thousand, one-hundred-sixty-dollar source difference is
 > fully explained by three reconciling items: a bank charge, interest income,
-> and an outstanding check. I document the required entries and the valid timing
-> item directly in the workpaper, then resolve each exception.
+> and an outstanding check. AI classified the unmatched items, but I document
+> the required entries and the valid timing item directly in the workpaper, then
+> resolve each exception.
 
 **On screen:** Export the full reconciliation to Excel, then **Submit for
 review**, **Approve**, and **Finalize**. Show status **Finalized**.
@@ -264,23 +281,30 @@ Fees, and Travel.
 show evidence for the summer product launch. In a short montage, review and
 accept all five explanations, ending with all five rows **Accepted**.
 
+**AI feature callout 3:** `AI variance explanations — grounded in source memos`
+
 **Say:**
 
-> Explanations stay grounded in the source memos: the summer product launch,
-> expedited materials for the customer backlog, the annual ERP support renewal,
-> an ERP consulting milestone, and a supplier qualification visit. I review and
-> accept each explanation rather than treating generated text as final by
-> default.
+> This is the third AI feature. AI drafts an explanation for each policy-flagged
+> row using the supporting source memo: the summer product launch, expedited
+> materials for the customer backlog, the annual ERP support renewal, an ERP
+> consulting milestone, and a supplier qualification visit. I review the cited
+> evidence and accept each explanation rather than treating generated text as
+> final by default.
 
 **On screen:** Generate the memo. Briefly show its periods, totals, material
 drivers, methodology, and recommendations. **Submit for review**, **Approve**,
 export to Word, and **Finalize**.
 
+**AI feature callout 4:** `AI-generated flux memo — reviewed before approval`
+
 **Say:**
 
-> The accepted analysis becomes a reviewable management memo with the period,
-> methodology, totals, drivers, and recommendations carried through. I approve,
-> export, and finalize it as a controlled deliverable.
+> The fourth AI feature turns the configured analysis and reviewed explanations
+> into a draft management memo. It carries through the periods, methodology,
+> totals, material drivers, and recommendations. The memo is still a draft: I
+> review it, move it through approval, export it, and finalize it as a controlled
+> deliverable.
 
 **Transition:** Open **PBC**.
 
@@ -381,8 +405,11 @@ of each record and the three downloaded files.
 > reconciliation, a finalized OpEx flux analysis, an approved four-hour
 > timesheet for eight hundred dollars, and approved invoice 2048 for the same
 > amount. The reconciliation workbook, management memo, and invoice PDF are all
-> preserved as outputs. That’s Riverstone’s July close—from client request to
-> approved billing—managed as one connected workflow.
+> preserved as outputs. AI proposed the matching approach, applied the match,
+> drafted evidence-based variance explanations, and prepared the flux memo; a
+> person reviewed and approved every consequential output. That’s Riverstone’s
+> July close—from client request to approved billing—managed as one connected
+> workflow.
 
 **Final frame:** Hold for two seconds on the completed seven-task project or a
 clean view of the Riverstone engagement. Do not display the secure portal URL.
