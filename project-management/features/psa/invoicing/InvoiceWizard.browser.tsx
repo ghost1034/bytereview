@@ -124,4 +124,28 @@ describe('InvoiceWizard period selection', () => {
       expenseIds: [expense.id],
     }))
   })
+
+  it('preserves the draft when the selected client is refreshed', async () => {
+    const screen = render(<InvoiceWizard open onOpenChange={vi.fn()} workspaceId={workspace.id} />)
+
+    await screen.getByRole('combobox').click()
+    await screen.getByRole('option', { name: client.name }).click()
+    await screen.getByRole('button', { name: 'Next' }).click()
+    await screen.getByRole('button', { name: 'Next' }).click()
+
+    const start = screen.getByLabelText('Period start')
+    const end = screen.getByLabelText('Period end')
+    await start.fill('2026-08-01')
+    await end.fill('2026-08-31')
+
+    useClientsStore.setState((state) => ({
+      items: {
+        ...state.items,
+        [client.id]: { ...client, contactName: 'Updated in background' },
+      },
+    }))
+
+    await expect.element(start).toHaveValue('2026-08-01')
+    await expect.element(end).toHaveValue('2026-08-31')
+  })
 })

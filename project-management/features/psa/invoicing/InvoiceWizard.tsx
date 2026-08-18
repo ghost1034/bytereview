@@ -93,9 +93,10 @@ export function InvoiceWizard({ open, onOpenChange, workspaceId }: Props) {
       - unbilledTime.length - unbilledExp.length
     : 0
   useEffect(() => {
+    const selectedClient = useClientsStore.getState().getById(clientId)
     setBillingScope('all'); setPeriodStart(''); setPeriodEnd(''); setExcludedIds(new Set()); setWriteOffIds(new Set()); setNarratives({})
-    setBillToName(client?.name ?? ''); setBillToContact(client?.contactName ?? ''); setBillToEmail(client?.contactEmail ?? ''); setBillToPhone(client?.contactPhone ?? ''); setBillToAddress(client?.billingAddress ?? ''); setBillToTaxId(client?.taxId ?? '')
-  }, [clientId, client])
+    setBillToName(selectedClient?.name ?? ''); setBillToContact(selectedClient?.contactName ?? ''); setBillToEmail(selectedClient?.contactEmail ?? ''); setBillToPhone(selectedClient?.contactPhone ?? ''); setBillToAddress(selectedClient?.billingAddress ?? ''); setBillToTaxId(selectedClient?.taxId ?? '')
+  }, [clientId])
   const invoiceTime = useMemo(() => unbilledTime.filter((entry) => !excludedIds.has(entry.id) && !writeOffIds.has(entry.id)), [unbilledTime, excludedIds, writeOffIds])
   const invoiceExpenses = useMemo(() => unbilledExp.filter((expense) => !excludedIds.has(expense.id) && !writeOffIds.has(expense.id)), [unbilledExp, excludedIds, writeOffIds])
 
