@@ -15,7 +15,7 @@ import { resolveRate } from '../../../lib/billing/resolveRate'
 import { resolveLinkedMatter } from '../../../lib/psa/resolvePsaLinks'
 import type { ID } from '../../../types'
 
-export function usePsaContext(workspaceId: ID, userId: ID, projectId?: ID, matterId?: ID, clientId?: ID) {
+export function usePsaContext(workspaceId: ID, userId: ID, projectId?: ID, matterId?: ID, clientId?: ID, date?: string) {
   const user = useUsersStore((s) => s.getById(userId))
   const workspace = useWorkspacesStore((s) => s.getById(workspaceId))
   const project = useProjectsStore((s) => projectId ? s.getById(projectId) : undefined)
@@ -38,6 +38,7 @@ export function usePsaContext(workspaceId: ID, userId: ID, projectId?: ID, matte
         matterId: resolvedMatterId,
         projectId,
         clientId: resolvedClientId,
+        date,
         client,
         matter,
         project,
@@ -45,8 +46,8 @@ export function usePsaContext(workspaceId: ID, userId: ID, projectId?: ID, matte
         rateCards,
         defaultCurrency: workspace?.defaultCurrency,
       }),
-    [workspaceId, userId, user, resolvedMatterId, projectId, resolvedClientId, client, matter, project, billingRates, rateCards, workspace]
+    [workspaceId, userId, user, resolvedMatterId, projectId, resolvedClientId, date, client, matter, project, billingRates, rateCards, workspace]
   )
 
-  return { user, workspace, project, matter, clients, matters, rate, resolvedMatterId, resolvedClientId }
+  return { user, workspace, project, matter, client, clients, matters, rate, resolvedMatterId, resolvedClientId }
 }

@@ -3,6 +3,7 @@ import { newId } from '../ids'
 import { now } from '../time'
 import type {
   BillingRate,
+  Client,
   ID,
   ISODate,
   Matter,
@@ -33,6 +34,7 @@ export type BuildTimeEntryInput = {
   startedAt?: string
   stoppedAt?: string
   workspace?: Workspace
+  client?: Client
   matter?: Matter
   project?: Project
   billingRates: BillingRate[]
@@ -49,6 +51,7 @@ export function buildTimeEntry(input: BuildTimeEntryInput): TimeEntry {
     matterId: input.matterId,
     projectId: input.projectId,
     clientId: input.clientId,
+    client: input.client,
     matter: input.matter,
     project: input.project,
     billingRates: input.billingRates,

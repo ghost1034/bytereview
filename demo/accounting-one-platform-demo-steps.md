@@ -75,8 +75,14 @@ This runbook reproduces the complete Riverstone Manufacturing demo from setup th
    - **Role:** `Senior Accountant`
    - **Hourly rate:** `200`
    - **Currency:** `USD`
+   - **Effective from:** `2026-07-01`
 4. Click **Create rate card**.
-5. Confirm the card displays `Senior Accountant` at `$200.00/hr`.
+5. Confirm the card displays `Senior Accountant` at `$200.00/hr` and is effective `2026-07-01`.
+6. Return to **PSA → Engagements** and open `Riverstone Manufacturing — July 2026 Close & Advisory`.
+7. Click **Edit engagement**.
+8. Set **Rate card** to `Riverstone — Jordan Demo Rate`.
+9. Click **Save changes**.
+10. Confirm the engagement uses `Riverstone — Jordan Demo Rate` before continuing.
 
 ## 5. Configure invoice numbering
 
@@ -524,6 +530,7 @@ Before starting Analytics, confirm these three files exist in `demo/xlsx/`:
    - **Duration:** `2:30` / `2.5 hours`
    - **Description:** `PBC evidence review and July bank-to-GL reconciliation`
    - **Billable:** on
+   - **Rate override:** leave blank
 5. Confirm the configured rate is `$200.00` per hour.
 6. Confirm the calculated billable amount is `$500.00`.
 7. Click **Save**.
@@ -539,6 +546,7 @@ Before starting Analytics, confirm these three files exist in `demo/xlsx/`:
    - **Duration:** `1:30` / `1.5 hours`
    - **Description:** `July operating expense flux analysis and memo`
    - **Billable:** on
+   - **Rate override:** leave blank
 5. Confirm the configured rate is `$200.00` per hour.
 6. Confirm the calculated billable amount is `$300.00`.
 7. Click **Save**.

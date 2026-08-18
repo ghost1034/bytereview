@@ -25,6 +25,7 @@ import { canPerformWorkspaceAction } from '../../lib/permissions'
 import type { TimeEntry } from '../../types'
 import {
   useBillingRatesStore,
+  useClientsStore,
   useMattersStore,
   useProjectsStore,
   useRateCardsStore,
@@ -77,6 +78,8 @@ export function TimeTrackingPage() {
     const user = useUsersStore.getState().getById(userId)
     const project = projectId ? useProjectsStore.getState().getById(projectId) : undefined
     const matter = resolveLinkedMatter(useMattersStore.getState().list(), project)
+    const clientId = matter?.clientId ?? project?.clientId
+    const client = clientId ? useClientsStore.getState().getById(clientId) : undefined
     const entry = buildTimeEntry({
       workspaceId,
       userId,
@@ -89,7 +92,8 @@ export function TimeTrackingPage() {
       taskId,
       projectId,
       matterId: matter?.id,
-      clientId: matter?.clientId ?? project?.clientId,
+      clientId,
+      client,
       matter,
       project,
       billingRates: useBillingRatesStore.getState().list(),

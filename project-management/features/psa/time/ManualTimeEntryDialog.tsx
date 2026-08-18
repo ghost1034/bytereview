@@ -42,12 +42,12 @@ export function ManualTimeEntryDialog(props: Props) {
   const pid = props.projectId ?? props.task?.projectIds[0] ?? props.entry?.projectId
   const matterId = props.matterId ?? props.entry?.matterId
   const clientId = props.clientId ?? props.entry?.clientId
-  const ctx = usePsaContext(props.workspaceId, props.userId, pid, matterId, clientId)
   const initialHours = props.entry?.hours ?? props.defaultHours ?? 1
   const [description, setDescription] = useState(props.entry?.description ?? props.defaultDescription ?? '')
   const [duration, setDuration] = useState(formatHoursHMM(initialHours))
   const [decimalHours, setDecimalHours] = useState(String(initialHours))
   const [date, setDate] = useState(props.entry?.date ?? new Date().toISOString().slice(0, 10))
+  const ctx = usePsaContext(props.workspaceId, props.userId, pid, matterId, clientId, date)
   const [billable, setBillable] = useState(props.entry?.billable ?? true)
   const [activityCode, setActivityCode] = useState(props.entry?.activityCode ?? '')
   const [rateOverride, setRateOverride] = useState(props.entry?.rateSource === 'override' ? String(props.entry.rateSnapshot ?? '') : '')
@@ -95,6 +95,7 @@ export function ManualTimeEntryDialog(props: Props) {
         activityCode: activityCode || undefined,
         rateOverride: parsedRateOverride,
         rateOverrideReason: requiresZeroRateReason ? rateOverrideReason : undefined,
+        client: ctx.client,
         matter: ctx.matter,
         project: ctx.project,
         billingRates,

@@ -48,6 +48,7 @@ function fromCard(
   date: ISODate
 ): BillingRate | undefined {
   if (!card) return undefined
+  if (card.effectiveFrom > date || (card.effectiveTo && card.effectiveTo <= date)) return undefined
   const role = user?.timekeeperRole
   return (
     pickRate(card.rates, date, (r) => r.userId === user?.id) ??

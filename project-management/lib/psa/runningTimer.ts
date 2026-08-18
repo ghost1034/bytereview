@@ -2,6 +2,7 @@
 import { buildTimeEntry } from './createTimeEntry'
 import {
   useBillingRatesStore,
+  useClientsStore,
   useMattersStore,
   useProjectsStore,
   useRateCardsStore,
@@ -22,6 +23,8 @@ export async function saveRunningTimer(timer: RunningTimer, stoppedAt = new Date
   const task = timer.taskId ? useTasksStore.getState().getById(timer.taskId) : undefined
   const project = timer.projectId ? useProjectsStore.getState().getById(timer.projectId) : undefined
   const matter = resolveLinkedMatter(useMattersStore.getState().list(), project, timer.matterId)
+  const clientId = timer.clientId ?? matter?.clientId ?? project?.clientId
+  const client = clientId ? useClientsStore.getState().getById(clientId) : undefined
   const entry = buildTimeEntry({
     workspaceId: timer.workspaceId,
     userId: timer.userId,
@@ -36,7 +39,8 @@ export async function saveRunningTimer(timer: RunningTimer, stoppedAt = new Date
     taskId: timer.taskId,
     projectId: timer.projectId,
     matterId: matter?.id,
-    clientId: timer.clientId ?? matter?.clientId ?? project?.clientId,
+    clientId,
+    client,
     activityCode: timer.activityCode,
     taskCode: timer.taskCode,
     startedAt: timer.startedAt,

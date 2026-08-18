@@ -57,14 +57,15 @@ function RateCards({ workspaceId, editable }: { workspaceId: string; editable: b
   const [role, setRole] = useState('Partner')
   const [rate, setRate] = useState('')
   const [currency, setCurrency] = useState('USD')
+  const [effectiveFrom, setEffectiveFrom] = useState(new Date().toISOString().slice(0, 10))
   const create = async () => {
     const hourlyRate = Number(rate)
-    if (!name.trim() || hourlyRate <= 0) return
-    await add({ id: newId(), workspaceId, name: name.trim(), currency: currency.toUpperCase(), effectiveFrom: new Date().toISOString().slice(0, 10), rates: [{ id: newId(), workspaceId, scope: 'role', role: role.trim(), hourlyRate, currency: currency.toUpperCase(), effectiveFrom: new Date().toISOString().slice(0, 10), createdAt: now() }] })
+    if (!name.trim() || !effectiveFrom || hourlyRate <= 0) return
+    await add({ id: newId(), workspaceId, name: name.trim(), currency: currency.toUpperCase(), effectiveFrom, rates: [{ id: newId(), workspaceId, scope: 'role', role: role.trim(), hourlyRate, currency: currency.toUpperCase(), effectiveFrom, createdAt: now() }] })
     setName(''); setRate('')
   }
   return <section className="space-y-3">
-    {editable && <div className="rounded-lg border border-border bg-card text-card-foreground grid gap-3 p-4 md:grid-cols-5"><Input aria-label="Rate card name" placeholder="Card name" value={name} onChange={(event) => setName(event.target.value)} /><Input aria-label="Rate card role" placeholder="Role" value={role} onChange={(event) => setRole(event.target.value)} /><Input aria-label="Rate card amount" placeholder="Hourly rate" value={rate} onChange={(event) => setRate(event.target.value)} /><Input aria-label="Rate card currency" value={currency} maxLength={3} onChange={(event) => setCurrency(event.target.value)} /><Button onClick={() => void create()}>Create rate card</Button></div>}
+    {editable && <div className="rounded-lg border border-border bg-card text-card-foreground grid items-end gap-3 p-4 md:grid-cols-3 xl:grid-cols-6"><Input aria-label="Rate card name" placeholder="Card name" value={name} onChange={(event) => setName(event.target.value)} /><Input aria-label="Rate card role" placeholder="Role" value={role} onChange={(event) => setRole(event.target.value)} /><Input aria-label="Rate card amount" placeholder="Hourly rate" value={rate} onChange={(event) => setRate(event.target.value)} /><Input aria-label="Rate card currency" value={currency} maxLength={3} onChange={(event) => setCurrency(event.target.value)} /><div className="grid gap-1"><Label htmlFor="rate-card-effective-from">Effective from</Label><Input id="rate-card-effective-from" type="date" value={effectiveFrom} onChange={(event) => setEffectiveFrom(event.target.value)} /></div><Button onClick={() => void create()}>Create rate card</Button></div>}
     <div className="grid gap-3 md:grid-cols-2">{cards.map((card) => <article key={card.id} className="rounded-lg border border-border bg-card text-card-foreground p-4"><h3 className="font-medium">{card.name}</h3><p className="text-xs">{card.currency} · effective {card.effectiveFrom}</p>{card.rates.map((item) => <p className="mt-2 flex justify-between text-sm" key={item.id}><span>{item.userId ?? item.role ?? item.scope}</span><span className="font-mono">{formatMoney(item.hourlyRate, item.currency)}/hr</span></p>)}</article>)}</div>
   </section>
 }
