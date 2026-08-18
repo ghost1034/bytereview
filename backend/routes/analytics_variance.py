@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -29,7 +27,6 @@ from services.analytics.billing_guard import preflight_check, record_call
 from services.analytics.firm_scope import require_firm_id
 from services.billing_service import tokens_to_pages
 
-logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics/variance", tags=["analytics-variance"])
 
 
@@ -131,22 +128,12 @@ async def generate_memo(
         )
 
     preflight_check(db, actor.id, "analytics_variance_memo")
-    try:
-        text, usage = await analytics_ai_service.variance_memo(
-            processed,
-            row.config if isinstance(row.config, dict) else {},
-            analysis_name=row.name,
-            client_name=row.client.name if row.client is not None else "Not provided",
-        )
-    except analytics_ai_service.VarianceMemoValidationError as exc:
-        logger.warning("Rejected unsupported variance memo content: %s", exc)
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                "The generated memo contained facts that could not be verified against "
-                "the analysis. Generate it again."
-            ),
-        ) from exc
+    text, usage = await analytics_ai_service.variance_memo(
+        processed,
+        row.config if isinstance(row.config, dict) else {},
+        analysis_name=row.name,
+        client_name=row.client.name if row.client is not None else "Not provided",
+    )
     record_call(
         db,
         actor.id,

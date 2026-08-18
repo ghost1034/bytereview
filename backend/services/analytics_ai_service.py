@@ -17,8 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
-from datetime import date, datetime
+from datetime import date
 from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
 
 from google import genai
@@ -30,14 +29,6 @@ logger = logging.getLogger(__name__)
 # CPA Analytics only (IRS/GAAP research, assistant, variance, reconciliation, etc.).
 # Inkwise, extraction, and form-fill use their own model env vars.
 ANALYTICS_MODEL = os.getenv("ANALYTICS_GEMINI_MODEL", "gemini-3.1-pro-preview")
-
-
-class VarianceMemoValidationError(ValueError):
-    """Raised when generated memo facts are not present in the source analysis."""
-
-    def __init__(self, unsupported_facts: List[str]):
-        self.unsupported_facts = unsupported_facts
-        super().__init__("; ".join(unsupported_facts))
 
 
 _client: Optional[genai.Client] = None
@@ -994,7 +985,6 @@ Use professional, objective tone suitable for an audit workpaper or management r
         contents=prompt,
     )
     body = _get_resp_text(resp) or ""
-    _validate_variance_memo(body, flagged_details, config, generation_date)
     header = (
         "# Variance Analysis Memorandum\n\n"
         f"**Client:** {client_name}\n\n"
@@ -1007,146 +997,6 @@ Use professional, objective tone suitable for an audit workpaper or management r
         "**Status:** Draft — reviewer approval required\n\n"
     )
     return header + body.strip(), _get_usage_counts(resp)
-
-
-_ISO_DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
-_SLASH_DATE_RE = re.compile(r"\b\d{1,2}/\d{1,2}/(?:\d{2}|\d{4})\b")
-_MONTH_DATE_RE = re.compile(
-    r"\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
-    r"Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|"
-    r"Dec(?:ember)?)\s+\d{1,2},\s+\d{4}\b",
-    re.IGNORECASE,
-)
-_MONTH_YEAR_RE = re.compile(
-    r"\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|"
-    r"Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|"
-    r"Dec(?:ember)?)\s+\d{4}\b",
-    re.IGNORECASE,
-)
-_PERIOD_LABEL_RE = re.compile(r"\b(?:Q[1-4]|FY)\s*20\d{2}\b", re.IGNORECASE)
-_YEAR_RE = re.compile(r"\b(?:19|20)\d{2}\b")
-_DOLLAR_RE = re.compile(r"\$\s*\(?-?\d[\d,]*(?:\.\d+)?\)?")
-_PERCENT_RE = re.compile(r"(?<![\w.])-?\d+(?:\.\d+)?\s*%")
-_DETAIL_HEADING_RE = re.compile(r"^###\s+(.+?)\s*$", re.MULTILINE)
-_LABELED_ACCOUNT_RE = re.compile(
-    r"(?:\*\*)?Account(?: Name)?(?:\*\*)?\s*:\s*([^\n|]+)", re.IGNORECASE
-)
-
-
-def _number_matches(value: float, allowed: set[float]) -> bool:
-    return any(abs(value - candidate) <= max(0.01, abs(candidate) * 0.00001) for candidate in allowed)
-
-
-def _parse_display_number(token: str) -> float:
-    normalized = token.replace("$", "").replace("%", "").replace(",", "").strip()
-    negative_parentheses = normalized.startswith("(") and normalized.endswith(")")
-    normalized = normalized.strip("()")
-    value = float(normalized)
-    return -abs(value) if negative_parentheses else value
-
-
-def _month_year_key(token: str) -> Optional[str]:
-    """Return YYYY-MM for a generated month/year label, if it is valid."""
-    for format_ in ("%B %Y", "%b %Y"):
-        try:
-            return datetime.strptime(token, format_).strftime("%Y-%m")
-        except ValueError:
-            continue
-    return None
-
-
-def _validate_variance_memo(
-    text: str,
-    flagged_details: List[Dict[str, Any]],
-    config: Dict[str, Any],
-    as_of_date: str,
-) -> None:
-    """Reject explicit memo facts that are not in the persisted analysis evidence."""
-    unsupported: List[str] = []
-    if not text.strip():
-        raise VarianceMemoValidationError(["empty memo response"])
-
-    allowed_accounts = {
-        str(detail["account"]).strip()
-        for detail in flagged_details
-        if detail.get("account") is not None and str(detail["account"]).strip()
-    }
-    fact_text = text
-    for account in sorted(allowed_accounts, key=len, reverse=True):
-        fact_text = fact_text.replace(account, "[validated account]")
-
-    allowed_dates = {
-        value
-        for value in (
-            config.get("basePeriodStart"),
-            config.get("basePeriodEnd"),
-            config.get("compPeriodStart"),
-            config.get("compPeriodEnd"),
-            as_of_date,
-        )
-        if isinstance(value, str) and value
-    }
-    mentioned_dates = set(_ISO_DATE_RE.findall(fact_text))
-    mentioned_dates.update(_SLASH_DATE_RE.findall(fact_text))
-    mentioned_dates.update(_MONTH_DATE_RE.findall(fact_text))
-    mentioned_dates.update(_MONTH_YEAR_RE.findall(fact_text))
-    mentioned_dates.update(_PERIOD_LABEL_RE.findall(fact_text))
-    allowed_months = {
-        value[:7]
-        for value in allowed_dates
-        if _ISO_DATE_RE.fullmatch(value)
-    }
-    for mentioned in sorted(mentioned_dates):
-        supported_month = (
-            _MONTH_YEAR_RE.fullmatch(mentioned) is not None
-            and _month_year_key(mentioned) in allowed_months
-        )
-        if mentioned not in allowed_dates and not supported_month:
-            unsupported.append(f"unsupported date: {mentioned}")
-    allowed_years = {value[:4] for value in allowed_dates if _ISO_DATE_RE.fullmatch(value)}
-    for mentioned in sorted(set(_YEAR_RE.findall(fact_text)) - allowed_years):
-        if not any(mentioned in date_token for date_token in mentioned_dates):
-            unsupported.append(f"unsupported date: {mentioned}")
-
-    account_mentions = _DETAIL_HEADING_RE.findall(text) + _LABELED_ACCOUNT_RE.findall(text)
-    for mentioned in account_mentions:
-        normalized = mentioned.strip().strip("*_`")
-        if normalized not in allowed_accounts:
-            unsupported.append(f"unsupported account: {normalized}")
-
-    allowed_amounts: set[float] = set()
-    allowed_percentages: set[float] = set()
-    for detail in flagged_details:
-        for key in ("base", "comp", "variance"):
-            value = detail.get(key)
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                allowed_amounts.add(float(value))
-                allowed_amounts.add(abs(float(value)))
-        value = detail.get("variancePercent")
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            allowed_percentages.add(float(value))
-            allowed_percentages.add(abs(float(value)))
-
-    threshold_dollar = config.get("thresholdDollar")
-    if isinstance(threshold_dollar, (int, float)) and not isinstance(threshold_dollar, bool):
-        allowed_amounts.add(float(threshold_dollar))
-        allowed_amounts.add(abs(float(threshold_dollar)))
-    threshold_percent = config.get("thresholdPercent")
-    if isinstance(threshold_percent, (int, float)) and not isinstance(threshold_percent, bool):
-        allowed_percentages.add(float(threshold_percent))
-        allowed_percentages.add(abs(float(threshold_percent)))
-
-    for token in _DOLLAR_RE.findall(fact_text):
-        value = _parse_display_number(token)
-        if not _number_matches(value, allowed_amounts) and not _number_matches(abs(value), allowed_amounts):
-            unsupported.append(f"unsupported amount: {token}")
-    for token in _PERCENT_RE.findall(fact_text):
-        value = _parse_display_number(token)
-        if not _number_matches(value, allowed_percentages) and not _number_matches(abs(value), allowed_percentages):
-            unsupported.append(f"unsupported percentage: {token}")
-
-    if unsupported:
-        raise VarianceMemoValidationError(list(dict.fromkeys(unsupported)))
 
 
 # ---------------------------------------------------------------------------
