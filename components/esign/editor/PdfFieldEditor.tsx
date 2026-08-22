@@ -273,15 +273,6 @@ function DropdownOptionsEditor({ options, onChange }: {
   />
 }
 
-function DefaultSelectionHint({ multiple }: { multiple: boolean }) {
-  return <p className="rounded-md bg-surface-muted px-2 py-1.5 text-xs text-foreground-muted">
-    <span className="font-medium text-foreground">Default {multiple ? 'selections' : 'selection'} (optional):</span>{' '}
-    {multiple
-      ? 'Check any choices that should already be selected when the recipient opens the document.'
-      : 'Choose the option that should already be selected when the recipient opens the document. Leave all choices unselected for no default.'}
-  </p>
-}
-
 function DefaultChoiceControl({ choiceLabel, checked, multiple, className, onChange }: {
   choiceLabel: string
   checked: boolean
@@ -314,7 +305,6 @@ export function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false
     onChange(choices.filter((item) => item.id !== choice.id))
   }
   return <div className="space-y-2">
-    <DefaultSelectionHint multiple={multipleDefaults} />
     {choices.map((choice, index) => <div key={choice.id} className={cn('min-w-0 items-center gap-1.5', compact ? 'grid grid-cols-[minmax(0,1fr)_auto_auto_auto]' : 'flex')}>
       <input
         aria-label={`Choice ${index + 1}`}
@@ -544,7 +534,7 @@ function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField
     return <div className="space-y-3 rounded-md border border-border bg-surface p-3 text-sm">
       <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">{isRadio ? 'Radio group' : 'Checkbox group'}</p>
       <label className="block"><span className="mb-1 block font-medium">Question or group label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={draft.label} onChange={(event) => updateGroupLabel(event.target.value)} /></label>
-      <div className="min-w-0 space-y-2"><p className="font-medium">Choices</p><DefaultSelectionHint multiple={!isRadio} />{draft.choices.map((choice, index) => <div key={choice.fieldId ?? choice.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5">
+      <div className="min-w-0 space-y-2"><p className="font-medium">Choices</p>{draft.choices.map((choice, index) => <div key={choice.fieldId ?? choice.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5">
         <input aria-label={`Choice ${index + 1}`} className="col-span-3 min-w-0 w-full rounded border border-border bg-background px-2 py-1" value={choice.label} onChange={(event) => updateChoices(draft.choices.map((item) => item.id === choice.id ? { ...item, label: event.target.value } : item))} />
         <DefaultChoiceControl
           choiceLabel={choice.label || `Choice ${index + 1}`}

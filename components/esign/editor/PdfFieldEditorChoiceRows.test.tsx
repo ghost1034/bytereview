@@ -19,6 +19,8 @@ describe('choice row layout', () => {
 
     expect(markup).toContain('grid-cols-[minmax(0,1fr)_auto_auto_auto]')
     expect(markup).toMatch(/aria-label="Choice 1"[^>]*class="[^"]*col-span-4/)
+    expect(markup).not.toContain('Default selection (optional)')
+    expect(markup).not.toContain('Choose the option that should already be selected')
   })
 
   it('keeps the wider setup dialog layout inline', () => {
