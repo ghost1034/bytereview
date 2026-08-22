@@ -202,6 +202,7 @@ export default function GuestSigningPage() {
       initialSession={session}
       transport={transport}
       displayName={user?.displayName}
+      stickyTopClassName="top-[var(--header-height)]"
     />
   )
 }
