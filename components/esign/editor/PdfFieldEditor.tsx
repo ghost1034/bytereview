@@ -263,6 +263,27 @@ function DropdownOptionsEditor({ options, onChange }: {
   />
 }
 
+function DefaultSelectionHint({ multiple }: { multiple: boolean }) {
+  return <p className="rounded-md bg-surface-muted px-2 py-1.5 text-xs text-foreground-muted">
+    <span className="font-medium text-foreground">Default {multiple ? 'selections' : 'selection'} (optional):</span>{' '}
+    {multiple
+      ? 'Check any choices that should already be selected when the recipient opens the document.'
+      : 'Choose the option that should already be selected when the recipient opens the document. Leave all choices unselected for no default.'}
+  </p>
+}
+
+function DefaultChoiceControl({ choiceLabel, checked, multiple, onChange }: {
+  choiceLabel: string
+  checked: boolean
+  multiple: boolean
+  onChange: (checked: boolean) => void
+}) {
+  return <label className="flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded border border-border px-2 text-xs" title="Set as the default selection">
+    <input type={multiple ? 'checkbox' : 'radio'} aria-label={`${choiceLabel} is selected by default`} checked={checked} onChange={(event) => onChange(event.target.checked)} />
+    <span>Default</span>
+  </label>
+}
+
 function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false, onChange, onDefaultsChange }: {
   choices: ChoiceOption[]
   defaultIds: string[]
@@ -281,6 +302,7 @@ function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false, onCha
     onChange(choices.filter((item) => item.id !== choice.id))
   }
   return <div className="space-y-2">
+    <DefaultSelectionHint multiple={multipleDefaults} />
     {choices.map((choice, index) => <div key={choice.id} className="flex items-center gap-1.5">
       <input
         aria-label={`Choice ${index + 1}`}
@@ -293,15 +315,19 @@ function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false, onCha
           if (event.key === 'Enter') { event.preventDefault(); onChange([...choices, createChoice(`Choice ${choices.length + 1}`, newId)]) }
         }}
       />
-      <label className="flex size-7 shrink-0 items-center justify-center rounded border border-border" title="Default choice">
-        <input type={multipleDefaults ? 'checkbox' : 'radio'} aria-label={`${choice.label || `Choice ${index + 1}`} is selected initially`} checked={defaultIds.includes(choice.id)} onChange={(event) => onDefaultsChange(multipleDefaults
-          ? event.target.checked ? [...defaultIds, choice.id] : defaultIds.filter((id) => id !== choice.id)
-          : event.target.checked ? [choice.id] : [])} />
-      </label>
+      <DefaultChoiceControl
+        choiceLabel={choice.label || `Choice ${index + 1}`}
+        checked={defaultIds.includes(choice.id)}
+        multiple={multipleDefaults}
+        onChange={(checked) => onDefaultsChange(multipleDefaults
+          ? checked ? [...defaultIds, choice.id] : defaultIds.filter((id) => id !== choice.id)
+          : checked ? [choice.id] : [])}
+      />
       <button type="button" className="rounded p-1 text-foreground-muted hover:bg-surface-muted disabled:opacity-30" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${choice.label || `choice ${index + 1}`} up`}><ArrowUp className="size-3.5" /></button>
       <button type="button" className="rounded p-1 text-foreground-muted hover:bg-surface-muted disabled:opacity-30" disabled={index === choices.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${choice.label || `choice ${index + 1}`} down`}><ArrowDown className="size-3.5" /></button>
       <button type="button" className="rounded p-1 text-foreground-muted hover:bg-destructive-soft hover:text-destructive" onClick={() => remove(choice)} aria-label={`Remove ${choice.label || `choice ${index + 1}`} `}><X className="size-3.5" /></button>
     </div>)}
+    {!!defaultIds.length && <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => onDefaultsChange([])}>Clear default {multipleDefaults ? 'selections' : 'selection'}</Button>}
     <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => onChange([...choices, createChoice(`Choice ${choices.length + 1}`, newId)])}><Plus className="mr-1.5 size-3.5" /> Add choice</Button>
     <p className="text-xs text-foreground-subtle">Use Alt+Up or Alt+Down to reorder. Press Enter to add another choice.</p>
   </div>
@@ -324,7 +350,7 @@ function ChoiceSetupDialog({ draft, participants, errors, onChange, onCancel, on
       <div className="space-y-4">
         <label className="block text-sm"><span className="mb-1 block font-medium">{draft.kind === 'dropdown' ? 'Question or field label' : 'Question or group label'}</span><Input autoFocus value={draft.label} onChange={(event) => onChange({ ...draft, label: event.target.value })} placeholder="e.g. What type of entity is this?" /></label>
         <label className="block text-sm"><span className="mb-1 block font-medium">Assigned recipient</span><select className="w-full rounded border border-border bg-background px-2 py-2" value={draft.participantId} onChange={(event) => onChange({ ...draft, participantId: event.target.value })}>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.label}</option>)}</select></label>
-        <fieldset className="space-y-2"><legend className="text-sm font-medium">Choices <span className="font-normal text-foreground-muted">· default</span></legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} multipleDefaults={draft.kind === 'checkbox-group'} onChange={(choices) => onChange({ ...draft, choices, defaultIds: draft.defaultIds.filter((id) => choices.some((choice) => choice.id === id)) })} onDefaultsChange={(defaultIds) => onChange({ ...draft, defaultIds })} /></fieldset>
+        <fieldset className="space-y-2"><legend className="text-sm font-medium">Choices</legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} multipleDefaults={draft.kind === 'checkbox-group'} onChange={(choices) => onChange({ ...draft, choices, defaultIds: draft.defaultIds.filter((id) => choices.some((choice) => choice.id === id)) })} onDefaultsChange={(defaultIds) => onChange({ ...draft, defaultIds })} /></fieldset>
         {draft.kind !== 'checkbox-group' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.required} onChange={(event) => onChange({ ...draft, required: event.target.checked })} /> Recipient must choose an option</label>}
         {draft.kind === 'checkbox-group' && <fieldset className="space-y-2"><legend className="text-sm font-medium">How many may the recipient select?</legend><select aria-label="Selection rule" className="w-full rounded border border-border bg-background px-2 py-2" value={preset} onChange={(event) => onChange({ ...draft, ...checkboxRuleFromPreset(event.target.value as CheckboxRulePreset, draft.minimumSelected, draft.maximumSelected) })}><option value="any">Any number</option><option value="at-least-one">At least one</option><option value="at-most-one">At most one</option><option value="exactly-one">Exactly one</option><option value="custom">Custom minimum / maximum</option></select>{preset === 'custom' && <div className="grid grid-cols-2 gap-2"><label className="text-xs">Minimum<Input aria-label="Minimum selections" type="number" min={0} value={draft.minimumSelected ?? 0} onChange={(event) => onChange({ ...draft, minimumSelected: Number(event.target.value) })} /></label><label className="text-xs">Maximum<Input aria-label="Maximum selections" type="number" min={0} value={draft.maximumSelected ?? ''} onChange={(event) => onChange({ ...draft, maximumSelected: event.target.value === '' ? undefined : Number(event.target.value) })} /></label></div>}</fieldset>}
         {!!errors.length && <div role="alert" className="rounded-md border border-destructive/30 bg-destructive-soft p-2 text-sm text-destructive">{errors.map((error) => <p key={error}>{error}</p>)}</div>}
@@ -456,8 +482,7 @@ function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField
     return <div className="space-y-3 rounded-md border border-border bg-surface p-3 text-sm">
       <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Dropdown</p>
       <label className="block"><span className="mb-1 block font-medium">Question or field label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''} onChange={(event) => update({ label: event.target.value })} /></label>
-      <fieldset><legend className="mb-1 font-medium">Options · default</legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} onChange={setChoices} onDefaultsChange={(defaultIds) => update({ properties: { ...field.properties, sender_prefill: defaultIds[0] } })} /></fieldset>
-      {!!draft.defaultIds.length && <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => update({ properties: { ...field.properties, sender_prefill: undefined } })}>Clear default</Button>}
+      <fieldset><legend className="mb-1 font-medium">Options</legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} onChange={setChoices} onDefaultsChange={(defaultIds) => update({ properties: { ...field.properties, sender_prefill: defaultIds[0] } })} /></fieldset>
       <label className="flex gap-2"><input type="checkbox" checked={field.required} onChange={(event) => update({ required: event.target.checked })} /> Recipient must choose an option</label>
       <label className="block"><span className="mb-1 block font-medium">Preview</span><select disabled className="w-full rounded border border-border bg-background px-2 py-1.5" value={field.properties?.sender_prefill ?? ''}><option value="">Select…</option>{draft.choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>
       {!!draftErrors.length && <div role="alert" className="rounded bg-destructive-soft p-2 text-xs text-destructive">{draftErrors.map((error) => <p key={error}>{error}</p>)}</div>}
@@ -507,14 +532,18 @@ function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField
     return <div className="space-y-3 rounded-md border border-border bg-surface p-3 text-sm">
       <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">{isRadio ? 'Radio group' : 'Checkbox group'}</p>
       <label className="block"><span className="mb-1 block font-medium">Question or group label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={draft.label} onChange={(event) => updateGroupLabel(event.target.value)} /></label>
-      <div className="space-y-1"><p className="font-medium">Choices · default</p>{draft.choices.map((choice, index) => <div key={choice.fieldId ?? choice.id} className="flex items-center gap-1.5">
-        <input type={isRadio ? 'radio' : 'checkbox'} aria-label={`${choice.label} is selected initially`} checked={draft.defaultIds.includes(choice.id)} onChange={(event) => setDefaults(isRadio ? event.target.checked ? [choice.id] : [] : event.target.checked ? [...draft.defaultIds, choice.id] : draft.defaultIds.filter((id) => id !== choice.id))} />
+      <div className="space-y-2"><p className="font-medium">Choices</p><DefaultSelectionHint multiple={!isRadio} />{draft.choices.map((choice, index) => <div key={choice.fieldId ?? choice.id} className="flex items-center gap-1.5">
         <input aria-label={`Choice ${index + 1}`} className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1" value={choice.label} onChange={(event) => updateChoices(draft.choices.map((item) => item.id === choice.id ? { ...item, label: event.target.value } : item))} />
+        <DefaultChoiceControl
+          choiceLabel={choice.label || `Choice ${index + 1}`}
+          checked={draft.defaultIds.includes(choice.id)}
+          multiple={!isRadio}
+          onChange={(checked) => setDefaults(isRadio ? checked ? [choice.id] : [] : checked ? [...draft.defaultIds, choice.id] : draft.defaultIds.filter((id) => id !== choice.id))}
+        />
         <button type="button" className="rounded p-1 text-primary hover:bg-primary-soft" onClick={() => { const member = members.find((item) => item.id === choice.fieldId); if (member) focusField(member) }} aria-label={`Focus ${choice.label} on document`}><Search className="size-3.5" /></button>
         <button type="button" disabled={members.length <= 2} className="rounded p-1 text-destructive hover:bg-destructive-soft disabled:opacity-30" onClick={() => removeChoice(choice)} aria-label={`Remove ${choice.label}`}><X className="size-3.5" /></button>
-      </div>)}</div>
+      </div>)}{!!draft.defaultIds.length && <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setDefaults([])}>Clear default {isRadio ? 'selection' : 'selections'}</Button>}</div>
       {isRadio ? <label className="flex gap-2"><input type="checkbox" checked={draft.required} onChange={(event) => replaceMembers(members, members.map((member) => ({ ...member, required: event.target.checked })))} /> Recipient must choose an option</label> : <fieldset className="space-y-2"><legend className="font-medium">Selection rule</legend><select className="w-full rounded border border-border bg-background px-2 py-1.5" value={rulePreset} onChange={(event) => updateRule(event.target.value as CheckboxRulePreset)}><option value="any">Any number</option><option value="at-least-one">At least one</option><option value="at-most-one">At most one</option><option value="exactly-one">Exactly one</option><option value="custom">Custom minimum / maximum</option></select>{rulePreset === 'custom' && <div className="grid grid-cols-2 gap-2"><Input aria-label="Minimum selections" type="number" min={0} max={members.length} value={draft.minimumSelected ?? 0} onChange={(event) => updateRule('custom', Number(event.target.value), draft.maximumSelected)} /><Input aria-label="Maximum selections" type="number" min={0} max={members.length} value={draft.maximumSelected ?? ''} onChange={(event) => updateRule('custom', draft.minimumSelected, event.target.value ? Number(event.target.value) : undefined)} /></div>}</fieldset>}
-      {!!draft.defaultIds.length && <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setDefaults([])}>Clear defaults</Button>}
       {!!draftErrors.length && <div role="alert" className="rounded bg-destructive-soft p-2 text-xs text-destructive">{draftErrors.map((error) => <p key={error}>{error}</p>)}</div>}
       <Button type="button" variant="outline" size="sm" className="w-full" onClick={addChoice}><Plus className="mr-1.5 size-3.5" /> Add choice</Button>
       <ChoiceAdvancedSettings members={members} allFields={fields} replaceFields={(nextMembers) => replaceMembers(members, nextMembers)} />
