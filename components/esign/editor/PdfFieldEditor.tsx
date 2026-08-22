@@ -272,22 +272,24 @@ function DefaultSelectionHint({ multiple }: { multiple: boolean }) {
   </p>
 }
 
-function DefaultChoiceControl({ choiceLabel, checked, multiple, onChange }: {
+function DefaultChoiceControl({ choiceLabel, checked, multiple, className, onChange }: {
   choiceLabel: string
   checked: boolean
   multiple: boolean
+  className?: string
   onChange: (checked: boolean) => void
 }) {
-  return <label className="flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded border border-border px-2 text-xs" title="Set as the default selection">
+  return <label className={cn('flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded border border-border px-2 text-xs', className)} title="Set as the default selection">
     <input type={multiple ? 'checkbox' : 'radio'} aria-label={`${choiceLabel} is selected by default`} checked={checked} onChange={(event) => onChange(event.target.checked)} />
     <span>Default</span>
   </label>
 }
 
-function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false, onChange, onDefaultsChange }: {
+export function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false, compact = false, onChange, onDefaultsChange }: {
   choices: ChoiceOption[]
   defaultIds: string[]
   multipleDefaults?: boolean
+  compact?: boolean
   onChange: (choices: ChoiceOption[]) => void
   onDefaultsChange: (ids: string[]) => void
 }) {
@@ -303,10 +305,10 @@ function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false, onCha
   }
   return <div className="space-y-2">
     <DefaultSelectionHint multiple={multipleDefaults} />
-    {choices.map((choice, index) => <div key={choice.id} className="flex items-center gap-1.5">
+    {choices.map((choice, index) => <div key={choice.id} className={cn('min-w-0 items-center gap-1.5', compact ? 'grid grid-cols-[minmax(0,1fr)_auto_auto_auto]' : 'flex')}>
       <input
         aria-label={`Choice ${index + 1}`}
-        className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5"
+        className={cn('min-w-0 flex-1 rounded border border-border bg-background px-2 py-1.5', compact && 'col-span-4 w-full')}
         value={choice.label}
         onChange={(event) => onChange(choices.map((item) => item.id === choice.id ? { ...item, label: event.target.value } : item))}
         onKeyDown={(event) => {
@@ -319,13 +321,14 @@ function ChoiceRowsEditor({ choices, defaultIds, multipleDefaults = false, onCha
         choiceLabel={choice.label || `Choice ${index + 1}`}
         checked={defaultIds.includes(choice.id)}
         multiple={multipleDefaults}
+        className={cn(compact && 'justify-self-start')}
         onChange={(checked) => onDefaultsChange(multipleDefaults
           ? checked ? [...defaultIds, choice.id] : defaultIds.filter((id) => id !== choice.id)
           : checked ? [choice.id] : [])}
       />
-      <button type="button" className="rounded p-1 text-foreground-muted hover:bg-surface-muted disabled:opacity-30" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${choice.label || `choice ${index + 1}`} up`}><ArrowUp className="size-3.5" /></button>
-      <button type="button" className="rounded p-1 text-foreground-muted hover:bg-surface-muted disabled:opacity-30" disabled={index === choices.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${choice.label || `choice ${index + 1}`} down`}><ArrowDown className="size-3.5" /></button>
-      <button type="button" className="rounded p-1 text-foreground-muted hover:bg-destructive-soft hover:text-destructive" onClick={() => remove(choice)} aria-label={`Remove ${choice.label || `choice ${index + 1}`} `}><X className="size-3.5" /></button>
+      <button type="button" className="shrink-0 rounded p-1 text-foreground-muted hover:bg-surface-muted disabled:opacity-30" disabled={index === 0} onClick={() => move(index, -1)} aria-label={`Move ${choice.label || `choice ${index + 1}`} up`}><ArrowUp className="size-3.5" /></button>
+      <button type="button" className="shrink-0 rounded p-1 text-foreground-muted hover:bg-surface-muted disabled:opacity-30" disabled={index === choices.length - 1} onClick={() => move(index, 1)} aria-label={`Move ${choice.label || `choice ${index + 1}`} down`}><ArrowDown className="size-3.5" /></button>
+      <button type="button" className="shrink-0 rounded p-1 text-foreground-muted hover:bg-destructive-soft hover:text-destructive" onClick={() => remove(choice)} aria-label={`Remove ${choice.label || `choice ${index + 1}`} `}><X className="size-3.5" /></button>
     </div>)}
     {!!defaultIds.length && <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => onDefaultsChange([])}>Clear default {multipleDefaults ? 'selections' : 'selection'}</Button>}
     <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => onChange([...choices, createChoice(`Choice ${choices.length + 1}`, newId)])}><Plus className="mr-1.5 size-3.5" /> Add choice</Button>
@@ -482,7 +485,7 @@ function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField
     return <div className="space-y-3 rounded-md border border-border bg-surface p-3 text-sm">
       <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Dropdown</p>
       <label className="block"><span className="mb-1 block font-medium">Question or field label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''} onChange={(event) => update({ label: event.target.value })} /></label>
-      <fieldset><legend className="mb-1 font-medium">Options</legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} onChange={setChoices} onDefaultsChange={(defaultIds) => update({ properties: { ...field.properties, sender_prefill: defaultIds[0] } })} /></fieldset>
+      <fieldset className="min-w-0"><legend className="mb-1 font-medium">Options</legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} compact onChange={setChoices} onDefaultsChange={(defaultIds) => update({ properties: { ...field.properties, sender_prefill: defaultIds[0] } })} /></fieldset>
       <label className="flex gap-2"><input type="checkbox" checked={field.required} onChange={(event) => update({ required: event.target.checked })} /> Recipient must choose an option</label>
       <label className="block"><span className="mb-1 block font-medium">Preview</span><select disabled className="w-full rounded border border-border bg-background px-2 py-1.5" value={field.properties?.sender_prefill ?? ''}><option value="">Select…</option>{draft.choices.map((choice) => <option key={choice.id} value={choice.id}>{choice.label}</option>)}</select></label>
       {!!draftErrors.length && <div role="alert" className="rounded bg-destructive-soft p-2 text-xs text-destructive">{draftErrors.map((error) => <p key={error}>{error}</p>)}</div>}
@@ -532,12 +535,13 @@ function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField
     return <div className="space-y-3 rounded-md border border-border bg-surface p-3 text-sm">
       <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">{isRadio ? 'Radio group' : 'Checkbox group'}</p>
       <label className="block"><span className="mb-1 block font-medium">Question or group label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={draft.label} onChange={(event) => updateGroupLabel(event.target.value)} /></label>
-      <div className="space-y-2"><p className="font-medium">Choices</p><DefaultSelectionHint multiple={!isRadio} />{draft.choices.map((choice, index) => <div key={choice.fieldId ?? choice.id} className="flex items-center gap-1.5">
-        <input aria-label={`Choice ${index + 1}`} className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1" value={choice.label} onChange={(event) => updateChoices(draft.choices.map((item) => item.id === choice.id ? { ...item, label: event.target.value } : item))} />
+      <div className="min-w-0 space-y-2"><p className="font-medium">Choices</p><DefaultSelectionHint multiple={!isRadio} />{draft.choices.map((choice, index) => <div key={choice.fieldId ?? choice.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-1.5">
+        <input aria-label={`Choice ${index + 1}`} className="col-span-3 min-w-0 w-full rounded border border-border bg-background px-2 py-1" value={choice.label} onChange={(event) => updateChoices(draft.choices.map((item) => item.id === choice.id ? { ...item, label: event.target.value } : item))} />
         <DefaultChoiceControl
           choiceLabel={choice.label || `Choice ${index + 1}`}
           checked={draft.defaultIds.includes(choice.id)}
           multiple={!isRadio}
+          className="justify-self-start"
           onChange={(checked) => setDefaults(isRadio ? checked ? [choice.id] : [] : checked ? [...draft.defaultIds, choice.id] : draft.defaultIds.filter((id) => id !== choice.id))}
         />
         <button type="button" className="rounded p-1 text-primary hover:bg-primary-soft" onClick={() => { const member = members.find((item) => item.id === choice.fieldId); if (member) focusField(member) }} aria-label={`Focus ${choice.label} on document`}><Search className="size-3.5" /></button>
@@ -1133,7 +1137,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   if (!documents.length || !participants.length) return <p className="text-sm text-foreground-muted">Add documents and recipients before placing fields.</p>
 
   return <div ref={containerRef} tabIndex={0} className={cn('flex flex-col gap-4 outline-none lg:flex-row', className)}>
-    <aside className={cn('w-full shrink-0 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-6rem)] lg:self-start lg:overflow-y-auto lg:pr-1', stagedFormula || selectedField?.fieldType === 'formula' ? 'lg:w-80' : 'lg:w-64')}>
+    <aside className={cn('w-full min-w-0 shrink-0 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-6rem)] lg:self-start lg:overflow-x-hidden lg:overflow-y-auto lg:pr-1', stagedFormula || selectedField?.fieldType === 'formula' ? 'lg:w-80' : 'lg:w-64')}>
       {documents.length > 1 && <Select value={activeDocument?.id} onValueChange={(documentId) => { setActiveDocumentId(documentId); if (anchorSession?.documentId !== documentId) { setAnchorSession(null); setAnchorResult('') } }}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{documents.map((doc) => <SelectItem key={doc.id} value={doc.id}>{doc.name}</SelectItem>)}</SelectContent></Select>}
       <div className="space-y-1.5"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Assign to</p>{participants.map((participant, index) => {
         const color = participantColor(index); return <button key={participant.id} type="button" disabled={!!choicePlacement || !!stagedFormula} onClick={() => setActiveParticipantId(participant.id)}
