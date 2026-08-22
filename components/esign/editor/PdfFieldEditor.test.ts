@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { dropdownOptionsFromText, FIELD_PREVIEW_LABELS, type EditorField } from './PdfFieldEditor'
+import {
+  dropdownOptionsFromText,
+  FIELD_PREVIEW_LABELS,
+  isFieldPaletteItemActive,
+  type EditorField,
+} from './PdfFieldEditor'
 import {
   DEFAULT_FIELD_VERTICAL_ALIGNMENT,
   defaultFieldHorizontalAlignment,
@@ -61,6 +66,21 @@ describe('field preview labels', () => {
   it('distinguishes signer-entered dates from automatic signing dates', () => {
     expect(FIELD_PREVIEW_LABELS.date).toBe('Date (signer enters)')
     expect(FIELD_PREVIEW_LABELS.date_signed).toBe('Date (date signed)')
+  })
+})
+
+describe('field palette selection', () => {
+  const checkbox = { type: 'checkbox' as const }
+  const checkboxGroup = { type: 'checkbox' as const, setupKind: 'checkbox-group' as const }
+
+  it('does not select checkbox group when standalone checkbox is armed', () => {
+    expect(isFieldPaletteItemActive(checkbox, 'checkbox', null)).toBe(true)
+    expect(isFieldPaletteItemActive(checkboxGroup, 'checkbox', null)).toBe(false)
+  })
+
+  it('selects only checkbox group while placing its choices', () => {
+    expect(isFieldPaletteItemActive(checkbox, 'checkbox', 'checkbox-group')).toBe(false)
+    expect(isFieldPaletteItemActive(checkboxGroup, 'checkbox', 'checkbox-group')).toBe(true)
   })
 })
 

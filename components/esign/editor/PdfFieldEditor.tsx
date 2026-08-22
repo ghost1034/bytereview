@@ -184,6 +184,16 @@ const FIELD_TYPES: Array<{ key?: string; type: EditorFieldType; label: string; i
   { type: 'formula', label: 'Formula', icon: Calculator },
 ]
 
+export function isFieldPaletteItemActive(
+  item: { type: EditorFieldType; setupKind?: ChoiceKind },
+  armedType: EditorFieldType | null,
+  choicePlacementKind: ChoiceKind | null,
+) {
+  return item.setupKind
+    ? item.setupKind === choicePlacementKind
+    : armedType === item.type && choicePlacementKind === null
+}
+
 const DEFAULT_SIZES: Record<EditorFieldType, { width: number; height: number }> = {
   signature: { width: 0.28, height: 0.045 }, initials: { width: 0.08, height: 0.035 },
   date_signed: { width: 0.16, height: 0.03 }, text: { width: 0.24, height: 0.03 },
@@ -1146,7 +1156,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       <div className="space-y-1.5"><p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Fields</p>
         <div className="grid grid-cols-2 gap-1.5">{FIELD_TYPES.map(({ key, type, label, icon: Icon, setupKind }) => <button key={key ?? type} type="button" title={label}
           onClick={() => { setStagedFormula(null); if (setupKind) { openChoiceSetup(setupKind); return } const next = armedType === type && !choicePlacement ? null : type; setChoicePlacement(null); setArmedType(next); setRadioGroup(null) }}
-          className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', armedType === type && !choicePlacement ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
+          className={cn('flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-left text-xs', isFieldPaletteItemActive({ type, setupKind }, armedType, choicePlacement?.draft.kind ?? null) ? 'border-primary bg-primary-soft text-primary' : 'border-border bg-surface')}><Icon className="size-3.5" />{label}</button>)}</div>
         {onImportFillableFields && activeDocument && <Button type="button" variant="outline" size="sm" className="w-full" disabled={importingFillableFields} onClick={() => onImportFillableFields(activeDocument.id)}>{importingFillableFields ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <FileInput className="mr-1.5 size-3.5" />} Import fillable fields</Button>}
         <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => { setAnchorResult(''); setAnchorOpen(true) }}><Search className="mr-1.5 size-3.5" /> Place by anchor</Button>
         {aiFieldPlacement && <Button type="button" variant="outline" size="sm" className="w-full" disabled={!!aiRun && ['queued', 'processing', 'completed'].includes(aiRun.status)} onClick={() => { setAiError(''); setAiDialogOpen(true) }}>{aiRun && ['queued', 'processing'].includes(aiRun.status) ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : <Sparkles className="mr-1.5 size-3.5" />} {aiRun && ['queued', 'processing'].includes(aiRun.status) ? 'AI analysis running' : aiRun?.status === 'completed' ? 'Review AI suggestions below' : 'Place fields with AI'}</Button>}
