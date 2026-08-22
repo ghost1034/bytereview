@@ -61,4 +61,18 @@ describe('collectFieldIssues', () => {
       'radio-values-radio', 'radio-locked-radio', 'checkbox-rule-checks', 'checkbox-locked-checks',
     ]))
   })
+
+  it('reports malformed generated document-label links', () => {
+    const issues = collectFieldIssues([
+      { id: 'r1', participantId: 'signer-1', fieldType: 'radio', required: true, label: 'Yes', properties: { group: { id: 'radio', label: 'Proceed?' }, option_value: 'yes' } },
+      { id: 'r2', participantId: 'signer-1', fieldType: 'radio', required: true, label: 'No', properties: { group: { id: 'radio', label: 'Proceed?' }, option_value: 'no' } },
+      { id: 'question', participantId: 'signer-1', fieldType: 'note', required: false, properties: { sender_prefill: 'Stale', label_link: { kind: 'radio_group', source_id: 'radio', enabled: true } } },
+      { id: 'yes-label', participantId: 'other', fieldType: 'note', required: false, properties: { sender_prefill: 'Yes', label_link: { kind: 'field', source_id: 'r1', enabled: false } } },
+    ], ['signer-1'])
+
+    expect(issues.map((issue) => issue.id)).toEqual(expect.arrayContaining([
+      'generated-label-stale-question', 'generated-label-owner-yes-label',
+      'generated-label-visibility-radio', 'generated-label-incomplete-radio',
+    ]))
+  })
 })

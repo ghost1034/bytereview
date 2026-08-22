@@ -320,6 +320,7 @@ def validate_field_graph(fields: Iterable[Any]) -> None:
                 by_label[key] = field
     radio_groups: dict[str, list[Any]] = {}
     checkbox_groups: dict[str, list[Any]] = {}
+    linked_labels: dict[tuple[str, str], Any] = {}
     for field_id, field in by_id.items():
         props = _props(field)
         rule = props.get("conditional")
@@ -361,6 +362,72 @@ def validate_field_graph(fields: Iterable[Any]) -> None:
             if not group_id:
                 raise FieldLogicError("Checkbox selection groups require an ID")
             checkbox_groups.setdefault(group_id, []).append(field)
+
+    label_visibility_by_group: dict[tuple[str, str], set[bool]] = {}
+    for field_id, field in by_id.items():
+        link = _props(field).get("label_link")
+        if not link:
+            continue
+        if _type(field) != "note":
+            raise FieldLogicError("Generated label links are only valid on note fields")
+        kind = str(link.get("kind", ""))
+        source_id = str(link.get("source_id", ""))
+        key = (kind, source_id)
+        if key in linked_labels:
+            raise FieldLogicError(f"Generated label link {kind}:{source_id} is duplicated")
+        linked_labels[key] = field
+        source = None
+        canonical = ""
+        group_key: tuple[str, str] | None = None
+        if kind == "field":
+            source = by_id.get(source_id)
+            if source is None:
+                raise FieldLogicError(f"Generated label source field {source_id} does not exist")
+            source_type = _type(source)
+            source_props = _props(source)
+            if source_type == "dropdown":
+                canonical = str(_get(source, "label") or "")
+            elif source_type == "radio":
+                canonical = str(_get(source, "label") or source_props.get("option_value") or "")
+                group_key = ("radio_group", str((source_props.get("group") or {}).get("id", "")))
+            elif source_type == "checkbox" and source_props.get("selection_group"):
+                canonical = str(_get(source, "label") or "")
+                group_key = ("checkbox_group", str((source_props.get("selection_group") or {}).get("id", "")))
+            else:
+                raise FieldLogicError("Generated field labels must reference a dropdown or grouped choice")
+        elif kind == "radio_group":
+            members = radio_groups.get(source_id, [])
+            if not members:
+                raise FieldLogicError(f"Generated radio group label source {source_id} does not exist")
+            source = members[0]
+            canonical = str((_props(source).get("group") or {}).get("label") or "")
+            group_key = (kind, source_id)
+        elif kind == "checkbox_group":
+            members = checkbox_groups.get(source_id, [])
+            if not members:
+                raise FieldLogicError(f"Generated checkbox group label source {source_id} does not exist")
+            source = members[0]
+            canonical = str((_props(source).get("selection_group") or {}).get("label") or "")
+            group_key = (kind, source_id)
+        else:
+            raise FieldLogicError(f"Unknown generated label link kind: {kind}")
+        if str(_get(source, "recipient_id", _get(source, "recipient_index"))) != str(
+            _get(field, "recipient_id", _get(field, "recipient_index"))
+        ):
+            raise FieldLogicError("Generated labels must belong to the same recipient as their source")
+        if str(_props(field).get("sender_prefill") or "") != canonical:
+            raise FieldLogicError(f"Generated label {field_id} is stale")
+        if group_key:
+            label_visibility_by_group.setdefault(group_key, set()).add(bool(link.get("enabled", False)))
+
+    for group_key, states in label_visibility_by_group.items():
+        if len(states) > 1:
+            raise FieldLogicError(f"Generated labels for {group_key[0]} {group_key[1]} must share visibility")
+        members = radio_groups.get(group_key[1], []) if group_key[0] == "radio_group" else checkbox_groups.get(group_key[1], [])
+        expected = {(group_key[0], group_key[1]), *(("field", str(_get(member, "id"))) for member in members)}
+        missing = expected - set(linked_labels)
+        if missing:
+            raise FieldLogicError(f"Generated labels for {group_key[0]} {group_key[1]} are incomplete")
 
     for group_id, members in radio_groups.items():
         recipients = {str(_get(member, "recipient_id", _get(member, "recipient_index"))) for member in members}
@@ -421,6 +488,13 @@ def remap_property_references(properties: Mapping[str, Any] | None, id_map: Mapp
         result["formula"]["expression"] = _REF_RE.sub(
             lambda match: f"[{id_map.get(match.group(1), match.group(1))}]", expression
         )
+    label_link = result.get("label_link")
+    if isinstance(label_link, Mapping):
+        result["label_link"] = dict(label_link)
+        if label_link.get("kind") == "field":
+            old = str(label_link.get("source_id", ""))
+            if old in id_map:
+                result["label_link"]["source_id"] = id_map[old]
     return result
 
 

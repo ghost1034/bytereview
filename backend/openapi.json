@@ -34917,6 +34917,16 @@
                 "type": "null"
               }
             ]
+          },
+          "label_link": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GeneratedLabelLink"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": true,
@@ -39725,6 +39735,36 @@
           "expression"
         ],
         "title": "FormulaProps"
+      },
+      "GeneratedLabelLink": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "field",
+              "radio_group",
+              "checkbox_group"
+            ],
+            "title": "Kind"
+          },
+          "source_id": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Source Id"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "source_id"
+        ],
+        "title": "GeneratedLabelLink"
       },
       "HTTPValidationError": {
         "properties": {

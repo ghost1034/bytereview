@@ -16,6 +16,7 @@ export interface ChoiceDraft {
   defaultIds: string[]
   minimumSelected?: number
   maximumSelected?: number
+  showLabels: boolean
 }
 
 export type CheckboxRulePreset = 'any' | 'at-least-one' | 'at-most-one' | 'exactly-one' | 'custom'
@@ -49,6 +50,7 @@ export function normalizeDropdown(field: ChoiceFieldLike): ChoiceDraft {
     choices,
     required: field.required,
     defaultIds: choices.some((choice) => choice.id === field.properties?.sender_prefill) ? [field.properties!.sender_prefill!] : [],
+    showLabels: false,
   }
 }
 
@@ -66,6 +68,7 @@ export function normalizeRadioGroup(fields: ChoiceFieldLike[], groupId: string):
     })),
     required: first?.required ?? true,
     defaultIds: members.filter((member) => member.properties?.sender_prefill === 'true').map((member) => member.properties?.option_value || ''),
+    showLabels: false,
   }
 }
 
@@ -86,6 +89,7 @@ export function normalizeCheckboxGroup(fields: ChoiceFieldLike[], groupId: strin
     defaultIds: members.filter((member) => member.properties?.sender_prefill === 'true').map((member) => member.id),
     minimumSelected: rule?.minimum_selected ?? 0,
     maximumSelected: rule?.maximum_selected,
+    showLabels: false,
   }
 }
 

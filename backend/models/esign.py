@@ -161,6 +161,12 @@ class FieldAppearance(BaseModel):
     underline: bool = False
 
 
+class GeneratedLabelLink(BaseModel):
+    kind: Literal["field", "radio_group", "checkbox_group"]
+    source_id: str = Field(min_length=1, max_length=255)
+    enabled: bool = False
+
+
 class EsignFieldProperties(BaseModel):
     model_config = ConfigDict(extra="allow")
 
@@ -185,6 +191,7 @@ class EsignFieldProperties(BaseModel):
     date_validation: Optional[DateValidation] = None
     selection_validation: Optional[SelectionValidation] = None
     appearance: Optional[FieldAppearance] = None
+    label_link: Optional[GeneratedLabelLink] = None
 
 
 _COMMON_PROPERTIES = {"schema_version", "conditional", "data_label", "tooltip", "appearance", "anchor"}
@@ -196,7 +203,7 @@ _FIELD_PROPERTY_CAPABILITIES: dict[str, set[str]] = {
     "first_name": set(), "last_name": set(), "full_name": set(), "email": set(),
     "company": {"sender_prefill", "read_only", "shared_value", "text_validation"},
     "title": {"sender_prefill", "read_only", "shared_value", "text_validation"},
-    "note": {"sender_prefill", "read_only"},
+    "note": {"sender_prefill", "read_only", "label_link"},
     "auto_fill": {"auto_source", "shared_value"},
     "checkbox": {"sender_prefill", "read_only", "shared_value", "selection_group", "selection_validation"},
     "radio": {"group", "option_value", "sender_prefill", "read_only"},
@@ -225,6 +232,7 @@ def _validated_properties(field_type: EsignFieldTypeName, value: Any) -> EsignFi
         ("date_validation", DateValidation), ("selection_validation", SelectionValidation),
         ("selection_group", SelectionGroup),
         ("appearance", FieldAppearance), ("anchor", AnchorProps),
+        ("label_link", GeneratedLabelLink),
     ):
         if props.get(key) is not None:
             props[key] = model.model_validate(props[key]).model_dump(exclude_none=True, mode="json")

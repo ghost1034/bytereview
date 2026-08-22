@@ -37,6 +37,7 @@ import { snapRect, type SnapGuide } from './snapping'
 import { configuredTextFontSize, textFontFamily, TEXT_FONT_OPTIONS } from './textAppearance'
 import { apiClient, type EsignAiFieldPlacementAction, type EsignAiFieldPlacementRun } from '@/lib/api'
 import { pollAiFieldPlacementRun } from './aiFieldPlacementPolling'
+import { choiceLabelsEnabled, isLinkedLabel, reconcileLinkedLabels, setChoiceLabelsEnabled } from './linkedLabels'
 import {
   checkboxRuleFromPreset,
   checkboxRulePreset,
@@ -89,6 +90,7 @@ export interface EditorFieldProperties {
   selection_validation?: { minimum_selected?: number; maximum_selected?: number }
   selection_group?: { id: string; label: string; minimum_selected?: number; maximum_selected?: number; validation_message?: string }
   appearance?: { font?: string; font_size?: number; color?: string; alignment?: FieldHorizontalAlignment; vertical_alignment?: FieldVerticalAlignment; bold?: boolean; italic?: boolean; underline?: boolean }
+  label_link?: { kind: 'field' | 'radio_group' | 'checkbox_group'; source_id: string; enabled: boolean }
   [key: string]: unknown
 }
 
@@ -355,6 +357,7 @@ function ChoiceSetupDialog({ draft, participants, errors, onChange, onCancel, on
         <label className="block text-sm"><span className="mb-1 block font-medium">Assigned recipient</span><select className="w-full rounded border border-border bg-background px-2 py-2" value={draft.participantId} onChange={(event) => onChange({ ...draft, participantId: event.target.value })}>{participants.map((participant) => <option key={participant.id} value={participant.id}>{participant.label}</option>)}</select></label>
         <fieldset className="space-y-2"><legend className="text-sm font-medium">Choices</legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} multipleDefaults={draft.kind === 'checkbox-group'} onChange={(choices) => onChange({ ...draft, choices, defaultIds: draft.defaultIds.filter((id) => choices.some((choice) => choice.id === id)) })} onDefaultsChange={(defaultIds) => onChange({ ...draft, defaultIds })} /></fieldset>
         {draft.kind !== 'checkbox-group' && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.required} onChange={(event) => onChange({ ...draft, required: event.target.checked })} /> Recipient must choose an option</label>}
+        <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={draft.showLabels} onChange={(event) => onChange({ ...draft, showLabels: event.target.checked })} /> Show labels on document</label>
         {draft.kind === 'checkbox-group' && <fieldset className="space-y-2"><legend className="text-sm font-medium">How many may the recipient select?</legend><select aria-label="Selection rule" className="w-full rounded border border-border bg-background px-2 py-2" value={preset} onChange={(event) => onChange({ ...draft, ...checkboxRuleFromPreset(event.target.value as CheckboxRulePreset, draft.minimumSelected, draft.maximumSelected) })}><option value="any">Any number</option><option value="at-least-one">At least one</option><option value="at-most-one">At most one</option><option value="exactly-one">Exactly one</option><option value="custom">Custom minimum / maximum</option></select>{preset === 'custom' && <div className="grid grid-cols-2 gap-2"><label className="text-xs">Minimum<Input aria-label="Minimum selections" type="number" min={0} value={draft.minimumSelected ?? 0} onChange={(event) => onChange({ ...draft, minimumSelected: Number(event.target.value) })} /></label><label className="text-xs">Maximum<Input aria-label="Maximum selections" type="number" min={0} value={draft.maximumSelected ?? ''} onChange={(event) => onChange({ ...draft, maximumSelected: event.target.value === '' ? undefined : Number(event.target.value) })} /></label></div>}</fieldset>}
         {!!errors.length && <div role="alert" className="rounded-md border border-destructive/30 bg-destructive-soft p-2 text-sm text-destructive">{errors.map((error) => <p key={error}>{error}</p>)}</div>}
       </div>
@@ -423,9 +426,9 @@ function FieldFloatingToolbar({ field, participants, participantIndexById, pageS
       <span className="hidden sm:inline">Required</span>
     </label>}
     <span className="mx-0.5 h-5 w-px shrink-0 bg-border" />
-    <button type="button" className="flex size-7 shrink-0 items-center justify-center rounded text-foreground-muted hover:bg-destructive-soft hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={remove} title="Delete field" aria-label="Delete field">
+    {!isLinkedLabel(field) && <button type="button" className="flex size-7 shrink-0 items-center justify-center rounded text-foreground-muted hover:bg-destructive-soft hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={remove} title="Delete field" aria-label="Delete field">
       <Trash2 className="size-3.5" />
-    </button>
+    </button>}
   </div>
 }
 
@@ -487,6 +490,7 @@ function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField
       <label className="block"><span className="mb-1 block font-medium">Question or field label</span><input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''} onChange={(event) => update({ label: event.target.value })} /></label>
       <fieldset className="min-w-0"><legend className="mb-1 font-medium">Options</legend><ChoiceRowsEditor choices={draft.choices} defaultIds={draft.defaultIds} compact onChange={setChoices} onDefaultsChange={(defaultIds) => update({ properties: { ...field.properties, sender_prefill: defaultIds[0] } })} /></fieldset>
       <label className="flex gap-2"><input type="checkbox" checked={field.required} onChange={(event) => update({ required: event.target.checked })} /> Recipient must choose an option</label>
+      <label className="flex gap-2"><input type="checkbox" checked={choiceLabelsEnabled(fields, field)} onChange={(event) => commitFields(setChoiceLabelsEnabled(fields, field, event.target.checked, newId))} /> Show labels on document</label>
       {!!draftErrors.length && <div role="alert" className="rounded bg-destructive-soft p-2 text-xs text-destructive">{draftErrors.map((error) => <p key={error}>{error}</p>)}</div>}
       <ChoiceAdvancedSettings members={[field]} allFields={fields} replaceFields={(members) => replaceMembers([field], members)} />
       <Button type="button" variant="outline" size="sm" className="w-full text-destructive" onClick={remove}><Trash2 className="mr-1.5 size-3.5" /> Remove dropdown</Button>
@@ -547,6 +551,7 @@ function ChoicePropertiesPanel({ field, fields, update, commitFields, focusField
         <button type="button" disabled={members.length <= 2} className="rounded p-1 text-destructive hover:bg-destructive-soft disabled:opacity-30" onClick={() => removeChoice(choice)} aria-label={`Remove ${choice.label}`}><X className="size-3.5" /></button>
       </div>)}{!!draft.defaultIds.length && <Button type="button" variant="ghost" size="sm" className="w-full" onClick={() => setDefaults([])}>Clear default {isRadio ? 'selection' : 'selections'}</Button>}</div>
       {isRadio ? <label className="flex gap-2"><input type="checkbox" checked={draft.required} onChange={(event) => replaceMembers(members, members.map((member) => ({ ...member, required: event.target.checked })))} /> Recipient must choose an option</label> : <fieldset className="space-y-2"><legend className="font-medium">Selection rule</legend><select className="w-full rounded border border-border bg-background px-2 py-1.5" value={rulePreset} onChange={(event) => updateRule(event.target.value as CheckboxRulePreset)}><option value="any">Any number</option><option value="at-least-one">At least one</option><option value="at-most-one">At most one</option><option value="exactly-one">Exactly one</option><option value="custom">Custom minimum / maximum</option></select>{rulePreset === 'custom' && <div className="grid grid-cols-2 gap-2"><Input aria-label="Minimum selections" type="number" min={0} max={members.length} value={draft.minimumSelected ?? 0} onChange={(event) => updateRule('custom', Number(event.target.value), draft.maximumSelected)} /><Input aria-label="Maximum selections" type="number" min={0} max={members.length} value={draft.maximumSelected ?? ''} onChange={(event) => updateRule('custom', draft.minimumSelected, event.target.value ? Number(event.target.value) : undefined)} /></div>}</fieldset>}
+      <label className="flex gap-2"><input type="checkbox" checked={choiceLabelsEnabled(fields, field)} onChange={(event) => commitFields(setChoiceLabelsEnabled(fields, field, event.target.checked, newId))} /> Show labels on document</label>
       {!!draftErrors.length && <div role="alert" className="rounded bg-destructive-soft p-2 text-xs text-destructive">{draftErrors.map((error) => <p key={error}>{error}</p>)}</div>}
       <Button type="button" variant="outline" size="sm" className="w-full" onClick={addChoice}><Plus className="mr-1.5 size-3.5" /> Add choice</Button>
       <ChoiceAdvancedSettings members={members} allFields={fields} replaceFields={(nextMembers) => replaceMembers(members, nextMembers)} />
@@ -578,6 +583,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
   cancelSelection: () => void
 }) {
   const properties = field.properties ?? {}
+  const linkedLabel = isLinkedLabel(field)
   const setProperties = (patch: Partial<EditorFieldProperties>) => update({ properties: { ...properties, ...patch } })
   const conditional = properties.conditional
   const conditionalCandidates = fields
@@ -615,7 +621,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
   />
   return <div className="space-y-2 rounded-md border border-border bg-surface p-3 text-sm">
     <p className="text-xs font-medium uppercase tracking-wider text-foreground-subtle">Field properties</p>
-    <input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''}
+    <input className="w-full rounded border border-border bg-background px-2 py-1" value={field.label ?? ''} disabled={linkedLabel}
       onChange={(event) => update({ label: event.target.value })} placeholder="Label" />
     <input className="w-full rounded border border-border bg-background px-2 py-1" value={properties.data_label ?? ''}
       onChange={(event) => setProperties({ data_label: event.target.value })} placeholder="Data label" />
@@ -634,7 +640,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
     </label>}
     {(properties.read_only || field.fieldType === 'note') && field.fieldType === 'dropdown' && <select className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''} onChange={(event) => setProperties({ sender_prefill: event.target.value || undefined })}><option value="">No default</option>{(properties.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}
     {(properties.read_only || field.fieldType === 'note') && ['checkbox', 'radio'].includes(field.fieldType) && <label className="flex gap-2"><input type="checkbox" checked={properties.sender_prefill === 'true'} onChange={(event) => setProperties({ sender_prefill: event.target.checked ? 'true' : 'false' })} /> Selected by default</label>}
-    {(properties.read_only || field.fieldType === 'note') && !['checkbox', 'radio', 'dropdown'].includes(field.fieldType) && <input type={field.fieldType === 'date' ? 'date' : 'text'} className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''}
+    {(properties.read_only || field.fieldType === 'note') && !linkedLabel && !['checkbox', 'radio', 'dropdown'].includes(field.fieldType) && <input type={field.fieldType === 'date' ? 'date' : 'text'} className="w-full rounded border border-border bg-background px-2 py-1" value={properties.sender_prefill ?? ''}
       onChange={(event) => setProperties({ sender_prefill: event.target.value })} placeholder="Sender prefill" />}
     {field.fieldType === 'text' && <label className="flex gap-2"><input type="checkbox" checked={properties.multiline ?? false} onChange={(event) => setProperties({ multiline: event.target.checked })} /> Multiline</label>}
     {['text', 'number', 'date', 'company', 'title'].includes(field.fieldType) && <details>
@@ -687,7 +693,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
     {field.fieldType === 'attachment' && <fieldset className="space-y-1"><legend className="text-xs font-medium">Allowed file types</legend>{[
       ['application/pdf', 'PDF'], ['image/png', 'PNG'], ['image/jpeg', 'JPG'],
     ].map(([mime, label]) => <label key={mime} className="mr-3 inline-flex items-center gap-1"><input type="checkbox" checked={(properties.allowed_types ?? []).includes(mime)} onChange={(event) => setProperties({ allowed_types: event.target.checked ? [...new Set([...(properties.allowed_types ?? []), mime])] : (properties.allowed_types ?? []).filter((item) => item !== mime) })} /> {label}</label>)}</fieldset>}
-    <label className="block">Conditional behavior
+    {!linkedLabel && <label className="block">Conditional behavior
       <select className="mt-1 w-full rounded border border-border bg-background px-2 py-1"
         disabled={conditionalCandidates.length === 0}
         value={conditional ? conditional.action : 'none'} onChange={(event) => {
@@ -696,8 +702,8 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
         }}>
         <option value="none">Always visible</option><option value="show">Show when…</option><option value="require">Require when…</option>
       </select>
-    </label>
-    {conditional && <>
+    </label>}
+    {conditional && !linkedLabel && <>
       <select className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.parent_field_id}
         onChange={(event) => setProperties({ conditional: { ...conditional, parent_field_id: event.target.value } })}>
         {conditionalCandidates.map((item) => <option key={item.id} value={item.id}>{item.fieldType === 'radio' ? item.properties?.group?.label || item.label || 'Radio group' : item.label || FIELD_PREVIEW_LABELS[item.fieldType]}</option>)}
@@ -710,7 +716,7 @@ function PropertiesPanel({ field, fields, update, updateRadioGroup, remove, comm
       {!['not_empty', 'checked', 'unchecked'].includes(conditional.operator) && (conditionalChoices.length ? <select aria-label="Conditional choice" className="w-full rounded border border-border bg-background px-2 py-1" value={conditional.values?.[0] ?? ''} onChange={(event) => setProperties({ conditional: { ...conditional, values: event.target.value ? [event.target.value] : [] } })}><option value="">Choose a value…</option>{conditionalChoices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}</select> : <input className="w-full rounded border border-border bg-background px-2 py-1"
         value={(conditional.values ?? []).join(', ')} onChange={(event) => setProperties({ conditional: { ...conditional, values: event.target.value.split(',').map((v) => v.trim()).filter(Boolean) } })} placeholder="Value(s), comma separated" />)}
     </>}
-    <Button type="button" variant="outline" size="sm" className="w-full text-destructive" onClick={remove}><Trash2 className="mr-1.5 size-3.5" /> Remove</Button>
+    {!linkedLabel && <Button type="button" variant="outline" size="sm" className="w-full text-destructive" onClick={remove}><Trash2 className="mr-1.5 size-3.5" /> Remove</Button>}
   </div>
 }
 
@@ -872,7 +878,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     if (next === before) return
     past.current.push(before.map((field) => ({ ...field, properties: structuredClone(field.properties ?? {}) })))
     future.current = []
-    onChange(next)
+    onChange(reconcileLinkedLabels(next, newId))
   }, [fields, onChange])
   const undo = React.useCallback(() => {
     const previous = past.current.pop(); if (!previous) return
@@ -886,13 +892,28 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
 
   const removeSelected = React.useCallback(() => {
     if (!selectedIds.size) return
-    const dependents = fields.filter((field) => field.properties?.conditional?.parent_field_id && selectedIds.has(field.properties.conditional.parent_field_id))
-    const next = fields.filter((field) => !selectedIds.has(field.id)).map((field) => dependents.includes(field)
+    const removableIds = new Set([...selectedIds].filter((id) => {
+      const field = fields.find((candidate) => candidate.id === id)
+      return !!field && !isLinkedLabel(field)
+    }))
+    if (!removableIds.size) return
+    const dependents = fields.filter((field) => field.properties?.conditional?.parent_field_id && removableIds.has(field.properties.conditional.parent_field_id))
+    const next = fields.filter((field) => !removableIds.has(field.id)).map((field) => dependents.includes(field)
       ? { ...field, properties: { ...field.properties, conditional: undefined } } : field)
     commit(next); setSelectedIds(new Set())
   }, [commit, fields, selectedIds])
 
-  const duplicate = React.useCallback((source: EditorField[], offset = 0.016) => {
+  const duplicate = React.useCallback((requested: EditorField[], offset = 0.016) => {
+    const roots = requested.filter((field) => !isLinkedLabel(field))
+    const rootIds = new Set(roots.map((field) => field.id))
+    const radioGroupIds = new Set(roots.flatMap((field) => field.fieldType === 'radio' && field.properties?.group?.id ? [field.properties.group.id] : []))
+    const checkboxGroupIds = new Set(roots.flatMap((field) => field.fieldType === 'checkbox' && field.properties?.selection_group?.id ? [field.properties.selection_group.id] : []))
+    const source = [...roots, ...fields.filter((field) => {
+      const link = field.properties?.label_link
+      return !!link && (link.kind === 'field' && rootIds.has(link.source_id)
+        || link.kind === 'radio_group' && radioGroupIds.has(link.source_id) && fields.filter((candidate) => candidate.fieldType === 'radio' && candidate.properties?.group?.id === link.source_id).every((candidate) => rootIds.has(candidate.id))
+        || link.kind === 'checkbox_group' && checkboxGroupIds.has(link.source_id) && fields.filter((candidate) => candidate.fieldType === 'checkbox' && candidate.properties?.selection_group?.id === link.source_id).every((candidate) => rootIds.has(candidate.id)))
+    })]
     if (!source.length) return
     const idMap = new Map(source.map((field) => [field.id, newId()]))
     const fullRadioGroups = new Map<string, string>()
@@ -911,6 +932,9 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       const properties = structuredClone(field.properties ?? {})
       if (properties.group?.id && fullRadioGroups.has(properties.group.id)) properties.group.id = fullRadioGroups.get(properties.group.id)!
       if (properties.selection_group?.id && fullCheckboxGroups.has(properties.selection_group.id)) properties.selection_group.id = fullCheckboxGroups.get(properties.selection_group.id)!
+      if (properties.label_link?.kind === 'field' && idMap.has(properties.label_link.source_id)) properties.label_link.source_id = idMap.get(properties.label_link.source_id)!
+      if (properties.label_link?.kind === 'radio_group' && fullRadioGroups.has(properties.label_link.source_id)) properties.label_link.source_id = fullRadioGroups.get(properties.label_link.source_id)!
+      if (properties.label_link?.kind === 'checkbox_group' && fullCheckboxGroups.has(properties.label_link.source_id)) properties.label_link.source_id = fullCheckboxGroups.get(properties.label_link.source_id)!
       if (properties.conditional?.parent_field_id && idMap.has(properties.conditional.parent_field_id)) properties.conditional.parent_field_id = idMap.get(properties.conditional.parent_field_id)!
       if (properties.formula?.expression) for (const [oldId, id] of idMap) properties.formula.expression = properties.formula.expression.split(`[${oldId}]`).join(`[${id}]`)
       return { ...field, id: idMap.get(field.id)!, posX: clamp(field.posX + offset, 0, 1 - field.width), posY: clamp(field.posY + offset, 0, 1 - field.height), properties }
@@ -969,7 +993,8 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           required: draft.required, label: draft.label,
           properties: { schema_version: 2, options: draft.choices.map((choice) => ({ value: choice.id, label: choice.label.trim() })), sender_prefill: draft.defaultIds[0], data_label: `dropdown_${id.slice(0, 8)}` },
         }
-        commit([...fields, field]); setSelectedIds(new Set([id])); setChoicePlacement(null); setArmedType(null)
+        const next = draft.showLabels ? setChoiceLabelsEnabled([...fields, field], field, true, newId) : [...fields, field]
+        commit(next); setSelectedIds(new Set([id])); setChoicePlacement(null); setArmedType(null)
         return
       }
       const positions = [...choicePlacement.positions, position]
@@ -987,7 +1012,8 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           properties: { schema_version: 2, sender_prefill: draft.defaultIds.includes(choice.id) ? 'true' : 'false', data_label: `checkbox_${id.slice(0, 8)}`, selection_group: { id: groupId, label: draft.label.trim(), minimum_selected: draft.minimumSelected ?? 0, maximum_selected: draft.maximumSelected } },
         }
       })
-      commit([...fields, ...created]); setSelectedIds(new Set(created.map((field) => field.id))); setChoicePlacement(null); setArmedType(null)
+      const next = draft.showLabels ? setChoiceLabelsEnabled([...fields, ...created], created[0], true, newId) : [...fields, ...created]
+      commit(next); setSelectedIds(new Set(created.map((field) => field.id))); setChoicePlacement(null); setArmedType(null)
       return
     }
     const id = newId()
@@ -1017,6 +1043,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       defaultIds: [],
       minimumSelected: kind === 'checkbox-group' ? 1 : undefined,
       maximumSelected: undefined,
+      showLabels: false,
     })
   }
 
@@ -1240,10 +1267,10 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
               </button>}
             </React.Fragment>
           })}
-          {fields.filter((field) => field.documentId === activeDocument.id && field.pageNumber === pageIndex).map((field) => { const color = participantColor(participantIndexById.get(field.participantId) ?? 0); const selected = selectedIds.has(field.id); const selectedRadioGroup = selectedField?.fieldType === 'radio' ? selectedField.properties?.group?.id : undefined; const selectedCheckboxGroup = selectedField?.fieldType === 'checkbox' ? selectedField.properties?.selection_group?.id : undefined; const peer = !selected && (field.fieldType === 'radio' && !!selectedRadioGroup && field.properties?.group?.id === selectedRadioGroup || field.fieldType === 'checkbox' && !!selectedCheckboxGroup && field.properties?.selection_group?.id === selectedCheckboxGroup); const isConditionalParent = selectedField?.properties?.conditional?.parent_field_id === field.id; const canStyleText = supportsTextAppearance(field.fieldType); const appearance = field.properties?.appearance; const horizontalAlignment = appearance?.alignment ?? defaultFieldHorizontalAlignment(field.fieldType); const verticalAlignment = appearance?.vertical_alignment ?? DEFAULT_FIELD_VERTICAL_ALIGNMENT; const choiceLabel = field.fieldType === 'radio' || field.properties?.selection_group?.id ? field.label || field.properties?.option_value : field.fieldType === 'dropdown' ? field.label : undefined
+          {fields.filter((field) => field.documentId === activeDocument.id && field.pageNumber === pageIndex && (!field.properties?.label_link || field.properties.label_link.enabled)).map((field) => { const color = participantColor(participantIndexById.get(field.participantId) ?? 0); const selected = selectedIds.has(field.id); const selectedRadioGroup = selectedField?.fieldType === 'radio' ? selectedField.properties?.group?.id : undefined; const selectedCheckboxGroup = selectedField?.fieldType === 'checkbox' ? selectedField.properties?.selection_group?.id : undefined; const peer = !selected && (field.fieldType === 'radio' && !!selectedRadioGroup && field.properties?.group?.id === selectedRadioGroup || field.fieldType === 'checkbox' && !!selectedCheckboxGroup && field.properties?.selection_group?.id === selectedCheckboxGroup); const isConditionalParent = selectedField?.properties?.conditional?.parent_field_id === field.id; const canStyleText = supportsTextAppearance(field.fieldType); const appearance = field.properties?.appearance; const horizontalAlignment = appearance?.alignment ?? defaultFieldHorizontalAlignment(field.fieldType); const verticalAlignment = appearance?.vertical_alignment ?? DEFAULT_FIELD_VERTICAL_ALIGNMENT; const linkedLabel = isLinkedLabel(field); const choiceLabel = linkedLabel ? field.properties?.sender_prefill : field.fieldType === 'radio' || field.properties?.selection_group?.id ? field.label || field.properties?.option_value : field.fieldType === 'dropdown' ? field.label : undefined
             return <div key={field.id} id={`esign-editor-field-${field.id}`} onPointerDown={(event) => startInteraction(event, field, 'move', size)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
               className={cn('absolute flex touch-none select-none items-center justify-center overflow-visible rounded-sm border text-[10px] font-medium', selected && 'ring-2 ring-offset-1', peer && 'ring-2 ring-primary/50 ring-offset-1', isConditionalParent && 'ring-2 ring-fuchsia-500 ring-offset-1')}
-              style={{ left: field.posX * size.width, top: field.posY * size.height, width: field.width * size.width, height: field.height * size.height, borderColor: color.border, backgroundColor: color.bg, color: canStyleText && appearance?.color ? appearance.color : color.text, cursor: 'move', justifyContent: ({ left: 'flex-start', center: 'center', right: 'flex-end' } as const)[horizontalAlignment], alignItems: ({ top: 'flex-start', middle: 'center', bottom: 'flex-end' } as const)[verticalAlignment], textAlign: horizontalAlignment, fontFamily: canStyleText ? textFontFamily(appearance?.font) : undefined, fontSize: canStyleText ? configuredTextFontSize(appearance?.font_size, size.scale, field.height * size.height) : undefined, fontWeight: canStyleText && appearance?.bold ? 700 : undefined, fontStyle: canStyleText && appearance?.italic ? 'italic' : undefined, textDecoration: canStyleText && appearance?.underline ? 'underline' : undefined }}>
+              style={{ left: field.posX * size.width, top: field.posY * size.height, width: field.width * size.width, height: field.height * size.height, borderColor: linkedLabel && !selected ? 'transparent' : color.border, backgroundColor: linkedLabel && !selected ? 'transparent' : color.bg, color: canStyleText && appearance?.color ? appearance.color : linkedLabel ? '#000000' : color.text, cursor: 'move', justifyContent: ({ left: 'flex-start', center: 'center', right: 'flex-end' } as const)[horizontalAlignment], alignItems: ({ top: 'flex-start', middle: 'center', bottom: 'flex-end' } as const)[verticalAlignment], textAlign: horizontalAlignment, fontFamily: canStyleText ? textFontFamily(appearance?.font) : undefined, fontSize: canStyleText ? configuredTextFontSize(appearance?.font_size, size.scale, field.height * size.height) : undefined, fontWeight: canStyleText && appearance?.bold ? 700 : undefined, fontStyle: canStyleText && appearance?.italic ? 'italic' : undefined, textDecoration: canStyleText && appearance?.underline ? 'underline' : undefined }}>
               <span className="pointer-events-none truncate px-1">{choiceLabel || FIELD_PREVIEW_LABELS[field.fieldType]}</span>{choiceLabel && (field.fieldType === 'radio' || field.properties?.selection_group?.id) && <span className="pointer-events-none absolute -left-1 -top-4 max-w-36 truncate rounded bg-surface px-1 text-[9px] shadow">{choiceLabel}</span>}{field.properties?.conditional && <span className="absolute -right-1 -top-1 size-2 rounded-full bg-fuchsia-500" />}
               {selected && HANDLES.map((handle) => <span key={handle} onPointerDown={(event) => startInteraction(event, field, 'resize', size, handle)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
                 className="absolute size-2 rounded-[1px] border border-white bg-primary" style={{ cursor: `${handle}-resize`, left: handle.includes('w') ? -4 : handle.includes('e') ? 'calc(100% - 4px)' : 'calc(50% - 4px)', top: handle.includes('n') ? -4 : handle.includes('s') ? 'calc(100% - 4px)' : 'calc(50% - 4px)' }} />)}

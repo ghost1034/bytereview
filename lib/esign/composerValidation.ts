@@ -16,6 +16,7 @@ export interface ComposerField {
   participantId: string
   fieldType: EsignFieldType
   required: boolean
+  label?: string
   properties?: {
     options?: Array<{ value: string; label: string }>
     group?: { id: string; label?: string }
@@ -28,6 +29,7 @@ export interface ComposerField {
     read_only?: boolean
     allowed_types?: string[]
     selection_group?: { id: string; label: string; minimum_selected?: number; maximum_selected?: number; validation_message?: string }
+    label_link?: { kind: 'field' | 'radio_group' | 'checkbox_group'; source_id: string; enabled: boolean }
   }
 }
 
@@ -113,6 +115,51 @@ export function collectFieldIssues(
     if (radioGroup) radioGroups.set(radioGroup, [...(radioGroups.get(radioGroup) ?? []), field])
     const checkboxGroup = field.fieldType === 'checkbox' ? field.properties?.selection_group?.id : undefined
     if (checkboxGroup) checkboxGroups.set(checkboxGroup, [...(checkboxGroups.get(checkboxGroup) ?? []), field])
+  }
+  const linkedLabels = new Map<string, ComposerField>()
+  const labelVisibility = new Map<string, Set<boolean>>()
+  for (const field of fields) {
+    const link = field.properties?.label_link
+    if (!link) continue
+    const key = `${link.kind}:${link.source_id}`
+    if (field.fieldType !== 'note') issues.push({ id: `generated-label-type-${field.id}`, fieldId: field.id, message: 'Generated label links are only valid on note fields.' })
+    if (linkedLabels.has(key)) issues.push({ id: `generated-label-duplicate-${field.id}`, fieldId: field.id, message: 'Generated document label is duplicated.' })
+    else linkedLabels.set(key, field)
+    let source: ComposerField | undefined
+    let canonical = ''
+    let groupKey: string | undefined
+    if (link.kind === 'field') {
+      source = fields.find((candidate) => candidate.id === link.source_id)
+      if (source?.fieldType === 'dropdown') canonical = source.label ?? ''
+      else if (source?.fieldType === 'radio') {
+        canonical = source.label ?? source.properties?.option_value ?? ''
+        groupKey = `radio_group:${source.properties?.group?.id ?? ''}`
+      } else if (source?.fieldType === 'checkbox' && source.properties?.selection_group) {
+        canonical = source.label ?? ''
+        groupKey = `checkbox_group:${source.properties.selection_group.id}`
+      } else source = undefined
+    } else {
+      const members = link.kind === 'radio_group' ? radioGroups.get(link.source_id) : checkboxGroups.get(link.source_id)
+      source = members?.[0]
+      canonical = link.kind === 'radio_group' ? source?.properties?.group?.label ?? '' : source?.properties?.selection_group?.label ?? ''
+      groupKey = key
+    }
+    if (!source) issues.push({ id: `generated-label-source-${field.id}`, fieldId: field.id, message: 'Generated document label references a missing choice field or group.' })
+    else {
+      if (source.participantId !== field.participantId) issues.push({ id: `generated-label-owner-${field.id}`, fieldId: field.id, message: 'Generated document label must share its source recipient.' })
+      if (field.properties?.sender_prefill !== canonical) issues.push({ id: `generated-label-stale-${field.id}`, fieldId: field.id, message: 'Generated document label text is out of date.' })
+    }
+    if (groupKey) labelVisibility.set(groupKey, new Set([...(labelVisibility.get(groupKey) ?? []), link.enabled]))
+  }
+  for (const [groupKey, states] of labelVisibility) {
+    const separator = groupKey.indexOf(':')
+    const kind = groupKey.slice(0, separator) as 'radio_group' | 'checkbox_group'
+    const group = groupKey.slice(separator + 1)
+    const members = kind === 'radio_group' ? radioGroups.get(group) ?? [] : checkboxGroups.get(group) ?? []
+    if (states.size > 1) issues.push({ id: `generated-label-visibility-${group}`, fieldId: members[0]?.id, message: 'Group document labels must share one visibility state.' })
+    if (!linkedLabels.has(groupKey) || members.some((member) => !linkedLabels.has(`field:${member.id}`))) {
+      issues.push({ id: `generated-label-incomplete-${group}`, fieldId: members[0]?.id, message: 'Group document labels are incomplete.' })
+    }
   }
   for (const [group, members] of radioGroups) {
     if (new Set(members.map((field) => field.participantId)).size > 1 || new Set(members.map((field) => field.required)).size > 1 || new Set(members.map((field) => field.properties?.group?.label ?? '')).size > 1) {

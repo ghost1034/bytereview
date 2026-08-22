@@ -23,7 +23,7 @@ VALID_PROPERTIES = {
     "first_name": {}, "last_name": {}, "full_name": {}, "email": {},
     "company": {"text_validation": {"max_length": 100}},
     "title": {"sender_prefill": "Controller"},
-    "note": {"sender_prefill": "Read this note"},
+    "note": {"sender_prefill": "Read this note", "label_link": {"kind": "field", "source_id": "dropdown-id", "enabled": True}},
 }
 
 

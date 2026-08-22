@@ -44,7 +44,7 @@ describe('choice field adapters', () => {
     expect(createChoice('One', () => 'fixed')).toEqual({ id: 'option_fixed', label: 'One' })
     expect(validateChoiceDraft({
       kind: 'checkbox-group', label: 'Pick', participantId: 'p', required: true,
-      choices: [{ id: 'same', label: '' }, { id: 'same', label: 'Two' }], defaultIds: [], minimumSelected: 3, maximumSelected: 1,
+      choices: [{ id: 'same', label: '' }, { id: 'same', label: 'Two' }], defaultIds: [], minimumSelected: 3, maximumSelected: 1, showLabels: false,
     })).toEqual(expect.arrayContaining([
       'Every choice needs a name.', 'Choices must have unique stored values.',
       'The minimum cannot exceed the maximum.', 'Selection limits cannot exceed the number of choices.',

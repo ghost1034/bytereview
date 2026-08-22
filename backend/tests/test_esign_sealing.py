@@ -146,6 +146,35 @@ class EsignSealingPipelineTests(unittest.TestCase):
         with fitz.open(stream=flattened, filetype="pdf") as result:
             self.assertEqual(list(result[0].widgets() or []), [])
 
+    def test_flatten_skips_disabled_generated_labels_only(self) -> None:
+        from models.db_models import EsignFieldType
+        from services.esign.sealing_service import EsignSealingService
+
+        source = fitz.open()
+        source.new_page(width=612, height=792)
+        source_bytes = source.tobytes()
+        source.close()
+        document_id = uuid.uuid4()
+        recipient_id = uuid.uuid4()
+        document = NS(id=document_id, gcs_object_name="source.pdf")
+        fields = [
+            NS(id=uuid.uuid4(), document_id=document_id, recipient_id=recipient_id,
+               field_type=EsignFieldType.NOTE, page_number=0, pos_x=0.1, pos_y=0.1,
+               width=0.3, height=0.05, value=None, label="Enabled",
+               properties={"sender_prefill": "Enabled generated label", "label_link": {"kind": "field", "source_id": "source-a", "enabled": True}}),
+            NS(id=uuid.uuid4(), document_id=document_id, recipient_id=recipient_id,
+               field_type=EsignFieldType.NOTE, page_number=0, pos_x=0.1, pos_y=0.2,
+               width=0.3, height=0.05, value=None, label="Disabled",
+               properties={"sender_prefill": "Disabled generated label", "label_link": {"kind": "field", "source_id": "source-b", "enabled": False}}),
+        ]
+        service = EsignSealingService.__new__(EsignSealingService)
+        service._download_bytes = lambda _name: source_bytes
+        flattened = asyncio.run(service._flatten_document(document, fields, {}, {}, {}))
+        with fitz.open(stream=flattened, filetype="pdf") as result:
+            text = result[0].get_text()
+        self.assertIn("Enabled generated label", text)
+        self.assertNotIn("Disabled generated label", text)
+
     def test_seal_and_verify_round_trip(self) -> None:
         from services.esign.verification_service import esign_verification_service
 

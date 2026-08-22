@@ -10938,6 +10938,7 @@ export interface components {
             date_validation?: components["schemas"]["DateValidation"] | null;
             selection_validation?: components["schemas"]["SelectionValidation"] | null;
             appearance?: components["schemas"]["FieldAppearance"] | null;
+            label_link?: components["schemas"]["GeneratedLabelLink"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -12583,6 +12584,21 @@ export interface components {
              * @default 2
              */
             decimal_places: number;
+        };
+        /** GeneratedLabelLink */
+        GeneratedLabelLink: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "field" | "radio_group" | "checkbox_group";
+            /** Source Id */
+            source_id: string;
+            /**
+             * Enabled
+             * @default false
+             */
+            enabled: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {

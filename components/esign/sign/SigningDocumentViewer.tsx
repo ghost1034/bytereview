@@ -74,10 +74,27 @@ export function SigningDocumentViewer({
   if (!pdf) return <div className="flex items-center justify-center py-16 text-foreground-muted"><Loader2 className="mr-2 size-4 animate-spin" /> Loading {name}…</div>
 
   const color = participantColor(0)
+  const selectRadio = (field: EsignFieldResponse, focus = false) => {
+    const group = field.properties?.group?.id
+    fields.filter((item) => item.field_type === 'radio' && item.properties?.group?.id === group).forEach((item) => onTextChange(item.id, item.id === field.id ? 'true' : 'false'))
+    if (focus) document.getElementById(`esign-field-${field.id}`)?.focus()
+  }
+  const handleRadioKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, field: EsignFieldResponse) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const group = field.properties?.group?.id
+    const members = fields.filter((item) => item.field_type === 'radio' && item.properties?.group?.id === group)
+    const current = members.findIndex((item) => item.id === field.id)
+    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? members.length - 1
+      : (current + (event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : 1) + members.length) % members.length
+    if (members[nextIndex]) selectRadio(members[nextIndex], true)
+  }
   return <div className="space-y-4">
     {Array.from({ length: pdf.numPages }, (_, pageIndex) => <div key={pageIndex} className="mx-auto w-full max-w-3xl">
       <PdfPageCanvas pdf={pdf} pageNumber={pageIndex + 1} overlay={(size) => <div className="absolute inset-0">
-        {fields.filter((field) => field.page_number === pageIndex).map((field) => {
+        {[...new Map(fields.filter((field) => field.page_number === pageIndex && field.field_type === 'radio' && field.properties?.group?.id).map((field) => [field.properties!.group!.id, field])).values()].map((field) => <div key={`radio-group-${field.properties!.group!.id}`} role="radiogroup" aria-label={field.properties!.group!.label || 'Choose one'} aria-owns={fields.filter((member) => member.field_type === 'radio' && member.properties?.group?.id === field.properties!.group!.id).map((member) => `esign-field-${member.id}`).join(' ')} className="sr-only" />)}
+        {[...new Map(fields.filter((field) => field.page_number === pageIndex && field.field_type === 'checkbox' && field.properties?.selection_group?.id).map((field) => [field.properties!.selection_group!.id, field])).values()].map((field) => <div key={`checkbox-group-${field.properties!.selection_group!.id}`} role="group" aria-label={field.properties!.selection_group!.label || 'Choose options'} aria-owns={fields.filter((member) => member.field_type === 'checkbox' && member.properties?.selection_group?.id === field.properties!.selection_group!.id).map((member) => `esign-field-${member.id}`).join(' ')} className="sr-only" />)}
+        {fields.filter((field) => field.page_number === pageIndex && (!field.properties?.label_link || field.properties.label_link.enabled)).map((field) => {
           const pdfFontSize = field.properties?.appearance?.font_size
           const renderedFieldHeight = field.height * size.height
           const horizontalAlignment = field.properties?.appearance?.alignment
@@ -147,18 +164,16 @@ export function SigningDocumentViewer({
             const display = field.field_type === 'dropdown'
               ? field.properties.options?.find((option) => option.value === raw)?.label ?? raw
               : raw === 'true' ? (field.field_type === 'checkbox' ? 'X' : '●') : ''
-            return <div key={field.id} id={`esign-field-${field.id}`} title={tooltip} className="absolute flex items-center justify-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{display}</div>
+            return <div key={field.id} id={`esign-field-${field.id}`} title={tooltip} role={field.field_type === 'radio' ? 'radio' : field.field_type === 'checkbox' ? 'checkbox' : undefined} aria-checked={field.field_type === 'radio' || field.field_type === 'checkbox' ? raw === 'true' : undefined} aria-label={field.label || field.properties?.group?.label || field.properties?.selection_group?.label} className="absolute flex items-center justify-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{display}</div>
           }
           if (field.field_type === 'checkbox') {
             const checked = fieldValues[field.id] === 'true'
-            return <button key={field.id} id={`esign-field-${field.id}`} title={tooltip} aria-label={field.label || field.properties?.selection_group?.label || 'Checkbox'} aria-pressed={checked} type="button" onClick={() => onTextChange(field.id, checked ? 'false' : 'true')} className={cn('absolute flex items-center justify-center rounded-sm border text-sm font-bold', checked ? 'border-success bg-surface text-foreground' : 'border-2', activeRing)} style={{ ...style, ...(checked ? {} : { borderColor: color.border, backgroundColor: color.bg }) }}>{checked ? 'X' : ''}</button>
+            return <button key={field.id} id={`esign-field-${field.id}`} title={tooltip} role="checkbox" aria-label={field.label || field.properties?.selection_group?.label || 'Checkbox'} aria-checked={checked} type="button" onClick={() => onTextChange(field.id, checked ? 'false' : 'true')} className={cn('absolute flex items-center justify-center rounded-sm border text-sm font-bold', checked ? 'border-success bg-surface text-foreground' : 'border-2', activeRing)} style={{ ...style, ...(checked ? {} : { borderColor: color.border, backgroundColor: color.bg }) }}>{checked ? 'X' : ''}</button>
           }
           if (field.field_type === 'radio') {
             const selected = fieldValues[field.id] === 'true'
-            return <button key={field.id} id={`esign-field-${field.id}`} type="button" aria-pressed={selected} aria-label={field.label || field.properties?.option_value || 'Radio option'} onClick={() => {
-              const group = field.properties?.group?.id
-              fields.filter((item) => item.field_type === 'radio' && item.properties?.group?.id === group).forEach((item) => onTextChange(item.id, item.id === field.id ? 'true' : 'false'))
-            }} className={cn('absolute flex items-center justify-center rounded-full border-2', activeRing)} style={{ ...style, borderColor: color.border, backgroundColor: 'white' }}>{selected && <span className="size-2/3 rounded-full" style={{ backgroundColor: color.border }} />}</button>
+            const firstInGroup = fields.find((item) => item.field_type === 'radio' && item.properties?.group?.id === field.properties?.group?.id)?.id === field.id
+            return <button key={field.id} id={`esign-field-${field.id}`} type="button" role="radio" aria-checked={selected} tabIndex={selected || firstInGroup ? 0 : -1} aria-label={field.label || field.properties?.option_value || 'Radio option'} onClick={() => selectRadio(field)} onKeyDown={(event) => handleRadioKeyDown(event, field)} className={cn('absolute flex items-center justify-center rounded-full border-2', activeRing)} style={{ ...style, borderColor: color.border, backgroundColor: 'white' }}>{selected && <span className="size-2/3 rounded-full" style={{ backgroundColor: color.border }} />}</button>
           }
           if (field.field_type === 'dropdown') {
             return <select key={field.id} id={`esign-field-${field.id}`} title={tooltip} aria-label={field.label || 'Select an option'} value={fieldValues[field.id] ?? ''} onChange={(event) => onTextChange(field.id, event.target.value)} className={cn('absolute rounded-sm border-2 bg-surface px-1 text-xs text-foreground', activeRing)} style={{ ...style, ...controlVerticalPadding, boxSizing: 'border-box', borderColor: color.border }}><option value="">Select…</option>{(field.properties?.options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
@@ -176,6 +191,7 @@ export function SigningDocumentViewer({
             const display = field.properties?.auto_source === 'date_sent' && value ? formatDateSigned(new Date(`${value}T00:00:00`), dateFormat) : value
             return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{display}</div>
           }
+          if (field.properties?.label_link) return <div key={field.id} id={`esign-field-${field.id}`} aria-hidden="true" className="absolute flex items-center overflow-hidden px-1 text-xs" style={style}>{field.properties.sender_prefill ?? ''}</div>
           if (field.field_type === 'note' || field.properties?.read_only || ['first_name', 'last_name', 'full_name', 'email'].includes(field.field_type)) return <div key={field.id} id={`esign-field-${field.id}`} className="absolute flex items-center overflow-hidden rounded-sm border bg-surface-muted px-1 text-xs text-foreground" style={style}>{fieldValues[field.id] ?? field.properties?.sender_prefill ?? ''}</div>
           const controlProps = {
             id: `esign-field-${field.id}`, title: tooltip,

@@ -601,6 +601,9 @@ class EsignSealingService:
             for field in fields:
                 if str(field.document_id) != str(document.id):
                     continue
+                label_link = (getattr(field, "properties", None) or {}).get("label_link")
+                if label_link and not label_link.get("enabled", False):
+                    continue
                 page_index = int(field.page_number)
                 if page_index < 0 or page_index >= pdf.page_count:
                     logger.warning(
