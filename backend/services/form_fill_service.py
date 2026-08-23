@@ -966,20 +966,7 @@ class FormFillService:
 
         from services.billing_service import get_billing_service
 
-        billing_service = get_billing_service(db)
-        if billing_service.check_page_limit(user_id, page_count):
-            return
-
-        billing_info = billing_service.get_billing_info(user_id)
-        plan_name = billing_info.get("plan_display_name") or "current"
-        pages_used = int(billing_info.get("pages_used") or 0)
-        pages_included = int(billing_info.get("pages_included") or 0)
-        pages_remaining = max(0, pages_included - pages_used)
-        raise ValueError(
-            f"Cannot start Form Fill: processing {page_count} target pages would exceed your {plan_name} plan limit. "
-            f"You have {pages_remaining} pages remaining out of {pages_included}. "
-            "Please upgrade your plan or reduce the number of target pages."
-        )
+        get_billing_service(db).require_limit(user_id, "page", page_count)
 
     def _record_usage_for_run(self, db: Session, run: FormFillRun) -> None:
         usage_pages = int(run.usage_pages or 0)
@@ -991,8 +978,11 @@ class FormFillService:
         try:
             event_id = get_billing_service(db).record_usage(
                 user_id=run.user_id,
-                pages=usage_pages,
+                product="form_fill",
                 source="form_fill_run",
+                unit="page",
+                quantity=usage_pages,
+                operation_id=str(run.id),
                 form_fill_run_id=str(run.id),
                 notes=f"Form Fill run for target {run.target_filename}",
             )

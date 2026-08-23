@@ -44,7 +44,6 @@ class HostedStatusResponse(BaseModel):
     entitled: bool
     allowed_products: list[Product] = []
     allowed_model_aliases: list[str] = []
-    monthly_budget_usd: Decimal = Decimal("0")
     linked: bool = False
     workspace_name: Optional[str] = None
     slack_user_id: Optional[str] = None
@@ -52,8 +51,6 @@ class HostedStatusResponse(BaseModel):
     config: Optional[HostedConfigResponse] = None
     runtime_status: str = "stopped"
     runtime_last_activity_at: Optional[datetime] = None
-    usage_cost_usd: Decimal = Decimal("0")
-    usage_turns: int = 0
 
 
 class SlackInstallResponse(BaseModel):

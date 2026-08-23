@@ -89,7 +89,7 @@ export function HostedClawCard() {
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface-muted/40 p-4">
             <div>
               <p className="text-sm font-medium">{status.linked ? `Linked to ${status.workspace_name || 'Slack'}` : 'Slack is not linked'}</p>
-              <p className="mt-1 text-xs text-foreground-muted">Runtime: {status.runtime_status} · {status.usage_turns} turns · ${Number(status.usage_cost_usd).toFixed(2)} used {Number(status.monthly_budget_usd) > 0 ? `of $${Number(status.monthly_budget_usd).toFixed(2)} this month` : '(no monthly cap)'}</p>
+              <p className="mt-1 text-xs text-foreground-muted">Runtime: {status.runtime_status}. AI tokens are included in your platform-wide Billing &amp; Usage totals.</p>
             </div>
             {status.linked ? (
               <div className="flex flex-wrap gap-2">

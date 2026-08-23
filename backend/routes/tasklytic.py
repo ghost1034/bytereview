@@ -41,7 +41,7 @@ from models.tasklytic import (
     TasklyticWorkspaceMember,
 )
 from services.email_service import email_service
-from services.billing_service import PlanLimitExceeded
+from services.billing_service import PlanLimitExceeded, billing_limit_http_exception
 from services.gcs_service import get_storage_service
 from services.rate_limit import rate_limiter
 from services.tasklytic_ai_service import generate_tasklytic_response
@@ -1172,7 +1172,18 @@ async def extract_expense_receipt(
         raise HTTPException(status_code=403, detail="Receipt upload is unavailable")
     blob = get_storage_service().bucket.blob(upload.object_name)
     content = await asyncio.to_thread(blob.download_as_bytes)
-    return extract_receipt(content, upload.mime_type)
+    try:
+        from services.billing_service import BillingService
+        BillingService(db).require_limit(token["uid"], "token", 1)
+        return extract_receipt(
+            content,
+            upload.mime_type,
+            db=db,
+            user_id=token["uid"],
+            operation_id=str(upload.id),
+        )
+    except PlanLimitExceeded as exc:
+        raise billing_limit_http_exception(exc) from exc
 
 
 @router.post("/billing/invoices/{invoice_id}:payment-link")
@@ -1471,7 +1482,7 @@ async def ai_generate(body: dict[str, Any] = Body(...), token: dict = Depends(ve
         raise HTTPException(status_code=422, detail=str(exc))
     except PlanLimitExceeded as exc:
         db.rollback()
-        raise HTTPException(status_code=402, detail=str(exc))
+        raise billing_limit_http_exception(exc) from exc
     except HTTPException:
         db.rollback()
         raise

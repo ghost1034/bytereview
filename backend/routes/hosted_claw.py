@@ -110,6 +110,7 @@ from services.hosted_claw_cron import (
     reconcile_schedules,
     recover_expired_occurrences,
 )
+from services.billing_service import BillingService
 
 
 def _lock_hosted_user_work(db: Session, user_id: str) -> None:
@@ -546,18 +547,12 @@ async def status(user_id: str = Depends(get_current_user_id), db: Session = Depe
         HostedClawProductSession.user_id == user_id,
         HostedClawProductSession.product == config.active_product,
     ).first()
-    period = date.today().replace(day=1)
-    usage = db.query(HostedClawUsageSummary).filter(
-        HostedClawUsageSummary.user_id == user_id,
-        HostedClawUsageSummary.period_start == period,
-    ).first()
     db.commit()
     return HostedStatusResponse(
         feature_enabled=hosted_enabled(),
         entitled=True,
         allowed_products=list(entitlement.allowed_products or []),
         allowed_model_aliases=list(entitlement.allowed_model_aliases or []),
-        monthly_budget_usd=entitlement.monthly_budget_usd or Decimal("0"),
         linked=link is not None,
         workspace_name=installation.team_name if installation else None,
         slack_user_id=link.slack_user_id if link else None,
@@ -569,8 +564,6 @@ async def status(user_id: str = Depends(get_current_user_id), db: Session = Depe
         config=_config_response(config),
         runtime_status=str(session.status) if session else "stopped",
         runtime_last_activity_at=session.last_activity_at if session else None,
-        usage_cost_usd=usage.cost_usd if usage else Decimal("0"),
-        usage_turns=int(usage.turns) if usage else 0,
     )
 
 
@@ -1194,18 +1187,12 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks, db: 
             _event_reply(event, "Hosted Claw is not enabled for this CPAAutomation account."),
         )
         return {"ok": True}
-    period = date.today().replace(day=1)
-    usage_cost = db.query(HostedClawUsageSummary.cost_usd).filter(
-        HostedClawUsageSummary.user_id == link.user_id,
-        HostedClawUsageSummary.period_start == period,
-    ).scalar() or Decimal("0")
-    monthly_budget = Decimal(entitlement.monthly_budget_usd or 0)
-    if monthly_budget > 0 and Decimal(usage_cost) >= monthly_budget:
+    if not BillingService(db).check_limit(str(link.user_id), "token", 1):
         background_tasks.add_task(
             slack_api,
             installation,
             "chat.postMessage",
-            _event_reply(event, "Your Hosted Claw monthly model budget is exhausted."),
+            _event_reply(event, "Your token allowance is exhausted. Upgrade to continue using Hosted Claw."),
         )
         return {"ok": True}
     files = event.get("files") or []
@@ -1458,15 +1445,11 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
         db.commit()
         return WorkerClaimResponse(job=None)
     period = date.today().replace(day=1)
-    usage_cost = db.query(HostedClawUsageSummary.cost_usd).filter(
-        HostedClawUsageSummary.user_id == job.user_id,
-        HostedClawUsageSummary.period_start == period,
-    ).scalar() or Decimal("0")
-    monthly_budget = Decimal(entitlement.monthly_budget_usd or 0)
-    remaining_budget = max(Decimal("0"), monthly_budget - Decimal(usage_cost)) if monthly_budget > 0 else Decimal("0")
-    if monthly_budget > 0 and remaining_budget <= 0:
+    monthly_budget = Decimal("0")
+    remaining_budget = Decimal("0")
+    if not BillingService(db).check_limit(str(job.user_id), "token", 1):
         job.status = "failed"
-        job.error_code = "budget_exhausted"
+        job.error_code = "billing_limit_exceeded"
         job.completed_at = now
         db.commit()
         try:
@@ -1484,11 +1467,11 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
                     {
                         "channel": notice_payload["channel_id"],
                         "thread_ts": notice_payload.get("thread_ts"),
-                        "text": "Your Hosted Claw monthly model budget is exhausted.",
+                        "text": "Your token allowance is exhausted. Upgrade to continue using Hosted Claw.",
                     },
                 )
         except Exception:
-            logger.warning("Could not deliver hosted budget exhaustion notice job_id=%s", job.id)
+            logger.warning("Could not deliver hosted token-limit notice job_id=%s", job.id)
         return WorkerClaimResponse(job=None)
     session = db.query(HostedClawProductSession).filter(
         HostedClawProductSession.user_id == job.user_id,
@@ -1534,7 +1517,7 @@ async def claim_job(body: WorkerClaimRequest, db: Session = Depends(get_db)):
 
 @internal_router.post("/cron/occurrences/claim", response_model=WorkerCronClaimResponse)
 async def claim_cron_occurrence(body: WorkerClaimRequest, db: Session = Depends(get_db)):
-    """Claim scheduled work through the same admission and budget path as a turn."""
+    """Claim scheduled work through the same token-quota admission path as a turn."""
     _require_feature()
     if not cron_enabled():
         return WorkerCronClaimResponse(occurrence=None)
@@ -1612,18 +1595,14 @@ async def claim_cron_occurrence(body: WorkerClaimRequest, db: Session = Depends(
         return WorkerCronClaimResponse(occurrence=None)
 
     period = date.today().replace(day=1)
-    usage_cost = db.query(HostedClawUsageSummary.cost_usd).filter(
-        HostedClawUsageSummary.user_id == occurrence.user_id,
-        HostedClawUsageSummary.period_start == period,
-    ).scalar() or Decimal("0")
-    monthly_budget = Decimal(entitlement.monthly_budget_usd or 0)
-    remaining_budget = max(Decimal("0"), monthly_budget - Decimal(usage_cost)) if monthly_budget > 0 else Decimal("0")
-    if monthly_budget > 0 and remaining_budget <= 0:
+    monthly_budget = Decimal("0")
+    remaining_budget = Decimal("0")
+    if not BillingService(db).check_limit(str(occurrence.user_id), "token", 1):
         occurrence.status = "rejected"
-        occurrence.error_code = "budget_exhausted"
+        occurrence.error_code = "billing_limit_exceeded"
         occurrence.completed_at = now
         db.commit()
-        logger.warning("hosted_cron_rejected occurrence_id=%s code=budget_exhausted", occurrence.id)
+        logger.warning("hosted_cron_rejected occurrence_id=%s code=billing_limit_exceeded", occurrence.id)
         link, installation = active_slack_context(db, str(occurrence.user_id))
         if link and installation:
             try:
@@ -1633,7 +1612,7 @@ async def claim_cron_occurrence(body: WorkerClaimRequest, db: Session = Depends(
                     await slack_api(
                         installation,
                         "chat.postMessage",
-                        {"channel": channel, "text": "Your Hosted Claw monthly model budget is exhausted; this scheduled job was not run."},
+                        {"channel": channel, "text": "Your token allowance is exhausted; this scheduled job was not run."},
                     )
             except Exception:
                 logger.warning("hosted_cron_rejection_delivery_failed occurrence_id=%s", occurrence.id)
@@ -1776,6 +1755,20 @@ async def complete_cron_occurrence_worker(
         usage.turns = int(usage.turns or 0) + 1
         occurrence.cost_usd = body.cost_usd
         occurrence.usage_accounted_at = now
+        BillingService(db).record_usage(
+            user_id=str(occurrence.user_id),
+            product="hosted_claw",
+            source="hosted_claw_cron",
+            unit="token",
+            quantity=int(body.prompt_tokens) + int(body.completion_tokens),
+            operation_id=str(occurrence.id),
+            token_details={
+                "prompt_tokens": body.prompt_tokens,
+                "output_tokens": body.completion_tokens,
+                "total_tokens": int(body.prompt_tokens) + int(body.completion_tokens),
+            },
+            commit=False,
+        )
     session = db.query(HostedClawProductSession).filter(
         HostedClawProductSession.runtime_id == occurrence.runtime_id,
         HostedClawProductSession.worker_id == worker_id,
@@ -1907,6 +1900,20 @@ async def complete_job(job_id: str, body: JobCompletionRequest, worker_id: str, 
     usage.completion_tokens = int(usage.completion_tokens or 0) + body.completion_tokens
     usage.cost_usd = Decimal(usage.cost_usd or 0) + body.cost_usd
     usage.turns = int(usage.turns or 0) + 1
+    BillingService(db).record_usage(
+        user_id=str(job.user_id),
+        product="hosted_claw",
+        source="hosted_claw_job",
+        unit="token",
+        quantity=int(body.prompt_tokens) + int(body.completion_tokens),
+        operation_id=str(job.id),
+        token_details={
+            "prompt_tokens": body.prompt_tokens,
+            "output_tokens": body.completion_tokens,
+            "total_tokens": int(body.prompt_tokens) + int(body.completion_tokens),
+        },
+        commit=False,
+    )
     db.commit()
     return HostedCommandResponse(message="Job completion recorded.")
 
@@ -2409,15 +2416,6 @@ async def hosted_health(_: Any = Depends(require_system_admin), db: Session = De
         HostedClawJob.created_at >= recent_cutoff,
         HostedClawJob.error_code == "runtime_failure",
     ).count()
-    period = date.today().replace(day=1)
-    budget_exhausted = db.query(HostedClawUsageSummary).join(
-        HostedClawEntitlement,
-        HostedClawEntitlement.user_id == HostedClawUsageSummary.user_id,
-    ).filter(
-        HostedClawUsageSummary.period_start == period,
-        HostedClawEntitlement.monthly_budget_usd > 0,
-        HostedClawUsageSummary.cost_usd >= HostedClawEntitlement.monthly_budget_usd,
-    ).count()
     return {
         "enabled": hosted_enabled(),
         "workers": [
@@ -2428,5 +2426,4 @@ async def hosted_health(_: Any = Depends(require_system_admin), db: Session = De
         "oldest_queue_age_seconds": max(0, int((now - oldest).total_seconds())) if oldest else 0,
         "turn_failure_percent_1h": round((recent_failures / recent_turns) * 100, 2) if recent_turns else 0,
         "runtime_crash_failures_1h": crash_failures,
-        "budget_exhausted_users": budget_exhausted,
     }

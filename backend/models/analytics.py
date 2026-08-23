@@ -165,12 +165,11 @@ class ClientListResponse(BaseModel):
 
 
 class UsageMetadata(BaseModel):
-    """Token / page billing summary returned alongside LLM responses."""
+    """Provider token metadata returned alongside LLM responses."""
 
     prompt_tokens: Optional[int] = None
     output_tokens: Optional[int] = None
     total_tokens: Optional[int] = None
-    pages: Optional[int] = None
 
 
 # ---------------------------------------------------------------------------

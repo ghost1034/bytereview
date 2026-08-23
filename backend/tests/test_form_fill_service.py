@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from models.db_models import FormFillRun
 from services.form_fill_service import FormFillService, _normalize_repeat_mode, _parse_date
+from services.billing_service import PlanLimitExceeded
 
 
 class RetryableGeminiInvalidArgument(Exception):
@@ -1639,16 +1640,14 @@ class FormFillServiceUsageTests(unittest.IsolatedAsyncioTestCase):
 
     def test_check_usage_limit_raises_with_clear_message(self) -> None:
         billing_service = MagicMock()
-        billing_service.check_page_limit.return_value = False
-        billing_service.get_billing_info.return_value = {
-            "plan_display_name": "Free",
-            "pages_used": 8,
-            "pages_included": 10,
-        }
+        billing_service.require_limit.side_effect = PlanLimitExceeded(
+            unit="page", used=8, included=10, plan_code="free",
+        )
 
         with patch("services.billing_service.get_billing_service", return_value=billing_service):
-            with self.assertRaisesRegex(ValueError, "processing 3 target pages"):
+            with self.assertRaises(PlanLimitExceeded) as raised:
                 self.service._check_usage_limit_or_raise(MagicMock(), user_id="user-id", page_count=3)
+        self.assertEqual(raised.exception.detail["remaining"], 2)
 
     def test_record_usage_for_run_uses_form_fill_run_source(self) -> None:
         billing_service = MagicMock()
@@ -1665,8 +1664,11 @@ class FormFillServiceUsageTests(unittest.IsolatedAsyncioTestCase):
 
         billing_service.record_usage.assert_called_once_with(
             user_id="user-id",
-            pages=4,
+            product="form_fill",
             source="form_fill_run",
+            unit="page",
+            quantity=4,
+            operation_id="11111111-1111-1111-1111-111111111111",
             form_fill_run_id="11111111-1111-1111-1111-111111111111",
             notes="Form Fill run for target target.pdf",
         )

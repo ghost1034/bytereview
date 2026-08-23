@@ -3,7 +3,7 @@
  */
 'use client'
 
-import { AlertTriangle, FileText, Zap } from 'lucide-react'
+import { AlertTriangle, FileText, Sparkles } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -53,6 +53,11 @@ export default function UsageStats() {
 
   const isNearLimit = pagesPercentage >= 80
   const isOverLimit = usage.pages_used >= usage.pages_included
+  const tokensPercentage = usage.tokens_included > 0
+    ? Math.min(100, (usage.tokens_used / usage.tokens_included) * 100)
+    : 0
+  const isNearTokenLimit = tokensPercentage >= 80
+  const isOverTokenLimit = usage.tokens_used >= usage.tokens_included
 
   const getPlanBadgeVariant = (planCode: string) => {
     switch (planCode) {
@@ -69,6 +74,11 @@ export default function UsageStats() {
   const overageAmount =
     isOverLimit && usage.overage_cents > 0
       ? ((usage.pages_used - usage.pages_included) * (usage.overage_cents / 100))
+      : 0
+  const tokenOverageAmount =
+    isOverTokenLimit && usage.token_overage_cents > 0
+      ? Math.ceil((usage.tokens_used - usage.tokens_included) / 1000) *
+        (usage.token_overage_cents / 100)
       : 0
 
   return (
@@ -138,29 +148,58 @@ export default function UsageStats() {
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <Zap className="size-3.5 text-foreground-muted" aria-hidden />
-              <span className="text-sm text-foreground-muted">Automations</span>
+              <Sparkles className="size-3.5 text-foreground-muted" aria-hidden />
+              <span className="text-sm text-foreground-muted">Platform AI tokens</span>
             </div>
-            <span className="text-sm font-medium tabular-nums text-foreground">
-              {usage.automations_count} / {usage.automations_limit}
-            </span>
+            <div className="flex items-center gap-1.5">
+              {isOverTokenLimit && <AlertTriangle className="size-3.5 text-warning" aria-hidden />}
+              <span className="text-sm font-medium tabular-nums text-foreground">
+                {usage.tokens_used.toLocaleString()} / {usage.tokens_included.toLocaleString()}
+              </span>
+            </div>
           </div>
           <Progress
-            value={
-              usage.automations_limit > 0
-                ? (usage.automations_count / usage.automations_limit) * 100
-                : 0
-            }
-            className="h-1.5"
+            value={tokensPercentage}
+            className={cn(
+              'h-1.5',
+              isOverTokenLimit && '[&>div]:bg-destructive',
+              !isOverTokenLimit && isNearTokenLimit && '[&>div]:bg-warning',
+            )}
           />
           <p className="text-xs text-foreground-subtle">
-            {usage.automations_limit === 0
-              ? 'Upgrade to enable automations'
-              : usage.automations_count >= usage.automations_limit
-                ? 'Limit reached — upgrade for more'
-                : `${usage.automations_limit - usage.automations_count} slots available`}
+            {usage.token_billing_shadow
+              ? `Shadow tracking until ${usage.token_billing_effective_at ? new Date(usage.token_billing_effective_at).toLocaleDateString() : 'your next period'} — no token charges yet`
+              : usage.tokens_remaining > 0
+                ? `${usage.tokens_remaining.toLocaleString()} tokens remaining`
+                : usage.plan_code === 'free'
+                  ? 'Limit reached — upgrade to continue using AI features'
+                  : `${(usage.tokens_used - usage.tokens_included).toLocaleString()} tokens over limit`}
           </p>
+          {tokenOverageAmount > 0 && !usage.token_billing_shadow && (
+            <p className="text-xs text-primary">
+              Estimated token overage: {tokenOverageAmount.toLocaleString('en-US', {
+                style: 'currency',
+                currency: 'USD',
+              })}
+            </p>
+          )}
         </div>
+
+        {Object.keys(usage.product_breakdown).length > 0 && (
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-xs font-medium text-foreground-muted">By module</p>
+            {Object.entries(usage.product_breakdown).map(([product, totals]) => (
+              <div key={product} className="flex justify-between gap-3 text-xs text-foreground-subtle">
+                <span className="capitalize">{product.replace(/_/g, ' ')}</span>
+                <span className="tabular-nums">
+                  {totals.pages > 0 && `${totals.pages.toLocaleString()} ${pluralize(totals.pages, 'page')}`}
+                  {totals.pages > 0 && totals.tokens > 0 && ' · '}
+                  {totals.tokens > 0 && `${totals.tokens.toLocaleString()} tokens`}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {usage.period_start && usage.period_end && (
           <div className="border-t border-border pt-3">

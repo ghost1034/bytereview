@@ -7,7 +7,8 @@ import os
 import uuid
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any, List, Tuple
+from dataclasses import dataclass
+from typing import Optional, Dict, Any, List, Tuple, Literal, Mapping
 
 import stripe
 
@@ -21,7 +22,8 @@ if not getattr(stripe, "api_key", None):
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text, and_
+from sqlalchemy import text, and_, func
+from sqlalchemy.exc import IntegrityError
 
 from core.database import get_db
 from models.db_models import (
@@ -38,9 +40,7 @@ from models.db_models import (
 logger = logging.getLogger(__name__)
 
 
-# Tokens-to-pages conversion for analytics LLM calls.
-# Defaults to 2000 tokens/page; tunable via env in case we recalibrate later.
-TOKENS_PER_PAGE = int(os.getenv("ANALYTICS_TOKENS_PER_PAGE", "2000"))
+UsageUnit = Literal["page", "token"]
 
 
 # Allowed `source` values for analytics UsageEvent rows. Routes use these
@@ -63,27 +63,71 @@ ANALYTICS_SOURCES = {
     "analytics_chat_basic",
     "analytics_chat_title",
     "tasklytic_assistant",
+    "tasklytic_receipt_extraction",
+    "pbc_assistant",
+    "hosted_claw",
 }
 
-
-def tokens_to_pages(prompt_tokens: Optional[int], output_tokens: Optional[int]) -> int:
-    """Convert a (prompt, output) token pair to billable pages.
-
-    Returns `ceil((prompt + output) / TOKENS_PER_PAGE)` with a floor of 1 page
-    whenever at least one token was produced. Missing token counts contribute 0.
-    """
-    p = int(prompt_tokens or 0)
-    o = int(output_tokens or 0)
-    total = p + o
-    if total <= 0:
-        return 0
-    # ceiling division
-    return max(1, -(-total // TOKENS_PER_PAGE))
-
-
 class PlanLimitExceeded(Exception):
-    """Raised when user exceeds their plan limits."""
-    pass
+    """Structured quota failure shared by every metered product."""
+
+    def __init__(self, *, unit: UsageUnit, used: int, included: int, plan_code: str):
+        self.unit = unit
+        self.used = int(used)
+        self.included = int(included)
+        self.remaining = max(0, self.included - self.used)
+        self.plan_code = plan_code
+        super().__init__(f"{unit.title()} allowance exhausted for {plan_code} plan")
+
+    @property
+    def detail(self) -> Dict[str, Any]:
+        return {
+            "code": "billing_limit_exceeded",
+            "unit": self.unit,
+            "used": self.used,
+            "included": self.included,
+            "remaining": self.remaining,
+            "plan_code": self.plan_code,
+        }
+
+
+def billing_limit_http_exception(exc: PlanLimitExceeded) -> HTTPException:
+    return HTTPException(status_code=402, detail=exc.detail)
+
+
+@dataclass
+class TokenAccumulator:
+    """Aggregate provider calls/retries into one top-level token operation."""
+
+    prompt_tokens: int = 0
+    output_tokens: int = 0
+    total_tokens: int = 0
+    calls_with_usage: int = 0
+    calls_missing_usage: int = 0
+
+    def add(self, usage: Optional[Mapping[str, Any]]) -> None:
+        if not usage:
+            self.calls_missing_usage += 1
+            return
+        prompt = max(0, int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0))
+        output = max(0, int(usage.get("output_tokens") or usage.get("completion_tokens") or 0))
+        reported_total = usage.get("total_tokens")
+        total = max(0, int(reported_total)) if reported_total is not None else prompt + output
+        if total <= 0:
+            self.calls_missing_usage += 1
+            return
+        self.prompt_tokens += prompt
+        self.output_tokens += output
+        self.total_tokens += total
+        self.calls_with_usage += 1
+
+    @property
+    def token_details(self) -> Dict[str, int]:
+        return {
+            "prompt_tokens": self.prompt_tokens,
+            "output_tokens": self.output_tokens,
+            "total_tokens": self.total_tokens,
+        }
 
 
 # ---------------------------------------------------------------------
@@ -104,6 +148,23 @@ def _coerce_uuid(value: Any) -> Optional[uuid.UUID]:
     if isinstance(value, uuid.UUID):
         return value
     return uuid.UUID(str(value))
+
+
+def _product_for_source(source: str) -> str:
+    if source.startswith("analytics_"):
+        return "analytics"
+    for prefix, product in (
+        ("pbc_", "pbc"),
+        ("tasklytic_", "tasklytic"),
+        ("inkwise_", "inkwise"),
+        ("form_fill", "form_fill"),
+        ("esign_", "esign"),
+        ("cpe_", "cpe"),
+        ("hosted_claw", "hosted_claw"),
+    ):
+        if source.startswith(prefix):
+            return product
+    return "uda"
 
 
 def _get_object_value(obj: Any, key: str, default: Any = None) -> Any:
@@ -244,6 +305,9 @@ class BillingService:
                 score += 2
             if plan.stripe_price_metered_id and plan.stripe_price_metered_id in price_ids:
                 score += 1
+            token_price_id = getattr(plan, "stripe_price_token_metered_id", None)
+            if token_price_id and token_price_id in price_ids:
+                score += 1
             if score > best_score:
                 best_plan_code = plan.code
                 best_score = score
@@ -266,6 +330,7 @@ class BillingService:
             plan_code="free",
             current_period_start=period_start,
             current_period_end=period_end,
+            token_billing_effective_at=now,
             status="active",
         )
         self.db.add(acct)
@@ -276,6 +341,7 @@ class BillingService:
             period_start=period_start,
             period_end=period_end,
             pages_total=0,
+            tokens_total=0,
         )
         self.db.merge(counter)
         self.db.commit()
@@ -295,6 +361,25 @@ class BillingService:
         pages_used = counter.pages_total if counter else 0
         tokens_used = (counter.tokens_total if counter else 0) or 0
 
+        breakdown_rows = (
+            self.db.query(UsageEvent.product, UsageEvent.unit, func.sum(UsageEvent.quantity))
+            .filter(
+                UsageEvent.user_id == user_id,
+                UsageEvent.occurred_at >= acct.current_period_start,
+                UsageEvent.occurred_at <= acct.current_period_end,
+            )
+            .group_by(UsageEvent.product, UsageEvent.unit)
+            .all()
+        )
+        product_breakdown: Dict[str, Dict[str, int]] = {}
+        for product, unit, quantity in breakdown_rows:
+            bucket = product_breakdown.setdefault(str(product), {"pages": 0, "tokens": 0})
+            bucket["pages" if unit == "page" else "tokens"] += int(quantity or 0)
+
+        now = datetime.now(timezone.utc)
+        token_effective_at = getattr(acct, "token_billing_effective_at", None)
+        token_shadow = isinstance(token_effective_at, datetime) and token_effective_at > now
+
         automations_count = (
             self.db.query(Automation)
             .filter(and_(Automation.user_id == user_id, Automation.is_enabled.is_(True)))
@@ -307,10 +392,15 @@ class BillingService:
             "plan_display_name": plan.display_name if plan else "Unknown",
             "pages_included": plan.pages_included if plan else 0,
             "pages_used": pages_used,
+            "tokens_included": getattr(plan, "tokens_included", 0) if plan else 0,
             "tokens_used": tokens_used,
             "automations_limit": plan.automations_limit if plan else 0,
             "automations_count": automations_count,
             "overage_cents": plan.overage_cents if plan else 0,
+            "token_overage_cents": getattr(plan, "token_overage_cents", 0) if plan else 0,
+            "token_billing_effective_at": token_effective_at,
+            "token_billing_shadow": token_shadow,
+            "product_breakdown": product_breakdown,
             "current_period_start": acct.current_period_start,
             "current_period_end": acct.current_period_end,
             "status": acct.status,
@@ -331,9 +421,13 @@ class BillingService:
                 "code": p.code,
                 "display_name": p.display_name,
                 "pages_included": p.pages_included,
+                "tokens_included": getattr(p, "tokens_included", 0),
                 "automations_limit": p.automations_limit,
                 "overage_cents": p.overage_cents,
+                "token_overage_cents": getattr(p, "token_overage_cents", 0),
                 "stripe_price_recurring_id": p.stripe_price_recurring_id,
+                "stripe_price_metered_id": p.stripe_price_metered_id,
+                "stripe_price_token_metered_id": getattr(p, "stripe_price_token_metered_id", None),
                 "sort_order": p.sort_order,
             }
             for p in plans
@@ -341,13 +435,32 @@ class BillingService:
 
     # ------------------------ Limit checks ------------------------
 
-    def check_page_limit(self, user_id: str, additional_pages: int) -> bool:
-        """True if user can process `additional_pages` without violating plan hard caps."""
+    def check_limit(self, user_id: str, unit: UsageUnit, additional_quantity: int) -> bool:
+        """Return whether work may start under the independent unit quota."""
+        if unit not in ("page", "token"):
+            raise ValueError(f"Unsupported billing unit: {unit}")
+        if additional_quantity < 0:
+            raise ValueError("additional_quantity must be non-negative")
         info = self.get_billing_info(user_id)
+        if unit == "token" and info["token_billing_shadow"]:
+            return True
         if info["plan_code"] == "free":
-            return info["pages_used"] + additional_pages <= info["pages_included"]
+            used = info["pages_used"] if unit == "page" else info["tokens_used"]
+            included = info["pages_included"] if unit == "page" else info["tokens_included"]
+            return used + additional_quantity <= included
         # paid plans: allow overage (Stripe tiers handle billing)
         return True
+
+    def require_limit(self, user_id: str, unit: UsageUnit, additional_quantity: int) -> None:
+        if self.check_limit(user_id, unit, additional_quantity):
+            return
+        info = self.get_billing_info(user_id)
+        raise PlanLimitExceeded(
+            unit=unit,
+            used=info["pages_used"] if unit == "page" else info["tokens_used"],
+            included=info["pages_included"] if unit == "page" else info["tokens_included"],
+            plan_code=info["plan_code"],
+        )
 
     def check_automation_limit(self, user_id: str) -> bool:
         """True if user can enable another automation."""
@@ -359,8 +472,14 @@ class BillingService:
     def record_usage(
         self,
         user_id: str,
-        pages: int,
-        source: str,
+        product: Optional[str] = None,
+        source: Optional[str] = None,
+        unit: Optional[UsageUnit] = None,
+        quantity: Optional[int] = None,
+        operation_id: Optional[str] = None,
+        token_details: Optional[Mapping[str, Any]] = None,
+        *,
+        pages: Optional[int] = None,
         task_id: Optional[str] = None,
         inkwise_ingestion_id: Optional[str] = None,
         form_fill_run_id: Optional[str] = None,
@@ -371,74 +490,139 @@ class BillingService:
         total_tokens: Optional[int] = None,
         commit: bool = True,
     ) -> Optional[str]:
-        """Append a usage event and bump the cached counter. Report to Stripe for paid plans.
+        """Append one idempotent unit event and increment the active counter.
 
-        `pages` remains the billable unit. The optional token counts are stored
-        verbatim for analytics calls so token consumption is auditable; they do
-        not affect billing.
+        The ledger is also the Stripe outbox. Paid, effective events are saved
+        as ``pending`` and reconciliation reports them after commit. No
+        provider call is made from this transaction.
 
-        Returns the usage_event id (uuid) or None if pages <= 0.
+        ``pages=`` and legacy reference IDs remain accepted while page modules
+        roll over; canonical callers use product/source/unit/quantity/operation.
         """
-        if pages <= 0:
+        # Compatibility with the former positional shape
+        # record_usage(user_id, pages, source, ...).
+        if isinstance(product, int):
+            pages = int(product)
+            product = None
+        source = source or "manual_adjustment"
+        if quantity is None and pages is not None:
+            quantity = int(pages)
+            unit = "page"
+        unit = unit or "page"
+        if unit not in ("page", "token"):
+            raise ValueError(f"Unsupported billing unit: {unit}")
+        billed_quantity = int(quantity or 0)
+        if billed_quantity <= 0:
             return None
+
+        product = product or _product_for_source(source)
 
         task_uuid = _coerce_uuid(task_id)
         inkwise_ingestion_uuid = _coerce_uuid(inkwise_ingestion_id)
         form_fill_run_uuid = _coerce_uuid(form_fill_run_id)
         esign_ai_run_uuid = _coerce_uuid(esign_ai_field_placement_run_id)
 
-        duplicate_query = self.db.query(UsageEvent).filter(
-            UsageEvent.user_id == user_id,
-            UsageEvent.source == source,
+        operation_id = str(
+            operation_id
+            or task_uuid
+            or inkwise_ingestion_uuid
+            or form_fill_run_uuid
+            or esign_ai_run_uuid
+            or uuid.uuid4()
         )
-        if task_uuid is not None:
-            existing_event = duplicate_query.filter(UsageEvent.task_id == task_uuid).first()
-            if existing_event is not None:
-                logger.info(f"Usage already recorded for task {task_uuid}; skipping duplicate metering")
-                return str(existing_event.id)
-        if inkwise_ingestion_uuid is not None:
-            existing_event = duplicate_query.filter(UsageEvent.inkwise_ingestion_id == inkwise_ingestion_uuid).first()
-            if existing_event is not None:
-                logger.info(
-                    f"Usage already recorded for Inkwise ingestion {inkwise_ingestion_uuid}; skipping duplicate metering"
-                )
-                return str(existing_event.id)
-        if form_fill_run_uuid is not None:
-            existing_event = duplicate_query.filter(UsageEvent.form_fill_run_id == form_fill_run_uuid).first()
-            if existing_event is not None:
-                logger.info(f"Usage already recorded for Form Fill run {form_fill_run_uuid}; skipping duplicate metering")
-                return str(existing_event.id)
-        if esign_ai_run_uuid is not None:
-            existing_event = duplicate_query.filter(
-                UsageEvent.esign_ai_field_placement_run_id == esign_ai_run_uuid
-            ).first()
-            if existing_event is not None:
-                logger.info("Usage already recorded for E-Signature AI placement run %s; skipping duplicate metering", esign_ai_run_uuid)
-                return str(existing_event.id)
+        existing_event = self.db.query(UsageEvent).filter(
+            UsageEvent.user_id == user_id,
+            UsageEvent.product == product,
+            UsageEvent.source == source,
+            UsageEvent.operation_id == operation_id,
+            UsageEvent.unit == unit,
+        ).first()
+        if existing_event is not None:
+            logger.info("Usage already recorded for %s/%s operation %s", product, unit, operation_id)
+            return str(existing_event.id)
 
         acct = self.get_or_create_billing_account(user_id)
 
-        # Hard cap for Free
-        if acct.plan_code == "free" and not self.check_page_limit(user_id, pages):
-            raise PlanLimitExceeded("Page limit exceeded for Free plan")
+        info = self.get_billing_info(user_id)
+        # Known page workloads must fit. Token workloads are checked before the
+        # provider with quantity=1; an in-flight call may cross the boundary and
+        # its full provider-reported quantity is still recorded.
+        if unit == "page":
+            self.require_limit(user_id, unit, billed_quantity)
+        elif acct.plan_code == "free" and not info["token_billing_shadow"]:
+            if int(info["tokens_used"]) >= int(info["tokens_included"]):
+                raise PlanLimitExceeded(
+                    unit="token",
+                    used=info["tokens_used"],
+                    included=info["tokens_included"],
+                    plan_code=info["plan_code"],
+                )
+
+        details = dict(token_details or {})
+        if prompt_tokens is not None:
+            details.setdefault("prompt_tokens", prompt_tokens)
+        if output_tokens is not None:
+            details.setdefault("output_tokens", output_tokens)
+        if total_tokens is not None:
+            details.setdefault("total_tokens", total_tokens)
+        prompt_tokens = details.get("prompt_tokens")
+        output_tokens = details.get("output_tokens")
+        total_tokens = details.get("total_tokens")
+        if unit == "token" and total_tokens is None:
+            total_tokens = int(prompt_tokens or 0) + int(output_tokens or 0)
+
+        token_effective_at = getattr(acct, "token_billing_effective_at", None)
+        token_shadow = (
+            unit == "token"
+            and isinstance(token_effective_at, datetime)
+            and token_effective_at > datetime.now(timezone.utc)
+        )
+        if token_shadow:
+            stripe_status = "shadow"
+        elif acct.plan_code in ("basic", "pro"):
+            stripe_status = "pending"
+        else:
+            stripe_status = "non_billable"
 
         event_id = str(uuid.uuid4())
-        self.db.add(
-            UsageEvent(
-                id=event_id,
-                user_id=user_id,
-                source=source,
-                task_id=task_uuid,
-                inkwise_ingestion_id=inkwise_ingestion_uuid,
-                form_fill_run_id=form_fill_run_uuid,
-                esign_ai_field_placement_run_id=esign_ai_run_uuid,
-                pages=pages,
-                prompt_tokens=prompt_tokens,
-                output_tokens=output_tokens,
-                total_tokens=total_tokens,
-                notes=notes,
-            )
+        event = UsageEvent(
+            id=event_id,
+            user_id=user_id,
+            product=product,
+            source=source,
+            unit=unit,
+            quantity=billed_quantity,
+            operation_id=operation_id,
+            task_id=task_uuid,
+            inkwise_ingestion_id=inkwise_ingestion_uuid,
+            form_fill_run_id=form_fill_run_uuid,
+            esign_ai_field_placement_run_id=esign_ai_run_uuid,
+            pages=billed_quantity if unit == "page" else 0,
+            prompt_tokens=prompt_tokens,
+            output_tokens=output_tokens,
+            total_tokens=total_tokens,
+            stripe_status=stripe_status,
+            stripe_reported=False,
+            notes=notes,
         )
+        savepoint = self.db.begin_nested()
+        try:
+            # Detect a concurrent duplicate before incrementing counters.
+            self.db.add(event)
+            self.db.flush()
+            savepoint.commit()
+        except IntegrityError:
+            savepoint.rollback()
+            existing_event = self.db.query(UsageEvent).filter(
+                UsageEvent.user_id == user_id,
+                UsageEvent.product == product,
+                UsageEvent.source == source,
+                UsageEvent.operation_id == operation_id,
+                UsageEvent.unit == unit,
+            ).first()
+            if existing_event is not None:
+                return str(existing_event.id)
+            raise
 
         # Upsert the counter for the active period
         self.db.execute(
@@ -455,8 +639,8 @@ class BillingService:
                 "u": user_id,
                 "ps": acct.current_period_start,
                 "pe": acct.current_period_end,
-                "pg": pages,
-                "tok": int(total_tokens or 0),
+                "pg": billed_quantity if unit == "page" else 0,
+                "tok": billed_quantity if unit == "token" else 0,
             },
         )
 
@@ -465,10 +649,6 @@ class BillingService:
             return event_id
 
         self.db.commit()
-
-        # Report to Stripe for paid plans
-        if acct.plan_code in ("basic", "pro"):
-            self._report_usage_to_stripe(user_id, pages, event_id)
 
         return event_id
 
@@ -480,74 +660,98 @@ class BillingService:
         output_tokens: Optional[int],
         total_tokens: Optional[int] = None,
         notes: Optional[str] = None,
+        operation_id: Optional[str] = None,
+        product: str = "analytics",
     ) -> Optional[str]:
-        """Convert token usage from an analytics LLM call to pages and record it.
-
-        The raw token counts are persisted alongside the derived page count.
-        `total_tokens` defaults to prompt+output when the provider does not
-        report it explicitly.
-
-        Returns the usage_event id (uuid) or None if the call consumed zero tokens.
-        Raises PlanLimitExceeded for Free users over quota.
-        """
+        """Record provider-reported tokens without converting them to pages."""
         if source not in ANALYTICS_SOURCES:
             logger.warning(
                 "record_analytics_usage called with unknown source '%s'; recording anyway",
                 source,
             )
 
-        pages = tokens_to_pages(prompt_tokens, output_tokens)
-        if pages <= 0:
-            return None
-
         if total_tokens is None:
             total_tokens = int(prompt_tokens or 0) + int(output_tokens or 0)
+        if int(total_tokens or 0) <= 0:
+            logger.error("billing_missing_provider_usage product=%s source=%s user_id=%s", product, source, user_id)
+            return None
 
         return self.record_usage(
             user_id=user_id,
-            pages=pages,
+            product=product,
             source=source,
+            unit="token",
+            quantity=int(total_tokens),
+            operation_id=operation_id,
+            token_details={
+                "prompt_tokens": prompt_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_tokens,
+            },
             notes=notes,
-            prompt_tokens=prompt_tokens,
-            output_tokens=output_tokens,
-            total_tokens=total_tokens,
         )
 
-    def _report_usage_to_stripe(self, user_id: str, pages: int, event_id: str) -> None:
-        """Send a meter event to Stripe. Swallows errors (logs only)."""
+    def _report_usage_to_stripe(self, event: UsageEvent) -> bool:
+        """Report one pending/failed outbox row to its unit-specific meter."""
         try:
-            acct = self.db.query(BillingAccount).filter(BillingAccount.user_id == user_id).first()
+            acct = self.db.query(BillingAccount).filter(BillingAccount.user_id == event.user_id).first()
             if not acct or not acct.stripe_customer_id:
-                logger.info("No Stripe customer on account; skipping usage report.")
-                return
+                event.stripe_status = "failed"
+                event.stripe_last_error = "Paid usage event has no Stripe customer"
+                self.db.commit()
+                return False
 
-            event_name = os.getenv("STRIPE_METER_EVENT_NAME", "cpaautomation_pages")
+            event_name = (
+                os.getenv("STRIPE_TOKEN_METER_EVENT_NAME", "cpaautomation_tokens")
+                if event.unit == "token"
+                else os.getenv("STRIPE_PAGE_METER_EVENT_NAME", os.getenv("STRIPE_METER_EVENT_NAME", "cpaautomation_pages"))
+            )
 
-            # Create meter event. Basil-era API requires meter-backed price; this is the event feed.
             evt = stripe.billing.MeterEvent.create(
                 event_name=event_name,
                 payload={
                     "stripe_customer_id": acct.stripe_customer_id,
-                    "value": pages,
+                    "value": int(event.quantity),
                 },
-                timestamp=int(datetime.now(timezone.utc).timestamp())
+                timestamp=int(event.occurred_at.timestamp()),
+                identifier=str(event.id),
             )
-
-            # Mark reported
-            self.db.query(UsageEvent).filter(UsageEvent.id == event_id).update(
-                {"stripe_reported": True, "stripe_record_id": getattr(evt, "identifier", None)}
-            )
+            event.stripe_status = "reported"
+            event.stripe_reported = True
+            event.stripe_record_id = getattr(evt, "identifier", None) or str(event.id)
+            event.stripe_last_error = None
             self.db.commit()
+            return True
 
         except Exception as e:
-            logger.error(f"Failed to report usage to Stripe: {e}")
+            event.stripe_status = "failed"
+            event.stripe_last_error = str(e)[:2000]
+            self.db.commit()
+            logger.error("Failed to report %s usage event %s to Stripe: %s", event.unit, event.id, e)
+            return False
+
+    def reconcile_stripe_usage(self, limit: int = 500) -> Dict[str, int]:
+        events = (
+            self.db.query(UsageEvent)
+            .filter(UsageEvent.stripe_status.in_(("pending", "failed")))
+            .order_by(UsageEvent.occurred_at, UsageEvent.id)
+            .limit(limit)
+            .all()
+        )
+        reported = sum(1 for event in events if self._report_usage_to_stripe(event))
+        return {"attempted": len(events), "reported": reported, "failed": len(events) - reported}
 
     # ------------------------ Checkout / Portal ------------------------
 
     def create_checkout_session(self, user_id: str, plan_code: str, success_url: str, cancel_url: str) -> str:
         """Create a Stripe Checkout Session for Basic/Pro subscriptions."""
         plan = self.db.query(SubscriptionPlan).filter(SubscriptionPlan.code == plan_code).first()
-        if not plan or not plan.stripe_price_recurring_id or not plan.stripe_price_metered_id:
+        if (
+            not plan
+            or not plan.stripe_price_recurring_id
+            or not plan.stripe_price_metered_id
+            or not plan.stripe_price_token_metered_id
+        ):
             raise HTTPException(status_code=400, detail="Invalid plan")
 
         acct = self.get_or_create_billing_account(user_id)
@@ -585,6 +789,7 @@ class BillingService:
         line_items = [
             {"price": plan.stripe_price_recurring_id, "quantity": 1},
             {"price": plan.stripe_price_metered_id},
+            {"price": plan.stripe_price_token_metered_id},
         ]
 
         session = stripe.checkout.Session.create(
@@ -643,6 +848,9 @@ class BillingService:
         acct.stripe_subscription_id = str(_get_object_value(sub, "id", sub_id) or sub_id)
         acct.current_period_start = datetime.fromtimestamp(start_ts, tz=timezone.utc)
         acct.current_period_end = datetime.fromtimestamp(end_ts, tz=timezone.utc)
+        # Checkout creates a subscription containing both meters, so token
+        # enforcement starts immediately for new subscriptions.
+        acct.token_billing_effective_at = datetime.now(timezone.utc)
         acct.status = _get_object_value(sub, "status") or "active"
 
         # Ensure counter exists for the new period
@@ -652,6 +860,7 @@ class BillingService:
                 period_start=acct.current_period_start,
                 period_end=acct.current_period_end,
                 pages_total=0,
+                tokens_total=0,
             )
         )
         self.db.commit()
@@ -690,6 +899,7 @@ class BillingService:
                         period_start=new_start,
                         period_end=new_end,
                         pages_total=0,
+                        tokens_total=0,
                     )
                 )
 
@@ -727,8 +937,9 @@ class BillingService:
         start, end = _month_bounds_utc(now)
         acct.current_period_start = start
         acct.current_period_end = end
+        acct.token_billing_effective_at = now
 
-        self.db.merge(UsageCounter(user_id=acct.user_id, period_start=start, period_end=end, pages_total=0))
+        self.db.merge(UsageCounter(user_id=acct.user_id, period_start=start, period_end=end, pages_total=0, tokens_total=0))
         self.db.commit()
 
 

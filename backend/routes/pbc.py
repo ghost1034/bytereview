@@ -65,6 +65,7 @@ from models.tasklytic import TasklyticEntityRecord, TasklyticWorkspaceMember
 from services.email_service import email_service
 from services.gcs_service import get_storage_service
 from services.pbc_ai_service import completeness_flags, draft_request_list, match_document
+from services.billing_service import PlanLimitExceeded, billing_limit_http_exception
 from services.pbc_service import (
     FIRM_MANAGE_ROLES,
     FIRM_WRITE_ROLES,
@@ -1060,6 +1061,8 @@ async def ai_draft(engagement_id: str, payload: PbcAiDraftRequest, actor: User =
     engagement = get_engagement(db, _firm_id(db, actor), engagement_id)
     try:
         return await draft_request_list(db, actor.id, engagement, payload.instructions)
+    except PlanLimitExceeded as exc:
+        raise billing_limit_http_exception(exc) from exc
     except ValueError as exc:
         raise HTTPException(status_code=502, detail=str(exc))
 
@@ -1077,7 +1080,10 @@ async def ai_match(engagement_id: str, payload: PbcAiMatchRequest, actor: User =
     )
     if document is None:
         raise HTTPException(status_code=404, detail="PBC document not found")
-    return await match_document(db, actor.id, engagement, document)
+    try:
+        return await match_document(db, actor.id, engagement, document)
+    except PlanLimitExceeded as exc:
+        raise billing_limit_http_exception(exc) from exc
 
 
 @router.get("/engagements/{engagement_id}/ai/completeness")

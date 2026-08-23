@@ -38,7 +38,7 @@ const FAQS = [
   },
   {
     q: 'How does overage pricing work?',
-    a: 'Paid plans include a monthly page allotment. If a plan includes overage, additional pages are billed at the overage rate shown on the plan card. Free plans do not allow overage. You’ll see your usage in the dashboard so you can track and manage spending.',
+    a: 'Pages and platform AI tokens have separate monthly allowances. Paid-plan overages use the page and per-1,000-token rates shown on the plan card; Free users must upgrade when either allowance is exhausted.',
   },
   {
     q: 'Do you offer annual billing or discounts?',
@@ -89,10 +89,12 @@ export default function Pricing() {
   const getPlanFeatures = (
     planCode: string,
     pagesIncluded: number,
+    tokensIncluded: number,
     automationsLimit: number,
   ) => {
     const baseFeatures = [
       `${pagesIncluded === 999999 ? 'Unlimited' : pagesIncluded.toLocaleString()} ${pagesIncluded === 1 ? 'page' : 'pages'} per month`,
+      `${tokensIncluded.toLocaleString()} platform AI tokens per month`,
       `Up to ${automationsLimit} ${automationsLimit === 1 ? 'automation' : 'automations'}`,
       'Custom extraction templates',
       'Export to CSV, Excel, Google Sheets',
@@ -194,12 +196,13 @@ export default function Pricing() {
                   period={plan.code === 'free' ? '' : '/month'}
                   fineprint={
                     plan.overage_cents > 0
-                      ? `Overage: ${(plan.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} per page`
+                      ? `Overage: ${(plan.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}/page + ${(plan.token_overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}/1,000 tokens`
                       : 'No overage allowed'
                   }
                   features={getPlanFeatures(
                     plan.code,
                     plan.pages_included,
+                    plan.tokens_included,
                     plan.automations_limit,
                   )}
                   highlighted={plan.code === 'pro'}

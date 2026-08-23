@@ -40,19 +40,24 @@ async def get_usage_stats(
         billing_info = billing_service.get_billing_info(user_id)
         
         pages_remaining = max(0, billing_info['pages_included'] - billing_info['pages_used'])
+        tokens_remaining = max(0, billing_info['tokens_included'] - billing_info['tokens_used'])
         
         return UsageStatsResponse(
             pages_used=billing_info['pages_used'],
             pages_included=billing_info['pages_included'],
             pages_remaining=pages_remaining,
             tokens_used=billing_info['tokens_used'],
-            automations_count=billing_info['automations_count'],
-            automations_limit=billing_info['automations_limit'],
+            tokens_included=billing_info['tokens_included'],
+            tokens_remaining=tokens_remaining,
             period_start=billing_info['current_period_start'],
             period_end=billing_info['current_period_end'],
             plan_code=billing_info['plan_code'],
             plan_display_name=billing_info['plan_display_name'],
-            overage_cents=billing_info['overage_cents']
+            overage_cents=billing_info['overage_cents'],
+            token_overage_cents=billing_info['token_overage_cents'],
+            token_billing_effective_at=billing_info['token_billing_effective_at'],
+            token_billing_shadow=billing_info['token_billing_shadow'],
+            product_breakdown=billing_info['product_breakdown'],
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get usage stats: {str(e)}")
@@ -81,7 +86,8 @@ async def check_limits(
         can_enable_automation = billing_service.check_automation_limit(user_id)
         
         # Check if user can process more pages (for free plan)
-        can_process_pages = billing_service.check_page_limit(user_id, 1)  # Check for 1 additional page
+        can_process_pages = billing_service.check_limit(user_id, "page", 1)
+        can_process_tokens = billing_service.check_limit(user_id, "token", 1)
         
         return {
             "plan_code": billing_info['plan_code'],
@@ -91,6 +97,14 @@ async def check_limits(
                 "included": billing_info['pages_included'],
                 "remaining": max(0, billing_info['pages_included'] - billing_info['pages_used']),
                 "can_process_more": can_process_pages
+            },
+            "tokens": {
+                "used": billing_info['tokens_used'],
+                "included": billing_info['tokens_included'],
+                "remaining": max(0, billing_info['tokens_included'] - billing_info['tokens_used']),
+                "can_process_more": can_process_tokens,
+                "shadow": billing_info['token_billing_shadow'],
+                "billing_effective_at": billing_info['token_billing_effective_at'],
             },
             "automations": {
                 "count": billing_info['automations_count'],

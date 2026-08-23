@@ -14,10 +14,15 @@ export interface BillingAccount {
   plan_display_name: string
   pages_included: number
   pages_used: number
-  tokens_used?: number
+  tokens_included: number
+  tokens_used: number
   automations_limit: number
   automations_count: number
   overage_cents: number
+  token_overage_cents: number
+  token_billing_effective_at?: string
+  token_billing_shadow: boolean
+  product_breakdown: Record<string, { pages: number; tokens: number }>
   current_period_start?: string
   current_period_end?: string
   status: string
@@ -30,21 +35,27 @@ export interface UsageStats {
   pages_included: number
   pages_remaining: number
   tokens_used: number
-  automations_count: number
-  automations_limit: number
+  tokens_included: number
+  tokens_remaining: number
   period_start?: string
   period_end?: string
   plan_code: string
   plan_display_name: string
   overage_cents: number
+  token_overage_cents: number
+  token_billing_effective_at?: string
+  token_billing_shadow: boolean
+  product_breakdown: Record<string, { pages: number; tokens: number }>
 }
 
 export interface SubscriptionPlan {
   code: string
   display_name: string
   pages_included: number
+  tokens_included: number
   automations_limit: number
   overage_cents: number
+  token_overage_cents: number
   stripe_price_recurring_id?: string
   sort_order: number
 }
@@ -57,6 +68,14 @@ export interface PlanLimits {
     included: number
     remaining: number
     can_process_more: boolean
+  }
+  tokens: {
+    used: number
+    included: number
+    remaining: number
+    can_process_more: boolean
+    shadow: boolean
+    billing_effective_at?: string
   }
   automations: {
     count: number

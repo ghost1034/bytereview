@@ -305,8 +305,7 @@ class EsignAiFieldPlacementService:
             ).first()
             if active:
                 raise EsignConflict("An AI field-placement analysis is already running for this scope")
-            if not BillingService(db).check_page_limit(user_id, pages):
-                raise PlanLimitExceeded("Page allowance is too low for the selected documents")
+            BillingService(db).require_limit(user_id, "page", pages)
             run = EsignAiFieldPlacementRun(
                 id=uuid.uuid4(), target_type=target_type,
                 envelope_id=target.id if target_type == "envelope" else None,
@@ -644,15 +643,16 @@ Additional sender instructions: {instructions or 'None'}
             if run.status == "discarded": return {"status": "discarded"}
             billing = BillingService(db)
             usage_event_id = billing.record_usage(
-                run.requester_user_id, int(run.page_usage), "esign_ai_field_placement",
+                user_id=run.requester_user_id,
+                product="esign",
+                source="esign_ai_field_placement",
+                unit="page",
+                quantity=int(run.page_usage),
+                operation_id=str(run.id),
                 esign_ai_field_placement_run_id=str(run.id), notes="E-Signature AI field placement",
                 commit=False,
             )
             run.proposals = proposals; run.warnings = warnings; run.status = "completed"; run.completed_at = datetime.now(timezone.utc); db.commit()
-            if usage_event_id:
-                account = billing.get_or_create_billing_account(run.requester_user_id)
-                if account.plan_code in ("basic", "pro"):
-                    billing._report_usage_to_stripe(run.requester_user_id, int(run.page_usage), usage_event_id)
             logger.info("esign_ai_field_placement_metric %s", json.dumps({
                 "event": "completed", "run_id": str(run.id),
                 "duration_ms": int((time.monotonic()-started)*1000), "pages": run.page_usage,

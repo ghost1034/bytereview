@@ -3,13 +3,15 @@
 Setup Stripe products, prices, and a billing meter for CPAAutomation.
 
 Creates:
-  - billing.meter: "CPAAutomation Pages" (event_name: "cpaautomation_pages")
+  - billing meters for pages and tokens
   - product: "CPAAutomation Basic"
       - price: monthly recurring $9.99
       - price: metered (0 up to 500 pages, then $0.50/page) ATTACHED TO METER
+      - price: metered (0 up to 1,000,000 tokens, then $0.25/1,000 tokens)
   - product: "CPAAutomation Pro"
       - price: monthly recurring $49.99
       - price: metered (0 up to 5000 pages, then $0.20/page) ATTACHED TO METER
+      - price: metered (0 up to 10,000,000 tokens, then $0.10/1,000 tokens)
 
 Re-runnable/idempotent:
   Uses lookup_key on prices, searches products by name, and reuses an existing meter by display_name.
@@ -38,6 +40,9 @@ BASIC = {
     "overage_cents": 50,        # $0.50/page
     "price_lookup_recurring": "cpaautomation_basic_recurring_v1",
     "price_lookup_metered":   "cpaautomation_basic_metered_v1",
+    "free_tokens": 1_000_000,
+    "token_overage_cents": 25,
+    "price_lookup_token_metered": "cpaautomation_basic_tokens_metered_v1",
 }
 
 PRO = {
@@ -48,6 +53,9 @@ PRO = {
     "overage_cents": 20,        # $0.20/page
     "price_lookup_recurring": "cpaautomation_pro_recurring_v1",
     "price_lookup_metered":   "cpaautomation_pro_metered_v1",
+    "free_tokens": 10_000_000,
+    "token_overage_cents": 10,
+    "price_lookup_token_metered": "cpaautomation_pro_tokens_metered_v1",
 }
 
 METER = {
@@ -56,6 +64,13 @@ METER = {
     "customer_mapping_type": "by_id",          # expects payload[stripe_customer_id]
     "value_payload_key": "value",              # expects payload[value]
     "aggregation_formula": "sum",              # sum values over the period
+}
+TOKEN_METER = {
+    "display_name": "CPAAutomation Tokens",
+    "event_name": "cpaautomation_tokens",
+    "customer_mapping_type": "by_id",
+    "value_payload_key": "value",
+    "aggregation_formula": "sum",
 }
 
 CURRENCY = "usd"
@@ -81,26 +96,24 @@ def init_stripe():
     if api_ver:
         print(f"Using Stripe API version override: {api_ver}")
 
-def ensure_meter() -> stripe.billing.Meter:
-    """
-    Create or fetch the single 'pages' billing meter.
-    """
+def ensure_meter(spec: dict = METER) -> stripe.billing.Meter:
+    """Create or fetch one billing meter."""
     # Try to find by display_name via list and filter in code (API search isn't offered for meters)
     existing = stripe.billing.Meter.list(limit=100)
     for m in existing.auto_paging_iter():
-        if getattr(m, "display_name", None) == METER["display_name"]:
+        if getattr(m, "display_name", None) == spec["display_name"]:
             print(f"✅ Reusing existing meter: {m.id} ({m.display_name})")
             return m
 
     # Create new meter
-    print("➕ Creating billing meter for pages…")
+    print(f"➕ Creating billing meter for {spec['display_name']}…")
     m = stripe.billing.Meter.create(
-        display_name=METER["display_name"],
-        event_name=METER["event_name"],
-        default_aggregation={"formula": METER["aggregation_formula"]},
-        value_settings={"event_payload_key": METER["value_payload_key"]},
+        display_name=spec["display_name"],
+        event_name=spec["event_name"],
+        default_aggregation={"formula": spec["aggregation_formula"]},
+        value_settings={"event_payload_key": spec["value_payload_key"]},
         customer_mapping={
-            "type": METER["customer_mapping_type"],
+            "type": spec["customer_mapping_type"],
             "event_payload_key": "stripe_customer_id",
         },
     )
@@ -161,11 +174,13 @@ def ensure_recurring_price(product_id: str, lookup_key: str, monthly_cents: int)
     print(f"✅ Created recurring price: {pr.id}")
     return pr
 
-def ensure_metered_price(product_id: str, lookup_key: str, meter_id: str, free_pages: int, overage_cents: int) -> stripe.Price:
+def ensure_metered_price(
+    product_id: str, lookup_key: str, meter_id: str, included: int,
+    overage_cents: int, *, unit: str = "page", divide_by: int | None = None,
+) -> stripe.Price:
     """
     Metered, tiered price attached to the billing meter.
-    Tier 1: 0 → free_pages @ $0
-    Tier 2: >free_pages → $overage_cents per page
+    Tier 1 covers the included quantity at $0; tier 2 charges overage.
     """
     found = stripe.Price.search(query=f"lookup_key:'{lookup_key}'", limit=1)
     if found and found.data:
@@ -187,11 +202,12 @@ def ensure_metered_price(product_id: str, lookup_key: str, meter_id: str, free_p
         billing_scheme="tiered",
         tiers_mode="graduated",
         tiers=[
-            {"up_to": free_pages, "unit_amount": 0},
+            {"up_to": included, "unit_amount": 0},
             {"up_to": "inf", "unit_amount": overage_cents},
         ],
-        metadata={"kind": "metered_pages"},
-        nickname=f"Pages (first {free_pages} free, then overage)",
+        metadata={"kind": f"metered_{unit}s"},
+        nickname=f"{unit.title()}s (first {included * (divide_by or 1)} free, then overage)",
+        **({"transform_quantity": {"divide_by": divide_by, "round": "up"}} if divide_by else {}),
     )
     print(f"✅ Created metered price: {pr.id}")
     return pr
@@ -200,7 +216,8 @@ def main():
     init_stripe()
 
     # Create/reuse billing meter
-    meter = ensure_meter()
+    meter = ensure_meter(METER)
+    token_meter = ensure_meter(TOKEN_METER)
 
     # Create/reuse products & prices
     created = {}
@@ -216,13 +233,23 @@ def main():
             product_id=product.id,
             lookup_key=spec["price_lookup_metered"],
             meter_id=meter.id,
-            free_pages=spec["free_pages"],
+            included=spec["free_pages"],
             overage_cents=spec["overage_cents"],
+        )
+        token_metered = ensure_metered_price(
+            product_id=product.id,
+            lookup_key=spec["price_lookup_token_metered"],
+            meter_id=token_meter.id,
+            included=spec["free_tokens"] // 1000,
+            overage_cents=spec["token_overage_cents"],
+            unit="token",
+            divide_by=1000,
         )
         created[spec["plan_code"]] = {
             "product_id": product.id,
             "recurring_price_id": recurring.id,
             "metered_price_id": metered.id,
+            "token_metered_price_id": token_metered.id,
         }
 
     # Summary output
@@ -234,16 +261,21 @@ def main():
     env_block = textwrap.dedent(f"""
     # Stripe product & price IDs (test mode)
     STRIPE_METER_PAGES={meter.id}
+    STRIPE_METER_TOKENS={token_meter.id}
+    STRIPE_PAGE_METER_EVENT_NAME=cpaautomation_pages
+    STRIPE_TOKEN_METER_EVENT_NAME=cpaautomation_tokens
 
     # Basic
     STRIPE_PRODUCT_BASIC={created['basic']['product_id']}
     STRIPE_PRICE_BASIC_RECURRING={created['basic']['recurring_price_id']}
     STRIPE_PRICE_BASIC_METERED={created['basic']['metered_price_id']}
+    STRIPE_PRICE_BASIC_TOKEN_METERED={created['basic']['token_metered_price_id']}
 
     # Pro
     STRIPE_PRODUCT_PRO={created['pro']['product_id']}
     STRIPE_PRICE_PRO_RECURRING={created['pro']['recurring_price_id']}
     STRIPE_PRICE_PRO_METERED={created['pro']['metered_price_id']}
+    STRIPE_PRICE_PRO_TOKEN_METERED={created['pro']['token_metered_price_id']}
     """).strip()
     print("\n📝 Add these to your backend/.env file:")
     print(env_block)
@@ -254,13 +286,15 @@ def main():
     UPDATE subscription_plans
        SET stripe_product_id='{created['basic']['product_id']}',
            stripe_price_recurring_id='{created['basic']['recurring_price_id']}',
-           stripe_price_metered_id='{created['basic']['metered_price_id']}'
+           stripe_price_metered_id='{created['basic']['metered_price_id']}',
+           stripe_price_token_metered_id='{created['basic']['token_metered_price_id']}'
      WHERE code='basic';
 
     UPDATE subscription_plans
        SET stripe_product_id='{created['pro']['product_id']}',
            stripe_price_recurring_id='{created['pro']['recurring_price_id']}',
-           stripe_price_metered_id='{created['pro']['metered_price_id']}'
+           stripe_price_metered_id='{created['pro']['metered_price_id']}',
+           stripe_price_token_metered_id='{created['pro']['token_metered_price_id']}'
      WHERE code='pro';
     """).strip()
     print("\n📝 SQL to update your database:")

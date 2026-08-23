@@ -22,6 +22,7 @@ from models.cpe import (
     StartCpeSheetResponse
 )
 from services.job_service import JobService
+from services.billing_service import PlanLimitExceeded, billing_limit_http_exception
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -184,6 +185,8 @@ async def create_cpe_sheet(
             message=f"CPE sheet created for {template.name}"
         )
 
+    except PlanLimitExceeded as exc:
+        raise billing_limit_http_exception(exc) from exc
     except HTTPException:
         raise
     except Exception as e:

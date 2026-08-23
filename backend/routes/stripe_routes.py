@@ -42,18 +42,24 @@ async def get_usage_stats(
     billing_info = billing_service.get_billing_info(token_data["uid"])
     
     pages_remaining = max(0, billing_info['pages_included'] - billing_info['pages_used'])
+    tokens_remaining = max(0, billing_info['tokens_included'] - billing_info['tokens_used'])
     
     return UsageStatsResponse(
         pages_used=billing_info['pages_used'],
         pages_included=billing_info['pages_included'],
         pages_remaining=pages_remaining,
-        automations_count=billing_info['automations_count'],
-        automations_limit=billing_info['automations_limit'],
+        tokens_used=billing_info['tokens_used'],
+        tokens_included=billing_info['tokens_included'],
+        tokens_remaining=tokens_remaining,
         period_start=billing_info['current_period_start'],
         period_end=billing_info['current_period_end'],
         plan_code=billing_info['plan_code'],
         plan_display_name=billing_info['plan_display_name'],
-        overage_cents=billing_info['overage_cents']
+        overage_cents=billing_info['overage_cents'],
+        token_overage_cents=billing_info['token_overage_cents'],
+        token_billing_effective_at=billing_info['token_billing_effective_at'],
+        token_billing_shadow=billing_info['token_billing_shadow'],
+        product_breakdown=billing_info['product_breakdown'],
     )
 
 @router.get("/plans", response_model=List[SubscriptionPlanResponse])

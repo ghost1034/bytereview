@@ -21,6 +21,7 @@ from core.database import get_db
 from sqlalchemy.orm import Session
 from models.db_models import ExtractionJob, SourceFile, JobExport
 from services.job_service import JobService
+from services.billing_service import PlanLimitExceeded, billing_limit_http_exception
 from services.gcs_service import get_storage_service
 from services.sse_service import sse_manager
 from services.google_service import google_service
@@ -698,6 +699,8 @@ async def submit_job_for_processing(
             "message": "Job run submitted for processing",
             "job_run_id": result_run_id
         }
+    except PlanLimitExceeded as exc:
+        raise billing_limit_http_exception(exc) from exc
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

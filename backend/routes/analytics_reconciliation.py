@@ -30,7 +30,6 @@ from services import analytics_ai_service
 from services.analytics import reconciliations_service
 from services.analytics.billing_guard import preflight_check, record_call
 from services.analytics.firm_scope import require_firm_id
-from services.billing_service import tokens_to_pages
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/analytics/reconciliation", tags=["analytics-reconciliation"])
@@ -58,7 +57,6 @@ def _usage(prompt_tokens, output_tokens) -> UsageMetadata:
         prompt_tokens=prompt_tokens,
         output_tokens=output_tokens,
         total_tokens=(prompt_tokens or 0) + (output_tokens or 0) or None,
-        pages=tokens_to_pages(prompt_tokens, output_tokens) or None,
     )
 
 

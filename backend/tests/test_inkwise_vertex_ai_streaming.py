@@ -9,6 +9,7 @@ from unittest.mock import patch
 from google.genai import types
 
 from inkwise.services.vertex_ai import VertexAIError, generate_content, generate_content_stream, generate_text_stream
+from inkwise.services.usage_meter import begin_capture, end_capture
 
 
 class _FakeAsyncClient:
@@ -112,6 +113,36 @@ class VertexAIStreamingTests(unittest.IsolatedAsyncioTestCase):
             fake_client.calls[0]["config"].http_options.extra_body,
             {"generationConfig": {"thinkingConfig": {"thinkingLevel": "LOW"}}},
         )
+
+    async def test_usage_only_final_chunk_is_preserved_and_accumulated(self) -> None:
+        fake_client = _FakeAsyncClient(responses=[
+            SimpleNamespace(text="Answer", candidates=[]),
+            SimpleNamespace(
+                text="",
+                candidates=[SimpleNamespace(finish_reason="STOP")],
+                usage_metadata=SimpleNamespace(
+                    prompt_token_count=8,
+                    candidates_token_count=3,
+                    total_token_count=14,
+                ),
+            ),
+        ])
+        accumulator, context_token = begin_capture()
+        try:
+            with patch("inkwise.services.vertex_ai.get_inkwise_settings", return_value=SimpleNamespace(project_id="test-project", location="us-central1")):
+                with patch("inkwise.services.vertex_ai._get_async_client", return_value=fake_client):
+                    chunks = [
+                        chunk
+                        async for chunk in generate_content_stream(
+                            model="gemini-test",
+                            contents=[{"role": "user", "parts": [{"text": "Question"}]}],
+                        )
+                    ]
+        finally:
+            end_capture(context_token)
+        self.assertEqual(chunks[-1].text, "")
+        self.assertEqual(chunks[-1].usage["total_tokens"], 14)
+        self.assertEqual(accumulator.total_tokens, 14)
 
     async def test_generate_content_stream_times_out(self) -> None:
         fake_client = _FakeAsyncClient(responses=[("sleep", 0.05), SimpleNamespace(text="Late", candidates=[])])

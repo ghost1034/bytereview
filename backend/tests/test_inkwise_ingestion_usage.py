@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import unittest
 from types import SimpleNamespace
-from unittest.mock import patch
-
-from inkwise.services.ingestion_service import IngestionError, InkwiseIngestionService
+from inkwise.services.ingestion_service import InkwiseIngestionService
 
 _PPTX_MIME = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 _XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -27,7 +25,7 @@ class InkwiseIngestionSupportedSourceTests(unittest.TestCase):
 
 
 class InkwiseIngestionUsageTests(unittest.TestCase):
-    def test_documents_meter_by_page_count(self) -> None:
+    def test_documents_wait_for_provider_tokens(self) -> None:
         service = InkwiseIngestionService()
 
         measurement = service._build_usage_measurement(
@@ -35,11 +33,11 @@ class InkwiseIngestionUsageTests(unittest.TestCase):
             embedded_media_tokens=None,
         )
 
-        self.assertEqual(measurement.basis, "page_count")
-        self.assertEqual(measurement.billable_pages, 12)
+        self.assertEqual(measurement.basis, "provider_tokens")
+        self.assertEqual(measurement.billable_pages, 0)
         self.assertIsNone(measurement.usage_tokens)
 
-    def test_images_meter_as_one_page(self) -> None:
+    def test_images_do_not_create_page_charges(self) -> None:
         service = InkwiseIngestionService()
 
         measurement = service._build_usage_measurement(
@@ -47,44 +45,42 @@ class InkwiseIngestionUsageTests(unittest.TestCase):
             embedded_media_tokens=None,
         )
 
-        self.assertEqual(measurement.basis, "single_page_image")
-        self.assertEqual(measurement.billable_pages, 1)
+        self.assertEqual(measurement.basis, "provider_tokens")
+        self.assertEqual(measurement.billable_pages, 0)
 
-    def test_media_tokens_convert_to_billable_pages(self) -> None:
+    def test_embedding_tokens_are_not_converted_to_pages(self) -> None:
         service = InkwiseIngestionService()
 
-        with patch("inkwise.services.ingestion_service.get_inkwise_settings", return_value=SimpleNamespace(media_tokens_per_page=700)):
-            measurement = service._build_usage_measurement(
-                normalized=SimpleNamespace(source_kind="audio", page_count=0),
-                embedded_media_tokens=1401,
-            )
+        measurement = service._build_usage_measurement(
+            normalized=SimpleNamespace(source_kind="audio", page_count=0),
+            embedded_media_tokens=1401,
+        )
 
-        self.assertEqual(measurement.basis, "media_tokens")
-        self.assertEqual(measurement.billable_pages, 3)
+        self.assertEqual(measurement.basis, "provider_tokens")
+        self.assertEqual(measurement.billable_pages, 0)
         self.assertEqual(measurement.usage_tokens, 1401)
-        self.assertEqual(measurement.usage_tokens_per_page, 700)
+        self.assertIsNone(measurement.usage_tokens_per_page)
 
-    def test_media_usage_requires_tokens_after_embedding(self) -> None:
+    def test_missing_embedding_usage_is_not_estimated(self) -> None:
         service = InkwiseIngestionService()
+        measurement = service._build_usage_measurement(
+            normalized=SimpleNamespace(source_kind="video", page_count=0),
+            embedded_media_tokens=0,
+        )
+        self.assertEqual(measurement.usage_tokens, 0)
+        self.assertEqual(measurement.billable_pages, 0)
 
-        with patch("inkwise.services.ingestion_service.get_inkwise_settings", return_value=SimpleNamespace(media_tokens_per_page=700)):
-            with self.assertRaises(IngestionError):
-                service._build_usage_measurement(
-                    normalized=SimpleNamespace(source_kind="video", page_count=0),
-                    embedded_media_tokens=0,
-                )
-
-    def test_embedding_usage_prefers_prompt_tokens(self) -> None:
+    def test_embedding_usage_prefers_provider_total(self) -> None:
         service = InkwiseIngestionService()
         embedding_result = SimpleNamespace(usage=SimpleNamespace(prompt_token_count=91, total_token_count=120))
 
-        self.assertEqual(service._extract_embedding_usage_tokens(embedding_result), 91)
-
-    def test_embedding_usage_falls_back_to_total_tokens(self) -> None:
-        service = InkwiseIngestionService()
-        embedding_result = SimpleNamespace(usage=SimpleNamespace(prompt_token_count=0, total_token_count=120))
-
         self.assertEqual(service._extract_embedding_usage_tokens(embedding_result), 120)
+
+    def test_embedding_usage_falls_back_to_prompt_tokens(self) -> None:
+        service = InkwiseIngestionService()
+        embedding_result = SimpleNamespace(usage=SimpleNamespace(prompt_token_count=91, total_token_count=0))
+
+        self.assertEqual(service._extract_embedding_usage_tokens(embedding_result), 91)
 
 
 if __name__ == "__main__":

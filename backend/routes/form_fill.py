@@ -18,6 +18,7 @@ from models.form_fill import (
     FormFillTemplateListResponse,
 )
 from services.form_fill_service import form_fill_service
+from services.billing_service import PlanLimitExceeded, billing_limit_http_exception
 
 
 router = APIRouter()
@@ -96,6 +97,8 @@ async def create_form_fill_run(
             source_scope=source_scope,
         )
         return FormFillRunCreateResponse(run=run, message="Form Fill run created")
+    except PlanLimitExceeded as exc:
+        raise billing_limit_http_exception(exc) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:

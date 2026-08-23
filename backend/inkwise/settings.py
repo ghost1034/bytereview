@@ -132,7 +132,6 @@ class InkwiseSettings:
     max_bound_sources: int
     max_upload_mb: int
     video_max_upload_mb: int
-    media_tokens_per_page: int
     cloud_tasks_project: str | None
     cloud_tasks_location: str | None
     cloud_tasks_queue_ingest: str | None
@@ -225,7 +224,6 @@ def get_inkwise_settings() -> InkwiseSettings:
         max_bound_sources=_env_int("INKWISE_MAX_BOUND_SOURCES", 100),
         max_upload_mb=_env_int("INKWISE_MAX_UPLOAD_MB", 100),
         video_max_upload_mb=max(1, _env_int("INKWISE_MAX_VIDEO_UPLOAD_MB", 1000)),
-        media_tokens_per_page=max(1, _env_int("INKWISE_MEDIA_TOKENS_PER_PAGE", 750)),
         cloud_tasks_project=_normalize_env_text(os.getenv("CLOUD_TASKS_PROJECT") or os.getenv("GOOGLE_CLOUD_PROJECT_ID")),
         cloud_tasks_location=_normalize_env_text(os.getenv("CLOUD_TASKS_LOCATION") or os.getenv("CLOUD_RUN_REGION")),
         cloud_tasks_queue_ingest=_normalize_env_text(os.getenv("CLOUD_TASKS_QUEUE_INGEST") or os.getenv("INKWISE_TASKS_QUEUE")),

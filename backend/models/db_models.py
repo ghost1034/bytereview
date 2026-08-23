@@ -716,11 +716,14 @@ class SubscriptionPlan(Base):
     code = Column(Text, primary_key=True)  # 'free'|'basic'|'pro'
     display_name = Column(Text, nullable=False)
     pages_included = Column(Integer, nullable=False)
+    tokens_included = Column(BigInteger, nullable=False, default=0, server_default="0")
     automations_limit = Column(Integer, nullable=False)
     overage_cents = Column(Integer, nullable=False)  # 0 for free
+    token_overage_cents = Column(Integer, nullable=False, default=0, server_default="0")  # per 1,000 tokens
     stripe_product_id = Column(Text, nullable=True)  # NULL for 'free'
     stripe_price_recurring_id = Column(Text, nullable=True)
     stripe_price_metered_id = Column(Text, nullable=True)
+    stripe_price_token_metered_id = Column(Text, nullable=True)
     is_active = Column(Boolean, nullable=False, default=True)
     sort_order = Column(Integer, nullable=False, default=0)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
@@ -739,6 +742,9 @@ class BillingAccount(Base):
     stripe_subscription_id = Column(Text, nullable=True)  # NULL for free
     current_period_start = Column(TIMESTAMP(timezone=True), nullable=True)  # from Stripe for paid; calendar month for free
     current_period_end = Column(TIMESTAMP(timezone=True), nullable=True)
+    # Token events before this instant are shadow tracked: visible in usage,
+    # but neither quota enforced nor sent to Stripe.
+    token_billing_effective_at = Column(TIMESTAMP(timezone=True), nullable=True)
     status = Column(Text, nullable=False, default='active')  # 'active','past_due','canceled','paused'
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
@@ -755,6 +761,10 @@ class UsageEvent(Base):
     user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     occurred_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     source = Column(Text, nullable=False)  # 'extraction_task', 'manual_adjustment', etc.
+    product = Column(Text, nullable=False, default="uda", server_default="uda")
+    unit = Column(Text, nullable=False, default="page", server_default="page")
+    quantity = Column(BigInteger, nullable=False, default=0, server_default="0")
+    operation_id = Column(Text, nullable=False)
     task_id = Column(UUID(as_uuid=True), ForeignKey("extraction_tasks.id", ondelete="SET NULL"), nullable=True)  # NULL for manual adjustments
     inkwise_ingestion_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_ingestions.id", ondelete="SET NULL"), nullable=True)
     form_fill_run_id = Column(UUID(as_uuid=True), ForeignKey("form_fill_runs.id", ondelete="SET NULL"), nullable=True)
@@ -763,19 +773,33 @@ class UsageEvent(Base):
         ForeignKey("esign_ai_field_placement_runs.id", ondelete="SET NULL"),
         nullable=True,
     )
-    pages = Column(Integer, nullable=False)
-    # Raw token usage for analytics LLM calls (NULL for page-based sources like
-    # extraction / Form Fill / Inkwise). Billing still uses `pages`; these are
-    # for durable token tracking and reporting only.
+    # Deprecated compatibility mirror for historical page events. New token
+    # events store zero here; `unit` + `quantity` are authoritative.
+    pages = Column(Integer, nullable=False, default=0, server_default="0")
+    # Provider token details for auditability. For token events, `quantity` is
+    # the reported total (or prompt + output only when total is unavailable).
     prompt_tokens = Column(Integer, nullable=True)
     output_tokens = Column(Integer, nullable=True)
     total_tokens = Column(Integer, nullable=True)
     stripe_reported = Column(Boolean, nullable=False, default=False)
+    stripe_status = Column(Text, nullable=False, default="non_billable", server_default="non_billable")
     stripe_record_id = Column(Text, nullable=True)
+    stripe_last_error = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)
     
     __table_args__ = (
         CheckConstraint("pages >= 0", name="check_pages_non_negative"),
+        CheckConstraint("quantity >= 0", name="check_usage_quantity_non_negative"),
+        CheckConstraint("unit IN ('page', 'token')", name="check_usage_unit"),
+        CheckConstraint(
+            "stripe_status IN ('non_billable', 'shadow', 'pending', 'reported', 'failed')",
+            name="check_usage_stripe_status",
+        ),
+        Index(
+            "uq_usage_events_operation_unit",
+            "user_id", "product", "source", "operation_id", "unit",
+            unique=True,
+        ),
         Index(
             "uq_usage_events_esign_ai_field_placement_run",
             "esign_ai_field_placement_run_id",

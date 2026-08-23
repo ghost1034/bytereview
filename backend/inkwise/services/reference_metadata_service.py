@@ -41,6 +41,7 @@ _TEXT_FIELDS = {
 class ReferenceMetadataAutofillResult:
     suggested_title: str | None
     bibliographic_metadata: dict[str, Any]
+    usage: dict[str, int | None] | None = None
 
     @property
     def is_empty(self) -> bool:
@@ -68,7 +69,12 @@ class InkwiseReferenceMetadataService:
             max_output_tokens=4096,
             location=settings.location,
         )
-        return self._parse_response(response.text)
+        parsed = self._parse_response(response.text)
+        return ReferenceMetadataAutofillResult(
+            suggested_title=parsed.suggested_title,
+            bibliographic_metadata=parsed.bibliographic_metadata,
+            usage=response.usage,
+        )
 
     def _build_excerpt(self, *, normalized: Any, max_chars: int) -> str:
         clean_max = max(1000, int(max_chars or 0))

@@ -10,7 +10,6 @@ import {
   CreditCard,
   FileText,
   Sparkles,
-  Zap,
 } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
@@ -28,7 +27,7 @@ import {
 import UsageStats from '@/components/subscription/UsageStats'
 
 export default function BillingDashboard() {
-  const [_, setSelectedPlan] = useState<string | null>(null)
+  const [, setSelectedPlan] = useState<string | null>(null)
 
   const { data: billingAccount, isLoading: billingLoading } = useBillingAccount()
   const { data: usage, isLoading: usageLoading } = useUsageStats()
@@ -78,12 +77,12 @@ export default function BillingDashboard() {
     usage.pages_included > 0
       ? Math.min(100, (usage.pages_used / usage.pages_included) * 100)
       : 0
-  const automationsPercentage =
-    usage.automations_limit > 0
-      ? (usage.automations_count / usage.automations_limit) * 100
+  const tokensPercentage =
+    usage.tokens_included > 0
+      ? Math.min(100, (usage.tokens_used / usage.tokens_included) * 100)
       : 0
   const isOverPageLimit = usage.pages_used >= usage.pages_included
-  const isNearAutomationLimit = automationsPercentage >= 80
+  const isOverTokenLimit = usage.tokens_used >= usage.tokens_included
 
   const daysRemaining = usage.period_end
     ? Math.max(
@@ -97,7 +96,7 @@ export default function BillingDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={CreditCard}
           label="Current plan"
@@ -126,17 +125,11 @@ export default function BillingDashboard() {
         />
         <StatCard
           icon={Sparkles}
-          label="Analytics tokens"
-          value={usage.tokens_used.toLocaleString()}
-          hint="AI tokens used by Analytics this period"
-        />
-        <StatCard
-          icon={Zap}
-          label="Automations"
+          label="Tokens used"
           value={
             <span className="inline-flex items-center gap-2">
-              {usage.automations_count}
-              {isNearAutomationLimit && (
+              {usage.tokens_used.toLocaleString()}
+              {isOverTokenLimit && (
                 <AlertTriangle
                   className="size-4 text-warning"
                   aria-hidden
@@ -144,7 +137,7 @@ export default function BillingDashboard() {
               )}
             </span>
           }
-          hint={`of ${usage.automations_limit} available`}
+          hint={`of ${usage.tokens_included.toLocaleString()} included`}
         />
         <StatCard
           icon={Calendar}
@@ -165,17 +158,15 @@ export default function BillingDashboard() {
           </div>
           <Progress value={pagesPercentage} className="h-1.5" />
         </div>
-        {usage.automations_limit > 0 && (
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-foreground-muted">
-              <span>Automations</span>
-              <span className="tabular-nums">
-                {Math.round(automationsPercentage)}%
-              </span>
-            </div>
-            <Progress value={automationsPercentage} className="h-1.5" />
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-foreground-muted">
+            <span>Platform AI tokens this period</span>
+            <span className="tabular-nums">
+              {Math.round(tokensPercentage)}%
+            </span>
           </div>
-        )}
+          <Progress value={tokensPercentage} className="h-1.5" />
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -198,7 +189,8 @@ export default function BillingDashboard() {
                       </h4>
                       <p className="text-xs text-foreground-muted">
                         {plan.pages_included.toLocaleString()} pages,{' '}
-                        {plan.automations_limit} automations
+                        {plan.tokens_included.toLocaleString()} tokens,{' '}
+                        {plan.automations_limit} automation slots
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 pl-3 text-right">
@@ -217,6 +209,12 @@ export default function BillingDashboard() {
                               { style: 'currency', currency: 'USD' },
                             )}{' '}
                             / page
+                            <br />
+                            {(plan.token_overage_cents / 100).toLocaleString(
+                              'en-US',
+                              { style: 'currency', currency: 'USD' },
+                            )}{' '}
+                            / 1,000 tokens
                           </>
                         ) : (
                           'No overage allowed'

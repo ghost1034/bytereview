@@ -11,7 +11,6 @@ import tempfile
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from math import ceil
 from typing import Any
 
 import pymupdf
@@ -45,7 +44,7 @@ def _strip_nul(text: str | None) -> str:
 @dataclass(frozen=True)
 class IngestionUsageMeasurement:
     basis: str
-    billable_pages: int
+    billable_pages: int = 0
     usage_tokens: int | None = None
     usage_tokens_per_page: int | None = None
 
@@ -123,6 +122,18 @@ class InkwiseIngestionService:
             )
             return self._get_ingestion_or_404(db, ingestion_id)
 
+        from services.billing_service import PlanLimitExceeded, get_billing_service
+        try:
+            get_billing_service(db).require_limit(source.user_id, "token", 1)
+        except PlanLimitExceeded as exc:
+            self._mark_failed(
+                db,
+                ingestion_id=ingestion_id,
+                code="billing_limit_exceeded",
+                message=str(exc.detail),
+            )
+            return self._get_ingestion_or_404(db, ingestion_id)
+
         now = datetime.utcnow()
         ingestion.status = "processing"
         ingestion.pipeline = "normalize_embed"
@@ -166,23 +177,6 @@ class InkwiseIngestionService:
                 self._apply_usage_measurement(ingestion=ingestion, measurement=provisional_usage)
                 db.commit()
 
-                if provisional_usage.basis != "media_tokens":
-                    page_limit_error = self._check_usage_limits(
-                        db,
-                        user_id=source.user_id,
-                        page_count=provisional_usage.billable_pages,
-                    )
-                else:
-                    page_limit_error = None
-                if page_limit_error is not None:
-                    self._mark_failed(
-                        db,
-                        ingestion_id=ingestion_id,
-                        code="billing_limit_exceeded",
-                        message=page_limit_error,
-                    )
-                    return self._get_ingestion_or_404(db, ingestion_id)
-
                 derived_bucket = normalize_gcs_bucket_name(settings.derived_bucket or source_bucket)
                 if not derived_bucket or not is_valid_gcs_bucket_name(derived_bucket):
                     raise IngestionError("Derived storage bucket is invalid")
@@ -195,7 +189,7 @@ class InkwiseIngestionService:
                 ingestion.canonical_pdf_gcs_bucket = canonical_bucket
                 ingestion.canonical_pdf_gcs_object = canonical_object
 
-                embedded_media_tokens = self._persist_vector_artifacts(
+                embedded_tokens = self._persist_vector_artifacts(
                     db,
                     source=source,
                     ingestion=ingestion,
@@ -204,38 +198,23 @@ class InkwiseIngestionService:
                     media_chunks=media_chunks,
                 )
 
+                _metadata_changed, metadata_tokens = self._apply_reference_metadata_autofill_with_usage(
+                    db,
+                    source=source,
+                    normalized=normalized,
+                )
                 final_usage = self._build_usage_measurement(
                     normalized=normalized,
-                    embedded_media_tokens=embedded_media_tokens,
+                    embedded_media_tokens=embedded_tokens + metadata_tokens,
                 )
                 self._apply_usage_measurement(ingestion=ingestion, measurement=final_usage)
                 db.commit()
-
-                page_limit_error = self._check_usage_limits(
-                    db,
-                    user_id=source.user_id,
-                    page_count=final_usage.billable_pages,
-                )
-                if page_limit_error is not None:
-                    self._mark_failed(
-                        db,
-                        ingestion_id=ingestion_id,
-                        code="billing_limit_exceeded",
-                        message=page_limit_error,
-                    )
-                    return self._get_ingestion_or_404(db, ingestion_id)
 
                 self._record_usage_for_ingestion(
                     db,
                     source=source,
                     ingestion=ingestion,
                 )
-                self._apply_reference_metadata_autofill(
-                    db,
-                    source=source,
-                    normalized=normalized,
-                )
-
                 ingestion.status = "completed"
                 ingestion.finished_at = datetime.utcnow()
                 ingestion.error_json = None
@@ -306,7 +285,7 @@ class InkwiseIngestionService:
         db.query(InkwiseSourceSegment).filter(InkwiseSourceSegment.source_id == source.id).delete()
 
         manifest_segments: list[dict[str, Any]] = []
-        embedded_media_tokens = 0
+        embedded_tokens = 0
         for draft in segmentation.segments:
             segment = InkwiseSourceSegment(
                 source_id=source.id,
@@ -354,8 +333,6 @@ class InkwiseIngestionService:
                     output_dimensionality=settings.embedding_dimension,
                     audio_track_extraction=(draft.modality == "video"),
                 )
-                if draft.modality in {"audio", "video"}:
-                    embedded_media_tokens += self._extract_embedding_usage_tokens(embedding_result)
             else:
                 if normalized.canonical_mime_type == "text/html":
                     segment.asset_bucket = source.storage_bucket
@@ -379,6 +356,15 @@ class InkwiseIngestionService:
                     segment.text_content or "",
                     output_dimensionality=settings.embedding_dimension,
                 )
+
+            usage_tokens = self._extract_embedding_usage_tokens(embedding_result)
+            if usage_tokens <= 0:
+                logger.error(
+                    "billing_missing_provider_usage product=inkwise source=inkwise_reference_embedding ingestion=%s segment=%s",
+                    ingestion.id,
+                    draft.order_index,
+                )
+            embedded_tokens += usage_tokens
 
             db.add(segment)
             db.flush()
@@ -428,7 +414,7 @@ class InkwiseIngestionService:
         )
         ingestion.preview_manifest_bucket = derived_bucket
         ingestion.preview_manifest_object = manifest_object
-        return embedded_media_tokens
+        return embedded_tokens
 
     def _persist_source_pages(self, db: Session, *, source: InkwiseSource, normalized: Any) -> None:
         db.query(InkwiseSourcePage).filter(InkwiseSourcePage.source_id == source.id).delete()
@@ -446,14 +432,29 @@ class InkwiseIngestionService:
             )
 
     def _apply_reference_metadata_autofill(self, db: Session, *, source: InkwiseSource, normalized: Any) -> bool:
+        """Apply metadata suggestions, preserving the established boolean API."""
+        changed, _usage_tokens = self._apply_reference_metadata_autofill_with_usage(
+            db,
+            source=source,
+            normalized=normalized,
+        )
+        return changed
+
+    def _apply_reference_metadata_autofill_with_usage(
+        self,
+        db: Session,
+        *,
+        source: InkwiseSource,
+        normalized: Any,
+    ) -> tuple[bool, int]:
         try:
             suggestion = self.reference_metadata_service.extract_source_metadata(source=source, normalized=normalized)
         except Exception as exc:
             logger.warning("Inkwise metadata autofill failed for source %s: %s", source.id, exc)
-            return False
+            return False, 0
 
         if suggestion.is_empty:
-            return False
+            return False, 0
 
         changed = self.source_service.apply_ingestion_metadata_autofill(
             db,
@@ -463,7 +464,12 @@ class InkwiseIngestionService:
         )
         if changed:
             logger.info("Inkwise metadata autofill updated source %s during ingestion", source.id)
-        return changed
+        usage = suggestion.usage or {}
+        total = usage.get("total_tokens")
+        billed = int(total) if total is not None else int(usage.get("prompt_tokens") or 0) + int(usage.get("output_tokens") or 0)
+        if suggestion.usage is not None and billed <= 0:
+            logger.error("billing_missing_provider_usage product=inkwise source=inkwise_metadata source_id=%s", source.id)
+        return bool(changed), max(0, billed)
 
     def _build_usage_measurement(
         self,
@@ -471,43 +477,27 @@ class InkwiseIngestionService:
         normalized: Any,
         embedded_media_tokens: int | None,
     ) -> IngestionUsageMeasurement:
-        settings = get_inkwise_settings()
-        if normalized.source_kind in {"pdf", "docx"}:
-            return IngestionUsageMeasurement(
-                basis="page_count",
-                billable_pages=max(0, int(normalized.page_count or 0)),
-            )
-        if normalized.source_kind == "image":
-            return IngestionUsageMeasurement(basis="single_page_image", billable_pages=1)
-        if normalized.source_kind in {"audio", "video"}:
-            if embedded_media_tokens is None:
-                return IngestionUsageMeasurement(basis="media_tokens", billable_pages=0)
-            usage_tokens = int(embedded_media_tokens or 0)
-            if usage_tokens <= 0:
-                raise IngestionError("Media ingestion could not determine embedding token usage")
-            usage_tokens_per_page = max(1, settings.media_tokens_per_page)
-            return IngestionUsageMeasurement(
-                basis="media_tokens",
-                billable_pages=max(1, ceil(usage_tokens / usage_tokens_per_page)),
-                usage_tokens=usage_tokens,
-                usage_tokens_per_page=usage_tokens_per_page,
-            )
-        return IngestionUsageMeasurement(basis="page_count", billable_pages=max(0, int(normalized.page_count or 0)))
+        return IngestionUsageMeasurement(
+            basis="provider_tokens",
+            billable_pages=0,
+            usage_tokens=None if embedded_media_tokens is None else max(0, int(embedded_media_tokens)),
+            usage_tokens_per_page=None,
+        )
 
     def _apply_usage_measurement(self, *, ingestion: InkwiseSourceIngestion, measurement: IngestionUsageMeasurement) -> None:
         ingestion.usage_basis = measurement.basis
-        ingestion.usage_pages = measurement.billable_pages
+        ingestion.usage_pages = 0
         ingestion.usage_tokens = measurement.usage_tokens
         ingestion.usage_tokens_per_page = measurement.usage_tokens_per_page
 
     def _extract_embedding_usage_tokens(self, embedding_result: Any) -> int:
-        prompt_tokens = int(embedding_result.usage.prompt_token_count or 0)
-        if prompt_tokens > 0:
-            return prompt_tokens
-        total_tokens = int(embedding_result.usage.total_token_count or 0)
+        usage = getattr(embedding_result, "usage", None)
+        if usage is None:
+            return 0
+        total_tokens = int(getattr(usage, "total_token_count", 0) or 0)
         if total_tokens > 0:
             return total_tokens
-        return 0
+        return int(getattr(usage, "prompt_token_count", 0) or 0)
 
     def _upload_pdf_window_asset(
         self,
@@ -609,26 +599,22 @@ class InkwiseIngestionService:
             raise FileNotFoundError("Ingestion not found")
         return ingestion
 
-    def _check_usage_limits(self, db: Session, *, user_id: str, page_count: int) -> str | None:
-        if page_count <= 0:
-            return None
-
+    def _check_usage_limits(self, db: Session, *, user_id: str, page_count: int = 1) -> str | None:
+        """Compatibility wrapper; Inkwise now checks token availability only."""
         from services.billing_service import get_billing_service
 
         billing_service = get_billing_service(db)
-        if billing_service.check_page_limit(user_id, page_count):
+        if billing_service.check_limit(user_id, "token", 1):
             return None
-
-        billing_info = billing_service.get_billing_info(user_id)
-        pages_used = int(billing_info.get("pages_used") or 0)
-        pages_included = int(billing_info.get("pages_included") or 0)
-        pages_remaining = max(0, pages_included - pages_used)
-        plan_name = billing_info.get("plan_display_name") or "current"
-        return (
-            f"Cannot ingest this reference: processing {page_count} pages would exceed your {plan_name} plan limit. "
-            f"You have {pages_remaining} pages remaining out of {pages_included}. "
-            "Please upgrade your plan or reduce the number of reference pages."
-        )
+        info = billing_service.get_billing_info(user_id)
+        return str({
+            "code": "billing_limit_exceeded",
+            "unit": "token",
+            "used": info["tokens_used"],
+            "included": info["tokens_included"],
+            "remaining": max(0, info["tokens_included"] - info["tokens_used"]),
+            "plan_code": info["plan_code"],
+        })
 
     def _record_usage_for_ingestion(
         self,
@@ -637,8 +623,9 @@ class InkwiseIngestionService:
         source: InkwiseSource,
         ingestion: InkwiseSourceIngestion,
     ) -> None:
-        usage_pages = int(ingestion.usage_pages or 0)
-        if usage_pages <= 0:
+        usage_tokens = int(ingestion.usage_tokens or 0)
+        if usage_tokens <= 0:
+            logger.error("billing_missing_provider_usage product=inkwise source=inkwise_source_ingestion ingestion=%s", ingestion.id)
             return
 
         from services.billing_service import PlanLimitExceeded, get_billing_service
@@ -647,20 +634,24 @@ class InkwiseIngestionService:
         try:
             event_id = billing_service.record_usage(
                 user_id=source.user_id,
-                pages=usage_pages,
+                product="inkwise",
                 source="inkwise_source_ingestion",
+                unit="token",
+                quantity=usage_tokens,
+                operation_id=str(ingestion.id),
+                token_details={"total_tokens": usage_tokens},
                 inkwise_ingestion_id=str(ingestion.id),
                 notes=f"Inkwise ingestion for source {source.id}",
             )
             logger.info(
-                "Recorded %s Inkwise usage pages for ingestion %s (event %s)",
-                usage_pages,
+                "Recorded %s Inkwise usage tokens for ingestion %s (event %s)",
+                usage_tokens,
                 ingestion.id,
                 event_id,
             )
         except PlanLimitExceeded as exc:
             logger.error("Plan limit exceeded after successful Inkwise ingestion %s: %s", ingestion.id, exc)
-            message = self._check_usage_limits(db, user_id=source.user_id, page_count=usage_pages) or str(exc)
+            message = str(exc.detail)
             self._mark_failed(
                 db,
                 ingestion_id=uuid.UUID(str(ingestion.id)),

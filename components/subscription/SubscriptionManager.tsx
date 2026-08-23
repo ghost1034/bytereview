@@ -128,9 +128,10 @@ export default function SubscriptionManager() {
                 No active subscription
               </p>
               <p className="text-xs text-foreground-muted">
-                You&apos;re on the free plan ({billingAccount.pages_included}{' '}
-                {pluralize(billingAccount.pages_included, 'page')}/month).
-                Upgrade to unlock advanced features.
+                You&apos;re on the free plan ({billingAccount.pages_included.toLocaleString()}{' '}
+                {pluralize(billingAccount.pages_included, 'page')} and{' '}
+                {billingAccount.tokens_included.toLocaleString()} AI tokens per month).
+                Upgrade to unlock paid overages and advanced features.
               </p>
             </div>
             <Button onClick={() => setIsSubscriptionModalOpen(true)}>
@@ -178,11 +179,16 @@ export default function SubscriptionManager() {
           </div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-foreground-muted">Page limit</span>
+            <span className="text-sm text-foreground-muted">Page allowance</span>
             <span className="text-sm font-medium tabular-nums text-foreground">
-              {billingAccount.pages_included === 999999
-                ? 'Unlimited'
-                : `${billingAccount.pages_included} ${pluralize(billingAccount.pages_included, 'page')}/mo`}
+              {billingAccount.pages_included.toLocaleString()} {pluralize(billingAccount.pages_included, 'page')}/mo
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-foreground-muted">AI token allowance</span>
+            <span className="text-sm font-medium tabular-nums text-foreground">
+              {billingAccount.tokens_included.toLocaleString()} tokens/mo
             </span>
           </div>
 

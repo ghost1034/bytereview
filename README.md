@@ -230,9 +230,11 @@ This section details how we transform files into structured results, including c
 
 - Usage metering and billing
   - For each processed task, we compute total pages by summing `SourceFile.page_count` linked via `SourceFileToTask`.
-  - An authoritative `UsageEvent` is created: `{ user_id, task_id, pages, source='extraction_task' }`.
-  - `UsageCounter` is updated for the current billing period for fast reads.
-  - Maintenance tasks reconcile usage to Stripe and mark events as `stripe_reported` once synced.
+  - The per-user ledger has independent `page` and `token` units. Free/Basic/Pro include 100/500/5,000 pages and 200,000/1,000,000/10,000,000 platform AI tokens each period.
+  - Basic/Pro page overages are $0.50/$0.20 per page; token overages are $0.25/$0.10 per 1,000 provider-reported tokens. Free users cannot start more work after the relevant allowance is exhausted.
+  - `UsageEvent` stores product, source, unit, quantity, operation ID, provider token details, and explicit Stripe outbox state. Workspace and firm IDs are reporting/authorization metadata, never billing owners.
+  - Inkwise ingestion and generation are token-only. It aggregates embeddings, helpers, retries, and primary generations; it never converts tokens or source pages into billable pages.
+  - Maintenance drains pending/failed ledger events to the page or token Stripe meter using the usage-event UUID as the idempotent identifier.
 
 - Errors, retries, and observability
   - Cloud Tasks retries failed tasks based on configured backoff; task status transitions to `failed` after exhaustion.
@@ -564,7 +566,7 @@ Core environment and secrets
 - Tasks and Scheduler
   - TASK_EXTRACT_URL, TASK_IO_URL, TASK_AUTOMATION_URL, TASK_MAINTENANCE_URL
 - Billing
-  - STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+  - STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PAGE_METER_EVENT_NAME, STRIPE_TOKEN_METER_EVENT_NAME
 - Gmail Pub/Sub
   - GMAIL_PUBSUB_TOPIC, GMAIL_PUBSUB_SUBSCRIPTION, GMAIL_WEBHOOK_URL, GMAIL_PUBSUB_DEV_TOKEN (dev only)
 
@@ -789,7 +791,7 @@ Data model overview (key tables)
   - automations, automation_runs, automation_processed_messages: Gmail-triggered processing
 - Billing and usage
   - subscription_plans, billing_accounts
-  - usage_events (authoritative page counts, stripe_reported), usage_counters (cached totals)
+  - usage_events (authoritative per-user page/token ledger and Stripe outbox), usage_counters (cached per-unit totals)
 
 API surfaces
 - Interactive API docs: /api/docs (OpenAPI JSON at /api/openapi.json)

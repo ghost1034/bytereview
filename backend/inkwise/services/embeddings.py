@@ -12,6 +12,7 @@ from google.auth.transport.requests import AuthorizedSession
 
 from inkwise.settings import get_inkwise_settings
 from inkwise.services.vertex_ai import VertexAIConfigError, VertexAIError
+from inkwise.services.usage_meter import capture_usage
 
 _CLOUD_PLATFORM_SCOPE = ("https://www.googleapis.com/auth/cloud-platform",)
 _ALLOWED_FILE_MIME_TYPES = {
@@ -193,6 +194,11 @@ def _embed_content_sync(
         truncated=bool(payload.get("truncated")),
         raw=payload,
     )
+    capture_usage({
+        "prompt_tokens": usage.prompt_token_count,
+        "output_tokens": 0,
+        "total_tokens": usage.total_token_count,
+    })
     return InkwiseEmbeddingResult(values=vector, usage=usage)
 
 

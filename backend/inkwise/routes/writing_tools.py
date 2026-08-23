@@ -40,6 +40,7 @@ from inkwise.services.writing_tools_service import (
     build_writing_tool_retrieval_query,
     normalize_prediction_result,
 )
+from inkwise.services.usage_meter import begin_capture, end_capture, meter_async_stream, preflight, record_capture
 from inkwise.settings import get_inkwise_settings
 
 router = APIRouter(tags=["inkwise-writing-tools"])
@@ -310,15 +311,17 @@ async def create_prediction(
     db: Session = Depends(get_db),
 ) -> InkwisePredictionResponse:
     settings = get_inkwise_settings()
+    user_id = token_data["uid"]
+    preflight(db, user_id)
     try:
-        document = document_service.get_document_or_404(db, user_id=token_data["uid"], document_id=document_id)
+        document = document_service.get_document_or_404(db, user_id=user_id, document_id=document_id)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     ready_bound_sources = document_source_service.list_ready_bound_sources(
         db,
         document_id=document_id,
-        user_id=token_data["uid"],
+        user_id=user_id,
     )
     attempt = generation_attempt_service.create_attempt(
         db,
@@ -346,6 +349,7 @@ async def create_prediction(
         "max_output_tokens": 65536,
         "thinking_config": {"thinking_level": settings.prediction_thinking_level},
     }
+    accumulator, context_token = begin_capture()
     try:
         await _raise_if_prediction_disconnected(request)
         if ready_bound_sources:
@@ -493,6 +497,15 @@ async def create_prediction(
             },
         )
         raise HTTPException(status_code=500, detail="Failed to create prediction") from exc
+    finally:
+        end_capture(context_token)
+        record_capture(
+            db,
+            user_id=user_id,
+            source="inkwise_prediction",
+            operation_id=str(attempt.id),
+            accumulator=accumulator,
+        )
 
     if parsed_prediction is None:
         raise HTTPException(status_code=500, detail="Failed to create prediction")
@@ -520,6 +533,7 @@ async def stream_writing_tool_output(
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     user_id = token_data["uid"]
+    preflight(db, user_id)
     settings = get_inkwise_settings()
     _validate_writing_tool_request(body)
 
@@ -577,7 +591,7 @@ async def stream_writing_tool_output(
     )
 
     async def gen() -> AsyncGenerator[bytes, None]:
-        async for chunk in _stream_writing_tool_attempt(
+        stream = _stream_writing_tool_attempt(
             db=db,
             request=request,
             settings=settings,
@@ -589,6 +603,13 @@ async def stream_writing_tool_output(
             fresh_retrieval=True,
             reuse_retrieval_run_id=None,
             attempt_meta={"fresh_retrieval": True},
+        )
+        async for chunk in meter_async_stream(
+            stream,
+            db=db,
+            user_id=user_id,
+            source="inkwise_writing_tool",
+            operation_id=str(attempt.id),
         ):
             yield chunk
 
@@ -608,6 +629,7 @@ async def retry_writing_tool_output(
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     user_id = token_data["uid"]
+    preflight(db, user_id)
     settings = get_inkwise_settings()
 
     try:
@@ -679,7 +701,7 @@ async def retry_writing_tool_output(
     )
 
     async def gen() -> AsyncGenerator[bytes, None]:
-        async for chunk in _stream_writing_tool_attempt(
+        stream = _stream_writing_tool_attempt(
             db=db,
             request=request,
             settings=settings,
@@ -691,6 +713,13 @@ async def retry_writing_tool_output(
             fresh_retrieval=bool(body.fresh_retrieval),
             reuse_retrieval_run_id=None if body.fresh_retrieval else cast(uuid.UUID | None, prior_attempt.retrieval_run_id),
             attempt_meta={"fresh_retrieval": bool(body.fresh_retrieval), "retry_of_attempt_id": str(attempt_id)},
+        )
+        async for chunk in meter_async_stream(
+            stream,
+            db=db,
+            user_id=user_id,
+            source="inkwise_writing_tool_retry",
+            operation_id=str(retry_attempt.id),
         ):
             yield chunk
 

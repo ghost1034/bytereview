@@ -2,6 +2,7 @@
 import { getCurrentAuthToken } from './firebase'
 import type { paths } from './api-types'
 import { buildEsignReportQuery } from './esign/reportFilters'
+import { formatApiErrorMessage, getBillingLimitDetail, type BillingLimitDetail } from './billingLimit'
 
 type ApiPaths = paths
 type ApiResponse<T> = T extends { responses: { 200: { content: { 'application/json': infer U } } } } ? U : never
@@ -10,12 +11,14 @@ type ApiRequest<T> = T extends { requestBody: { content: { 'application/json': i
 export class ApiError extends Error {
   status: number
   body: any
+  billingLimit: BillingLimitDetail | null
 
-  constructor(status: number, message: string, body?: any) {
-    super(message)
+  constructor(status: number, message: unknown, body?: any) {
+    super(formatApiErrorMessage(status, body, typeof message === 'string' ? message : `HTTP ${status}`))
     this.name = 'ApiError'
     this.status = status
     this.body = body
+    this.billingLimit = getBillingLimitDetail(body)
   }
 }
 
@@ -54,7 +57,6 @@ export interface HostedClawStatus {
   entitled: boolean
   allowed_products: Array<'accountingclaw' | 'legalclaw'>
   allowed_model_aliases: string[]
-  monthly_budget_usd: string
   linked: boolean
   workspace_name: string | null
   slack_user_id: string | null
@@ -62,8 +64,6 @@ export interface HostedClawStatus {
   config: HostedClawConfig | null
   runtime_status: string
   runtime_last_activity_at: string | null
-  usage_cost_usd: string
-  usage_turns: number
 }
 
 export interface EsignContext {
@@ -3625,9 +3625,7 @@ export interface InkwiseSourceIngestion {
   finished_at?: string | null
   page_count?: number | null
   usage_basis?: string | null
-  usage_pages?: number | null
   usage_tokens?: number | null
-  usage_tokens_per_page?: number | null
   segment_count?: number | null
   provider_document_name?: string | null
   preview_manifest_bucket?: string | null

@@ -302,7 +302,9 @@ class HostedSlackChannelEventTests(unittest.IsolatedAsyncioTestCase):
             "routes.hosted_claw.get_or_create_config", return_value=config
         ), patch(
             "routes.hosted_claw.KmsEnvelope.encrypt", return_value=encrypted
-        ) as encrypt, patch("routes.hosted_claw.publish_job") as publish:
+        ) as encrypt, patch("routes.hosted_claw.publish_job") as publish, patch(
+            "routes.hosted_claw.BillingService.check_limit", return_value=True
+        ):
             installation_query.return_value.first.return_value = installation
             link_query.return_value.first.return_value = link
             result = await slack_events(request, background_tasks, db)
@@ -424,9 +426,11 @@ class HostedSlackChannelCompletionTests(unittest.IsolatedAsyncioTestCase):
             cost_usd=0,
         )
 
-        await complete_job("job-a", body, "worker-a", db)
+        with patch("routes.hosted_claw.BillingService.record_usage") as record_usage:
+            await complete_job("job-a", body, "worker-a", db)
 
         self.assertEqual(channel_session.hermes_session_id, "hcs-channel-new")
+        record_usage.assert_called_once()
         self.assertEqual(personal_session.hermes_session_id, "hcs-personal")
         self.assertEqual(personal_session.status, "ready")
         self.assertEqual(personal_session.applied_config_revision, 2)

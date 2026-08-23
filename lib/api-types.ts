@@ -7184,7 +7184,7 @@ export interface paths {
         put?: never;
         /**
          * Claim Cron Occurrence
-         * @description Claim scheduled work through the same admission and budget path as a turn.
+         * @description Claim scheduled work through the same token-quota admission path as a turn.
          */
         post: operations["claim_cron_occurrence_api_internal_hosted_claw_cron_occurrences_claim_post"];
         delete?: never;
@@ -9075,14 +9075,31 @@ export interface components {
             pages_included: number;
             /** Pages Used */
             pages_used: number;
+            /** Tokens Included */
+            tokens_included: number;
+            /** Tokens Used */
+            tokens_used: number;
             /** Automations Limit */
             automations_limit: number;
             /** Automations Count */
             automations_count: number;
             /** Overage Cents */
             overage_cents: number;
-            /** Tokens Used */
-            tokens_used?: number | null;
+            /** Token Overage Cents */
+            token_overage_cents: number;
+            /** Token Billing Effective At */
+            token_billing_effective_at?: string | null;
+            /**
+             * Token Billing Shadow
+             * @default false
+             */
+            token_billing_shadow: boolean;
+            /** Product Breakdown */
+            product_breakdown?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
             /** Current Period Start */
             current_period_start: string | null;
             /** Current Period End */
@@ -12663,11 +12680,6 @@ export interface components {
              */
             allowed_model_aliases: string[];
             /**
-             * Monthly Budget Usd
-             * @default 0
-             */
-            monthly_budget_usd: string;
-            /**
              * Linked
              * @default false
              */
@@ -12689,16 +12701,6 @@ export interface components {
             runtime_status: string;
             /** Runtime Last Activity At */
             runtime_last_activity_at?: string | null;
-            /**
-             * Usage Cost Usd
-             * @default 0
-             */
-            usage_cost_usd: string;
-            /**
-             * Usage Turns
-             * @default 0
-             */
-            usage_turns: number;
         };
         /** InkwiseAssetPreviewRequest */
         InkwiseAssetPreviewRequest: {
@@ -13391,12 +13393,8 @@ export interface components {
             page_count?: number | null;
             /** Usage Basis */
             usage_basis?: string | null;
-            /** Usage Pages */
-            usage_pages?: number | null;
             /** Usage Tokens */
             usage_tokens?: number | null;
-            /** Usage Tokens Per Page */
-            usage_tokens_per_page?: number | null;
             /** Segment Count */
             segment_count?: number | null;
             /** Provider Document Name */
@@ -15225,10 +15223,14 @@ export interface components {
             display_name: string;
             /** Pages Included */
             pages_included: number;
+            /** Tokens Included */
+            tokens_included: number;
             /** Automations Limit */
             automations_limit: number;
             /** Overage Cents */
             overage_cents: number;
+            /** Token Overage Cents */
+            token_overage_cents: number;
             /** Stripe Price Recurring Id */
             stripe_price_recurring_id: string | null;
             /** Sort Order */
@@ -15426,7 +15428,7 @@ export interface components {
         };
         /**
          * UsageMetadata
-         * @description Token / page billing summary returned alongside LLM responses.
+         * @description Provider token metadata returned alongside LLM responses.
          */
         UsageMetadata: {
             /** Prompt Tokens */
@@ -15435,8 +15437,6 @@ export interface components {
             output_tokens?: number | null;
             /** Total Tokens */
             total_tokens?: number | null;
-            /** Pages */
-            pages?: number | null;
         };
         /**
          * UsageStatsResponse
@@ -15454,10 +15454,10 @@ export interface components {
              * @default 0
              */
             tokens_used: number;
-            /** Automations Count */
-            automations_count: number;
-            /** Automations Limit */
-            automations_limit: number;
+            /** Tokens Included */
+            tokens_included: number;
+            /** Tokens Remaining */
+            tokens_remaining: number;
             /** Period Start */
             period_start: string | null;
             /** Period End */
@@ -15468,6 +15468,21 @@ export interface components {
             plan_display_name: string;
             /** Overage Cents */
             overage_cents: number;
+            /** Token Overage Cents */
+            token_overage_cents: number;
+            /** Token Billing Effective At */
+            token_billing_effective_at?: string | null;
+            /**
+             * Token Billing Shadow
+             * @default false
+             */
+            token_billing_shadow: boolean;
+            /** Product Breakdown */
+            product_breakdown?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
         };
         /** UserResponse */
         UserResponse: {

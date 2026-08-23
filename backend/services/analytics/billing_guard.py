@@ -18,13 +18,14 @@ from services.billing_service import (
     ANALYTICS_SOURCES,
     BillingService,
     PlanLimitExceeded,
+    billing_limit_http_exception,
 )
 
 logger = logging.getLogger(__name__)
 
 
 def preflight_check(db: Session, user_id: str, source: str) -> None:
-    """Estimate 1 page and fail-fast for users already at quota.
+    """Fail fast once no token quota remains.
 
     True billing is recorded post-flight off real token usage; this guard just
     keeps Free users who are already over their limit from triggering calls.
@@ -33,11 +34,10 @@ def preflight_check(db: Session, user_id: str, source: str) -> None:
         logger.warning("preflight_check called with unknown source '%s'", source)
 
     billing = BillingService(db)
-    if not billing.check_page_limit(user_id, additional_pages=1):
-        raise HTTPException(
-            status_code=402,
-            detail="Page limit exceeded for current plan. Upgrade to continue using AI features.",
-        )
+    try:
+        billing.require_limit(user_id, "token", 1)
+    except PlanLimitExceeded as exc:
+        raise billing_limit_http_exception(exc) from exc
 
 
 def record_call(
@@ -48,12 +48,10 @@ def record_call(
     output_tokens: Optional[int],
     total_tokens: Optional[int] = None,
     notes: Optional[str] = None,
+    operation_id: Optional[str] = None,
+    product: str = "analytics",
 ) -> Optional[str]:
-    """Post-flight: convert token usage to pages and record a UsageEvent.
-
-    Pages remain the billable unit; the raw token counts are persisted for
-    tracking. `total_tokens` is the provider-reported total when available.
-    """
+    """Record actual provider tokens as one token UsageEvent."""
     billing = BillingService(db)
     try:
         return billing.record_analytics_usage(
@@ -63,11 +61,8 @@ def record_call(
             output_tokens=output_tokens,
             total_tokens=total_tokens,
             notes=notes,
+            operation_id=operation_id,
+            product=product,
         )
-    except PlanLimitExceeded:
-        # User crossed the threshold during this call. The call itself already
-        # ran, but we surface the limit so the UI can prompt for an upgrade.
-        raise HTTPException(
-            status_code=402,
-            detail="This call put you over the Free plan page limit. Upgrade to continue.",
-        )
+    except PlanLimitExceeded as exc:
+        raise billing_limit_http_exception(exc) from exc

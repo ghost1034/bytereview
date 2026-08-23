@@ -33,7 +33,8 @@ from models.tasklytic import (
     TasklyticUsageEvent,
     TasklyticWebhookReceipt,
 )
-from services.analytics_ai_service import _get_resp_text, get_client
+from services.analytics_ai_service import _get_resp_text, _get_usage_counts, get_client
+from services.billing_service import BillingService
 from services.email_service import email_service
 from services.gcs_service import get_storage_service
 from services.google_service import google_service
@@ -325,7 +326,13 @@ def import_google_drive_files(
 
 
 def extract_receipt(
-    content: bytes, mime_type: str, *, extractor: Callable[[bytes, str], dict[str, Any]] | None = None,
+    content: bytes,
+    mime_type: str,
+    *,
+    extractor: Callable[[bytes, str], dict[str, Any]] | None = None,
+    db: Session | None = None,
+    user_id: str | None = None,
+    operation_id: str | None = None,
 ) -> dict[str, Any]:
     if not content or len(content) > 20 * 1024 * 1024:
         return {"status": "manual_required", "manualAllowed": True, "reason": "invalid_receipt"}
@@ -345,6 +352,17 @@ def extract_receipt(
                     temperature=0,
                 ),
             )
+            usage = _get_usage_counts(response)
+            if db is not None and user_id is not None:
+                BillingService(db).record_analytics_usage(
+                    user_id=user_id,
+                    source="tasklytic_receipt_extraction",
+                    prompt_tokens=usage.get("prompt_tokens"),
+                    output_tokens=usage.get("output_tokens"),
+                    total_tokens=usage.get("total_tokens"),
+                    operation_id=operation_id,
+                    product="tasklytic",
+                )
             data = json.loads(_get_resp_text(response))
         if not isinstance(data, dict):
             raise ValueError("Receipt extraction returned invalid data")

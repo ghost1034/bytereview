@@ -360,9 +360,7 @@ class InkwiseSourceIngestionOut(BaseModel):
     finished_at: datetime | None = None
     page_count: int | None = None
     usage_basis: str | None = None
-    usage_pages: int | None = None
     usage_tokens: int | None = None
-    usage_tokens_per_page: int | None = None
     segment_count: int | None = None
     provider_document_name: str | None = None
     preview_manifest_bucket: str | None = None

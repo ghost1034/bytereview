@@ -58,6 +58,7 @@ async def test_draft_request_list_uses_requested_model_minimal_thinking_and_no_o
     client = SimpleNamespace(aio=SimpleNamespace(models=Models()))
     monkeypatch.setattr(pbc_ai_service, "get_client", lambda: client)
     monkeypatch.setattr(pbc_ai_service, "_meter", lambda *_args: None)
+    monkeypatch.setattr(pbc_ai_service, "preflight_check", lambda *_args: None)
 
     engagement = SimpleNamespace(
         id="engagement-1",
@@ -106,6 +107,7 @@ async def test_match_document_uses_requested_model_minimal_thinking_and_no_outpu
     client = SimpleNamespace(aio=SimpleNamespace(models=Models()))
     monkeypatch.setattr(pbc_ai_service, "get_client", lambda: client)
     monkeypatch.setattr(pbc_ai_service, "_meter", lambda *_args: None)
+    monkeypatch.setattr(pbc_ai_service, "preflight_check", lambda *_args: None)
 
     document = SimpleNamespace(
         id="document-1",

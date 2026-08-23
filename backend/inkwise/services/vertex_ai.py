@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 from collections.abc import AsyncGenerator
 from typing import Any
@@ -14,6 +14,7 @@ from google import genai
 from google.genai import types
 
 from inkwise.settings import get_inkwise_settings
+from inkwise.services.usage_meter import capture_usage
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,7 @@ class VertexAITextResult:
     text: str
     finish_reason: str | None
     raw: Any
+    usage: dict[str, int | None] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -38,6 +40,31 @@ class VertexAITextChunk:
     text: str
     finish_reason: str | None
     raw: Any
+    usage: dict[str, int | None] = field(default_factory=dict)
+
+
+def extract_usage(response: Any) -> dict[str, int | None]:
+    """Normalize provider usage, including usage-only final stream chunks."""
+    usage = getattr(response, "usage_metadata", None) or getattr(response, "usage", None)
+    if usage is None and isinstance(response, dict):
+        usage = response.get("usage_metadata") or response.get("usageMetadata") or response.get("usage")
+    if usage is None:
+        return {"prompt_tokens": None, "output_tokens": None, "total_tokens": None}
+
+    def value(*names: str) -> int | None:
+        for name in names:
+            raw = usage.get(name) if isinstance(usage, dict) else getattr(usage, name, None)
+            if raw is not None:
+                try:
+                    return max(0, int(raw))
+                except (TypeError, ValueError):
+                    continue
+        return None
+
+    prompt = value("prompt_token_count", "promptTokenCount", "prompt_tokens", "input_tokens")
+    output = value("candidates_token_count", "candidatesTokenCount", "output_tokens", "completion_tokens")
+    total = value("total_token_count", "totalTokenCount", "total_tokens")
+    return {"prompt_tokens": prompt, "output_tokens": output, "total_tokens": total}
 
 
 def _merge_dicts(base: dict[str, Any], extra: dict[str, Any]) -> dict[str, Any]:
@@ -303,10 +330,13 @@ def generate_content_sync(
     except Exception as exc:
         raise VertexAIError(f"Vertex AI request failed: {exc}") from exc
 
+    normalized_usage = extract_usage(response)
+    capture_usage(normalized_usage)
     return VertexAITextResult(
         text=_extract_text(response),
         finish_reason=_extract_finish_reason(response),
         raw=_coerce_raw_response(response),
+        usage=normalized_usage,
     )
 
 
@@ -359,15 +389,28 @@ async def generate_content_stream(
                 config=config,
             )
             saw_text = False
-            async for response in stream:
-                chunk_text = _extract_text_or_empty(response)
-                if chunk_text.strip():
-                    saw_text = True
-                yield VertexAITextChunk(
-                    text=chunk_text,
-                    finish_reason=_extract_finish_reason(response),
-                    raw=_coerce_raw_response(response),
-                )
+            final_usage: dict[str, int | None] | None = None
+            try:
+                async for response in stream:
+                    chunk_text = _extract_text_or_empty(response)
+                    normalized_usage = extract_usage(response)
+                    # Streaming providers generally repeat/cumulate usage.
+                    # Retain only the latest usage-bearing chunk.
+                    if chunk_text.strip():
+                        saw_text = True
+                    yield VertexAITextChunk(
+                        text=chunk_text,
+                        finish_reason=_extract_finish_reason(response),
+                        raw=_coerce_raw_response(response),
+                        usage=normalized_usage,
+                    )
+                    if int(normalized_usage.get("total_tokens") or 0) > 0:
+                        final_usage = normalized_usage
+            finally:
+                # Preserve usage even if the provider fails after returning a
+                # usage-bearing chunk or the client closes the stream early.
+                if final_usage is not None:
+                    capture_usage(final_usage)
             if not saw_text:
                 raise VertexAIError("Vertex AI returned empty or unparseable text")
     except TimeoutError as exc:

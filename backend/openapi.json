@@ -23903,7 +23903,7 @@
           "hosted-claw-internal"
         ],
         "summary": "Claim Cron Occurrence",
-        "description": "Claim scheduled work through the same admission and budget path as a turn.",
+        "description": "Claim scheduled work through the same token-quota admission path as a turn.",
         "operationId": "claim_cron_occurrence_api_internal_hosted_claw_cron_occurrences_claim_post",
         "requestBody": {
           "content": {
@@ -29276,6 +29276,14 @@
             "type": "integer",
             "title": "Pages Used"
           },
+          "tokens_included": {
+            "type": "integer",
+            "title": "Tokens Included"
+          },
+          "tokens_used": {
+            "type": "integer",
+            "title": "Tokens Used"
+          },
           "automations_limit": {
             "type": "integer",
             "title": "Automations Limit"
@@ -29288,16 +29296,36 @@
             "type": "integer",
             "title": "Overage Cents"
           },
-          "tokens_used": {
+          "token_overage_cents": {
+            "type": "integer",
+            "title": "Token Overage Cents"
+          },
+          "token_billing_effective_at": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "string",
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Tokens Used"
+            "title": "Token Billing Effective At"
+          },
+          "token_billing_shadow": {
+            "type": "boolean",
+            "title": "Token Billing Shadow",
+            "default": false
+          },
+          "product_breakdown": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Product Breakdown"
           },
           "current_period_start": {
             "anyOf": [
@@ -29357,9 +29385,12 @@
           "plan_display_name",
           "pages_included",
           "pages_used",
+          "tokens_included",
+          "tokens_used",
           "automations_limit",
           "automations_count",
           "overage_cents",
+          "token_overage_cents",
           "current_period_start",
           "current_period_end",
           "status",
@@ -39939,12 +39970,6 @@
             "title": "Allowed Model Aliases",
             "default": []
           },
-          "monthly_budget_usd": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Monthly Budget Usd",
-            "default": "0"
-          },
           "linked": {
             "type": "boolean",
             "title": "Linked",
@@ -40003,17 +40028,6 @@
               }
             ],
             "title": "Runtime Last Activity At"
-          },
-          "usage_cost_usd": {
-            "type": "string",
-            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-            "title": "Usage Cost Usd",
-            "default": "0"
-          },
-          "usage_turns": {
-            "type": "integer",
-            "title": "Usage Turns",
-            "default": 0
           }
         },
         "type": "object",
@@ -42076,17 +42090,6 @@
             ],
             "title": "Usage Basis"
           },
-          "usage_pages": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Usage Pages"
-          },
           "usage_tokens": {
             "anyOf": [
               {
@@ -42097,17 +42100,6 @@
               }
             ],
             "title": "Usage Tokens"
-          },
-          "usage_tokens_per_page": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Usage Tokens Per Page"
           },
           "segment_count": {
             "anyOf": [
@@ -46914,6 +46906,10 @@
             "type": "integer",
             "title": "Pages Included"
           },
+          "tokens_included": {
+            "type": "integer",
+            "title": "Tokens Included"
+          },
           "automations_limit": {
             "type": "integer",
             "title": "Automations Limit"
@@ -46921,6 +46917,10 @@
           "overage_cents": {
             "type": "integer",
             "title": "Overage Cents"
+          },
+          "token_overage_cents": {
+            "type": "integer",
+            "title": "Token Overage Cents"
           },
           "stripe_price_recurring_id": {
             "anyOf": [
@@ -46943,8 +46943,10 @@
           "code",
           "display_name",
           "pages_included",
+          "tokens_included",
           "automations_limit",
           "overage_cents",
+          "token_overage_cents",
           "stripe_price_recurring_id",
           "sort_order"
         ],
@@ -47477,22 +47479,11 @@
               }
             ],
             "title": "Total Tokens"
-          },
-          "pages": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Pages"
           }
         },
         "type": "object",
         "title": "UsageMetadata",
-        "description": "Token / page billing summary returned alongside LLM responses."
+        "description": "Provider token metadata returned alongside LLM responses."
       },
       "UsageStatsResponse": {
         "properties": {
@@ -47513,13 +47504,13 @@
             "title": "Tokens Used",
             "default": 0
           },
-          "automations_count": {
+          "tokens_included": {
             "type": "integer",
-            "title": "Automations Count"
+            "title": "Tokens Included"
           },
-          "automations_limit": {
+          "tokens_remaining": {
             "type": "integer",
-            "title": "Automations Limit"
+            "title": "Tokens Remaining"
           },
           "period_start": {
             "anyOf": [
@@ -47556,6 +47547,37 @@
           "overage_cents": {
             "type": "integer",
             "title": "Overage Cents"
+          },
+          "token_overage_cents": {
+            "type": "integer",
+            "title": "Token Overage Cents"
+          },
+          "token_billing_effective_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Billing Effective At"
+          },
+          "token_billing_shadow": {
+            "type": "boolean",
+            "title": "Token Billing Shadow",
+            "default": false
+          },
+          "product_breakdown": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Product Breakdown"
           }
         },
         "type": "object",
@@ -47563,13 +47585,14 @@
           "pages_used",
           "pages_included",
           "pages_remaining",
-          "automations_count",
-          "automations_limit",
+          "tokens_included",
+          "tokens_remaining",
           "period_start",
           "period_end",
           "plan_code",
           "plan_display_name",
-          "overage_cents"
+          "overage_cents",
+          "token_overage_cents"
         ],
         "title": "UsageStatsResponse",
         "description": "Usage statistics for current period"

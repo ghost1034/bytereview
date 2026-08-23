@@ -41,10 +41,12 @@ export default function SubscriptionModal({
   const getPlanFeatures = (
     planCode: string,
     pagesIncluded: number,
+    tokensIncluded: number,
     automationsLimit: number,
   ) => {
     const baseFeatures = [
       `${pagesIncluded === 999999 ? 'Unlimited' : pagesIncluded} pages per month`,
+      `${tokensIncluded.toLocaleString()} platform AI tokens per month`,
       `Up to ${automationsLimit} automations`,
       'Custom extraction templates',
       'Export to CSV, Excel, Google Sheets',
@@ -141,7 +143,12 @@ export default function SubscriptionModal({
                         style: 'currency',
                         currency: 'USD',
                       })}{' '}
-                      per page
+                      per page ·{' '}
+                      {(plan.token_overage_cents / 100).toLocaleString('en-US', {
+                        style: 'currency',
+                        currency: 'USD',
+                      })}{' '}
+                      per 1,000 tokens
                     </>
                   ) : (
                     <>No overage allowed</>
@@ -152,6 +159,7 @@ export default function SubscriptionModal({
                   {getPlanFeatures(
                     plan.code,
                     plan.pages_included,
+                    plan.tokens_included,
                     plan.automations_limit,
                   ).map((feature, featureIndex) => (
                     <div

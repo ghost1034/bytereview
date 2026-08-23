@@ -22,6 +22,7 @@ from models.db_models import (
 )
 from services.hosted_claw_security import utcnow
 from services.hosted_claw_service import publish_job
+from services.billing_service import BillingService
 
 logger = logging.getLogger(__name__)
 
@@ -140,7 +141,7 @@ def dispatch_due_occurrences(db: Session, *, limit: int = 500) -> list[str]:
     ).order_by(HostedClawCronSchedule.next_fire_at.asc()).limit(limit).all()
     queued: list[str] = []
 
-    # Budget and entitlement rejection happens before Hermes claims an
+    # Token-quota and entitlement rejection happens before Hermes claims an
     # occurrence, so it is safe to retry that same occurrence once admission
     # becomes valid again. Reusing the row preserves `(schedule, fire_at)`
     # idempotency and avoids advancing Hermes behind its back.
@@ -149,12 +150,11 @@ def dispatch_due_occurrences(db: Session, *, limit: int = 500) -> list[str]:
         HostedClawCronSchedule.id == HostedClawCronOccurrence.schedule_id,
     ).filter(
         HostedClawCronOccurrence.status == "rejected",
-        HostedClawCronOccurrence.error_code.in_(["budget_exhausted", "entitlement_changed"]),
+        HostedClawCronOccurrence.error_code.in_(["budget_exhausted", "billing_limit_exceeded", "entitlement_changed"]),
         HostedClawCronSchedule.state == "scheduled",
         HostedClawCronOccurrence.user_id.in_(active_links),
         HostedClawCronOccurrence.user_id.in_(entitled_users),
     ).order_by(HostedClawCronOccurrence.fire_at.asc()).limit(limit).all()
-    period = date.today().replace(day=1)
     for occurrence in rejected:
         entitlement = db.get(HostedClawEntitlement, str(occurrence.user_id))
         config = db.get(HostedClawConfig, str(occurrence.user_id))
@@ -165,12 +165,7 @@ def dispatch_due_occurrences(db: Session, *, limit: int = 500) -> list[str]:
             or config.model_alias not in (entitlement.allowed_model_aliases or [])
         ):
             continue
-        usage_cost = db.query(HostedClawUsageSummary.cost_usd).filter(
-            HostedClawUsageSummary.user_id == occurrence.user_id,
-            HostedClawUsageSummary.period_start == period,
-        ).scalar() or Decimal("0")
-        budget = Decimal(entitlement.monthly_budget_usd or 0)
-        if budget > 0 and Decimal(usage_cost) >= budget:
+        if not BillingService(db).check_limit(str(occurrence.user_id), "token", 1):
             continue
         occurrence.status = "pending"
         occurrence.error_code = None

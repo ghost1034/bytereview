@@ -106,7 +106,7 @@ from services.esign.admin_service import esign_admin_service
 from services.esign.url_service import app_base_url
 from services.esign.outbox_service import esign_outbox_service
 from services.esign.ai_field_placement_service import esign_ai_field_placement_service
-from services.billing_service import PlanLimitExceeded
+from services.billing_service import PlanLimitExceeded, billing_limit_http_exception
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ def _raise_http(exc: Exception) -> None:
     if isinstance(exc, PermissionError):
         raise HTTPException(status_code=403, detail=str(exc))
     if isinstance(exc, PlanLimitExceeded):
-        raise HTTPException(status_code=402, detail=str(exc))
+        raise billing_limit_http_exception(exc) from exc
     if isinstance(exc, (EsignError, ValueError)):
         raise HTTPException(status_code=400, detail=str(exc))
     logger.exception("Unhandled esign error")

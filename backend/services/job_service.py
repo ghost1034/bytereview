@@ -730,7 +730,7 @@ class JobService:
     async def _check_job_run_plan_limits(self, db: Session, run_id: str, user_id: str) -> None:
         """Check if starting this job run would exceed plan limits"""
         try:
-            from services.billing_service import get_billing_service
+            from services.billing_service import PlanLimitExceeded, get_billing_service
             from models.db_models import SourceFileToTask
             
             # Calculate total pages for this job run (only files with page_count set)
@@ -750,28 +750,11 @@ class JobService:
             
             # Check limits through billing service
             billing_service = get_billing_service(db)
-            can_process = billing_service.check_page_limit(user_id, total_pages)
-            
-            if not can_process:
-                billing_info = billing_service.get_billing_info(user_id)
-                plan_name = billing_info['plan_display_name']
-                pages_used = billing_info['pages_used']
-                pages_included = billing_info['pages_included']
-                pages_remaining = max(0, pages_included - pages_used)
-                
-                if billing_info['plan_code'] == 'free':
-                    raise ValueError(
-                        f"Cannot start job: Processing {total_pages} pages would exceed your {plan_name} plan limit. "
-                        f"You have {pages_remaining} pages remaining out of {pages_included}. "
-                        f"Please upgrade your plan or reduce the number of files."
-                    )
-                else:
-                    # For paid plans, this shouldn't happen since they allow overage
-                    logger.warning(f"Paid user {user_id} hitting page limit check - this shouldn't normally happen")
+            billing_service.require_limit(user_id, "page", int(total_pages))
             
             logger.info(f"Job run {run_id} plan limits check passed: {total_pages} pages for user {user_id}")
             
-        except ValueError:
+        except (ValueError, PlanLimitExceeded):
             # Re-raise plan limit errors
             raise
         except Exception as e:

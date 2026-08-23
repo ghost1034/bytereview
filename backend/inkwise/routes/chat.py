@@ -48,6 +48,7 @@ from inkwise.services.multimodal_evidence import build_multimodal_contents
 from inkwise.services.retrieval_service import InkwiseRetrievalService, build_evidence_pack
 from inkwise.services.retrieval_types import evidence_item_to_payload
 from inkwise.services.source_service import InkwiseSourceService
+from inkwise.services.usage_meter import meter_async_stream, preflight
 from inkwise.settings import get_inkwise_settings
 
 router = APIRouter(prefix="/chat", tags=["inkwise-chat"])
@@ -590,8 +591,10 @@ async def stream_thread_message(
     draft_text = (body.draft_selection_text or "").strip()
     draft_text, draft_truncated = truncate_text(draft_text, 8000)
     draft_label = (body.draft_selection_label or "").strip()[:80] or None
+    preflight(db, user_id)
+    billing_operation_id = str(uuid.uuid4())
 
-    async def gen() -> AsyncGenerator[bytes, None]:
+    async def unmetered_gen() -> AsyncGenerator[bytes, None]:
         try:
             ready_bound_sources = document_source_service.list_ready_bound_sources(
                 db,
@@ -679,8 +682,7 @@ async def stream_thread_message(
                 fresh_retrieval=True,
             ):
                 yield chunk
-            _schedule_thread_auto_name_after_response(
-                thread=thread,
+            await _auto_name_thread_after_response(
                 user_id=user_id,
                 thread_id=thread_db_id,
                 user_message=body.content,
@@ -691,6 +693,16 @@ async def stream_thread_message(
         except Exception as exc:
             yield _sse("meta", {"error": "internal_error", "message": str(exc)[:1000]})
             return
+
+    async def gen() -> AsyncGenerator[bytes, None]:
+        async for chunk in meter_async_stream(
+            unmetered_gen(),
+            db=db,
+            user_id=user_id,
+            source="inkwise_chat",
+            operation_id=billing_operation_id,
+        ):
+            yield chunk
 
     return StreamingResponse(
         gen(),
@@ -731,8 +743,10 @@ async def retry_thread_message(
     prior_attempt_id = str(assistant_provider_meta.get("attempt_id") or "").strip() or None
     prior_attempt_uuid = uuid.UUID(prior_attempt_id) if prior_attempt_id else None
     prior_citations = cast(dict[str, Any], assistant_message.citations_json or {})
+    preflight(db, user_id)
+    billing_operation_id = str(uuid.uuid4())
 
-    async def gen() -> AsyncGenerator[bytes, None]:
+    async def unmetered_gen() -> AsyncGenerator[bytes, None]:
         try:
             ready_bound_sources = document_source_service.list_ready_bound_sources(
                 db,
@@ -834,8 +848,7 @@ async def retry_thread_message(
                 reuse_retrieval_run_id=reuse_retrieval_run_id,
             ):
                 yield chunk
-            _schedule_thread_auto_name_after_response(
-                thread=thread,
+            await _auto_name_thread_after_response(
                 user_id=user_id,
                 thread_id=thread_id,
                 user_message=str(source_message.content),
@@ -846,6 +859,16 @@ async def retry_thread_message(
         except Exception as exc:
             yield _sse("meta", {"error": "internal_error", "message": str(exc)[:1000]})
             return
+
+    async def gen() -> AsyncGenerator[bytes, None]:
+        async for chunk in meter_async_stream(
+            unmetered_gen(),
+            db=db,
+            user_id=user_id,
+            source="inkwise_chat_retry",
+            operation_id=billing_operation_id,
+        ):
+            yield chunk
 
     return StreamingResponse(
         gen(),

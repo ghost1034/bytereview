@@ -2,7 +2,7 @@
 Billing and subscription-related data models
 """
 from pydantic import BaseModel, Field, HttpUrl
-from typing import Optional, List
+from typing import Optional, Dict
 from datetime import datetime
 
 class CreateCheckoutSessionRequest(BaseModel):
@@ -22,10 +22,15 @@ class BillingAccountResponse(BaseModel):
     plan_display_name: str
     pages_included: int
     pages_used: int
+    tokens_included: int
+    tokens_used: int
     automations_limit: int
     automations_count: int
     overage_cents: int
-    tokens_used: Optional[int] = None  # raw analytics tokens consumed this period
+    token_overage_cents: int
+    token_billing_effective_at: Optional[datetime] = None
+    token_billing_shadow: bool = False
+    product_breakdown: Dict[str, Dict[str, int]] = Field(default_factory=dict)
     current_period_start: Optional[datetime]
     current_period_end: Optional[datetime]
     status: str
@@ -37,8 +42,10 @@ class SubscriptionPlanResponse(BaseModel):
     code: str
     display_name: str
     pages_included: int
+    tokens_included: int
     automations_limit: int
     overage_cents: int
+    token_overage_cents: int
     stripe_price_recurring_id: Optional[str]
     sort_order: int
 
@@ -47,14 +54,18 @@ class UsageStatsResponse(BaseModel):
     pages_used: int
     pages_included: int
     pages_remaining: int
-    tokens_used: int = 0  # raw analytics tokens consumed this period
-    automations_count: int
-    automations_limit: int
+    tokens_used: int = 0
+    tokens_included: int
+    tokens_remaining: int
     period_start: Optional[datetime]
     period_end: Optional[datetime]
     plan_code: str
     plan_display_name: str
     overage_cents: int
+    token_overage_cents: int
+    token_billing_effective_at: Optional[datetime] = None
+    token_billing_shadow: bool = False
+    product_breakdown: Dict[str, Dict[str, int]] = Field(default_factory=dict)
 
 class CheckoutSessionResponse(BaseModel):
     """Response containing checkout session URL"""

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from typing import Any
 
 from google.genai import types
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from models.pbc import PbcDocument, PbcEngagement, PbcRequest, PbcTemplate
 from services.analytics_ai_service import _get_resp_text, _get_usage_counts, get_client
+from services.analytics.billing_guard import preflight_check
 from services.billing_service import BillingService
 
 
@@ -52,7 +54,7 @@ def _draft_response_schema() -> types.Schema:
     )
 
 
-def _meter(db: Session, user_id: str, response, note: str) -> None:
+def _meter(db: Session, user_id: str, response, note: str, operation_id: str) -> None:
     usage = _get_usage_counts(response)
     BillingService(db).record_analytics_usage(
         user_id,
@@ -61,6 +63,8 @@ def _meter(db: Session, user_id: str, response, note: str) -> None:
         usage.get("output_tokens"),
         usage.get("total_tokens"),
         notes=note,
+        operation_id=operation_id,
+        product="pbc",
     )
 
 
@@ -70,6 +74,8 @@ async def draft_request_list(
     engagement: PbcEngagement,
     instructions: str | None,
 ) -> dict[str, Any]:
+    preflight_check(db, user_id, "pbc_assistant")
+    operation_id = str(uuid.uuid4())
     templates = db.query(PbcTemplate).filter(PbcTemplate.firm_id == engagement.firm_id).limit(20).all()
     context = {
         "engagement": {
@@ -104,6 +110,7 @@ FIRM INSTRUCTIONS:
             thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL),
         ),
     )
+    _meter(db, user_id, response, f"engagement={engagement.id};action=draft", operation_id)
     response_text = _get_resp_text(response)
     try:
         parsed = json.loads(response_text or "{}")
@@ -130,7 +137,6 @@ FIRM INSTRUCTIONS:
             "expected_formats": [str(value).lower()[:20] for value in (item.get("expected_formats") or [])[:20]],
             "rationale": str(item.get("rationale") or "")[:2000],
         })
-    _meter(db, user_id, response, f"engagement={engagement.id};action=draft")
     return {"summary": parsed["summary"], "proposals": cleaned, "model": MODEL, "requires_confirmation": True}
 
 
@@ -140,6 +146,8 @@ async def match_document(
     engagement: PbcEngagement,
     document: PbcDocument,
 ) -> dict[str, Any]:
+    preflight_check(db, user_id, "pbc_assistant")
+    operation_id = str(uuid.uuid4())
     requests = db.query(PbcRequest).filter(
         PbcRequest.engagement_id == engagement.id, PbcRequest.status != "waived"
     ).order_by(PbcRequest.sort_order).all()
@@ -164,6 +172,7 @@ AUTHORIZED REQUESTS: {json.dumps(context)}
             thinking_config=types.ThinkingConfig(thinking_level=types.ThinkingLevel.MINIMAL),
         ),
     )
+    _meter(db, user_id, response, f"engagement={engagement.id};document={document.id};action=match", operation_id)
     parsed = json.loads(_get_resp_text(response) or "{}")
     known = {item["id"] for item in context}
     candidates = []
@@ -183,7 +192,6 @@ AUTHORIZED REQUESTS: {json.dumps(context)}
         "requires_confirmation": True,
     }
     document.ai_metadata = result
-    _meter(db, user_id, response, f"engagement={engagement.id};document={document.id};action=match")
     return result
 
 

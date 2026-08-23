@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from typing import Any
 
 from google.genai import types
@@ -63,12 +64,15 @@ async def generate_tasklytic_response(
     model: str | None,
     scope: dict[str, Any],
     thread_id: str | None = None,
+    operation_id: str | None = None,
 ) -> dict[str, Any]:
     workspace_id, context = build_authorized_context(db, user_id, scope)
     settings = get_or_create_settings(db, workspace_id, user_id)
     if not settings.enabled or settings.paused:
         raise ValueError("Tasklytic AI is paused")
     selected_model = select_vertex_model(model or settings.model)
+    BillingService(db).require_limit(user_id, "token", 1)
+    operation_id = operation_id or thread_id or str(uuid.uuid4())
     if thread_id:
         thread = db.get(TasklyticAiThread, thread_id)
         if thread is None or thread.user_id != user_id or thread.workspace_id != workspace_id:
@@ -102,6 +106,21 @@ USER REQUEST:
             max_output_tokens=8192,
         ),
     )
+    usage = _get_usage_counts(response)
+    try:
+        BillingService(db).record_analytics_usage(
+            user_id,
+            "tasklytic_assistant",
+            usage.get("prompt_tokens"),
+            usage.get("output_tokens"),
+            usage.get("total_tokens"),
+            notes=f"workspace={workspace_id};model={selected_model}",
+            operation_id=operation_id,
+            product="tasklytic",
+        )
+    except Exception:
+        logger.exception("Unable to meter Tasklytic AI usage for %s", user_id)
+        raise
     text = _get_resp_text(response)
     if not text:
         raise RuntimeError("Vertex AI returned an empty response")
@@ -112,19 +131,6 @@ USER REQUEST:
     if not isinstance(parsed, dict) or not isinstance(parsed.get("text"), str):
         raise ValueError("Vertex AI returned an invalid response")
     parsed["proposals"] = validate_proposals(db, user_id, workspace_id, parsed.get("proposals", []))
-    usage = _get_usage_counts(response)
-    try:
-        BillingService(db).record_analytics_usage(
-            user_id,
-            "tasklytic_assistant",
-            usage.get("prompt_tokens"),
-            usage.get("output_tokens"),
-            usage.get("total_tokens"),
-            notes=f"workspace={workspace_id};model={selected_model}",
-        )
-    except Exception:
-        logger.exception("Unable to meter Tasklytic AI usage for %s", user_id)
-        raise
     if thread_id:
         return persist_generated_exchange(
             db,

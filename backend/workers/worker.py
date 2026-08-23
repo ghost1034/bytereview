@@ -792,7 +792,8 @@ async def run_free_user_period_reset(ctx: Dict[str, Any]) -> Dict[str, Any]:
                     user_id=account.user_id,
                     period_start=period_start,
                     period_end=period_end,
-                    pages_total=0
+                    pages_total=0,
+                    tokens_total=0,
                 )
                 db.merge(new_counter)  # Use merge to handle conflicts
                 
@@ -820,67 +821,16 @@ async def run_free_user_period_reset(ctx: Dict[str, Any]) -> Dict[str, Any]:
         db.close()
 
 async def run_stripe_usage_reconciliation(ctx: Dict[str, Any]) -> Dict[str, Any]:
-    """Retry failed Stripe usage reports and reconcile usage data"""
+    """Drain the database-backed Stripe usage outbox."""
     logger.info("Starting Stripe usage reconciliation")
     
     db = db_config.get_session()
     try:
         from services.billing_service import get_billing_service
-        from datetime import datetime, timezone, timedelta
-        from models.db_models import BillingAccount, UsageEvent
-        
-        # Find usage events that failed to report to Stripe
-        unreported_events = db.query(UsageEvent).filter(
-            UsageEvent.stripe_reported == False,
-            UsageEvent.occurred_at > datetime.now(timezone.utc) - timedelta(days=7)  # Only retry recent events
-        ).all()
-        
-        retry_count = 0
-        success_count = 0
-        
-        for event in unreported_events:
-            try:
-                # Get billing account to check if user is on paid plan
-                billing_account = db.query(BillingAccount).filter(
-                    BillingAccount.user_id == event.user_id
-                ).first()
-                
-                if not billing_account or billing_account.plan_code == 'free':
-                    # Mark as reported for free users (no Stripe reporting needed)
-                    event.stripe_reported = True
-                    continue
-                
-                if not billing_account.stripe_customer_id:
-                    logger.warning(f"No Stripe customer ID for paid user {event.user_id}")
-                    continue
-                
-                # Retry Stripe reporting
-                billing_service = get_billing_service(db)
-                billing_service._report_usage_to_stripe(
-                    event.user_id,
-                    event.pages,
-                    str(event.id)
-                )
-                
-                retry_count += 1
-                success_count += 1
-                logger.info(f"Successfully retried Stripe reporting for event {event.id}")
-                
-            except Exception as e:
-                logger.error(f"Failed to retry Stripe reporting for event {event.id}: {e}")
-                retry_count += 1
-                continue
-        
-        db.commit()
-        
-        logger.info(f"Stripe usage reconciliation completed: {success_count}/{retry_count} events processed")
-        return {
-            "success": True,
-            "message": f"Reconciliation completed: {success_count}/{retry_count} events processed",
-            "retry_count": retry_count,
-            "success_count": success_count
-        }
-        
+
+        result = get_billing_service(db).reconcile_stripe_usage()
+        logger.info("Stripe usage reconciliation result: %s", result)
+        return {"success": True, **result}
     except Exception as e:
         db.rollback()
         logger.error(f"Stripe usage reconciliation failed: {e}")
@@ -1938,8 +1888,11 @@ async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files
         billing_service = get_billing_service(db)
         event_id = billing_service.record_usage(
             user_id=job.user_id,
-            pages=total_pages,
-            source="extraction_task",
+            product="cpe" if getattr(job, "job_type", None) == "cpe" else "uda",
+            source="cpe_extraction" if getattr(job, "job_type", None) == "cpe" else "extraction_task",
+            unit="page",
+            quantity=total_pages,
+            operation_id=str(task.id),
             task_id=str(task.id),
             notes=f"Processed {len(source_files)} files"
         )
