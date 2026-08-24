@@ -1,0 +1,10 @@
+import Link from 'next/link'
+import { ContactForm } from '@/components/marketing/ContactForm'
+import { generateMetadata, pageMetadata } from '@/lib/metadata'
+
+export const metadata = generateMetadata(pageMetadata.contact)
+
+export default function ContactPage() { return <main id="main-content">
+  <section className="ps-page-hero"><div className="ps-container ps-page-hero__split"><div><span className="ps-label">Contact</span><h1>Contact us</h1></div><p className="ps-kicker">Get in touch with our team of CPAs and legal professionals.</p></div></section>
+  <section className="ps-section ps-section--muted"><div className="ps-container ps-form-layout"><ContactForm /><aside><section className="ps-sidebar-card"><h2>Get in touch</h2><address><p><strong>Email</strong><br />Tech: <a href="mailto:support@CPAAutomation.ai">support@CPAAutomation.ai</a><br />Sales: <a href="mailto:sales@CPAAutomation.ai">sales@CPAAutomation.ai</a></p><p><strong>Phone</strong><br />Tech: <a href="tel:+14156805881">(415) 680-5881</a><br />Sales: <a href="tel:+15135931883">(513) 593-1883</a></p><p><strong>Office</strong><br />United States<br />US-based support team</p><p><strong>Business hours</strong><br />Monday – Friday: 9:00 AM – 6:00 PM EST<br />Enterprise support: 24/7</p></address></section><section className="ps-sidebar-card"><h2>Enterprise solutions</h2><p>Need custom integrations, dedicated support, or volume processing? Our enterprise team specializes in large-scale document workflows.</p><a className="ps-button ps-button--light" href="mailto:sales@CPAAutomation.ai?subject=Enterprise%20consultation">Schedule enterprise consultation</a><h3>Enterprise consultation</h3><p>For enterprise inquiries, please contact our lead developer or legal expert directly:</p><p>Lead developer: <a href="mailto:ianstewart@cpaautomation.ai">ianstewart@cpaautomation.ai</a><br />Legal expert: <a href="mailto:raysang@cpaautomation.ai">raysang@cpaautomation.ai</a></p><p>Quick links: <Link href="/demo">View demo videos</Link> · <Link href="/pricing">Pricing plans</Link></p></section></aside></div></section>
+</main> }

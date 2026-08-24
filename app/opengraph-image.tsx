@@ -14,8 +14,7 @@ export default function OpenGraphImage() {
           display: 'flex',
           flexDirection: 'column',
           padding: 80,
-          background:
-            'linear-gradient(135deg, #0b1220 0%, #0f172a 60%, #1e293b 100%)',
+          background: '#07101b',
           color: '#ffffff',
           fontFamily: 'system-ui, -apple-system, sans-serif',
         }}
@@ -26,9 +25,8 @@ export default function OpenGraphImage() {
             alignItems: 'center',
           }}
         >
-          <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: -0.5 }}>
-            CPAAutomation
-          </span>
+            <span style={{ width: 42, height: 42, marginRight: 15, border: '1px solid #1769e0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 600 }}>C</span>
+            <span style={{ fontSize: 28, fontWeight: 600, letterSpacing: -0.5 }}>CPA<span style={{ color: '#17b5a6' }}>Automation</span></span>
         </div>
 
         <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
@@ -42,7 +40,7 @@ export default function OpenGraphImage() {
                 textTransform: 'uppercase',
               }}
             >
-              AI Platform for Accounting
+              Built by CPAs, for professionals
             </span>
             <span
               style={{
@@ -53,7 +51,7 @@ export default function OpenGraphImage() {
                 maxWidth: 920,
               }}
             >
-              One AI platform for accounting, finance & legal work.
+              Less busywork. More billable hours.
             </span>
           </div>
         </div>
@@ -68,7 +66,7 @@ export default function OpenGraphImage() {
             fontWeight: 500,
           }}
         >
-          <span>Built by CPAs for CPAs</span>
+          <span>Document intelligence · AI writing · e-signatures · agents</span>
           <span style={{ color: '#94a3b8' }}>cpaautomation.ai</span>
         </div>
       </div>
