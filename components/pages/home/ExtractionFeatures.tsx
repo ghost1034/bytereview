@@ -1,8 +1,11 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Award,
+  ChevronLeft,
+  ChevronRight,
   CloudUpload,
   Download,
   FileSearch,
@@ -85,6 +88,61 @@ const FILE_TYPES: string[] = [
 export default function ExtractionFeatures({
   onGetStarted,
 }: ExtractionFeaturesProps) {
+  const featureGridRef = useRef<HTMLDivElement>(null)
+  const scrollFrameRef = useRef<number | null>(null)
+  const [activeFeature, setActiveFeature] = useState(0)
+
+  const updateActiveFeature = useCallback(() => {
+    const grid = featureGridRef.current
+    if (!grid) return
+
+    const gridLeft = grid.getBoundingClientRect().left
+    const paddingLeft = Number.parseFloat(getComputedStyle(grid).paddingLeft)
+    const cards = Array.from(grid.children) as HTMLElement[]
+    const closestCard = cards.reduce(
+      (closest, card, index) => {
+        const distance = Math.abs(
+          card.getBoundingClientRect().left - gridLeft - paddingLeft,
+        )
+        return distance < closest.distance ? { index, distance } : closest
+      },
+      { index: 0, distance: Number.POSITIVE_INFINITY },
+    )
+
+    setActiveFeature(closestCard.index)
+  }, [])
+
+  const handleFeatureScroll = useCallback(() => {
+    if (scrollFrameRef.current !== null) return
+
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      updateActiveFeature()
+      scrollFrameRef.current = null
+    })
+  }, [updateActiveFeature])
+
+  const scrollToFeature = (index: number) => {
+    const grid = featureGridRef.current
+    const card = grid?.children.item(index) as HTMLElement | null
+    if (!grid || !card) return
+
+    const gridLeft = grid.getBoundingClientRect().left
+    const paddingLeft = Number.parseFloat(getComputedStyle(grid).paddingLeft)
+    const left =
+      grid.scrollLeft + card.getBoundingClientRect().left - gridLeft - paddingLeft
+
+    grid.scrollTo({ left, behavior: 'smooth' })
+  }
+
+  useEffect(
+    () => () => {
+      if (scrollFrameRef.current !== null) {
+        cancelAnimationFrame(scrollFrameRef.current)
+      }
+    },
+    [],
+  )
+
   return (
     <SectionShell
       id="extraction-features"
@@ -95,7 +153,10 @@ export default function ExtractionFeatures({
       description="No complex training required — just type in plain English."
     >
       <motion.div
-        className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3"
+        ref={featureGridRef}
+        aria-label="Extraction features"
+        className="-mx-4 flex snap-x snap-mandatory items-stretch gap-6 overflow-x-auto overscroll-x-contain px-4 pb-4 scroll-px-4 touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 sm:scroll-px-6 md:mx-0 md:grid md:grid-cols-1 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-3"
+        onScroll={handleFeatureScroll}
         variants={staggerContainer}
         initial="hidden"
         whileInView="visible"
@@ -106,7 +167,7 @@ export default function ExtractionFeatures({
             key={feature.title}
             variants={staggerChild}
             {...hoverLift}
-            className="h-full"
+            className="h-full w-[85%] shrink-0 snap-start md:w-auto"
           >
             <FeatureCard
               icon={feature.icon}
@@ -120,6 +181,39 @@ export default function ExtractionFeatures({
           </motion.div>
         ))}
       </motion.div>
+
+      <div
+        className="mt-2 flex items-center justify-center gap-4 md:hidden"
+        aria-label="Extraction feature navigation"
+      >
+        <button
+          type="button"
+          className="inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => scrollToFeature(activeFeature - 1)}
+          disabled={activeFeature === 0}
+          aria-label="Previous extraction feature"
+        >
+          <ChevronLeft className="size-4" aria-hidden />
+        </button>
+
+        <span
+          className="min-w-12 text-center text-sm font-medium tabular-nums text-foreground-muted"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {activeFeature + 1} / {FEATURES.length}
+        </span>
+
+        <button
+          type="button"
+          className="inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => scrollToFeature(activeFeature + 1)}
+          disabled={activeFeature === FEATURES.length - 1}
+          aria-label="Next extraction feature"
+        >
+          <ChevronRight className="size-4" aria-hidden />
+        </button>
+      </div>
 
       <motion.div
         className="mt-16 text-center"
