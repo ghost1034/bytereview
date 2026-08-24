@@ -12,6 +12,12 @@ import { HeroPoster } from './HeroPoster'
 import { BRAND } from './sceneConfig'
 
 const MODEL_URL = '/models/globe.glb'
+const DRACO_DECODER_PATH = '/draco/'
+
+// The globe is Draco-compressed. Keep its decoder same-origin so the hero does not
+// depend on a third-party CDN that mobile privacy tools and restricted networks may
+// block. This must be configured before either preload or useGLTF runs.
+useGLTF.setDecoderPath(DRACO_DECODER_PATH)
 
 // ── Visual-tuning constants — adjust against the running dev server (see plan checklist) ──
 const TARGET_SIZE = 4 // largest model dimension in world units after normalize

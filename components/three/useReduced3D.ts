@@ -4,17 +4,30 @@ import { useEffect, useState } from 'react'
 
 export type Quality = 'high' | 'low' | 'off'
 
+let cachedWebGLSupport: boolean | undefined
+
 function detectWebGL(): boolean {
+  if (cachedWebGLSupport !== undefined) return cachedWebGLSupport
+
   try {
     const canvas = document.createElement('canvas')
-    return !!(
-      window.WebGLRenderingContext &&
-      (canvas.getContext('webgl2') ||
-        canvas.getContext('webgl') ||
-        canvas.getContext('experimental-webgl'))
-    )
+    const context =
+      canvas.getContext('webgl2') ||
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl')
+
+    cachedWebGLSupport = Boolean(context)
+
+    // Mobile Safari keeps probe contexts alive longer than the detached canvas.
+    // Release it explicitly so the actual homepage scenes get the limited contexts.
+    if (context && 'getExtension' in context) {
+      context.getExtension('WEBGL_lose_context')?.loseContext()
+    }
+
+    return cachedWebGLSupport
   } catch {
-    return false
+    cachedWebGLSupport = false
+    return cachedWebGLSupport
   }
 }
 
