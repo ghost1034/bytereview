@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
 import AuthModal from "@/components/auth/AuthModal";
-import { ConsultingBanner } from "@/components/marketing/consulting-banner";
 import { HomeBackground } from "./shared/HomeBackground";
 
 // Above the fold — load immediately
@@ -51,7 +50,6 @@ export default function Home() {
     // Nothing else in the app applies `.dark`, so the dashboard/app stay light.
     <div className="dark marketing-dark relative min-h-screen bg-background text-foreground">
       <HomeBackground />
-      <ConsultingBanner />
 
       <HeroSection onGetStarted={handleGetStarted} />
       <ProductSuite />
