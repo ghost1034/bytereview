@@ -1,11 +1,13 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import Link from 'next/link'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowUpRight,
   BarChart3,
   Bot,
+  ChevronLeft,
+  ChevronRight,
   ClipboardCheck,
   Clock,
   FileSignature,
@@ -148,6 +150,61 @@ function StatusBadge({ status }: { status: Status }) {
 }
 
 export default function ProductSuite() {
+  const productGridRef = useRef<HTMLDivElement>(null)
+  const scrollFrameRef = useRef<number | null>(null)
+  const [activeProduct, setActiveProduct] = useState(0)
+
+  const updateActiveProduct = useCallback(() => {
+    const grid = productGridRef.current
+    if (!grid) return
+
+    const gridLeft = grid.getBoundingClientRect().left
+    const paddingLeft = Number.parseFloat(getComputedStyle(grid).paddingLeft)
+    const cards = Array.from(grid.children) as HTMLElement[]
+    const closestCard = cards.reduce(
+      (closest, card, index) => {
+        const distance = Math.abs(
+          card.getBoundingClientRect().left - gridLeft - paddingLeft,
+        )
+        return distance < closest.distance ? { index, distance } : closest
+      },
+      { index: 0, distance: Number.POSITIVE_INFINITY },
+    )
+
+    setActiveProduct(closestCard.index)
+  }, [])
+
+  const handleProductScroll = useCallback(() => {
+    if (scrollFrameRef.current !== null) return
+
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      updateActiveProduct()
+      scrollFrameRef.current = null
+    })
+  }, [updateActiveProduct])
+
+  const scrollToProduct = (index: number) => {
+    const grid = productGridRef.current
+    const card = grid?.children.item(index) as HTMLElement | null
+    if (!grid || !card) return
+
+    const gridLeft = grid.getBoundingClientRect().left
+    const paddingLeft = Number.parseFloat(getComputedStyle(grid).paddingLeft)
+    const left =
+      grid.scrollLeft + card.getBoundingClientRect().left - gridLeft - paddingLeft
+
+    grid.scrollTo({ left, behavior: 'smooth' })
+  }
+
+  useEffect(
+    () => () => {
+      if (scrollFrameRef.current !== null) {
+        cancelAnimationFrame(scrollFrameRef.current)
+      }
+    },
+    [],
+  )
+
   return (
     <SectionShell
       id="product-suite"
@@ -158,8 +215,10 @@ export default function ProductSuite() {
       description="Purpose-built for accounting, finance, and legal teams — from document processing to autonomous AI agents."
     >
       <motion.div
+        ref={productGridRef}
         aria-label="Products"
         className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-4 pb-4 scroll-px-4 touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 sm:scroll-px-6 md:mx-0 md:grid md:auto-rows-fr md:grid-cols-6 md:overflow-visible md:px-0 md:pb-0"
+        onScroll={handleProductScroll}
         variants={staggerContainerSlow}
         initial="hidden"
         whileInView="visible"
@@ -230,6 +289,39 @@ export default function ProductSuite() {
           )
         })}
       </motion.div>
+
+      <div
+        className="mt-2 flex items-center justify-center gap-4 md:hidden"
+        aria-label="Product navigation"
+      >
+        <button
+          type="button"
+          className="inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => scrollToProduct(activeProduct - 1)}
+          disabled={activeProduct === 0}
+          aria-label="Previous product"
+        >
+          <ChevronLeft className="size-4" aria-hidden />
+        </button>
+
+        <span
+          className="min-w-12 text-center text-sm font-medium tabular-nums text-foreground-muted"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {activeProduct + 1} / {PRODUCTS.length}
+        </span>
+
+        <button
+          type="button"
+          className="inline-flex size-10 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={() => scrollToProduct(activeProduct + 1)}
+          disabled={activeProduct === PRODUCTS.length - 1}
+          aria-label="Next product"
+        >
+          <ChevronRight className="size-4" aria-hidden />
+        </button>
+      </div>
     </SectionShell>
   )
 }
