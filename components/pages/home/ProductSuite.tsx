@@ -158,7 +158,8 @@ export default function ProductSuite() {
       description="Purpose-built for accounting, finance, and legal teams — from document processing to autonomous AI agents."
     >
       <motion.div
-        className="grid auto-rows-fr grid-cols-1 gap-5 md:grid-cols-6"
+        aria-label="Products"
+        className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-4 pb-4 scroll-px-4 touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 sm:scroll-px-6 md:mx-0 md:grid md:auto-rows-fr md:grid-cols-6 md:overflow-visible md:px-0 md:pb-0"
         variants={staggerContainerSlow}
         initial="hidden"
         whileInView="visible"
@@ -174,7 +175,7 @@ export default function ProductSuite() {
               variants={staggerChild}
               {...hoverLift}
               className={cn(
-                'h-full md:col-span-3 lg:col-span-2',
+                'w-[85%] shrink-0 snap-start md:col-span-3 md:w-auto lg:col-span-2',
               )}
             >
               <a
