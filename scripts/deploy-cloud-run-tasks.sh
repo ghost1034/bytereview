@@ -306,7 +306,7 @@ deploy_service \
      --service-account=$SERVICE_ACCOUNT \
      --no-cpu-throttling \
      --set-secrets=$TASK_SERVICE_URL_SECRETS,DATABASE_URL=DATABASE_URL:latest,STRIPE_SECRET_KEY=STRIPE_SECRET_KEY:latest,ENCRYPTION_KEY=ENCRYPTION_KEY:latest,/var/secrets/google/service-account.json=FIREBASE_SERVICE_ACCOUNT:latest \
-     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION"
+     --set-env-vars=ENVIRONMENT=$ENVIRONMENT,GOOGLE_CLOUD_PROJECT_ID=$PROJECT_ID,GCS_BUCKET_NAME=cpaautomation-files-prod,GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/service-account.json,CLOUD_RUN_REGION=$REGION,STRIPE_PAGE_METER_EVENT_NAME=${STRIPE_PAGE_METER_EVENT_NAME:-cpaautomation_pages},STRIPE_TOKEN_METER_EVENT_NAME=${STRIPE_TOKEN_METER_EVENT_NAME:-cpaautomation_tokens}"
 
 echo -e "${BLUE}=== Updating Extract Task Queue Dispatch and Retry Policy ===${NC}"
 gcloud tasks queues update extract-tasks \

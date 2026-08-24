@@ -270,7 +270,7 @@ def main():
 
     # Env vars
     env_block = textwrap.dedent(f"""
-    # Stripe product & price IDs (test mode)
+    # Stripe product, meter, and price IDs
     STRIPE_METER_PAGES={meter.id}
     STRIPE_METER_TOKENS={token_meter.id}
     STRIPE_PAGE_METER_EVENT_NAME=cpaautomation_pages
@@ -293,7 +293,7 @@ def main():
 
     # SQL for subscription_plans
     sql_block = textwrap.dedent(f"""
-    -- Update your subscription_plans mapping (test mode IDs)
+    -- Update your subscription_plans mapping
     UPDATE subscription_plans
        SET stripe_product_id='{created['basic']['product_id']}',
            stripe_price_recurring_id='{created['basic']['recurring_price_id']}',
