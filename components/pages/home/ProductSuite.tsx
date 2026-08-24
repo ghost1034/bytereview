@@ -144,15 +144,7 @@ function StatusBadge({ status }: { status: Status }) {
       </span>
     )
   }
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-accent-blue-400/30 bg-accent-blue-400/10 px-2.5 py-1 text-[11px] font-medium text-accent-blue-300">
-      <span
-        aria-hidden
-        className="size-1.5 rounded-full bg-accent-blue-400 shadow-[0_0_6px_#6E97F7]"
-      />
-      Available now
-    </span>
-  )
+  return null
 }
 
 export default function ProductSuite() {
