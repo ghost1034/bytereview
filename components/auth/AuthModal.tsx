@@ -177,9 +177,9 @@ export default function AuthModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] gap-3 overflow-y-auto overscroll-contain rounded-lg p-4 sm:max-h-[calc(100dvh-2rem)] sm:w-full sm:max-w-md sm:gap-4 sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-center text-2xl font-bold">
+          <DialogTitle className="pr-6 text-center text-xl font-bold sm:pr-0 sm:text-2xl">
             {title}
           </DialogTitle>
           {description && (
@@ -189,7 +189,7 @@ export default function AuthModal({
           )}
         </DialogHeader>
         
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <>
             {onContinueAsGuest && (
               <>
