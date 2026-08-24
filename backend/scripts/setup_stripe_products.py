@@ -25,6 +25,7 @@ Requirements:
 import os
 import sys
 import textwrap
+from decimal import Decimal
 from typing import Optional
 from dotenv import load_dotenv
 
@@ -176,7 +177,7 @@ def ensure_recurring_price(product_id: str, lookup_key: str, monthly_cents: int)
 
 def ensure_metered_price(
     product_id: str, lookup_key: str, meter_id: str, included: int,
-    overage_cents: int, *, unit: str = "page", divide_by: int | None = None,
+    overage_cents: int, *, unit: str = "page", price_per_units: int = 1,
 ) -> stripe.Price:
     """
     Metered, tiered price attached to the billing meter.
@@ -190,6 +191,17 @@ def ensure_metered_price(
 
     print(f"➕ Creating metered price (lookup_key={lookup_key}) attached to meter {meter_id}…")
     # NOTE: meter must be attached via recurring.meter, and usage_type='metered'
+    overage_tier = {"up_to": "inf"}
+    if price_per_units == 1:
+        overage_tier["unit_amount"] = overage_cents
+    else:
+        # Stripe does not allow transform_quantity together with tiers. Use a
+        # decimal amount in the smallest currency unit so the meter can report
+        # raw tokens while the graduated price remains exact per 1,000 tokens.
+        overage_tier["unit_amount_decimal"] = str(
+            Decimal(overage_cents) / Decimal(price_per_units)
+        )
+
     pr = stripe.Price.create(
         currency=CURRENCY,
         product=product_id,
@@ -203,11 +215,10 @@ def ensure_metered_price(
         tiers_mode="graduated",
         tiers=[
             {"up_to": included, "unit_amount": 0},
-            {"up_to": "inf", "unit_amount": overage_cents},
+            overage_tier,
         ],
         metadata={"kind": f"metered_{unit}s"},
-        nickname=f"{unit.title()}s (first {included * (divide_by or 1)} free, then overage)",
-        **({"transform_quantity": {"divide_by": divide_by, "round": "up"}} if divide_by else {}),
+        nickname=f"{unit.title()}s (first {included} free, then overage)",
     )
     print(f"✅ Created metered price: {pr.id}")
     return pr
@@ -240,10 +251,10 @@ def main():
             product_id=product.id,
             lookup_key=spec["price_lookup_token_metered"],
             meter_id=token_meter.id,
-            included=spec["free_tokens"] // 1000,
+            included=spec["free_tokens"],
             overage_cents=spec["token_overage_cents"],
             unit="token",
-            divide_by=1000,
+            price_per_units=1000,
         )
         created[spec["plan_code"]] = {
             "product_id": product.id,
