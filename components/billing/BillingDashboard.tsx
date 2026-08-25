@@ -214,7 +214,7 @@ export default function BillingDashboard() {
                               'en-US',
                               { style: 'currency', currency: 'USD' },
                             )}{' '}
-                            / 1,000 tokens
+                            / 10,000 tokens
                           </>
                         ) : (
                           'No overage allowed'

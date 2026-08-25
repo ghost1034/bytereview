@@ -231,7 +231,7 @@ This section details how we transform files into structured results, including c
 - Usage metering and billing
   - For each processed task, we compute total pages by summing `SourceFile.page_count` linked via `SourceFileToTask`.
   - The per-user ledger has independent `page` and `token` units. Free/Basic/Pro include 100/500/5,000 pages and 200,000/1,000,000/10,000,000 platform AI tokens each period.
-  - Basic/Pro page overages are $0.50/$0.20 per page; token overages are $0.25/$0.10 per 1,000 provider-reported tokens. Free users cannot start more work after the relevant allowance is exhausted.
+  - Basic/Pro page overages are $0.15/$0.05 per page; token overages are $0.25/$0.10 per 10,000 provider-reported tokens. Free users cannot start more work after the relevant allowance is exhausted.
   - `UsageEvent` stores product, source, unit, quantity, operation ID, provider token details, and explicit Stripe outbox state. Workspace and firm IDs are reporting/authorization metadata, never billing owners.
   - Inkwise ingestion and generation are token-only. It aggregates embeddings, helpers, retries, and primary generations; it never converts tokens or source pages into billable pages.
   - Maintenance drains pending/failed ledger events to the page or token Stripe meter using the usage-event UUID as the idempotent identifier.

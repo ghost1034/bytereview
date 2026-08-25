@@ -122,18 +122,24 @@ export default function Subscribe() {
         price: '$9.99',
         priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_BASIC || "price_basic",
         features: [
-          'Up to 100 pages per month',
+          '500 pages per month',
+          '1,000,000 AI tokens per month',
+          'Overage: $0.15 per page',
+          'Overage: $0.25 per 10,000 tokens',
           'Basic extraction templates',
           'Email support',
           'Standard processing speed'
         ]
       },
       professional: {
-        name: 'Professional',
+        name: 'Pro',
         price: '$49.99',
         priceId: process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PROFESSIONAL || "price_professional",
         features: [
-          'Up to 1,000 pages per month',
+          '5,000 pages per month',
+          '10,000,000 AI tokens per month',
+          'Overage: $0.05 per page',
+          'Overage: $0.10 per 10,000 tokens',
           'Advanced custom templates',
           'Priority support',
           'Fast processing speed',

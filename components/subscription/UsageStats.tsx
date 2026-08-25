@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Section } from '@/components/ui/section'
 import { useUsageStats } from '@/hooks/useBilling'
+import { TOKEN_OVERAGE_PRICING_UNIT } from '@/lib/billingPricing'
 import { cn, pluralize } from '@/lib/utils'
 
 export default function UsageStats() {
@@ -77,7 +78,7 @@ export default function UsageStats() {
       : 0
   const tokenOverageAmount =
     isOverTokenLimit && usage.token_overage_cents > 0
-      ? Math.ceil((usage.tokens_used - usage.tokens_included) / 1000) *
+      ? ((usage.tokens_used - usage.tokens_included) / TOKEN_OVERAGE_PRICING_UNIT) *
         (usage.token_overage_cents / 100)
       : 0
 

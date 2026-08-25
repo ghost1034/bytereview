@@ -148,7 +148,7 @@ export default function SubscriptionModal({
                         style: 'currency',
                         currency: 'USD',
                       })}{' '}
-                      per 1,000 tokens
+                      per 10,000 tokens
                     </>
                   ) : (
                     <>No overage allowed</>

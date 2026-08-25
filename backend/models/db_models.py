@@ -719,7 +719,7 @@ class SubscriptionPlan(Base):
     tokens_included = Column(BigInteger, nullable=False, default=0, server_default="0")
     automations_limit = Column(Integer, nullable=False)
     overage_cents = Column(Integer, nullable=False)  # 0 for free
-    token_overage_cents = Column(Integer, nullable=False, default=0, server_default="0")  # per 1,000 tokens
+    token_overage_cents = Column(Integer, nullable=False, default=0, server_default="0")  # per 10,000 tokens
     stripe_product_id = Column(Text, nullable=True)  # NULL for 'free'
     stripe_price_recurring_id = Column(Text, nullable=True)
     stripe_price_metered_id = Column(Text, nullable=True)

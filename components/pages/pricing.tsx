@@ -38,7 +38,7 @@ const FAQS = [
   },
   {
     q: 'How does overage pricing work?',
-    a: 'Pages and platform AI tokens have separate monthly allowances. Paid-plan overages use the page and per-1,000-token rates shown on the plan card; Free users must upgrade when either allowance is exhausted.',
+    a: 'Pages and platform AI tokens have separate monthly allowances. Paid-plan overages use the page and per-10,000-token rates shown on the plan card; Free users must upgrade when either allowance is exhausted.',
   },
   {
     q: 'Do you offer annual billing or discounts?',
@@ -196,7 +196,7 @@ export default function Pricing() {
                   period={plan.code === 'free' ? '' : '/month'}
                   fineprint={
                     plan.overage_cents > 0
-                      ? `Overage: ${(plan.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}/page + ${(plan.token_overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}/1,000 tokens`
+                      ? `Overage: ${(plan.overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}/page + ${(plan.token_overage_cents / 100).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}/10,000 tokens`
                       : 'No overage allowed'
                   }
                   features={getPlanFeatures(

@@ -6,12 +6,12 @@ Creates:
   - billing meters for pages and tokens
   - product: "CPAAutomation Basic"
       - price: monthly recurring $9.99
-      - price: metered (0 up to 500 pages, then $0.50/page) ATTACHED TO METER
-      - price: metered (0 up to 1,000,000 tokens, then $0.25/1,000 tokens)
+      - price: metered (0 up to 500 pages, then $0.15/page) ATTACHED TO METER
+      - price: metered (0 up to 1,000,000 tokens, then $0.25/10,000 tokens)
   - product: "CPAAutomation Pro"
       - price: monthly recurring $49.99
-      - price: metered (0 up to 5000 pages, then $0.20/page) ATTACHED TO METER
-      - price: metered (0 up to 10,000,000 tokens, then $0.10/1,000 tokens)
+      - price: metered (0 up to 5000 pages, then $0.05/page) ATTACHED TO METER
+      - price: metered (0 up to 10,000,000 tokens, then $0.10/10,000 tokens)
 
 Re-runnable/idempotent:
   Uses lookup_key on prices, searches products by name, and reuses an existing meter by display_name.
@@ -38,12 +38,12 @@ BASIC = {
     "plan_code": "basic",
     "monthly_cents": 999,       # $9.99
     "free_pages": 500,
-    "overage_cents": 50,        # $0.50/page
+    "overage_cents": 15,        # $0.15/page
     "price_lookup_recurring": "cpaautomation_basic_recurring_v1",
-    "price_lookup_metered":   "cpaautomation_basic_metered_v1",
+    "price_lookup_metered":   "cpaautomation_basic_metered_v2",
     "free_tokens": 1_000_000,
     "token_overage_cents": 25,
-    "price_lookup_token_metered": "cpaautomation_basic_tokens_metered_v1",
+    "price_lookup_token_metered": "cpaautomation_basic_tokens_metered_v2",
 }
 
 PRO = {
@@ -51,12 +51,12 @@ PRO = {
     "plan_code": "pro",
     "monthly_cents": 4999,      # $49.99
     "free_pages": 5000,
-    "overage_cents": 20,        # $0.20/page
+    "overage_cents": 5,         # $0.05/page
     "price_lookup_recurring": "cpaautomation_pro_recurring_v1",
-    "price_lookup_metered":   "cpaautomation_pro_metered_v1",
+    "price_lookup_metered":   "cpaautomation_pro_metered_v2",
     "free_tokens": 10_000_000,
     "token_overage_cents": 10,
-    "price_lookup_token_metered": "cpaautomation_pro_tokens_metered_v1",
+    "price_lookup_token_metered": "cpaautomation_pro_tokens_metered_v2",
 }
 
 METER = {
@@ -75,6 +75,7 @@ TOKEN_METER = {
 }
 
 CURRENCY = "usd"
+TOKEN_OVERAGE_PRICE_UNITS = 10_000
 
 def fatal(msg: str):
     print(f"❌ {msg}")
@@ -197,7 +198,8 @@ def ensure_metered_price(
     else:
         # Stripe does not allow transform_quantity together with tiers. Use a
         # decimal amount in the smallest currency unit so the meter can report
-        # raw tokens while the graduated price remains exact per 1,000 tokens.
+        # raw tokens while the graduated price remains exact for the configured
+        # token pricing unit.
         overage_tier["unit_amount_decimal"] = str(
             Decimal(overage_cents) / Decimal(price_per_units)
         )
@@ -254,7 +256,7 @@ def main():
             included=spec["free_tokens"],
             overage_cents=spec["token_overage_cents"],
             unit="token",
-            price_per_units=1000,
+            price_per_units=TOKEN_OVERAGE_PRICE_UNITS,
         )
         created[spec["plan_code"]] = {
             "product_id": product.id,

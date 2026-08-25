@@ -15,14 +15,14 @@ const usage = {
   pages_used: 600,
   pages_included: 500,
   pages_remaining: 0,
-  tokens_used: 1_001_500,
+  tokens_used: 1_020_000,
   tokens_included: 1_000_000,
   tokens_remaining: 0,
   period_start: '2026-08-01T00:00:00Z',
   period_end: '2026-08-31T23:59:59Z',
   plan_code: 'basic',
   plan_display_name: 'Basic',
-  overage_cents: 50,
+  overage_cents: 15,
   token_overage_cents: 25,
   token_billing_shadow: false,
   product_breakdown: {
@@ -41,6 +41,7 @@ describe('UsageStats', () => {
 
     expect(markup).toContain('Pages')
     expect(markup).toContain('Platform AI tokens')
+    expect(markup).toContain('$0.15')
     expect(markup).toContain('Estimated token overage: $0.50')
     expect(markup).toContain('form fill')
     expect(markup).toContain('1,500 tokens')
