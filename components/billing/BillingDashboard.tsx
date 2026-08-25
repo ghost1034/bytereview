@@ -190,7 +190,10 @@ export default function BillingDashboard() {
                       <p className="text-xs text-foreground-muted">
                         {plan.pages_included.toLocaleString()} pages,{' '}
                         {plan.tokens_included.toLocaleString()} tokens,{' '}
-                        {plan.automations_limit} automation slots
+                        {plan.pbc_storage_bytes_included >= 1024 * 1024 * 1024
+                          ? '1 GB'
+                          : `${plan.pbc_storage_bytes_included / (1024 * 1024)} MB`}{' '}
+                        PBC storage, {plan.automations_limit} automation slots
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-1.5 pl-3 text-right">

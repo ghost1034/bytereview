@@ -5,7 +5,6 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/contexts/AuthContext'
-import { apiClient } from '@/lib/api'
 import { useToast } from '@/hooks/use-toast'
 
 export interface BillingAccount {
@@ -16,6 +15,7 @@ export interface BillingAccount {
   pages_used: number
   tokens_included: number
   tokens_used: number
+  pbc_storage_bytes_included: number
   automations_limit: number
   automations_count: number
   overage_cents: number
@@ -53,6 +53,7 @@ export interface SubscriptionPlan {
   display_name: string
   pages_included: number
   tokens_included: number
+  pbc_storage_bytes_included: number
   automations_limit: number
   overage_cents: number
   token_overage_cents: number

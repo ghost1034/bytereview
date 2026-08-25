@@ -128,6 +128,13 @@ export interface PbcDashboard {
   awaiting_review: number
   overdue: number
   due_soon: number
+  storage: {
+    plan_code: string
+    used_bytes: number
+    reserved_bytes: number
+    included_bytes: number
+    remaining_bytes: number
+  }
   engagements: PbcEngagement[]
 }
 

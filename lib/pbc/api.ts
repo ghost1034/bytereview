@@ -118,7 +118,13 @@ export async function portalRequest<T>(path: string, options: RequestInit = {}, 
   })
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
-    throw new Error(body.detail || `Request failed (${response.status})`)
+    const detail = body.detail
+    const message = typeof detail === 'string'
+      ? detail
+      : typeof detail?.message === 'string'
+        ? detail.message
+        : `Request failed (${response.status})`
+    throw new Error(message)
   }
   if (response.status === 204) return undefined as T
   return response.json()

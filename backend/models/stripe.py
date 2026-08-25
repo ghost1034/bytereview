@@ -24,6 +24,7 @@ class BillingAccountResponse(BaseModel):
     pages_used: int
     tokens_included: int
     tokens_used: int
+    pbc_storage_bytes_included: int
     automations_limit: int
     automations_count: int
     overage_cents: int
@@ -43,6 +44,7 @@ class SubscriptionPlanResponse(BaseModel):
     display_name: str
     pages_included: int
     tokens_included: int
+    pbc_storage_bytes_included: int
     automations_limit: int
     overage_cents: int
     token_overage_cents: int

@@ -130,7 +130,8 @@ export default function SubscriptionManager() {
               <p className="text-xs text-foreground-muted">
                 You&apos;re on the free plan ({billingAccount.pages_included.toLocaleString()}{' '}
                 {pluralize(billingAccount.pages_included, 'page')} and{' '}
-                {billingAccount.tokens_included.toLocaleString()} AI tokens per month).
+                {billingAccount.tokens_included.toLocaleString()} AI tokens per month, plus{' '}
+                {billingAccount.pbc_storage_bytes_included / (1024 * 1024)} MB of PBC storage).
                 Upgrade to unlock paid overages and advanced features.
               </p>
             </div>
@@ -189,6 +190,15 @@ export default function SubscriptionManager() {
             <span className="text-sm text-foreground-muted">AI token allowance</span>
             <span className="text-sm font-medium tabular-nums text-foreground">
               {billingAccount.tokens_included.toLocaleString()} tokens/mo
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-foreground-muted">PBC storage</span>
+            <span className="text-sm font-medium tabular-nums text-foreground">
+              {billingAccount.pbc_storage_bytes_included >= 1024 * 1024 * 1024
+                ? '1 GB'
+                : `${billingAccount.pbc_storage_bytes_included / (1024 * 1024)} MB`}
             </span>
           </div>
 

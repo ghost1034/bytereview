@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, FileCheck2, Library, LockKeyhole, Plus, Search, Settings, UserPlus } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, FileCheck2, HardDrive, Library, LockKeyhole, Plus, Search, Settings, UserPlus } from 'lucide-react'
 
 import { useAnalyticsClients } from '@/hooks/useAnalyticsClients'
 import { useCreatePbcEngagement, usePbcClientEngagements, usePbcDashboard, usePbcEngagements } from '@/hooks/usePbc'
@@ -23,6 +23,11 @@ const statusTone: Record<string, string> = {
   active: 'bg-primary-soft text-primary',
   completed: 'bg-success-soft text-success',
   archived: 'bg-surface-muted text-foreground-subtle',
+}
+
+function formatStorage(bytes: number) {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`
+  return `${(bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0)} MB`
 }
 
 export default function PbcDashboardPage() {
@@ -87,6 +92,7 @@ export default function PbcDashboardPage() {
     { label: 'Awaiting review', value: dashboard.data?.awaiting_review || 0, icon: Clock3, tone: 'text-warning bg-warning-soft' },
     { label: 'Overdue requests', value: dashboard.data?.overdue || 0, icon: AlertTriangle, tone: 'text-destructive bg-destructive/10' },
     { label: 'Accepted evidence', value: dashboard.data?.accepted_requests || 0, icon: CheckCircle2, tone: 'text-success bg-success-soft' },
+    { label: 'PBC storage', value: formatStorage(dashboard.data?.storage.used_bytes || 0), icon: HardDrive, tone: 'text-primary bg-primary-soft', hint: `of ${formatStorage(dashboard.data?.storage.included_bytes || 20 * 1024 * 1024)}` },
   ]
 
   return (
@@ -155,8 +161,8 @@ export default function PbcDashboardPage() {
         </section>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="PBC summary">
-        {stats.map(({ label, value, icon: Icon, tone }) => <div key={label} className="rounded-xl border bg-card p-5 shadow-sm"><div className={`mb-4 inline-flex size-9 items-center justify-center rounded-lg ${tone}`}><Icon className="size-4" /></div><p className="text-3xl font-semibold tabular-nums">{value}</p><p className="mt-1 text-sm text-foreground-muted">{label}</p></div>)}
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="PBC summary">
+        {stats.map(({ label, value, icon: Icon, tone, hint }) => <div key={label} className="rounded-xl border bg-card p-5 shadow-sm"><div className={`mb-4 inline-flex size-9 items-center justify-center rounded-lg ${tone}`}><Icon className="size-4" /></div><p className="text-3xl font-semibold tabular-nums">{value}</p><p className="mt-1 text-sm text-foreground-muted">{label}{hint ? ` · ${hint}` : ''}</p></div>)}
       </section>
 
       <section className="rounded-xl border bg-card shadow-sm">

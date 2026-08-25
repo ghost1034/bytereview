@@ -90,11 +90,13 @@ export default function Pricing() {
     planCode: string,
     pagesIncluded: number,
     tokensIncluded: number,
+    pbcStorageBytesIncluded: number,
     automationsLimit: number,
   ) => {
     const baseFeatures = [
       `${pagesIncluded === 999999 ? 'Unlimited' : pagesIncluded.toLocaleString()} ${pagesIncluded === 1 ? 'page' : 'pages'} per month`,
       `${tokensIncluded.toLocaleString()} platform AI tokens per month`,
+      `${pbcStorageBytesIncluded >= 1024 * 1024 * 1024 ? '1 GB' : `${pbcStorageBytesIncluded / (1024 * 1024)} MB`} PBC storage`,
       `Up to ${automationsLimit} ${automationsLimit === 1 ? 'automation' : 'automations'}`,
       'Custom extraction templates',
       'Export to CSV, Excel, Google Sheets',
@@ -203,6 +205,7 @@ export default function Pricing() {
                     plan.code,
                     plan.pages_included,
                     plan.tokens_included,
+                    plan.pbc_storage_bytes_included,
                     plan.automations_limit,
                   )}
                   highlighted={plan.code === 'pro'}

@@ -29284,6 +29284,10 @@
             "type": "integer",
             "title": "Tokens Used"
           },
+          "pbc_storage_bytes_included": {
+            "type": "integer",
+            "title": "Pbc Storage Bytes Included"
+          },
           "automations_limit": {
             "type": "integer",
             "title": "Automations Limit"
@@ -29387,6 +29391,7 @@
           "pages_used",
           "tokens_included",
           "tokens_used",
+          "pbc_storage_bytes_included",
           "automations_limit",
           "automations_count",
           "overage_cents",
@@ -46910,6 +46915,10 @@
             "type": "integer",
             "title": "Tokens Included"
           },
+          "pbc_storage_bytes_included": {
+            "type": "integer",
+            "title": "Pbc Storage Bytes Included"
+          },
           "automations_limit": {
             "type": "integer",
             "title": "Automations Limit"
@@ -46944,6 +46953,7 @@
           "display_name",
           "pages_included",
           "tokens_included",
+          "pbc_storage_bytes_included",
           "automations_limit",
           "overage_cents",
           "token_overage_cents",

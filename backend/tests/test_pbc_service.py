@@ -21,8 +21,8 @@ from models.db_models import Base
 from models.pbc import PbcAccessToken, PbcContact, PbcEngagement, PbcRequest
 from models.tasklytic import TasklyticEntityRecord, TasklyticWorkspace, TasklyticWorkspaceMember
 from routes import pbc as pbc_routes
-from routes.pbc import _cell_bool, _complete_upload, _request_assignment_ids
-from models.pbc_schemas import PbcPortalExchange, PbcRequestCreate, PbcRequestUpdate, PbcTemplateCreate, PbcTemplateUpdate
+from routes.pbc import _cell_bool, _complete_upload, _initiate_upload, _request_assignment_ids
+from models.pbc_schemas import PbcPortalExchange, PbcRequestCreate, PbcRequestUpdate, PbcTemplateCreate, PbcTemplateUpdate, PbcUploadInitiate
 from starlette.requests import Request
 from services.pbc_service import actor_role, exchange_access_token, serialize_contact, token_hash, transition_request, utcnow
 
@@ -401,6 +401,31 @@ async def test_completed_upload_becomes_available_without_a_scan(monkeypatch):
     assert db.added[0].details == {
         "document_id": str(document.id), "filename": "example.pdf", "version": 1,
     }
+
+
+@pytest.mark.asyncio
+async def test_upload_initiation_enforces_firm_storage_before_creating_document(monkeypatch):
+    firm_id = uuid.uuid4()
+    checked = []
+
+    def reject(_db, checked_firm_id, size):
+        checked.append((checked_firm_id, size))
+        raise HTTPException(status_code=402, detail={"code": "pbc_storage_limit_exceeded"})
+
+    monkeypatch.setattr(pbc_routes, "require_pbc_storage", reject)
+    request_row = SimpleNamespace(id=uuid.uuid4(), engagement_id=uuid.uuid4(), firm_id=firm_id)
+
+    with pytest.raises(HTTPException) as exceeded:
+        await _initiate_upload(
+            FakeDb(),
+            request_row,
+            PbcUploadInitiate(filename="evidence.pdf", content_type="application/pdf", size=4096),
+            "client",
+            "contact-1",
+        )
+
+    assert exceeded.value.status_code == 402
+    assert checked == [(firm_id, 4096)]
 
 
 @pytest.mark.asyncio

@@ -93,6 +93,7 @@ from services.pbc_service import (
     utcnow,
     validate_tasklytic_link,
 )
+from services.pbc_storage import pbc_storage_summary, require_pbc_storage
 from services.rate_limit import rate_limiter
 from services.analytics.firm_scope import require_firm_id
 
@@ -289,6 +290,7 @@ def dashboard(actor: User = Depends(require_role(*READER_ROLES)), db: Session = 
         "awaiting_review": sum(item.status == "submitted" for item in requests),
         "overdue": sum(bool(item.due_date and item.due_date < today and item.status not in {"accepted", "waived"}) for item in requests),
         "due_soon": sum(bool(item.due_date and 0 <= (item.due_date - today).days <= 7 and item.status not in {"accepted", "waived"}) for item in requests),
+        "storage": pbc_storage_summary(db, firm_id),
         "engagements": [serialize_engagement(db, item) for item in sorted(engagements, key=lambda value: value.updated_at, reverse=True)[:10]],
     }
 
@@ -993,6 +995,7 @@ async def export_package(engagement_id: str, actor: User = Depends(require_role(
 
 async def _initiate_upload(db: Session, request_row: PbcRequest, payload: PbcUploadInitiate, actor_kind: str, actor_id: str):
     filename, mime, size = _safe_upload(payload)
+    require_pbc_storage(db, request_row.firm_id, size)
     version = (db.query(PbcDocument.version).filter(PbcDocument.request_id == request_row.id).order_by(PbcDocument.version.desc()).first() or (0,))[0] + 1
     document_id = uuid.uuid4()
     object_name = f"pbc/{request_row.firm_id}/{request_row.engagement_id}/{request_row.id}/{document_id}/{quote(filename, safe='._-')}"

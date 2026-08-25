@@ -717,6 +717,7 @@ class SubscriptionPlan(Base):
     display_name = Column(Text, nullable=False)
     pages_included = Column(Integer, nullable=False)
     tokens_included = Column(BigInteger, nullable=False, default=0, server_default="0")
+    pbc_storage_bytes_included = Column(BigInteger, nullable=False, default=0, server_default="0")
     automations_limit = Column(Integer, nullable=False)
     overage_cents = Column(Integer, nullable=False)  # 0 for free
     token_overage_cents = Column(Integer, nullable=False, default=0, server_default="0")  # per 10,000 tokens

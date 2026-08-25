@@ -9079,6 +9079,8 @@ export interface components {
             tokens_included: number;
             /** Tokens Used */
             tokens_used: number;
+            /** Pbc Storage Bytes Included */
+            pbc_storage_bytes_included: number;
             /** Automations Limit */
             automations_limit: number;
             /** Automations Count */
@@ -15225,6 +15227,8 @@ export interface components {
             pages_included: number;
             /** Tokens Included */
             tokens_included: number;
+            /** Pbc Storage Bytes Included */
+            pbc_storage_bytes_included: number;
             /** Automations Limit */
             automations_limit: number;
             /** Overage Cents */
