@@ -108,6 +108,42 @@ class RoutingTurnTests(unittest.TestCase):
         self.assertEqual(pending, [second])
 
 
+class SendPageUsageTests(unittest.TestCase):
+    def test_send_usage_includes_every_document_page(self) -> None:
+        envelope_id = uuid.uuid4()
+        envelope = NS(
+            id=envelope_id,
+            user_id="sender-id",
+            documents=[NS(page_count=2), NS(page_count=3)],
+        )
+        db = MagicMock()
+
+        with patch("services.esign.signing_service.BillingService") as billing_class:
+            pages = esign_signing_service._record_send_page_usage(db, envelope)
+
+        self.assertEqual(pages, 5)
+        billing_class.assert_called_once_with(db)
+        billing_class.return_value.record_usage.assert_called_once_with(
+            user_id="sender-id",
+            product="esign",
+            source="esign_envelope_sent",
+            unit="page",
+            quantity=5,
+            operation_id=str(envelope_id),
+            notes="E-Signature envelope sent",
+            commit=False,
+        )
+
+    def test_send_usage_skips_an_empty_page_total(self) -> None:
+        envelope = NS(id=uuid.uuid4(), user_id="sender-id", documents=[])
+
+        with patch("services.esign.signing_service.BillingService") as billing_class:
+            pages = esign_signing_service._record_send_page_usage(MagicMock(), envelope)
+
+        self.assertEqual(pages, 0)
+        billing_class.assert_not_called()
+
+
 class RecipientAccessUrlTests(unittest.TestCase):
     def test_unconfigured_email_link_defaults_to_local_domain(self) -> None:
         with patch.dict(os.environ, {}, clear=True):

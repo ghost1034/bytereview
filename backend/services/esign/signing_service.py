@@ -94,6 +94,7 @@ from services.esign.routing_engine import (
 )
 from services.esign.url_service import app_base_url
 from services.gcs_service import get_storage_service
+from services.billing_service import BillingService
 
 logger = logging.getLogger(__name__)
 
@@ -311,6 +312,24 @@ class EsignSigningService:
             return ccs
         return [c for c in ccs if int(c.routing_order) <= active_order]
 
+    @staticmethod
+    def _record_send_page_usage(db: Session, envelope: EsignEnvelope) -> int:
+        """Meter every source-document page once when an envelope is sent."""
+        page_count = sum(int(document.page_count or 0) for document in envelope.documents or [])
+        if page_count <= 0:
+            return 0
+        BillingService(db).record_usage(
+            user_id=envelope.user_id,
+            product="esign",
+            source="esign_envelope_sent",
+            unit="page",
+            quantity=page_count,
+            operation_id=str(envelope.id),
+            notes="E-Signature envelope sent",
+            commit=False,
+        )
+        return page_count
+
     async def send_envelope(
         self, *, user_id: str, user_email: str, envelope_id: str, meta: EsignRequestMeta
     ) -> EsignEnvelopeResponse:
@@ -515,6 +534,7 @@ class EsignSigningService:
                     if manager is None or manager.role not in (EsignRecipientRole.AGENT, EsignRecipientRole.EDITOR):
                         raise EsignError("Every unresolved placeholder must have an agent or editor")
 
+            self._record_send_page_usage(db, envelope)
             now = datetime.now(timezone.utc)
             envelope.status = EsignEnvelopeStatus.SENT
             envelope.sent_at = now
