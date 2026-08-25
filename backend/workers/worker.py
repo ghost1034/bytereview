@@ -1846,6 +1846,22 @@ async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files
     try:
         from services.billing_service import get_billing_service, PlanLimitExceeded
 
+        # Resolve the owning job before counting or recording pages. CPE Tracker
+        # is a free workflow and its extraction tasks must not consume page usage.
+        job_run = db.query(JobRun).filter(JobRun.id == task.job_run_id).first()
+        if not job_run:
+            logger.error(f"Job run {task.job_run_id} not found for usage recording")
+            return
+
+        job = db.query(ExtractionJob).filter(ExtractionJob.id == job_run.job_id).first()
+        if not job:
+            logger.error(f"Job {job_run.job_id} not found for usage recording")
+            return
+
+        if getattr(job, "job_type", None) == "cpe":
+            logger.info(f"Skipping page usage recording for CPE task {task.id}")
+            return
+
         # Idempotency: if this task already has a recorded usage event, do not double-bill.
         try:
             existing_evt = db.query(UsageEvent).filter(
@@ -1873,23 +1889,12 @@ async def _record_usage_for_task(db: Session, task: ExtractionTask, source_files
             logger.info("No pages to record for billing")
             return
         
-        # Get user ID from the job via job run
-        job_run = db.query(JobRun).filter(JobRun.id == task.job_run_id).first()
-        if not job_run:
-            logger.error(f"Job run {task.job_run_id} not found for usage recording")
-            return
-            
-        job = db.query(ExtractionJob).filter(ExtractionJob.id == job_run.job_id).first()
-        if not job:
-            logger.error(f"Job {job_run.job_id} not found for usage recording")
-            return
-        
         # Record usage through billing service
         billing_service = get_billing_service(db)
         event_id = billing_service.record_usage(
             user_id=job.user_id,
-            product="cpe" if getattr(job, "job_type", None) == "cpe" else "uda",
-            source="cpe_extraction" if getattr(job, "job_type", None) == "cpe" else "extraction_task",
+            product="uda",
+            source="extraction_task",
             unit="page",
             quantity=total_pages,
             operation_id=str(task.id),

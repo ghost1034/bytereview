@@ -732,6 +732,18 @@ class JobService:
         try:
             from services.billing_service import PlanLimitExceeded, get_billing_service
             from models.db_models import SourceFileToTask
+
+            job_type = db.query(ExtractionJob.job_type).join(
+                JobRun, JobRun.job_id == ExtractionJob.id
+            ).filter(
+                JobRun.id == run_id,
+                ExtractionJob.user_id == user_id
+            ).scalar()
+
+            # CPE Tracker is a free workflow and must not consume page quota.
+            if job_type == 'cpe':
+                logger.info(f"Skipping page limit check for CPE job run {run_id}")
+                return
             
             # Calculate total pages for this job run (only files with page_count set)
             total_pages = db.query(func.sum(SourceFile.page_count)).join(
