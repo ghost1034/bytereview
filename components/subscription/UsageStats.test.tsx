@@ -18,6 +18,10 @@ const usage = {
   tokens_used: 1_020_000,
   tokens_included: 1_000_000,
   tokens_remaining: 0,
+  pbc_storage_bytes_used: 15 * 1024 * 1024,
+  pbc_storage_bytes_reserved: 5 * 1024 * 1024,
+  pbc_storage_bytes_included: 100 * 1024 * 1024,
+  pbc_storage_bytes_remaining: 80 * 1024 * 1024,
   period_start: '2026-08-01T00:00:00Z',
   period_end: '2026-08-31T23:59:59Z',
   plan_code: 'basic',
@@ -41,6 +45,11 @@ describe('UsageStats', () => {
 
     expect(markup).toContain('Pages')
     expect(markup).toContain('Platform AI tokens')
+    expect(markup).toContain('PBC storage')
+    expect(markup).toContain('20 MB / 100 MB')
+    expect(markup).toContain('80 MB remaining')
+    expect(markup).toContain('5 MB pending upload')
+    expect(markup).toContain('firm-wide')
     expect(markup).toContain('$0.15')
     expect(markup).toContain('Estimated token overage: $0.50')
     expect(markup).toContain('form fill')

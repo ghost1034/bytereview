@@ -2847,7 +2847,7 @@
           "billing"
         ],
         "summary": "Get Usage Stats",
-        "description": "Get current usage statistics",
+        "description": "Get current usage statistics and firm-wide PBC storage.",
         "operationId": "get_usage_stats_api_billing_usage_get",
         "responses": {
           "200": {
@@ -47522,6 +47522,22 @@
             "type": "integer",
             "title": "Tokens Remaining"
           },
+          "pbc_storage_bytes_used": {
+            "type": "integer",
+            "title": "Pbc Storage Bytes Used"
+          },
+          "pbc_storage_bytes_reserved": {
+            "type": "integer",
+            "title": "Pbc Storage Bytes Reserved"
+          },
+          "pbc_storage_bytes_included": {
+            "type": "integer",
+            "title": "Pbc Storage Bytes Included"
+          },
+          "pbc_storage_bytes_remaining": {
+            "type": "integer",
+            "title": "Pbc Storage Bytes Remaining"
+          },
           "period_start": {
             "anyOf": [
               {
@@ -47597,6 +47613,10 @@
           "pages_remaining",
           "tokens_included",
           "tokens_remaining",
+          "pbc_storage_bytes_used",
+          "pbc_storage_bytes_reserved",
+          "pbc_storage_bytes_included",
+          "pbc_storage_bytes_remaining",
           "period_start",
           "period_end",
           "plan_code",
@@ -47605,7 +47625,7 @@
           "token_overage_cents"
         ],
         "title": "UsageStatsResponse",
-        "description": "Usage statistics for current period"
+        "description": "Current-period usage plus the firm-wide PBC storage quota."
       },
       "UserResponse": {
         "properties": {

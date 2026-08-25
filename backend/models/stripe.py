@@ -52,13 +52,17 @@ class SubscriptionPlanResponse(BaseModel):
     sort_order: int
 
 class UsageStatsResponse(BaseModel):
-    """Usage statistics for current period"""
+    """Current-period usage plus the firm-wide PBC storage quota."""
     pages_used: int
     pages_included: int
     pages_remaining: int
     tokens_used: int = 0
     tokens_included: int
     tokens_remaining: int
+    pbc_storage_bytes_used: int
+    pbc_storage_bytes_reserved: int
+    pbc_storage_bytes_included: int
+    pbc_storage_bytes_remaining: int
     period_start: Optional[datetime]
     period_end: Optional[datetime]
     plan_code: str

@@ -37,6 +37,10 @@ export interface UsageStats {
   tokens_used: number
   tokens_included: number
   tokens_remaining: number
+  pbc_storage_bytes_used: number
+  pbc_storage_bytes_reserved: number
+  pbc_storage_bytes_included: number
+  pbc_storage_bytes_remaining: number
   period_start?: string
   period_end?: string
   plan_code: string

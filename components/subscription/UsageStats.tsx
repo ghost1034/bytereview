@@ -3,7 +3,7 @@
  */
 'use client'
 
-import { AlertTriangle, FileText, Sparkles } from 'lucide-react'
+import { AlertTriangle, FileText, HardDrive, Sparkles } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -12,6 +12,18 @@ import { Section } from '@/components/ui/section'
 import { useUsageStats } from '@/hooks/useBilling'
 import { TOKEN_OVERAGE_PRICING_UNIT } from '@/lib/billingPricing'
 import { cn, pluralize } from '@/lib/utils'
+
+const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB']
+
+function formatBytes(bytes: number) {
+  if (bytes <= 0) return '0 B'
+  const unitIndex = Math.min(
+    Math.floor(Math.log(bytes) / Math.log(1024)),
+    BYTE_UNITS.length - 1,
+  )
+  const value = bytes / (1024 ** unitIndex)
+  return `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} ${BYTE_UNITS[unitIndex]}`
+}
 
 export default function UsageStats() {
   const { data: usage, isLoading, error } = useUsageStats()
@@ -59,6 +71,14 @@ export default function UsageStats() {
     : 0
   const isNearTokenLimit = tokensPercentage >= 80
   const isOverTokenLimit = usage.tokens_used >= usage.tokens_included
+  const pbcStorageAllocated =
+    usage.pbc_storage_bytes_used + usage.pbc_storage_bytes_reserved
+  const pbcStoragePercentage = usage.pbc_storage_bytes_included > 0
+    ? Math.min(100, (pbcStorageAllocated / usage.pbc_storage_bytes_included) * 100)
+    : 0
+  const isNearPbcStorageLimit = pbcStoragePercentage >= 80
+  const isOverPbcStorageLimit =
+    pbcStorageAllocated >= usage.pbc_storage_bytes_included
 
   const getPlanBadgeVariant = (planCode: string) => {
     switch (planCode) {
@@ -184,6 +204,40 @@ export default function UsageStats() {
               })}
             </p>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <HardDrive className="size-3.5 text-foreground-muted" aria-hidden />
+              <span className="text-sm text-foreground-muted">PBC storage</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {isOverPbcStorageLimit && (
+                <AlertTriangle className="size-3.5 text-warning" aria-hidden />
+              )}
+              <span className="text-sm font-medium tabular-nums text-foreground">
+                {formatBytes(pbcStorageAllocated)} / {formatBytes(usage.pbc_storage_bytes_included)}
+              </span>
+            </div>
+          </div>
+          <Progress
+            value={pbcStoragePercentage}
+            className={cn(
+              'h-1.5',
+              isOverPbcStorageLimit && '[&>div]:bg-destructive',
+              !isOverPbcStorageLimit && isNearPbcStorageLimit && '[&>div]:bg-warning',
+            )}
+          />
+          <p className="text-xs text-foreground-subtle">
+            {isOverPbcStorageLimit
+              ? 'Storage limit reached — upgrade or remove PBC evidence'
+              : `${formatBytes(usage.pbc_storage_bytes_remaining)} remaining`}
+            {usage.pbc_storage_bytes_reserved > 0 && (
+              <> · {formatBytes(usage.pbc_storage_bytes_reserved)} pending upload</>
+            )}
+            {' · firm-wide'}
+          </p>
         </div>
 
         {Object.keys(usage.product_breakdown).length > 0 && (

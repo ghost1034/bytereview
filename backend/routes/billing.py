@@ -7,14 +7,31 @@ from typing import List
 
 from dependencies.auth import get_current_user_id
 from core.database import get_db
-from services.billing_service import get_billing_service
+from models.db_models import User
 from models.stripe import (
     BillingAccountResponse,
     SubscriptionPlanResponse,
     UsageStatsResponse
 )
+from services.billing_service import get_billing_service
+from services.pbc_storage import pbc_storage_summary
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
+
+
+def _pbc_storage_usage(db: Session, user_id: str, included_bytes: int) -> dict:
+    """Return firm-wide PBC storage without creating a firm as a billing side effect."""
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is not None and user.firm_id is not None:
+        return pbc_storage_summary(db, user.firm_id)
+
+    return {
+        "used_bytes": 0,
+        "reserved_bytes": 0,
+        "included_bytes": included_bytes,
+        "remaining_bytes": included_bytes,
+    }
+
 
 @router.get("/account", response_model=BillingAccountResponse)
 async def get_billing_account(
@@ -34,10 +51,15 @@ async def get_usage_stats(
     user_id: str = Depends(get_current_user_id),
     db: Session = Depends(get_db)
 ):
-    """Get current usage statistics"""
+    """Get current usage statistics and firm-wide PBC storage."""
     try:
         billing_service = get_billing_service(db)
         billing_info = billing_service.get_billing_info(user_id)
+        storage = _pbc_storage_usage(
+            db,
+            user_id,
+            billing_info['pbc_storage_bytes_included'],
+        )
         
         pages_remaining = max(0, billing_info['pages_included'] - billing_info['pages_used'])
         tokens_remaining = max(0, billing_info['tokens_included'] - billing_info['tokens_used'])
@@ -49,6 +71,10 @@ async def get_usage_stats(
             tokens_used=billing_info['tokens_used'],
             tokens_included=billing_info['tokens_included'],
             tokens_remaining=tokens_remaining,
+            pbc_storage_bytes_used=storage['used_bytes'],
+            pbc_storage_bytes_reserved=storage['reserved_bytes'],
+            pbc_storage_bytes_included=storage['included_bytes'],
+            pbc_storage_bytes_remaining=storage['remaining_bytes'],
             period_start=billing_info['current_period_start'],
             period_end=billing_info['current_period_end'],
             plan_code=billing_info['plan_code'],

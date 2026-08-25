@@ -955,7 +955,7 @@ export interface paths {
         };
         /**
          * Get Usage Stats
-         * @description Get current usage statistics
+         * @description Get current usage statistics and firm-wide PBC storage.
          */
         get: operations["get_usage_stats_api_billing_usage_get"];
         put?: never;
@@ -15444,7 +15444,7 @@ export interface components {
         };
         /**
          * UsageStatsResponse
-         * @description Usage statistics for current period
+         * @description Current-period usage plus the firm-wide PBC storage quota.
          */
         UsageStatsResponse: {
             /** Pages Used */
@@ -15462,6 +15462,14 @@ export interface components {
             tokens_included: number;
             /** Tokens Remaining */
             tokens_remaining: number;
+            /** Pbc Storage Bytes Used */
+            pbc_storage_bytes_used: number;
+            /** Pbc Storage Bytes Reserved */
+            pbc_storage_bytes_reserved: number;
+            /** Pbc Storage Bytes Included */
+            pbc_storage_bytes_included: number;
+            /** Pbc Storage Bytes Remaining */
+            pbc_storage_bytes_remaining: number;
             /** Period Start */
             period_start: string | null;
             /** Period End */
