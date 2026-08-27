@@ -49,7 +49,12 @@ from services.tasklytic_service import (
 )
 from core.database import get_db
 from dependencies.auth import verify_firebase_token
-from routes.tasklytic import _event_cursor, _workspace_event_batch, router as tasklytic_router
+from routes.tasklytic import (
+    _event_cursor,
+    _workspace_event_batch,
+    require_paid_tasklytic_user,
+    router as tasklytic_router,
+)
 from services.tasklytic_ai_service import build_authorized_context, validate_proposals
 from services.tasklytic_ai_contracts import PROPOSAL_TYPES, SUPPORTED_VERTEX_MODEL_IDS
 from services.tasklytic_ai_persistence import (
@@ -143,6 +148,7 @@ def api(db):
 
     app.dependency_overrides[get_db] = override_db
     app.dependency_overrides[verify_firebase_token] = override_auth
+    app.dependency_overrides[require_paid_tasklytic_user] = override_auth
     return TestClient(app), identity
 
 

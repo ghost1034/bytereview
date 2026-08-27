@@ -41,7 +41,11 @@ from models.tasklytic import (
     TasklyticWorkspaceMember,
 )
 from services.email_service import email_service
-from services.billing_service import PlanLimitExceeded, billing_limit_http_exception
+from services.billing_service import (
+    PlanLimitExceeded,
+    billing_limit_http_exception,
+    get_billing_service,
+)
 from services.gcs_service import get_storage_service
 from services.rate_limit import rate_limiter
 from services.tasklytic_ai_service import generate_tasklytic_response
@@ -154,6 +158,25 @@ router = APIRouter(
     tags=["tasklytic"],
     dependencies=[Depends(_enforce_request_size)],
 )
+
+
+def require_paid_tasklytic_user(
+    token: dict = Depends(verify_firebase_token),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Allow Tasklytic's authenticated APIs only for non-free accounts."""
+
+    billing_info = get_billing_service(db).get_billing_info(token["uid"])
+    plan_code = str(billing_info.get("plan_code") or "").strip().lower()
+    if not plan_code or plan_code == "free":
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "tasklytic_paid_plan_required",
+                "message": "Tasklytic requires a paid plan.",
+            },
+        )
+    return token
 
 
 def _commit(db: Session) -> None:
@@ -532,7 +555,7 @@ def submit_public_form(
 @router.get("/forms/{form_key}/definition")
 def get_authenticated_form(
     form_key: str,
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     row = _published_form_row(db, form_key)
@@ -544,7 +567,7 @@ def get_authenticated_form(
 async def initiate_authenticated_form_file(
     form_key: str,
     body: dict[str, Any] = Body(...),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     form_row = _published_form_row(db, form_key)
@@ -585,7 +608,7 @@ def submit_authenticated_form(
     request: Request,
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     row = _published_form_row(db, form_key)
@@ -615,7 +638,7 @@ def submit_authenticated_form(
 @router.get("/bootstrap")
 def get_bootstrap(
     workspace_id: str | None = Query(default=None),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     return bootstrap(db, token["uid"], workspace_id)
@@ -624,7 +647,7 @@ def get_bootstrap(
 @router.get("/capabilities")
 def get_capabilities(
     workspace_id: str = Query(...),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(workspace_id, "workspace_id")
@@ -634,7 +657,7 @@ def get_capabilities(
 @router.get("/reporting/sources")
 def get_reporting_sources(
     workspace_id: str = Query(...),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(workspace_id, "workspace_id")
@@ -654,7 +677,7 @@ def list_commands(
     workspace_id: str = Query(...),
     status: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=250),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(workspace_id, "workspace_id")
@@ -672,7 +695,7 @@ def list_commands(
 @router.get("/commands/{command_id}")
 def get_command_diagnostics(
     command_id: uuid.UUID,
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     command = db.get(TasklyticCommand, command_id)
@@ -686,7 +709,7 @@ def get_command_diagnostics(
 @router.post("/commands/{command_id}/retry")
 def retry_command(
     command_id: uuid.UUID,
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     command = db.get(TasklyticCommand, command_id)
@@ -703,7 +726,7 @@ def list_rule_runs(
     rule_id: str,
     workspace_id: str = Query(...),
     limit: int = Query(default=50, ge=1, le=100),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     """Visible, retry-aware rule history backed by durable command attempts."""
@@ -748,7 +771,7 @@ def list_rule_runs(
 @router.post("/automation/runs/{command_id}/retry")
 def retry_rule_run(
     command_id: uuid.UUID,
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     command = db.get(TasklyticCommand, command_id)
@@ -817,7 +840,7 @@ async def stream_workspace_events(
     request: Request,
     cursor: int | None = Query(default=None),
     last_event_id: str | None = Header(default=None, alias="Last-Event-ID"),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     session_factory: SessionFactory = Depends(_workspace_event_session_factory),
 ):
     workspace_id = validate_id(workspace_id, "workspace_id")
@@ -875,7 +898,7 @@ async def stream_workspace_events(
 def provision(
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     bundle = body.get("bundle", body)
@@ -901,7 +924,7 @@ def provision(
 def send_invitations(
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token),
+    token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
@@ -966,7 +989,7 @@ def send_invitations(
 
 
 @router.post("/invitations/accept")
-def accept_invitation(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+def accept_invitation(body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db)):
     plain = str(body.get("token") or "").strip()
     if len(plain) < 20:
         raise HTTPException(status_code=422, detail="Invitation token is invalid")
@@ -1037,7 +1060,7 @@ def accept_invitation(body: dict[str, Any] = Body(...), token: dict = Depends(ve
 
 
 @router.post("/invitations/{invitation_id}/revoke")
-def revoke_invitation(invitation_id: uuid.UUID, token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+def revoke_invitation(invitation_id: uuid.UUID, token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db)):
     invite = db.get(TasklyticInvitation, invitation_id)
     if invite is None:
         raise HTTPException(status_code=404, detail="Invitation not found")
@@ -1068,7 +1091,7 @@ def revoke_invitation(invitation_id: uuid.UUID, token: dict = Depends(verify_fir
 
 
 @router.post("/actions/deliver-notification")
-def deliver_notification(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+def deliver_notification(body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db)):
     notification = validate_payload(body.get("notification"))
     recipient = validate_id(body.get("recipientUserId"), "recipientUserId")
     if notification.get("userId") != recipient:
@@ -1082,7 +1105,7 @@ def deliver_notification(body: dict[str, Any] = Body(...), token: dict = Depends
 def send_email(
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     key = _idempotency_key(idempotency_key, body)
@@ -1100,7 +1123,7 @@ def send_email(
 
 @router.get("/integrations/capabilities")
 def get_integration_capabilities(
-    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token),
+    workspace_id: str = Query(...), token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     return {"capabilities": integration_capabilities(db, workspace_id, token["uid"])}
@@ -1109,7 +1132,7 @@ def get_integration_capabilities(
 @router.put("/integrations/{provider}")
 def configure_integration(
     provider: str, body: dict[str, Any] = Body(...),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     require_admin(db, workspace_id, token["uid"])
@@ -1130,7 +1153,7 @@ def configure_integration(
 def google_drive_files(
     workspace_id: str = Query(...), q: str | None = Query(default=None, max_length=255),
     page_token: str | None = Query(default=None, max_length=1024),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     result = list_google_drive_files(
         db, workspace_id=workspace_id, actor_id=token["uid"], query=q,
@@ -1142,7 +1165,7 @@ def google_drive_files(
 
 @router.post("/integrations/google-drive:import")
 def google_drive_import(
-    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token),
+    body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
@@ -1157,7 +1180,7 @@ def google_drive_import(
 
 @router.post("/integrations/vertex/receipts:extract")
 async def extract_expense_receipt(
-    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token),
+    body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
@@ -1189,7 +1212,7 @@ async def extract_expense_receipt(
 @router.post("/billing/invoices/{invoice_id}:payment-link")
 def billing_invoice_payment_link(
     invoice_id: str, body: dict[str, Any] = Body(...),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     result = create_stripe_payment_link(
@@ -1218,7 +1241,7 @@ async def stripe_connect_webhook(request: Request, db: Session = Depends(get_db)
 
 @router.post("/events/usage", status_code=202)
 def create_usage_event(
-    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token),
+    body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user),
     db: Session = Depends(get_db),
 ):
     result = record_usage_event(
@@ -1231,7 +1254,7 @@ def create_usage_event(
 
 
 @router.post("/files:initiate")
-async def initiate_file(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+async def initiate_file(body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db)):
     filename, mime_type, size = _validate_upload(body.get("filename"), body.get("content_type"), body.get("size"))
     workspace_id = validate_id(body.get("workspace_id"), "workspace_id")
     get_membership(db, workspace_id, token["uid"])
@@ -1265,7 +1288,7 @@ async def initiate_file(body: dict[str, Any] = Body(...), token: dict = Depends(
 
 
 @router.post("/files:complete")
-async def complete_file(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+async def complete_file(body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db)):
     row = _get_upload(db, str(body.get("object_name") or ""), lock=True)
     if row.uploader_id != token["uid"] or row.state != "initiated" or _expired(row.expires_at):
         raise HTTPException(status_code=403, detail="Upload cannot be completed")
@@ -1279,7 +1302,7 @@ async def complete_file(body: dict[str, Any] = Body(...), token: dict = Depends(
 @router.get("/files:download-url")
 async def download_file_url(
     object_name: str = Query(...), download: bool = Query(default=False), filename: str | None = Query(default=None),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     row = _get_upload(db, object_name)
     get_membership(db, row.workspace_id, token["uid"])
@@ -1295,7 +1318,7 @@ async def download_file_url(
 
 
 @router.delete("/files")
-async def delete_file(object_name: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+async def delete_file(object_name: str = Query(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db)):
     row = _get_upload(db, object_name, lock=True)
     if row.scope_type in {"invoice_brand", "invoice_pdf"}:
         raise HTTPException(status_code=409, detail="Issued invoice and branding objects are immutable")
@@ -1313,13 +1336,13 @@ async def delete_file(object_name: str = Query(...), token: dict = Depends(verif
 
 
 @router.get("/ai/models")
-def ai_models(token: dict = Depends(verify_firebase_token)):
+def ai_models(token: dict = Depends(require_paid_tasklytic_user)):
     return {"models": list(SUPPORTED_VERTEX_MODELS)}
 
 
 @router.get("/ai/settings")
 def ai_settings(
-    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    workspace_id: str = Query(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     row = get_or_create_settings(db, workspace_id, token["uid"])
     _commit(db)
@@ -1328,7 +1351,7 @@ def ai_settings(
 
 @router.put("/ai/settings")
 def put_ai_settings(
-    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     try:
         row = update_settings(db, validate_id(body.get("workspaceId"), "workspaceId"), token["uid"], body)
@@ -1341,14 +1364,14 @@ def put_ai_settings(
 
 @router.get("/ai/threads")
 def get_ai_threads(
-    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    workspace_id: str = Query(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     return {"threads": list_threads(db, workspace_id, token["uid"])}
 
 
 @router.post("/ai/threads", status_code=201)
 def post_ai_thread(
-    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     try:
         row = create_thread(db, validate_id(body.get("workspaceId"), "workspaceId"), token["uid"], body)
@@ -1361,7 +1384,7 @@ def post_ai_thread(
 
 @router.post("/ai/threads:migrate")
 def migrate_ai_threads(
-    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     try:
         migrated, threads = migrate_local_threads(
@@ -1381,7 +1404,7 @@ def migrate_ai_threads(
 @router.patch("/ai/proposals/{proposal_id}")
 def patch_ai_proposal(
     proposal_id: uuid.UUID, body: dict[str, Any] = Body(...),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     try:
         row = edit_proposal(db, proposal_id, token["uid"], body)
@@ -1394,7 +1417,7 @@ def patch_ai_proposal(
 
 @router.post("/ai/proposals/{proposal_id}:accept")
 def accept_ai_proposal(
-    proposal_id: uuid.UUID, token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    proposal_id: uuid.UUID, token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     try:
         row = accept_proposal(db, proposal_id, token["uid"])
@@ -1407,7 +1430,7 @@ def accept_ai_proposal(
 
 @router.post("/ai/proposals/{proposal_id}:discard")
 def discard_ai_proposal(
-    proposal_id: uuid.UUID, token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    proposal_id: uuid.UUID, token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     row = discard_proposal(db, proposal_id, token["uid"])
     _commit(db)
@@ -1416,14 +1439,14 @@ def discard_ai_proposal(
 
 @router.get("/ai/teammates")
 def get_ai_teammates(
-    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    workspace_id: str = Query(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     return {"jobs": list_teammates(db, workspace_id, token["uid"])}
 
 
 @router.put("/ai/teammates")
 def put_ai_teammate(
-    body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     try:
         row = upsert_teammate(db, validate_id(body.get("workspaceId"), "workspaceId"), token["uid"], body)
@@ -1436,14 +1459,14 @@ def put_ai_teammate(
 
 @router.get("/ai/audit")
 def get_ai_audit(
-    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    workspace_id: str = Query(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     return {"events": list_audit(db, workspace_id, token["uid"])}
 
 
 @router.get("/ai/usage")
 def get_ai_usage(
-    workspace_id: str = Query(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    workspace_id: str = Query(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     require_admin(db, workspace_id, token["uid"])
     rows = db.query(TasklyticAiUsageEvent).filter_by(workspace_id=workspace_id).order_by(
@@ -1458,7 +1481,7 @@ def get_ai_usage(
 
 
 @router.post("/ai/generate")
-async def ai_generate(body: dict[str, Any] = Body(...), token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+async def ai_generate(body: dict[str, Any] = Body(...), token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db)):
     prompt = body.get("prompt")
     history = body.get("history") or []
     scope = body.get("scope") or ((body.get("context") or {}).get("scope"))
@@ -1492,7 +1515,7 @@ async def ai_generate(body: dict[str, Any] = Body(...), token: dict = Depends(ve
 
 
 @router.post("/clear")
-def clear(token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db)):
+def clear(token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db)):
     if not is_local() or os.getenv("ENVIRONMENT", "").lower() == "production":
         raise HTTPException(status_code=404, detail="Not found")
     execute_inline_command(
@@ -1537,7 +1560,7 @@ def _invoice_email_template(template: str, invoice: dict[str, Any], payment_url:
 def billing_generate_invoice(
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
@@ -1556,7 +1579,7 @@ def billing_generate_invoice(
 def billing_invoice_action(
     invoice_id: str, action: str, body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
@@ -1649,7 +1672,7 @@ def billing_invoice_action(
 def billing_record_payment(
     invoice_id: str, body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
@@ -1671,7 +1694,7 @@ def billing_record_payment(
 def billing_reverse_payment(
     payment_id: str, body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
@@ -1693,7 +1716,7 @@ def billing_reverse_payment(
 def billing_record_trust(
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
@@ -1712,7 +1735,7 @@ def billing_record_trust(
 def billing_reverse_trust(
     transaction_id: str, body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
@@ -1734,7 +1757,7 @@ def billing_reverse_trust(
 def billing_fx_quote(
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
@@ -1752,7 +1775,7 @@ def billing_fx_quote(
 @router.get("/billing/invoices/{invoice_id}/pdf")
 def billing_invoice_pdf(
     invoice_id: str, workspace_id: str = Query(...),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     get_membership(db, workspace_id, token["uid"])
     content, sha256 = invoice_pdf(db, invoice_id=invoice_id, workspace_id=workspace_id, actor_id=token["uid"])
@@ -1767,7 +1790,7 @@ def psa_lifecycle_action(
     entity: str, record_id: str, action: str,
     body: dict[str, Any] = Body(...),
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     workspace_id = validate_id(body.get("workspaceId"), "workspaceId")
     get_membership(db, workspace_id, token["uid"])
@@ -1793,7 +1816,7 @@ def psa_lifecycle_action(
 @router.get("/{entity}")
 def get_collection(
     entity: str, workspace_id: str | None = Query(default=None),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     return list_records(db, entity, token["uid"], workspace_id)
 
@@ -1801,7 +1824,7 @@ def get_collection(
 @router.put("/{entity}")
 def put_collection(
     entity: str, items: list[Any] = Body(...), workspace_id: str | None = Query(default=None),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     validate_kind(entity)
     raise HTTPException(
@@ -1815,7 +1838,7 @@ def put_record(
     entity: str, record_id: str, response: Response,
     body: dict[str, Any] = Body(...), workspace_id: str | None = Query(default=None),
     if_match: str | None = Header(default=None, alias="If-Match"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     validate_id(record_id)
     expected = body.get("id") or ("session" if entity == "session" else None)
@@ -1874,7 +1897,7 @@ def put_record(
 def remove_record(
     entity: str, record_id: str, workspace_id: str | None = Query(default=None),
     if_match: str | None = Header(default=None, alias="If-Match"),
-    token: dict = Depends(verify_firebase_token), db: Session = Depends(get_db),
+    token: dict = Depends(require_paid_tasklytic_user), db: Session = Depends(get_db),
 ):
     expected_revision = parse_revision_etag(if_match)
     existing = None

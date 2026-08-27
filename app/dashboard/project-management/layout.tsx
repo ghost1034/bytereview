@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
 import { TasklyticChrome } from '@/project-management/TasklyticChrome'
+import { TasklyticPaidAccessGate } from '@/project-management/TasklyticPaidAccessGate'
 import { TasklyticProvider } from '@/project-management/TasklyticProvider'
 
 export const metadata: Metadata = {
@@ -11,8 +12,10 @@ export const metadata: Metadata = {
 
 export default function ProjectManagementLayout({ children }: { children: ReactNode }) {
   return (
-    <TasklyticProvider>
-      <TasklyticChrome>{children}</TasklyticChrome>
-    </TasklyticProvider>
+    <TasklyticPaidAccessGate>
+      <TasklyticProvider>
+        <TasklyticChrome>{children}</TasklyticChrome>
+      </TasklyticProvider>
+    </TasklyticPaidAccessGate>
   )
 }

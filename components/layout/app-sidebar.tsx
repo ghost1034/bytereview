@@ -94,6 +94,8 @@ const PRODUCTS_GROUP: NavGroup = {
       name: 'Tasklytic',
       href: '/dashboard/project-management',
       icon: FolderKanban,
+      badge: 'Paid',
+      badgeTone: 'muted',
     },
     { name: 'E-Signature', href: '/dashboard/esign', icon: FileSignature },
   ],

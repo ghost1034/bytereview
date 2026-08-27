@@ -5,7 +5,12 @@ import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+import pytest
+from fastapi import HTTPException
+from fastapi.routing import APIRoute
+
 from routes import billing as billing_routes
+from routes import tasklytic as tasklytic_routes
 
 
 def _billing_info() -> dict:
@@ -64,3 +69,47 @@ def test_pbc_storage_usage_falls_back_to_account_allowance_without_a_firm():
         "included_bytes": 123,
         "remaining_bytes": 123,
     }
+
+
+def test_tasklytic_paid_gate_rejects_free_accounts(monkeypatch):
+    service = SimpleNamespace(get_billing_info=lambda _user_id: {"plan_code": "free"})
+    monkeypatch.setattr(tasklytic_routes, "get_billing_service", lambda _db: service)
+
+    with pytest.raises(HTTPException) as exc_info:
+        tasklytic_routes.require_paid_tasklytic_user(
+            token={"uid": "free-user"},
+            db=MagicMock(),
+        )
+
+    assert exc_info.value.status_code == 403
+    assert exc_info.value.detail == {
+        "code": "tasklytic_paid_plan_required",
+        "message": "Tasklytic requires a paid plan.",
+    }
+
+
+def test_tasklytic_paid_gate_allows_paid_accounts(monkeypatch):
+    service = SimpleNamespace(get_billing_info=lambda _user_id: {"plan_code": "basic"})
+    monkeypatch.setattr(tasklytic_routes, "get_billing_service", lambda _db: service)
+    token = {"uid": "paid-user"}
+
+    assert tasklytic_routes.require_paid_tasklytic_user(
+        token=token,
+        db=MagicMock(),
+    ) is token
+
+
+def test_every_authenticated_tasklytic_route_requires_a_paid_plan():
+    intentionally_public_paths = {
+        "/api/tasklytic/public/forms/{form_key}",
+        "/api/tasklytic/public/forms/{form_key}/files:initiate",
+        "/api/tasklytic/public/files:complete",
+        "/api/tasklytic/public/forms/{form_key}/submit",
+        "/api/tasklytic/integrations/stripe-connect/webhook",
+    }
+
+    for route in tasklytic_routes.router.routes:
+        if not isinstance(route, APIRoute) or route.path in intentionally_public_paths:
+            continue
+        dependency_calls = {dependency.call for dependency in route.dependant.dependencies}
+        assert tasklytic_routes.require_paid_tasklytic_user in dependency_calls, route.path

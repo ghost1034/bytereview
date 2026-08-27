@@ -26,7 +26,7 @@ from models.tasklytic import (
 )
 from core.database import get_db
 from dependencies.auth import verify_firebase_token
-from routes.tasklytic import router as tasklytic_router
+from routes.tasklytic import require_paid_tasklytic_user, router as tasklytic_router
 from services.tasklytic_billing import (
     create_fx_quote, finalize_invoice_delivery, generate_invoice, invoice_action, invoice_pdf,
     record_payment, record_trust_transaction, reverse_payment,
@@ -93,7 +93,9 @@ def api(db):
     app = FastAPI(); app.include_router(tasklytic_router)
     def override_db(): yield db
     app.dependency_overrides[get_db] = override_db
-    app.dependency_overrides[verify_firebase_token] = lambda: {"uid": "owner", "email": "owner@example.com", "email_verified": True}
+    identity = {"uid": "owner", "email": "owner@example.com", "email_verified": True}
+    app.dependency_overrides[verify_firebase_token] = lambda: identity
+    app.dependency_overrides[require_paid_tasklytic_user] = lambda: identity
     return TestClient(app)
 
 
