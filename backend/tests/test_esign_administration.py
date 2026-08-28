@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
 import sys
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -63,3 +66,72 @@ def test_webhook_payload_redacts_sensitive_audit_evidence():
     assert payload["details"] == {"reason": "done"}
     for forbidden in ("203.0.113.4", "user_agent", "mfa_method", '"secret"'):
         assert forbidden not in encoded
+
+
+def test_esign_context_provisions_a_user_and_personal_firm():
+    from services.esign.admin_service import EsignAdminService, esign_authorization_service
+
+    user_id = "new-esign-user"
+    firm_id = uuid.uuid4()
+    user = SimpleNamespace(id=user_id, firm_id=None)
+    actor = SimpleNamespace(id=user_id, firm_id=firm_id)
+    firm = SimpleNamespace(id=firm_id, name="New User's Firm")
+    principal = SimpleNamespace(
+        profile_id=None,
+        profile_name="Firm administrator",
+        capabilities={},
+        is_admin=True,
+        features={"powerforms": True},
+        can=lambda _capability: True,
+    )
+    db = MagicMock()
+    service = object.__new__(EsignAdminService)
+    service._get_session = MagicMock(return_value=db)
+    service._ensure_defaults = MagicMock()
+
+    with (
+        patch("services.esign.admin_service.ensure_user_row", return_value=user) as ensure_user,
+        patch("services.esign.admin_service.get_or_create_user_firm", return_value=(actor, firm)) as ensure_firm,
+        patch.object(esign_authorization_service, "principal", return_value=principal),
+    ):
+        result = service.context(
+            user_id,
+            user_email="new@example.com",
+            display_name="New User",
+            photo_url="https://example.com/avatar.png",
+        )
+
+    ensure_user.assert_called_once_with(
+        db,
+        user_id=user_id,
+        email="new@example.com",
+        display_name="New User",
+        photo_url="https://example.com/avatar.png",
+    )
+    ensure_firm.assert_called_once_with(db, user_id)
+    service._ensure_defaults.assert_called_once_with(db, firm_id)
+    db.commit.assert_called_once_with()
+    db.close.assert_called_once_with()
+    assert result["firm"] == {"id": str(firm_id), "name": "New User's Firm"}
+    assert result["profile"]["admin_override"] is True
+
+
+def test_esign_context_route_passes_authenticated_profile_to_provisioning():
+    from routes.esign import esign_admin_service, get_esign_context
+
+    expected = {"firm": {"id": "firm-id", "name": "Firm"}}
+    with patch.object(esign_admin_service, "context", return_value=expected) as context:
+        result = asyncio.run(get_esign_context({
+            "uid": "firebase-user",
+            "email": "user@example.com",
+            "name": "Example User",
+            "picture": "https://example.com/avatar.png",
+        }))
+
+    context.assert_called_once_with(
+        "firebase-user",
+        user_email="user@example.com",
+        display_name="Example User",
+        photo_url="https://example.com/avatar.png",
+    )
+    assert result == expected

@@ -17,13 +17,14 @@ from models.db_models import (
     EsignBulkJob, EsignEnvelope, EsignEnvelopeGrant, EsignEnvelopeStatus, EsignEvent,
     EsignEventType, EsignFirmSettings, EsignPermissionAssignment,
     EsignPermissionProfile, EsignPowerForm, EsignTemplate,
-    EsignWebhookAttempt, EsignWebhookConfiguration, EsignWebhookDelivery, Firm, User,
+    EsignWebhookAttempt, EsignWebhookConfiguration, EsignWebhookDelivery, User,
 )
 from models.esign import (
     EsignBrandProfileRequest, EsignPermissionProfileRequest,
     EsignSettingsUpdateRequest, EsignWebhookConfigurationRequest, EsignCustodyRemediationRequest,
 )
 from services.esign import audit_service
+from services.analytics.firm_scope import ensure_user_row, get_or_create_user_firm
 from services.esign.authorization_service import DEFAULT_FEATURES, SENDER_CAPABILITIES, esign_authorization_service
 from services.esign.envelope_service import EsignConflict, EsignError, EsignNotFound
 from services.esign.webhook_service import build_event_payload, generate_webhook_secret, validate_webhook_destination
@@ -110,17 +111,30 @@ class EsignAdminService:
         db.flush()
         return settings, profiles
 
-    def context(self, user_id: str) -> dict[str, Any]:
+    def context(
+        self,
+        user_id: str,
+        *,
+        user_email: str,
+        display_name: str | None = None,
+        photo_url: str | None = None,
+    ) -> dict[str, Any]:
         db = self._get_session()
         try:
-            actor = self._actor(db, user_id)
+            user = ensure_user_row(
+                db,
+                user_id=user_id,
+                email=user_email,
+                display_name=display_name,
+                photo_url=photo_url,
+            )
+            actor, firm = get_or_create_user_firm(db, user.id)
             self._ensure_defaults(db, actor.firm_id)
             db.commit()
             principal = esign_authorization_service.principal(db, user_id)
-            firm = db.query(Firm).filter(Firm.id == actor.firm_id).first()
             assert principal is not None
             return {
-                "firm": {"id": str(actor.firm_id), "name": firm.name if firm else "Firm"},
+                "firm": {"id": str(actor.firm_id), "name": firm.name},
                 "profile": {"id": str(principal.profile_id) if principal.profile_id else None,
                             "name": principal.profile_name, "capabilities": principal.capabilities,
                             "admin_override": principal.is_admin},

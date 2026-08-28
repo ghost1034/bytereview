@@ -155,7 +155,13 @@ async def _read_uploads(files: list[UploadFile] | None) -> list[tuple[str, bytes
 
 @router.get("/context", response_model=EsignContextResponse)
 async def get_esign_context(token: dict = Depends(verify_firebase_token)):
-    try: return esign_admin_service.context(_uid(token))
+    try:
+        return esign_admin_service.context(
+            _uid(token),
+            user_email=_email(token),
+            display_name=token.get("name"),
+            photo_url=token.get("picture"),
+        )
     except Exception as exc: _raise_http(exc)
 
 
