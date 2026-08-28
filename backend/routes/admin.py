@@ -182,10 +182,10 @@ async def require_system_admin(
     scoped to a firm, so even a firm administrator must not gain platform-wide
     access to other firms' records.
     """
+    from services.system_admin_access import ensure_system_admin
+
     user = db.query(User).filter(User.id == user_id).first()
-    if user is None or not bool(user.is_system_admin):
-        raise HTTPException(status_code=403, detail="System administrator access required")
-    return user
+    return ensure_system_admin(user)
 
 
 def _table_or_404(table_name: str):

@@ -98,6 +98,7 @@ const eslintConfig = [
       'build/**',
       'next-env.d.ts',
       'public/pdf-worker.min.mjs',
+      'public/draco/**',
       'backend/scripts/convert_inkwise_docx.cjs',
     ],
   },
@@ -166,6 +167,14 @@ const eslintConfig = [
     files: ['components/workflow/steps/ResultsStep.tsx'],
     rules: {
       'react/display-name': 'warn',
+    },
+  },
+  {
+    files: ['taxatlas-ui/**/*.{ts,tsx}'],
+    rules: {
+      // TaxAtlas table definitions store JSX values in typed row tuples. They
+      // are keyed by the shared table renderer rather than at the tuple site.
+      'react/jsx-key': 'off',
     },
   },
   {

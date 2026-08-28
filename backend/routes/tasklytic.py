@@ -46,6 +46,7 @@ from services.billing_service import (
     billing_limit_http_exception,
     get_billing_service,
 )
+from services.paid_product_access import require_paid_plan
 from services.gcs_service import get_storage_service
 from services.rate_limit import rate_limiter
 from services.tasklytic_ai_service import generate_tasklytic_response
@@ -164,18 +165,13 @@ def require_paid_tasklytic_user(
     token: dict = Depends(verify_firebase_token),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Allow Tasklytic's authenticated APIs only for non-free accounts."""
-
-    billing_info = get_billing_service(db).get_billing_info(token["uid"])
-    plan_code = str(billing_info.get("plan_code") or "").strip().lower()
-    if not plan_code or plan_code == "free":
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "code": "tasklytic_paid_plan_required",
-                "message": "Tasklytic requires a paid plan.",
-            },
-        )
+    require_paid_plan(
+        db,
+        token["uid"],
+        product_code="tasklytic",
+        product_name="Tasklytic",
+        billing_service_factory=get_billing_service,
+    )
     return token
 
 

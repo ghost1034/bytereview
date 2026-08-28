@@ -166,6 +166,7 @@ from routes import (
     hosted_claw,
     pbc,
 )
+from taxatlas.router import router as taxatlas_router
 from inkwise.router import router as inkwise_router
 
 app.include_router(users.router,        prefix="/api/users",      tags=["users"])
@@ -200,6 +201,7 @@ app.include_router(chrona_sync.router)
 app.include_router(chrona_dashboard.router)
 app.include_router(local_storage.router, prefix="/api/local-storage", tags=["local-development"])
 app.include_router(tasklytic.router)
+app.include_router(taxatlas_router)
 app.include_router(hosted_claw.user_router)
 app.include_router(hosted_claw.slack_router)
 app.include_router(hosted_claw.internal_router)

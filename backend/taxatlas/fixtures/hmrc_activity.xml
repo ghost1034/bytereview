@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>HM Revenue &amp; Customs - Activity on GOV.UK (fixture)</title>
+  <id>https://fixtures.taxatlas.test/govuk/government/organisations/hm-revenue-customs.atom</id>
+  <link rel="self" href="https://fixtures.taxatlas.test/govuk/government/organisations/hm-revenue-customs.atom"/>
+  <updated>2026-08-21T15:46:43Z</updated>
+  <entry>
+    <title>Policy paper: VAT in the Digital Age — UK approach to e-invoicing from April 2028</title>
+    <id>https://fixtures.taxatlas.test/govuk/government/publications/vat-e-invoicing-uk-approach-2028</id>
+    <link href="https://fixtures.taxatlas.test/govuk/government/publications/vat-e-invoicing-uk-approach-2028"/>
+    <updated>2026-08-21T15:46:43Z</updated>
+    <summary type="html">Sets out the mandate timetable for structured electronic invoicing between VAT-registered businesses and the technical standard HMRC will accept.</summary>
+  </entry>
+  <entry>
+    <title>Guidance: Pillar 2 top-up taxes — registration and returns for the Multinational Top-up Tax</title>
+    <id>https://fixtures.taxatlas.test/govuk/guidance/pillar-2-top-up-taxes-registration-and-returns</id>
+    <link href="https://fixtures.taxatlas.test/govuk/guidance/pillar-2-top-up-taxes-registration-and-returns"/>
+    <updated>2026-08-20T10:12:00Z</updated>
+    <summary type="html">Updated to confirm the first GloBE Information Return is due by 30 June 2027 for groups with a 31 December 2025 year end.</summary>
+  </entry>
+  <entry>
+    <title>Transparency data: HMRC workforce management information July 2026</title>
+    <id>https://fixtures.taxatlas.test/govuk/government/publications/hmrc-workforce-management-information-july-2026</id>
+    <link href="https://fixtures.taxatlas.test/govuk/government/publications/hmrc-workforce-management-information-july-2026"/>
+    <updated>2026-08-19T09:30:00Z</updated>
+    <summary type="html">Monthly staff numbers and paybill for HMRC.</summary>
+  </entry>
+  <entry>
+    <title>Revenue and Customs Brief 4 (2026): VAT treatment of fund management services after the Finance Act 2026</title>
+    <id>https://fixtures.taxatlas.test/govuk/government/publications/revenue-and-customs-brief-4-2026-vat-fund-management</id>
+    <link href="https://fixtures.taxatlas.test/govuk/government/publications/revenue-and-customs-brief-4-2026-vat-fund-management"/>
+    <updated>2026-08-18T11:00:00Z</updated>
+    <summary type="html">Explains the changes to the exemption for the management of special investment funds with effect from 1 September 2026.</summary>
+  </entry>
+  <entry>
+    <title>Guidance: Rates and thresholds for employers 2026 to 2027</title>
+    <id>https://fixtures.taxatlas.test/govuk/guidance/rates-and-thresholds-for-employers-2026-to-2027</id>
+    <link href="https://fixtures.taxatlas.test/govuk/guidance/rates-and-thresholds-for-employers-2026-to-2027"/>
+    <updated>2026-08-17T08:00:00Z</updated>
+    <summary type="html">National Insurance contributions, PAYE tax rates and statutory payment rates for the 2026 to 2027 tax year.</summary>
+  </entry>
+  <entry>
+    <title>News story: HMRC apprenticeship scheme opens 600 new places</title>
+    <id>https://fixtures.taxatlas.test/govuk/government/news/hmrc-apprenticeship-scheme-600-places</id>
+    <link href="https://fixtures.taxatlas.test/govuk/government/news/hmrc-apprenticeship-scheme-600-places"/>
+    <updated>2026-08-14T12:00:00Z</updated>
+    <summary type="html">Applications open for HMRC's 2027 apprenticeship intake across 14 UK locations.</summary>
+  </entry>
+  <entry>
+    <title>Consultation outcome: Reform of transfer pricing, permanent establishment and Diverted Profits Tax</title>
+    <id>https://fixtures.taxatlas.test/govuk/government/consultations/reform-of-transfer-pricing-pe-dpt-outcome</id>
+    <link href="https://fixtures.taxatlas.test/govuk/government/consultations/reform-of-transfer-pricing-pe-dpt-outcome"/>
+    <updated>2026-08-13T14:30:00Z</updated>
+    <summary type="html">Summary of responses and the government's decision to legislate the revised SME exemption from transfer pricing in Finance Bill 2026-27.</summary>
+  </entry>
+  <entry>
+    <title>Guidance: Check if you need to pay the Plastic Packaging Tax — rate from 1 April 2027</title>
+    <id>https://fixtures.taxatlas.test/govuk/guidance/plastic-packaging-tax-rate-april-2027</id>
+    <link href="https://fixtures.taxatlas.test/govuk/guidance/plastic-packaging-tax-rate-april-2027"/>
+    <updated>2026-08-12T09:00:00Z</updated>
+    <summary type="html">The rate increases in line with CPI to £236.89 per tonne from 1 April 2027.</summary>
+  </entry>
+  <entry>
+    <title>Statutory guidance: Customs Tariff (Preferential Trade Arrangements) (Amendment) Regulations 2026</title>
+    <id>https://fixtures.taxatlas.test/govuk/government/publications/customs-tariff-preferential-trade-amendment-regulations-2026</id>
+    <link href="https://fixtures.taxatlas.test/govuk/government/publications/customs-tariff-preferential-trade-amendment-regulations-2026"/>
+    <updated>2026-08-11T16:00:00Z</updated>
+    <summary type="html">Reference documents for the preferential rates and rules of origin applying under the UK-India trade agreement from 1 October 2026.</summary>
+  </entry>
+  <entry>
+    <title>Corporate report: HMRC annual report and accounts 2025 to 2026</title>
+    <id>https://fixtures.taxatlas.test/govuk/government/publications/hmrc-annual-report-and-accounts-2025-to-2026</id>
+    <link href="https://fixtures.taxatlas.test/govuk/government/publications/hmrc-annual-report-and-accounts-2025-to-2026"/>
+    <updated>2026-08-10T10:00:00Z</updated>
+    <summary type="html">Total tax revenues of £892.1 billion, the tax gap estimate and compliance yield for the year.</summary>
+  </entry>
+</feed>

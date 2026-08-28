@@ -1,0 +1,5 @@
+/*
+ * TaxAtlas list/detail rules are bundled in ../../taxatlas.css so the entire
+ * legacy stylesheet can be scoped beneath .taxatlas-root in one place. This
+ * compatibility entry point keeps component-local imports intact.
+ */

@@ -1,0 +1,930 @@
+@scope (.taxatlas-root) {
+/* Map page component styles (WP-B). Everything resolves through the design tokens in src/tokens.css so the
+   canvas, rail, legend, controls and drawer follow the active theme. Layout utilities stay in Tailwind; these
+   classes carry the visual language from docs/design/prototypes/map.html (.rail/.legend/.ctrls/.tip/.drawer). */
+
+.mp-root {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--map-ocean);
+}
+.mp-root .maplibregl-canvas {
+  outline: none;
+}
+.mp-root .maplibregl-ctrl-bottom-right,
+.mp-root .maplibregl-ctrl-bottom-left,
+.mp-root .maplibregl-ctrl-attrib {
+  display: none !important;
+}
+
+/* ---------- Layer rail ---------- */
+.mp-rail {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 252px;
+  max-height: calc(100% - 24px);
+  z-index: var(--z-rail, 20);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mp-region {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: saturate(1.1);
+  backdrop-filter: saturate(1.1);
+}
+.mp-region.scroll {
+  min-height: 0;
+  overflow-y: auto;
+}
+.mp-scope {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.mp-scope .lvl {
+  color: var(--ink-1);
+}
+.mp-scope button.lvl {
+  color: var(--ink-2);
+}
+.mp-scope button.lvl:hover {
+  color: var(--ink-1);
+}
+.mp-scope .sep {
+  color: var(--ink-4);
+}
+.mp-scope .mp-kbd,
+.mp-scope .back {
+  margin-left: auto;
+}
+.mp-scope .back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-1);
+  font-size: var(--text-xs);
+}
+.mp-scope .back:hover {
+  background: var(--surface-3);
+}
+
+/* Sub-national coverage line under the scope row (world mode). */
+.mp-scope-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 0 12px 8px;
+  margin-top: -4px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.mp-scope-sub .mp-mono {
+  color: var(--ink-2);
+}
+
+.mp-kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--hairline-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 10.5px;
+  color: var(--ink-2);
+  background: var(--surface-2);
+  line-height: 1;
+}
+
+.mp-sec {
+  padding: 6px 0 8px;
+}
+.mp-sec + .mp-sec {
+  border-top: 1px solid var(--hairline);
+}
+.mp-sec .h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 12px 4px;
+}
+.mp-sec .h span {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+}
+.mp-sec .h .mp-kbd {
+  margin-left: auto;
+}
+.mp-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+  padding: 0 12px;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mp-opt:hover {
+  color: var(--ink-1);
+  background: var(--surface-2);
+}
+.mp-opt:focus-visible {
+  outline-offset: -2px;
+}
+.mp-opt[aria-pressed="true"],
+.mp-opt[aria-checked="true"] {
+  color: var(--ink-1);
+}
+.mp-opt[aria-pressed="true"] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.mp-opt .lbl {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mp-opt .n {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+}
+.mp-opt .sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+  border: 1.5px solid var(--ink-3);
+}
+.mp-opt[aria-pressed="true"] .sw {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+.mp-opt .box {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-xs);
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.mp-opt[aria-checked="true"] .box {
+  background: var(--ink-1);
+  border-color: var(--ink-1);
+}
+.mp-opt .box svg {
+  width: 9px;
+  height: 9px;
+  stroke: var(--surface-1);
+  stroke-width: 2.5;
+  fill: none;
+  display: none;
+}
+.mp-opt[aria-checked="true"] .box svg {
+  display: block;
+}
+.mp-opt:disabled {
+  cursor: default;
+  color: var(--ink-3);
+}
+
+/* Metric groups (rail). Header stays visible while its rows scroll under it; the selected row carries a filled
+   brass marker, a 2 px left rule, a surface wash and heavier ink so the active metric is never in doubt. */
+.mp-metrics .h .mp-count {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.mp-metrics .h .mp-count .mp-mono {
+  color: var(--ink-2);
+}
+.mp-metrics .h .mp-count + .mp-kbd {
+  margin-left: 0;
+}
+.mp-grp + .mp-grp {
+  margin-top: 4px;
+}
+.mp-grp-h {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 12px 3px;
+  background: var(--surface-glass);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.mp-grp-h .n {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-4);
+}
+.mp-metrics .mp-opt {
+  padding-left: 22px;
+  height: 26px;
+}
+.mp-metrics .mp-opt[aria-pressed="true"] {
+  background: var(--surface-2);
+  color: var(--ink-1);
+}
+.mp-metrics .mp-opt[aria-pressed="true"] .lbl {
+  font-weight: 500;
+}
+.mp-metrics .mp-opt[aria-pressed="true"] .n {
+  color: var(--ink-2);
+}
+.mp-more {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 0 12px;
+  height: 26px;
+  font: inherit;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-top: 1px dashed var(--hairline);
+  text-align: left;
+  cursor: pointer;
+}
+.mp-more:hover {
+  color: var(--ink-1);
+  background: var(--surface-2);
+}
+.mp-more .n {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+}
+
+/* Overlay marker glyphs (shape + categorical colour). */
+.mp-ov {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  display: inline-block;
+}
+.mp-ov.circle {
+  border-radius: 50%;
+  background: var(--viz-cat-1);
+}
+.mp-ov.triangle {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 8px solid var(--viz-cat-3);
+  background: none;
+}
+.mp-ov.square {
+  border-radius: 1px;
+  background: var(--viz-cat-4);
+}
+
+/* ---------- Legend (inside the rail) ---------- */
+.mp-legend {
+  padding: 8px 12px 10px;
+}
+.mp-legend .h {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.mp-legend .h b {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-1);
+  min-width: 0;
+  flex: 1;
+  line-height: 1.3;
+}
+.mp-legend .h .cov,
+.mp-legend .h .cov span {
+  flex: none;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.mp-bins {
+  display: grid;
+  gap: 2px;
+}
+.mp-bins i {
+  display: block;
+  height: 8px;
+  border-radius: 1px;
+}
+.mp-ticks {
+  display: grid;
+  margin-top: 4px;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.mp-ticks span {
+  text-align: left;
+  white-space: nowrap;
+  overflow: visible;
+}
+/* Palette control: four miniature ramps; the active one is outlined in brass (selection colour, per the system). */
+.mp-palette {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.mp-palette .lbl {
+  flex: none;
+}
+.mp-palette .opts {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+.mp-palette button {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  width: 38px;
+  height: 12px;
+  padding: 0;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-xs);
+  overflow: hidden;
+  background: none;
+  cursor: pointer;
+}
+.mp-palette button i {
+  display: block;
+}
+.mp-palette button:hover {
+  border-color: var(--ink-3);
+}
+.mp-palette button[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.mp-legend .ccy {
+  margin-left: 4px;
+  color: var(--ink-3);
+}
+
+/* Drill into a country that has geometry but no sub-national rates yet. */
+.mp-legend .empty {
+  margin: 2px 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+.mp-legend .nd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.mp-legend .nd .n {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-2xs);
+}
+.mp-hatch {
+  width: 18px;
+  height: 8px;
+  display: inline-block;
+  flex: none;
+  background-color: var(--viz-nodata-fill);
+  background-image: var(--viz-nodata-hatch);
+  border: 1px solid var(--viz-nodata-line);
+}
+.mp-legend .asof {
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mp-legend .asof .mono {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  color: var(--ink-2);
+}
+.mp-legend .asof .mp-seg {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 8px;
+}
+.mp-legend .asof .mp-seg button {
+  font: inherit;
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.mp-legend .asof .mp-seg button:hover {
+  color: var(--ink-1);
+}
+.mp-legend .asof .mp-seg button[aria-pressed="true"] {
+  color: var(--ink-1);
+  box-shadow: inset 0 -1px 0 var(--accent);
+}
+.mp-legend .err {
+  font-size: var(--text-xs);
+  color: var(--negative);
+}
+.mp-legend .err button {
+  font: inherit;
+  color: var(--ink-1);
+  background: none;
+  border: 0;
+  padding: 0;
+  margin-left: 6px;
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* ---------- Floating controls ---------- */
+.mp-ctrls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: var(--z-rail, 20);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: right var(--dur-base) var(--ease-out);
+}
+.mp-ctrls.shifted {
+  right: calc(var(--drawer-w, 480px) + 12px);
+}
+.mp-ctrl-group {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-glass);
+  overflow: hidden;
+}
+.mp-ctrl-group button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+}
+.mp-ctrl-group button:last-child {
+  border-bottom: 0;
+}
+.mp-ctrl-group button:hover {
+  color: var(--ink-1);
+  background: var(--surface-2);
+}
+.mp-ctrl-group button:focus-visible {
+  outline-offset: -2px;
+}
+.mp-ctrl-group svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  fill: none;
+}
+
+/* ---------- Hover tooltip ---------- */
+.mp-tip {
+  position: absolute;
+  z-index: var(--z-popover, 50);
+  background: var(--surface-1);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-popover);
+  padding: 6px 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.mp-tip .v {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-md);
+}
+.mp-tip .v small {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  margin-left: 2px;
+}
+.mp-tip .c {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.mp-tip .none {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+/* ---------- Status line (bottom-left) ---------- */
+.mp-foot {
+  position: absolute;
+  left: 12px;
+  bottom: 10px;
+  z-index: var(--z-rail, 20);
+  display: flex;
+  gap: 14px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.mp-foot .mono {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  color: var(--ink-2);
+}
+.mp-foot .n {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  color: var(--ink-2);
+}
+
+/* Notices stacked under the rail (overlay note, load errors). */
+.mp-note {
+  padding: 8px 12px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.mp-note.err {
+  color: var(--negative);
+}
+
+/* ---------- Drawer content (the aside itself is ui/Drawer in overlay mode, className="mp-panel") ---------- */
+/* Bilingual rows: the English line one step smaller so dense record rows stay two lines, not three. */
+.mp-panel .mp-row .t .bi-en,
+.mp-panel .mp-drawer-sub .bi-en {
+  font-size: var(--text-xs);
+}
+.mp-drawer-head {
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--hairline);
+}
+.mp-drawer-head .row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.mp-drawer-head .row > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.mp-drawer-head .actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+.mp-drawer-title {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--text-2xl);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-tight);
+  margin: 0;
+  color: var(--ink-1);
+}
+.mp-drawer-sub {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  flex-wrap: wrap;
+}
+.mp-drawer-sub .code {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  color: var(--ink-2);
+}
+.mp-drawer-sub a,
+.mp-link {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: var(--hairline-strong);
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.mp-drawer-sub a:hover,
+.mp-link:hover {
+  color: var(--link-hover);
+  text-decoration-color: currentColor;
+}
+.mp-drawer-sub button.up {
+  font: inherit;
+  color: var(--ink-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.mp-drawer-sub button.up:hover {
+  color: var(--ink-1);
+}
+.mp-drawer-body {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.mp-summary {
+  padding: 12px 16px;
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: var(--leading-prose);
+  color: var(--ink-1);
+  border-bottom: 1px solid var(--hairline);
+}
+
+/* Ghost / icon buttons used in the drawer head */
+.mp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-h, 28px);
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+}
+.mp-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink-1);
+}
+.mp-btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.mp-btn.primary:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+.mp-btn.default {
+  background: var(--surface-2);
+  border-color: var(--hairline-strong);
+  color: var(--ink-1);
+}
+.mp-btn.default:hover {
+  background: var(--surface-3);
+}
+.mp-btn.icon {
+  width: var(--control-h, 28px);
+  padding: 0;
+  justify-content: center;
+}
+.mp-btn svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  fill: none;
+}
+.mp-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Stat strip */
+.mp-strip {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--hairline);
+}
+.mp-strip > div {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 14px;
+  border-right: 1px solid var(--hairline);
+  overflow: hidden;
+}
+.mp-strip > div:last-child {
+  border-right: 0;
+}
+.mp-strip .k {
+  font-size: var(--text-2xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.mp-strip .v {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-md);
+  color: var(--ink-1);
+  margin-top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 2px 6px;
+  flex-wrap: wrap;
+}
+/* Qualifier under/beside a figure ("incl. states"): the tree total is not the count the Rates tab shows. */
+.mp-strip .v .q {
+  font-family: var(--font-sans);
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+  line-height: 1.2;
+}
+.mp-spark {
+  width: 44px;
+  height: 16px;
+  flex: none;
+  align-self: center;
+}
+.mp-spark path.line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.25;
+}
+.mp-spark path.area {
+  fill: var(--accent-soft);
+  stroke: none;
+}
+
+/* Drill row */
+.mp-drill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+
+/* Record rows (regulations, courts, tariffs, children) */
+.mp-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--hairline);
+  font: inherit;
+  color: var(--ink-1);
+  background: none;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+}
+button.mp-row {
+  cursor: pointer;
+}
+button.mp-row:hover {
+  background: var(--surface-2);
+}
+.mp-row .meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  flex-wrap: wrap;
+}
+.mp-row .meta .mono,
+.mp-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  color: var(--ink-2);
+}
+.mp-row .t {
+  margin-top: 2px;
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+}
+.mp-row .s {
+  margin-top: 1px;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.mp-row .s.clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mp-row .hold {
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--hairline-strong);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.mp-row .val {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+  white-space: nowrap;
+}
+.mp-empty {
+  padding: 28px 16px;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+
+/* Static skeleton bars (no shimmer) */
+.mp-skel {
+  height: 12px;
+  border-radius: 2px;
+  background: var(--surface-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-ctrls {
+    transition: none;
+  }
+}
+
+}

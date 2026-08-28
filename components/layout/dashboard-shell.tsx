@@ -11,6 +11,7 @@ import {
   Settings as SettingsIcon,
   Zap,
   GraduationCap,
+  Globe2,
   Files,
   ClipboardCheck,
   FileSignature,
@@ -50,6 +51,7 @@ const QUICK_ACTIONS: Array<{
     label: string
     href: string
     icon: React.ComponentType<{ className?: string }>
+    badge?: string
   }>
 }> = [
   {
@@ -74,6 +76,12 @@ const QUICK_ACTIONS: Array<{
         label: 'Tasklytic',
         href: '/dashboard/project-management',
         icon: FolderKanban,
+      },
+      {
+        label: 'TaxAtlas',
+        href: '/dashboard/taxatlas',
+        icon: Globe2,
+        badge: 'Paid',
       },
       { label: 'E-Signature', href: '/dashboard/esign', icon: FileSignature },
     ],
@@ -105,11 +113,13 @@ function DashboardShellContent({
     pathname.startsWith('/dashboard/inkwise') ||
     pathname.startsWith('/dashboard/pbc') ||
     pathname.startsWith('/dashboard/project-management')
+    || pathname.startsWith('/dashboard/taxatlas')
   const isImmersiveEsign =
     pathname.startsWith('/dashboard/esign/sign/') ||
     /\/dashboard\/esign\/[^/]+\/(prepare|fields|review|documents|recipients)$/.test(pathname) ||
     /\/dashboard\/esign\/templates\/[^/]+/.test(pathname)
   const isProjectManagement = pathname.startsWith('/dashboard/project-management')
+  const isTaxAtlas = pathname.startsWith('/dashboard/taxatlas')
   const [paletteOpen, setPaletteOpen] = React.useState(false)
   const openGlobalPalette = React.useCallback(() => setPaletteOpen(true), [])
   const openCommandPalette = React.useMemo(
@@ -185,10 +195,10 @@ function DashboardShellContent({
           <div
             className={cn(
               'w-full',
-              isProjectManagement
+              isProjectManagement || isTaxAtlas
                 ? 'h-full min-h-0 max-w-none p-0'
                 : 'mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
-              !isProjectManagement && (isWideRoute ? 'max-w-none' : 'max-w-7xl'),
+              !isProjectManagement && !isTaxAtlas && (isWideRoute ? 'max-w-none' : 'max-w-7xl'),
             )}
           >
             <ProductTourProvider>
@@ -217,6 +227,11 @@ function DashboardShellContent({
                     >
                       <Icon className="mr-2 size-4 text-foreground-muted" />
                       <span>{item.label}</span>
+                      {item.badge && (
+                        <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-xs text-foreground-subtle">
+                          {item.badge}
+                        </span>
+                      )}
                     </CommandItem>
                   )
                 })}

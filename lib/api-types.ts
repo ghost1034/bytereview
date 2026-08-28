@@ -6837,6 +6837,993 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/taxatlas/v1/account/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Keys */
+        get: operations["list_keys_api_taxatlas_v1_account_api_keys_get"];
+        put?: never;
+        /**
+         * Create Key
+         * @description Create an API key. Scopes default to ['read']; 'admin' may be requested only by admin users.
+         */
+        post: operations["create_key_api_taxatlas_v1_account_api_keys_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke Key */
+        delete: operations["revoke_key_api_taxatlas_v1_account_api_keys__key_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/watchlist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Watch */
+        get: operations["list_watch_api_taxatlas_v1_account_watchlist_get"];
+        put?: never;
+        /** Add Watch */
+        post: operations["add_watch_api_taxatlas_v1_account_watchlist_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/watchlist/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove Watch */
+        delete: operations["remove_watch_api_taxatlas_v1_account_watchlist__item_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Notifications */
+        get: operations["notifications_api_taxatlas_v1_account_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/notifications/read-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read All */
+        post: operations["read_all_api_taxatlas_v1_account_notifications_read_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/notifications/{notification_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Read One */
+        post: operations["read_one_api_taxatlas_v1_account_notifications__notification_id__read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Channels */
+        get: operations["list_channels_api_taxatlas_v1_account_delivery_get"];
+        put?: never;
+        /** Create Channel */
+        post: operations["create_channel_api_taxatlas_v1_account_delivery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/delivery/{channel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Channel */
+        delete: operations["delete_channel_api_taxatlas_v1_account_delivery__channel_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Channel */
+        patch: operations["update_channel_api_taxatlas_v1_account_delivery__channel_id__patch"];
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/delivery/{channel_id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Secret
+         * @description Replace the webhook HMAC secret (returned once). The old secret keeps signing
+         *     X-TaxAtlas-Signature-V2-Previous for SECRET_ROTATION_GRACE so the receiver can switch without losing events.
+         */
+        post: operations["rotate_secret_api_taxatlas_v1_account_delivery__channel_id__rotate_secret_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/delivery/{channel_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test Channel */
+        post: operations["test_channel_api_taxatlas_v1_account_delivery__channel_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/account/delivery/{channel_id}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Attempts */
+        get: operations["list_attempts_api_taxatlas_v1_account_delivery__channel_id__attempts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/jurisdictions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Jurisdictions */
+        get: operations["list_jurisdictions_api_taxatlas_v1_jurisdictions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/jurisdictions/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Jurisdiction */
+        get: operations["get_jurisdiction_api_taxatlas_v1_jurisdictions__code__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/jurisdictions/{code}/children": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Children */
+        get: operations["children_api_taxatlas_v1_jurisdictions__code__children_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/jurisdictions/{code}/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Jurisdiction Rates */
+        get: operations["jurisdiction_rates_api_taxatlas_v1_jurisdictions__code__rates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/jurisdictions/{code}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Jurisdiction Summary
+         * @description One-call bundle for a jurisdiction page: detail, current rates grouped by tax type, latest items.
+         */
+        get: operations["jurisdiction_summary_api_taxatlas_v1_jurisdictions__code__summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/map/choropleth": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Choropleth
+         * @description Rate value per jurisdiction for map shading. VAT and GST are merged when tax_type=vat (indirect view).
+         *
+         *     Single query: latest effective rate per jurisdiction via a window function, then left-joined to the
+         *     jurisdiction list so every feature gets a row (value None when untracked).
+         */
+        get: operations["choropleth_api_taxatlas_v1_map_choropleth_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/map/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Activity
+         * @description Per-country counts of recent changes, court decisions, and in-force tariff measures (for map layers).
+         */
+        get: operations["activity_api_taxatlas_v1_map_activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/map/coverage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Coverage
+         * @description Number of jurisdictions with a current rate per metric, in one call (the map rail shows these counts).
+         *
+         *     `vat` merges VAT and GST like /choropleth. Returns {"total": N, "metrics": {"vat:standard": n, ...}}.
+         */
+        get: operations["coverage_api_taxatlas_v1_map_coverage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/map/subnational": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Subnational
+         * @description Countries that have sub-national jurisdictions with rate data, and the metrics available for each.
+         *
+         *     Drives the map's drill-down: a country appears here when at least one child jurisdiction carries a current
+         *     rate. `metrics` lists distinct (tax_type, rate_kind) pairs among the children with the number of children
+         *     covered, so the frontend can build the per-country metric list without hard-coding it.
+         */
+        get: operations["subnational_api_taxatlas_v1_map_subnational_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/map/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Metrics
+         * @description Every (tax_type, rate_kind) pair that has a current rate for at least `min_coverage` jurisdictions at this level.
+         *
+         *     Drives the map's metric list so it grows with the data instead of being hard-coded. Thresholds (rate NULL,
+         *     threshold_amount set) are included and flagged with `unit: "amount"`; VAT and GST are kept separate here —
+         *     the frontend merges them into one "VAT / GST" entry.
+         */
+        get: operations["metrics_api_taxatlas_v1_map_metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Rates */
+        get: operations["list_rates_api_taxatlas_v1_rates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/rates/{rate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Rate */
+        get: operations["get_rate_api_taxatlas_v1_rates__rate_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/regulations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Regulations */
+        get: operations["list_regulations_api_taxatlas_v1_regulations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/regulations/{reg_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Regulation */
+        get: operations["get_regulation_api_taxatlas_v1_regulations__reg_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/court-decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Decisions */
+        get: operations["list_decisions_api_taxatlas_v1_court_decisions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/court-decisions/{decision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Decision */
+        get: operations["get_decision_api_taxatlas_v1_court_decisions__decision_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/tariffs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Tariffs */
+        get: operations["list_tariffs_api_taxatlas_v1_tariffs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/tariffs/{tariff_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Tariff */
+        get: operations["get_tariff_api_taxatlas_v1_tariffs__tariff_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Changes */
+        get: operations["list_changes_api_taxatlas_v1_changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/changes/histogram": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Histogram
+         * @description Server-side daily counts of change events for the last N days (UTC), zero-filled.
+         */
+        get: operations["histogram_api_taxatlas_v1_changes_histogram_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Sources */
+        get: operations["list_sources_api_taxatlas_v1_sources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/sources/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Runs */
+        get: operations["list_runs_api_taxatlas_v1_sources_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Source */
+        get: operations["get_source_api_taxatlas_v1_sources__source_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/sources/{source_id}/crawl": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trigger Crawl */
+        post: operations["trigger_crawl_api_taxatlas_v1_sources__source_id__crawl_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/sources/crawl-all": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trigger All */
+        post: operations["trigger_all_api_taxatlas_v1_sources_crawl_all_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/sources/{source_id}/toggle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Toggle */
+        patch: operations["toggle_api_taxatlas_v1_sources__source_id__toggle_patch"];
+        trace?: never;
+    };
+    "/api/taxatlas/v1/stats/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Overview */
+        get: operations["overview_api_taxatlas_v1_stats_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/export/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Snapshot */
+        get: operations["snapshot_api_taxatlas_v1_export_snapshot_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/export/rates.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rates Csv */
+        get: operations["rates_csv_api_taxatlas_v1_export_rates_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/export/regulations.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Regulations Csv
+         * @description CSV of regulations using the same query parameters as GET /regulations (max 5000 rows).
+         */
+        get: operations["regulations_csv_api_taxatlas_v1_export_regulations_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/export/court-decisions.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Court Decisions Csv */
+        get: operations["court_decisions_csv_api_taxatlas_v1_export_court_decisions_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/export/tariffs.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tariffs Csv */
+        get: operations["tariffs_csv_api_taxatlas_v1_export_tariffs_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Rate */
+        post: operations["create_rate_api_taxatlas_v1_admin_rates_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/rates/{rate_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Rate */
+        delete: operations["delete_rate_api_taxatlas_v1_admin_rates__rate_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Rate */
+        patch: operations["patch_rate_api_taxatlas_v1_admin_rates__rate_id__patch"];
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/regulations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Regulation */
+        post: operations["create_regulation_api_taxatlas_v1_admin_regulations_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/regulations/{reg_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Regulation */
+        delete: operations["delete_regulation_api_taxatlas_v1_admin_regulations__reg_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Regulation */
+        patch: operations["patch_regulation_api_taxatlas_v1_admin_regulations__reg_id__patch"];
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/court-decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Decision */
+        post: operations["create_decision_api_taxatlas_v1_admin_court_decisions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/court-decisions/{decision_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Decision */
+        delete: operations["delete_decision_api_taxatlas_v1_admin_court_decisions__decision_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Decision */
+        patch: operations["patch_decision_api_taxatlas_v1_admin_court_decisions__decision_id__patch"];
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/tariffs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Tariff */
+        post: operations["create_tariff_api_taxatlas_v1_admin_tariffs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/tariffs/{tariff_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Tariff */
+        delete: operations["delete_tariff_api_taxatlas_v1_admin_tariffs__tariff_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Tariff */
+        patch: operations["patch_tariff_api_taxatlas_v1_admin_tariffs__tariff_id__patch"];
+        trace?: never;
+    };
+    "/api/taxatlas/v1/admin/jurisdictions/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch Jurisdiction */
+        patch: operations["patch_jurisdiction_api_taxatlas_v1_admin_jurisdictions__code__patch"];
+        trace?: never;
+    };
+    "/api/taxatlas/v1/meta/enums": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Enums */
+        get: operations["list_enums_api_taxatlas_v1_meta_enums_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/taxatlas/v1/meta/quickstart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Quickstart */
+        get: operations["quickstart_api_taxatlas_v1_meta_quickstart_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/hosted-claw/status": {
         parameters: {
             query?: never;
@@ -8743,6 +9730,63 @@ export interface components {
              */
             placement_mode: "automatic" | "individual";
         };
+        /** ApiKeyCreateIn */
+        ApiKeyCreateIn: {
+            /** Name */
+            name: string;
+            /** Scopes */
+            scopes?: string[] | null;
+        };
+        /** ApiKeyCreated */
+        ApiKeyCreated: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Prefix */
+            prefix: string;
+            /** Scopes */
+            scopes: unknown[] | null;
+            /** Rate Limit Per Minute */
+            rate_limit_per_minute: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Request Count */
+            request_count: number;
+            /** Key */
+            key: string;
+        };
+        /** ApiKeyOut */
+        ApiKeyOut: {
+            /** Id */
+            id: number;
+            /** Name */
+            name: string;
+            /** Prefix */
+            prefix: string;
+            /** Scopes */
+            scopes: unknown[] | null;
+            /** Rate Limit Per Minute */
+            rate_limit_per_minute: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Request Count */
+            request_count: number;
+        };
         /** ApprovalRequest */
         ApprovalRequest: {
             /** User Id */
@@ -9346,6 +10390,41 @@ export interface components {
              */
             categories: string[];
         };
+        /** ChangeEventOut */
+        ChangeEventOut: {
+            /** Id */
+            id: number;
+            /** Entity Type */
+            entity_type: string;
+            /** Entity Id */
+            entity_id: number;
+            /** Jurisdiction Id */
+            jurisdiction_id: number | null;
+            jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Tax Type */
+            tax_type: string | null;
+            /** Change Type */
+            change_type: string;
+            /** Title */
+            title: string;
+            /** Title En */
+            title_en?: string | null;
+            /** Old Value */
+            old_value: {
+                [key: string]: unknown;
+            } | null;
+            /** New Value */
+            new_value: {
+                [key: string]: unknown;
+            } | null;
+            /** Source Id */
+            source_id: number | null;
+            /**
+             * Detected At
+             * Format: date-time
+             */
+            detected_at: string;
+        };
         /** ChatMessage */
         ChatMessage: {
             /**
@@ -9411,6 +10490,27 @@ export interface components {
         CheckoutSessionResponse: {
             /** Checkout Url */
             checkout_url: string;
+        };
+        /** ChoroplethPoint */
+        ChoroplethPoint: {
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Iso Numeric */
+            iso_numeric: string | null;
+            /** Fips */
+            fips: string | null;
+            /** Value */
+            value: number | null;
+            /** Label */
+            label?: string | null;
+            /** As Of */
+            as_of?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Source Name */
+            source_name?: string | null;
         };
         /** ChronaDeviceListResponse */
         ChronaDeviceListResponse: {
@@ -9801,6 +10901,115 @@ export interface components {
             /** Inquirytype */
             inquiryType: string;
         };
+        /** CourtDecisionCreate */
+        CourtDecisionCreate: {
+            /** Jurisdiction Code */
+            jurisdiction_code?: string | null;
+            /** Court */
+            court: string;
+            /** Case Name */
+            case_name: string;
+            /** Citation */
+            citation?: string | null;
+            /** Docket */
+            docket?: string | null;
+            /** Decision Date */
+            decision_date?: string | null;
+            /** Tax Types */
+            tax_types?: string[] | null;
+            /** Summary */
+            summary?: string | null;
+            /** Holding */
+            holding?: string | null;
+            /**
+             * Significance
+             * @default routine
+             */
+            significance: string;
+            /**
+             * Outcome
+             * @default pending
+             */
+            outcome: string;
+            /**
+             * Source Url
+             * Format: uri
+             */
+            source_url: string;
+            /** Tags */
+            tags?: string[] | null;
+        };
+        /** CourtDecisionOut */
+        CourtDecisionOut: {
+            /** Id */
+            id: number;
+            /** Jurisdiction Id */
+            jurisdiction_id: number | null;
+            jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Court */
+            court: string;
+            /** Case Name */
+            case_name: string;
+            /** Citation */
+            citation: string | null;
+            /** Docket */
+            docket: string | null;
+            /** Decision Date */
+            decision_date: string | null;
+            /** Tax Types */
+            tax_types: unknown[] | null;
+            /** Summary */
+            summary: string | null;
+            /** Holding */
+            holding: string | null;
+            /** Significance */
+            significance: string;
+            /** Outcome */
+            outcome: string;
+            /** Source Url */
+            source_url: string;
+            /** Tags */
+            tags: unknown[] | null;
+            /** Lang */
+            lang?: string | null;
+            /** Case Name En */
+            case_name_en?: string | null;
+            /** Summary En */
+            summary_en?: string | null;
+            /** Holding En */
+            holding_en?: string | null;
+            /** First Seen At */
+            first_seen_at?: string | null;
+        };
+        /** CourtDecisionPatch */
+        CourtDecisionPatch: {
+            /** Jurisdiction Code */
+            jurisdiction_code?: string | null;
+            /** Court */
+            court?: string | null;
+            /** Case Name */
+            case_name?: string | null;
+            /** Citation */
+            citation?: string | null;
+            /** Docket */
+            docket?: string | null;
+            /** Decision Date */
+            decision_date?: string | null;
+            /** Tax Types */
+            tax_types?: string[] | null;
+            /** Summary */
+            summary?: string | null;
+            /** Holding */
+            holding?: string | null;
+            /** Significance */
+            significance?: string | null;
+            /** Outcome */
+            outcome?: string | null;
+            /** Tags */
+            tags?: string[] | null;
+            /** Reason */
+            reason?: string | null;
+        };
         /**
          * CpeSheetListItem
          * @description Summary of a CPE sheet for list display
@@ -9851,6 +11060,34 @@ export interface components {
         CpeStatesListResponse: {
             /** States */
             states: components["schemas"]["CpeStateResponse"][];
+        };
+        /** CrawlRunOut */
+        CrawlRunOut: {
+            /** Id */
+            id: number;
+            /** Source Id */
+            source_id: number;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** Status */
+            status: string;
+            /** Http Status */
+            http_status: number | null;
+            /** Items Found */
+            items_found: number;
+            /** Items New */
+            items_new: number;
+            /** Items Changed */
+            items_changed: number;
+            /** Error */
+            error: string | null;
+            /** Triggered By */
+            triggered_by: string;
         };
         /**
          * CreateCheckoutSessionRequest
@@ -10040,6 +11277,173 @@ export interface components {
             minimum?: string | null;
             /** Maximum */
             maximum?: string | null;
+        };
+        /** DeliveryAttemptOut */
+        DeliveryAttemptOut: {
+            /** Id */
+            id: number;
+            /** Channel Id */
+            channel_id: number;
+            /** Notification Id */
+            notification_id: number;
+            /** Attempt No */
+            attempt_no: number;
+            /** Status */
+            status: string;
+            /** Http Status */
+            http_status: number | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Next Attempt At */
+            next_attempt_at: string | null;
+        };
+        /** DeliveryChannelCreated */
+        DeliveryChannelCreated: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Target */
+            target: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Digest */
+            digest: string;
+            /** Filters */
+            filters?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Has Secret
+             * @default false
+             */
+            has_secret: boolean;
+            /** Previous Secret Expires At */
+            previous_secret_expires_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Delivered At */
+            last_delivered_at: string | null;
+            /** Last Error */
+            last_error: string | null;
+            /** Consecutive Failures */
+            consecutive_failures: number;
+            /** Disabled Reason */
+            disabled_reason: string | null;
+            /** Secret */
+            secret?: string | null;
+        };
+        /** DeliveryChannelIn */
+        DeliveryChannelIn: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "webhook" | "email";
+            /**
+             * Target
+             * @description Webhook URL (http/https) or email address
+             */
+            target: string;
+            /**
+             * Digest
+             * @default instant
+             * @enum {string}
+             */
+            digest: "instant" | "daily";
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            filters?: components["schemas"]["DeliveryFilters"] | null;
+        };
+        /** DeliveryChannelOut */
+        DeliveryChannelOut: {
+            /** Id */
+            id: number;
+            /** Kind */
+            kind: string;
+            /** Target */
+            target: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Digest */
+            digest: string;
+            /** Filters */
+            filters?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Has Secret
+             * @default false
+             */
+            has_secret: boolean;
+            /** Previous Secret Expires At */
+            previous_secret_expires_at?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Last Delivered At */
+            last_delivered_at: string | null;
+            /** Last Error */
+            last_error: string | null;
+            /** Consecutive Failures */
+            consecutive_failures: number;
+            /** Disabled Reason */
+            disabled_reason: string | null;
+        };
+        /** DeliveryChannelPatch */
+        DeliveryChannelPatch: {
+            /** Target */
+            target?: string | null;
+            /** Digest */
+            digest?: ("instant" | "daily") | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            filters?: components["schemas"]["DeliveryFilters"] | null;
+            /**
+             * Clear Filters
+             * @default false
+             */
+            clear_filters: boolean;
+        };
+        /**
+         * DeliveryFilters
+         * @description All lists are optional; an empty/None list means "no restriction" on that dimension.
+         *
+         *     jurisdiction_codes match the event's jurisdiction or any of its ancestors (e.g. "US" matches US-CA events).
+         */
+        DeliveryFilters: {
+            /** Tax Types */
+            tax_types?: string[] | null;
+            /** Jurisdiction Codes */
+            jurisdiction_codes?: string[] | null;
+            /** Change Types */
+            change_types?: string[] | null;
+        };
+        /** DeliveryTestResult */
+        DeliveryTestResult: {
+            /** Ok */
+            ok: boolean;
+            /** Event Id */
+            event_id: string;
+            /** Status Code */
+            status_code?: number | null;
+            /** Error */
+            error?: string | null;
+            /** Duration Ms */
+            duration_ms: number;
         };
         /** DocumentExtractRequest */
         DocumentExtractRequest: {
@@ -14259,6 +15663,163 @@ export interface components {
              */
             created_at: string;
         };
+        /** JurisdictionDetail */
+        JurisdictionDetail: {
+            /** Id */
+            id: number;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: string;
+            /** Parent Id */
+            parent_id: number | null;
+            /** Region */
+            region: string | null;
+            /** Iso Alpha3 */
+            iso_alpha3: string | null;
+            /** Iso Numeric */
+            iso_numeric: string | null;
+            /** Fips */
+            fips: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Lat */
+            lat: number | null;
+            /** Lon */
+            lon: number | null;
+            /** Tax Authority Name */
+            tax_authority_name: string | null;
+            /** Tax Authority Name En */
+            tax_authority_name_en?: string | null;
+            /** Tax Authority Url */
+            tax_authority_url: string | null;
+            /** Has Subnational Taxes */
+            has_subnational_taxes: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Headline */
+            headline?: {
+                [key: string]: number | null;
+            } | null;
+            /**
+             * Children Count
+             * @default 0
+             */
+            children_count: number;
+            /** Summary */
+            summary: string | null;
+            /** Parent Code */
+            parent_code?: string | null;
+            /**
+             * Rates Count
+             * @default 0
+             */
+            rates_count: number;
+            /**
+             * Regulations Count
+             * @default 0
+             */
+            regulations_count: number;
+            /**
+             * Court Decisions Count
+             * @default 0
+             */
+            court_decisions_count: number;
+            /**
+             * Tariffs Count
+             * @default 0
+             */
+            tariffs_count: number;
+            /**
+             * Changes 30D
+             * @default 0
+             */
+            changes_30d: number;
+        };
+        /** JurisdictionOut */
+        JurisdictionOut: {
+            /** Id */
+            id: number;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: string;
+            /** Parent Id */
+            parent_id: number | null;
+            /** Region */
+            region: string | null;
+            /** Iso Alpha3 */
+            iso_alpha3: string | null;
+            /** Iso Numeric */
+            iso_numeric: string | null;
+            /** Fips */
+            fips: string | null;
+            /** Currency */
+            currency: string | null;
+            /** Lat */
+            lat: number | null;
+            /** Lon */
+            lon: number | null;
+            /** Tax Authority Name */
+            tax_authority_name: string | null;
+            /** Tax Authority Name En */
+            tax_authority_name_en?: string | null;
+            /** Tax Authority Url */
+            tax_authority_url: string | null;
+            /** Has Subnational Taxes */
+            has_subnational_taxes: boolean;
+            /** Is Active */
+            is_active: boolean;
+            /** Headline */
+            headline?: {
+                [key: string]: number | null;
+            } | null;
+            /**
+             * Children Count
+             * @default 0
+             */
+            children_count: number;
+        };
+        /** JurisdictionPatch */
+        JurisdictionPatch: {
+            /** Name */
+            name?: string | null;
+            /** Region */
+            region?: string | null;
+            /** Currency */
+            currency?: string | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lon */
+            lon?: number | null;
+            /** Tax Authority Name */
+            tax_authority_name?: string | null;
+            /** Tax Authority Url */
+            tax_authority_url?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Has Subnational Taxes */
+            has_subnational_taxes?: boolean | null;
+            /** Is Active */
+            is_active?: boolean | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** JurisdictionRef */
+        JurisdictionRef: {
+            /** Id */
+            id: number;
+            /** Code */
+            code: string;
+            /** Name */
+            name: string;
+            /** Level */
+            level: string;
+        };
         /** LinkConsumeRequest */
         LinkConsumeRequest: {
             /** Token */
@@ -14282,6 +15843,24 @@ export interface components {
             persona?: ("staff_accountant" | "senior_accountant" | "accounting_manager" | "cpa_partner") | null;
             /** Title */
             title?: string | null;
+        };
+        /** Message */
+        Message: {
+            /** Detail */
+            detail: string;
+        };
+        /** NotificationOut */
+        NotificationOut: {
+            /** Id */
+            id: number;
+            change_event: components["schemas"]["ChangeEventOut"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Read At */
+            read_at: string | null;
         };
         /** NumberValidation */
         NumberValidation: {
@@ -14333,6 +15912,83 @@ export interface components {
             error?: string | null;
             /** Configs */
             configs: components["schemas"]["OAuthConfigInfo"][];
+        };
+        /** Page[ChangeEventOut] */
+        Page_ChangeEventOut_: {
+            /** Items */
+            items: components["schemas"]["ChangeEventOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[CourtDecisionOut] */
+        Page_CourtDecisionOut_: {
+            /** Items */
+            items: components["schemas"]["CourtDecisionOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[CrawlRunOut] */
+        Page_CrawlRunOut_: {
+            /** Items */
+            items: components["schemas"]["CrawlRunOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[JurisdictionOut] */
+        Page_JurisdictionOut_: {
+            /** Items */
+            items: components["schemas"]["JurisdictionOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[RegulationOut] */
+        Page_RegulationOut_: {
+            /** Items */
+            items: components["schemas"]["RegulationOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[TariffOut] */
+        Page_TariffOut_: {
+            /** Items */
+            items: components["schemas"]["TariffOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[TaxRateOut] */
+        Page_TaxRateOut_: {
+            /** Items */
+            items: components["schemas"]["TaxRateOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** PairRequest */
         PairRequest: {
@@ -14847,6 +16503,128 @@ export interface components {
             /** Label */
             label?: string | null;
         };
+        /** RateCreate */
+        RateCreate: {
+            /** Jurisdiction Code */
+            jurisdiction_code: string;
+            /** Tax Type */
+            tax_type: string;
+            /** Rate Kind */
+            rate_kind: string;
+            /** Rate */
+            rate?: number | null;
+            /** Threshold Amount */
+            threshold_amount?: number | null;
+            /** Threshold Currency */
+            threshold_currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Applies To */
+            applies_to?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** As Of */
+            as_of?: string | null;
+            /**
+             * Confidence
+             * @default reported
+             */
+            confidence: string;
+            /** Source Name */
+            source_name?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Supersede
+             * @description Close the currently open row for the same (jurisdiction, tax_type, rate_kind) the day before effective_from
+             * @default true
+             */
+            supersede: boolean;
+            /**
+             * Supersede Rate Id
+             * @description When several rows are open for that key (e.g. multiple reduced VAT rates), the id of the one to close
+             */
+            supersede_rate_id?: number | null;
+        };
+        /** RateCreated */
+        RateCreated: {
+            /** Id */
+            id: number;
+            /** Jurisdiction Id */
+            jurisdiction_id: number;
+            jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Tax Type */
+            tax_type: string;
+            /** Rate Kind */
+            rate_kind: string;
+            /** Rate */
+            rate: number | null;
+            /** Threshold Amount */
+            threshold_amount: number | null;
+            /** Threshold Currency */
+            threshold_currency: string | null;
+            /** Description */
+            description: string | null;
+            /** Applies To */
+            applies_to: string | null;
+            /** Effective From */
+            effective_from: string | null;
+            /** Effective To */
+            effective_to: string | null;
+            /** As Of */
+            as_of: string | null;
+            /** Confidence */
+            confidence: string;
+            /** Source Name */
+            source_name: string | null;
+            /** Source Url */
+            source_url: string | null;
+            /** Notes */
+            notes: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+            /**
+             * Warnings
+             * @description Non-blocking notes, e.g. other rows left open
+             */
+            warnings?: string[];
+        };
+        /** RatePatch */
+        RatePatch: {
+            /** Rate */
+            rate?: number | null;
+            /** Threshold Amount */
+            threshold_amount?: number | null;
+            /** Threshold Currency */
+            threshold_currency?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Applies To */
+            applies_to?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** As Of */
+            as_of?: string | null;
+            /** Confidence */
+            confidence?: string | null;
+            /** Source Name */
+            source_name?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Reason
+             * @description Why this correction was made (stored on the change event)
+             */
+            reason?: string | null;
+        };
         /** ReadOnlyPolicyUpdate */
         ReadOnlyPolicyUpdate: {
             /** Action Ids */
@@ -15052,6 +16830,159 @@ export interface components {
                 [key: string]: unknown;
             }[] | null;
         };
+        /** RegulationCreate */
+        RegulationCreate: {
+            /** Jurisdiction Code */
+            jurisdiction_code?: string | null;
+            /** Tax Type */
+            tax_type: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary?: string | null;
+            /** Body Excerpt */
+            body_excerpt?: string | null;
+            /** Authority */
+            authority?: string | null;
+            /**
+             * Doc Type
+             * @default other
+             */
+            doc_type: string;
+            /**
+             * Status
+             * @default unknown
+             */
+            status: string;
+            /** Reference */
+            reference?: string | null;
+            /** Published Date */
+            published_date?: string | null;
+            /** Effective Date */
+            effective_date?: string | null;
+            /**
+             * Source Url
+             * Format: uri
+             */
+            source_url: string;
+            /** Tags */
+            tags?: string[] | null;
+        };
+        /** RegulationDetail */
+        RegulationDetail: {
+            /** Id */
+            id: number;
+            /** Jurisdiction Id */
+            jurisdiction_id: number | null;
+            jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Tax Type */
+            tax_type: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary: string | null;
+            /** Authority */
+            authority: string | null;
+            /** Doc Type */
+            doc_type: string;
+            /** Status */
+            status: string;
+            /** Reference */
+            reference: string | null;
+            /** Published Date */
+            published_date: string | null;
+            /** Effective Date */
+            effective_date: string | null;
+            /** Source Url */
+            source_url: string;
+            /** Source Id */
+            source_id: number | null;
+            /** Tags */
+            tags: unknown[] | null;
+            /** Lang */
+            lang?: string | null;
+            /** Title En */
+            title_en?: string | null;
+            /** Summary En */
+            summary_en?: string | null;
+            /** First Seen At */
+            first_seen_at?: string | null;
+            /** Last Seen At */
+            last_seen_at?: string | null;
+            /** Body Excerpt */
+            body_excerpt: string | null;
+        };
+        /** RegulationOut */
+        RegulationOut: {
+            /** Id */
+            id: number;
+            /** Jurisdiction Id */
+            jurisdiction_id: number | null;
+            jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Tax Type */
+            tax_type: string;
+            /** Title */
+            title: string;
+            /** Summary */
+            summary: string | null;
+            /** Authority */
+            authority: string | null;
+            /** Doc Type */
+            doc_type: string;
+            /** Status */
+            status: string;
+            /** Reference */
+            reference: string | null;
+            /** Published Date */
+            published_date: string | null;
+            /** Effective Date */
+            effective_date: string | null;
+            /** Source Url */
+            source_url: string;
+            /** Source Id */
+            source_id: number | null;
+            /** Tags */
+            tags: unknown[] | null;
+            /** Lang */
+            lang?: string | null;
+            /** Title En */
+            title_en?: string | null;
+            /** Summary En */
+            summary_en?: string | null;
+            /** First Seen At */
+            first_seen_at?: string | null;
+            /** Last Seen At */
+            last_seen_at?: string | null;
+        };
+        /** RegulationPatch */
+        RegulationPatch: {
+            /** Jurisdiction Code */
+            jurisdiction_code?: string | null;
+            /** Tax Type */
+            tax_type?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Summary */
+            summary?: string | null;
+            /** Body Excerpt */
+            body_excerpt?: string | null;
+            /** Authority */
+            authority?: string | null;
+            /** Doc Type */
+            doc_type?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Reference */
+            reference?: string | null;
+            /** Published Date */
+            published_date?: string | null;
+            /** Effective Date */
+            effective_date?: string | null;
+            /** Tags */
+            tags?: string[] | null;
+            /** Reason */
+            reason?: string | null;
+        };
         /** ResearchStreamRequest */
         ResearchStreamRequest: {
             /** Messages */
@@ -15204,6 +17135,46 @@ export interface components {
              */
             expires_in_seconds: number;
         };
+        /** SourceOut */
+        SourceOut: {
+            /** Id */
+            id: number;
+            /** Slug */
+            slug: string;
+            /** Name */
+            name: string;
+            /** Url */
+            url: string;
+            /** Jurisdiction Id */
+            jurisdiction_id: number | null;
+            jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Tax Types */
+            tax_types: unknown[] | null;
+            /** Category */
+            category: string;
+            /** Adapter */
+            adapter: string;
+            /** Schedule Cron */
+            schedule_cron: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Authority */
+            authority: string | null;
+            /** Authority En */
+            authority_en?: string | null;
+            /** Last Run At */
+            last_run_at: string | null;
+            /** Last Success At */
+            last_success_at: string | null;
+            /** Last Status */
+            last_status: string | null;
+            /** Last Error */
+            last_error: string | null;
+            /** Items Total */
+            items_total: number;
+            /** Consecutive Failures */
+            consecutive_failures: number;
+        };
         /**
          * StartCpeSheetResponse
          * @description Response after starting CPE sheet processing
@@ -15213,6 +17184,41 @@ export interface components {
             active_run_id: string;
             /** Message */
             message: string;
+        };
+        /** StatsOverview */
+        StatsOverview: {
+            /** Jurisdictions */
+            jurisdictions: number;
+            /** Countries */
+            countries: number;
+            /** Subnational */
+            subnational: number;
+            /** Rates */
+            rates: number;
+            /** Regulations */
+            regulations: number;
+            /** Court Decisions */
+            court_decisions: number;
+            /** Tariffs */
+            tariffs: number;
+            /** Sources */
+            sources: number;
+            /** Sources Enabled */
+            sources_enabled: number;
+            /** Changes 7D */
+            changes_7d: number;
+            /** Changes 30D */
+            changes_30d: number;
+            /** Last Crawl At */
+            last_crawl_at: string | null;
+            /** By Tax Type */
+            by_tax_type?: {
+                [key: string]: number;
+            };
+            /** By Region */
+            by_region?: {
+                [key: string]: number;
+            };
         };
         /**
          * SubscriptionPlanResponse
@@ -15331,6 +17337,114 @@ export interface components {
              */
             server_time: string;
         };
+        /** TariffCreate */
+        TariffCreate: {
+            /** Importing Jurisdiction Code */
+            importing_jurisdiction_code: string;
+            /** Partner Jurisdiction Code */
+            partner_jurisdiction_code?: string | null;
+            /** Partner Scope */
+            partner_scope?: string | null;
+            /** Hs Code */
+            hs_code?: string | null;
+            /** Product Description */
+            product_description: string;
+            /** Measure Type */
+            measure_type: string;
+            /** Rate */
+            rate?: number | null;
+            /** Rate Text */
+            rate_text?: string | null;
+            /** Legal Basis */
+            legal_basis?: string | null;
+            /**
+             * Status
+             * @default in_force
+             */
+            status: string;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Notes */
+            notes?: string | null;
+        };
+        /** TariffOut */
+        TariffOut: {
+            /** Id */
+            id: number;
+            /** Importing Jurisdiction Id */
+            importing_jurisdiction_id: number;
+            importing_jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Partner Jurisdiction Id */
+            partner_jurisdiction_id: number | null;
+            partner_jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Partner Scope */
+            partner_scope: string | null;
+            /** Hs Code */
+            hs_code: string | null;
+            /** Product Description */
+            product_description: string;
+            /** Measure Type */
+            measure_type: string;
+            /** Rate */
+            rate: number | null;
+            /** Rate Text */
+            rate_text: string | null;
+            /** Legal Basis */
+            legal_basis: string | null;
+            /** Status */
+            status: string;
+            /** Effective From */
+            effective_from: string | null;
+            /** Effective To */
+            effective_to: string | null;
+            /** Source Url */
+            source_url: string | null;
+            /** Notes */
+            notes: string | null;
+            /** Lang */
+            lang?: string | null;
+            /** Product Description En */
+            product_description_en?: string | null;
+            /** Notes En */
+            notes_en?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /** TariffPatch */
+        TariffPatch: {
+            /** Partner Jurisdiction Code */
+            partner_jurisdiction_code?: string | null;
+            /** Partner Scope */
+            partner_scope?: string | null;
+            /** Hs Code */
+            hs_code?: string | null;
+            /** Product Description */
+            product_description?: string | null;
+            /** Measure Type */
+            measure_type?: string | null;
+            /** Rate */
+            rate?: number | null;
+            /** Rate Text */
+            rate_text?: string | null;
+            /** Legal Basis */
+            legal_basis?: string | null;
+            /** Status */
+            status?: string | null;
+            /** Effective From */
+            effective_from?: string | null;
+            /** Effective To */
+            effective_to?: string | null;
+            /** Source Url */
+            source_url?: string | null;
+            /** Notes */
+            notes?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
         /**
          * TaskInfo
          * @description Information about a single extraction task
@@ -15351,6 +17465,44 @@ export interface components {
              * @description Last task error message, if any
              */
             error_message?: string | null;
+        };
+        /** TaxRateOut */
+        TaxRateOut: {
+            /** Id */
+            id: number;
+            /** Jurisdiction Id */
+            jurisdiction_id: number;
+            jurisdiction?: components["schemas"]["JurisdictionRef"] | null;
+            /** Tax Type */
+            tax_type: string;
+            /** Rate Kind */
+            rate_kind: string;
+            /** Rate */
+            rate: number | null;
+            /** Threshold Amount */
+            threshold_amount: number | null;
+            /** Threshold Currency */
+            threshold_currency: string | null;
+            /** Description */
+            description: string | null;
+            /** Applies To */
+            applies_to: string | null;
+            /** Effective From */
+            effective_from: string | null;
+            /** Effective To */
+            effective_to: string | null;
+            /** As Of */
+            as_of: string | null;
+            /** Confidence */
+            confidence: string;
+            /** Source Name */
+            source_name: string | null;
+            /** Source Url */
+            source_url: string | null;
+            /** Notes */
+            notes: string | null;
+            /** Updated At */
+            updated_at?: string | null;
         };
         /** TemplateCreateRequest */
         TemplateCreateRequest: {
@@ -15608,6 +17760,38 @@ export interface components {
              */
             explanation: string;
             usage?: components["schemas"]["UsageMetadata"];
+        };
+        /** WatchItemIn */
+        WatchItemIn: {
+            /** Jurisdiction Code */
+            jurisdiction_code?: string | null;
+            /** Tax Type */
+            tax_type?: string | null;
+            /**
+             * Include Children
+             * @default true
+             */
+            include_children: boolean;
+        };
+        /** WatchItemOut */
+        WatchItemOut: {
+            /** Id */
+            id: number;
+            /** Jurisdiction Id */
+            jurisdiction_id: number | null;
+            /** Jurisdiction Code */
+            jurisdiction_code?: string | null;
+            /** Jurisdiction Name */
+            jurisdiction_name?: string | null;
+            /** Tax Type */
+            tax_type: string | null;
+            /** Include Children */
+            include_children: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** WaterfallExtractRequest */
         WaterfallExtractRequest: {
@@ -30177,6 +32361,2281 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_keys_api_taxatlas_v1_account_api_keys_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_key_api_taxatlas_v1_account_api_keys_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiKeyCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_key_api_taxatlas_v1_account_api_keys__key_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                key_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_watch_api_taxatlas_v1_account_watchlist_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchItemOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_watch_api_taxatlas_v1_account_watchlist_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchItemIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WatchItemOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_watch_api_taxatlas_v1_account_watchlist__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    notifications_api_taxatlas_v1_account_notifications_get: {
+        parameters: {
+            query?: {
+                unread_only?: boolean;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_all_api_taxatlas_v1_account_notifications_read_all_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_one_api_taxatlas_v1_account_notifications__notification_id__read_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                notification_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_channels_api_taxatlas_v1_account_delivery_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryChannelOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_channel_api_taxatlas_v1_account_delivery_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliveryChannelIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryChannelCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_channel_api_taxatlas_v1_account_delivery__channel_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_channel_api_taxatlas_v1_account_delivery__channel_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliveryChannelPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryChannelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_secret_api_taxatlas_v1_account_delivery__channel_id__rotate_secret_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryChannelCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_channel_api_taxatlas_v1_account_delivery__channel_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryTestResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_attempts_api_taxatlas_v1_account_delivery__channel_id__attempts_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryAttemptOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_jurisdictions_api_taxatlas_v1_jurisdictions_get: {
+        parameters: {
+            query?: {
+                level?: string | null;
+                /** @description Parent jurisdiction code, e.g. US */
+                parent?: string | null;
+                region?: string | null;
+                /** @description Name/code search */
+                q?: string | null;
+                /** @description 'headline' adds current VAT/sales/CIT/PIT/WHT values per row */
+                include?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_JurisdictionOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_jurisdiction_api_taxatlas_v1_jurisdictions__code__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JurisdictionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    children_api_taxatlas_v1_jurisdictions__code__children_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JurisdictionOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    jurisdiction_rates_api_taxatlas_v1_jurisdictions__code__rates_get: {
+        parameters: {
+            query?: {
+                tax_type?: string | null;
+                /** @description Only rates effective today */
+                current_only?: boolean;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxRateOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    jurisdiction_summary_api_taxatlas_v1_jurisdictions__code__summary_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    choropleth_api_taxatlas_v1_map_choropleth_get: {
+        parameters: {
+            query?: {
+                tax_type?: string;
+                rate_kind?: string;
+                level?: string;
+                /** @description Required for sub-national levels, e.g. US */
+                parent?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChoroplethPoint"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activity_api_taxatlas_v1_map_activity_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    coverage_api_taxatlas_v1_map_coverage_get: {
+        parameters: {
+            query?: {
+                /** @description Comma-separated tax_type:rate_kind pairs */
+                metrics?: string;
+                level?: string;
+                parent?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    subnational_api_taxatlas_v1_map_subnational_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    metrics_api_taxatlas_v1_map_metrics_get: {
+        parameters: {
+            query?: {
+                level?: string;
+                parent?: string | null;
+                min_coverage?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rates_api_taxatlas_v1_rates_get: {
+        parameters: {
+            query?: {
+                /** @description Jurisdiction code; includes children unless include_children=false */
+                jurisdiction?: string | null;
+                include_children?: boolean;
+                tax_type?: string | null;
+                rate_kind?: string | null;
+                /** @description Return rates effective on this date (default: all) */
+                effective_on?: string | null;
+                min_rate?: number | null;
+                max_rate?: number | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_TaxRateOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_rate_api_taxatlas_v1_rates__rate_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                rate_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxRateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_regulations_api_taxatlas_v1_regulations_get: {
+        parameters: {
+            query?: {
+                jurisdiction?: string | null;
+                include_children?: boolean;
+                tax_type?: string | null;
+                status?: string | null;
+                doc_type?: string | null;
+                authority?: string | null;
+                /** @description Full-text-ish search in title/summary (and their English translations) */
+                q?: string | null;
+                published_since?: string | null;
+                published_until?: string | null;
+                effective_since?: string | null;
+                /** @description Sort key: published, effective, title, jurisdiction, tax_type, status, doc_type, seen */
+                sort?: string | null;
+                /** @description asc | desc (default desc) */
+                dir?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_RegulationOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_regulation_api_taxatlas_v1_regulations__reg_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                reg_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegulationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_decisions_api_taxatlas_v1_court_decisions_get: {
+        parameters: {
+            query?: {
+                jurisdiction?: string | null;
+                include_children?: boolean;
+                tax_type?: string | null;
+                court?: string | null;
+                significance?: string | null;
+                outcome?: string | null;
+                /** @description Search case name / summary / holding */
+                q?: string | null;
+                decided_since?: string | null;
+                decided_until?: string | null;
+                /** @description Sort key: decided, case, court, jurisdiction, significance, outcome, seen */
+                sort?: string | null;
+                /** @description asc | desc (default desc) */
+                dir?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_CourtDecisionOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_decision_api_taxatlas_v1_court_decisions__decision_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                decision_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourtDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_tariffs_api_taxatlas_v1_tariffs_get: {
+        parameters: {
+            query?: {
+                /** @description Importing jurisdiction code */
+                importer?: string | null;
+                /** @description Partner/origin jurisdiction code */
+                partner?: string | null;
+                /** @description HS prefix match, e.g. 72 or 8703 */
+                hs_code?: string | null;
+                measure_type?: string | null;
+                status?: string | null;
+                q?: string | null;
+                effective_on?: string | null;
+                /** @description Sort key: effective, product, importer, partner, measure, rate, status, hs */
+                sort?: string | null;
+                /** @description asc | desc (default desc) */
+                dir?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_TariffOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_tariff_api_taxatlas_v1_tariffs__tariff_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                tariff_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TariffOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_changes_api_taxatlas_v1_changes_get: {
+        parameters: {
+            query?: {
+                jurisdiction?: string | null;
+                include_children?: boolean;
+                tax_type?: string | null;
+                entity_type?: string | null;
+                /** @description Restrict to one record (pair with entity_type) */
+                entity_id?: number | null;
+                change_type?: string | null;
+                /** @description Only changes produced by this crawler source */
+                source_id?: number | null;
+                /** @description ISO timestamp; use for incremental sync */
+                since?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ChangeEventOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    histogram_api_taxatlas_v1_changes_histogram_get: {
+        parameters: {
+            query?: {
+                days?: number;
+                jurisdiction?: string | null;
+                include_children?: boolean;
+                tax_type?: string | null;
+                entity_type?: string | null;
+                change_type?: string | null;
+                source_id?: number | null;
+                /** @description Start of window (overrides days when later than now-days) */
+                since?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sources_api_taxatlas_v1_sources_get: {
+        parameters: {
+            query?: {
+                category?: string | null;
+                jurisdiction?: string | null;
+                enabled?: boolean | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_runs_api_taxatlas_v1_sources_runs_get: {
+        parameters: {
+            query?: {
+                source_id?: number | null;
+                status?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_CrawlRunOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_source_api_taxatlas_v1_sources__source_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                source_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_crawl_api_taxatlas_v1_sources__source_id__crawl_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                source_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_all_api_taxatlas_v1_sources_crawl_all_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    toggle_api_taxatlas_v1_sources__source_id__toggle_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                source_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    overview_api_taxatlas_v1_stats_overview_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatsOverview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    snapshot_api_taxatlas_v1_export_snapshot_get: {
+        parameters: {
+            query?: {
+                /** @description Limit to a jurisdiction and its children */
+                jurisdiction?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rates_csv_api_taxatlas_v1_export_rates_csv_get: {
+        parameters: {
+            query?: {
+                jurisdiction?: string | null;
+                /** @description Comma-separated tax types, as on GET /rates */
+                tax_type?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regulations_csv_api_taxatlas_v1_export_regulations_csv_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    court_decisions_csv_api_taxatlas_v1_export_court_decisions_csv_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tariffs_csv_api_taxatlas_v1_export_tariffs_csv_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_rate_api_taxatlas_v1_admin_rates_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RateCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_rate_api_taxatlas_v1_admin_rates__rate_id__delete: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                rate_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_rate_api_taxatlas_v1_admin_rates__rate_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                rate_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RatePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaxRateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_regulation_api_taxatlas_v1_admin_regulations_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegulationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegulationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_regulation_api_taxatlas_v1_admin_regulations__reg_id__delete: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                reg_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_regulation_api_taxatlas_v1_admin_regulations__reg_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                reg_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegulationPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegulationDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_decision_api_taxatlas_v1_admin_court_decisions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CourtDecisionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourtDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_decision_api_taxatlas_v1_admin_court_decisions__decision_id__delete: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                decision_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_decision_api_taxatlas_v1_admin_court_decisions__decision_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                decision_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CourtDecisionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CourtDecisionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_tariff_api_taxatlas_v1_admin_tariffs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TariffCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TariffOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_tariff_api_taxatlas_v1_admin_tariffs__tariff_id__delete: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                tariff_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Message"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_tariff_api_taxatlas_v1_admin_tariffs__tariff_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                tariff_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TariffPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TariffOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_jurisdiction_api_taxatlas_v1_admin_jurisdictions__code__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path: {
+                code: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JurisdictionPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JurisdictionDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_enums_api_taxatlas_v1_meta_enums_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: string[];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    quickstart_api_taxatlas_v1_meta_quickstart_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
             };
             /** @description Validation Error */
             422: {

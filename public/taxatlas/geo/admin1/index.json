@@ -1,0 +1,2582 @@
+{
+ "countries": {
+  "AE": {
+   "file": "AE.json",
+   "features": 7,
+   "bytes": 14284,
+   "gzip": 5861,
+   "level": "state",
+   "bounds": [
+    [
+     51.57,
+     22.62
+    ],
+    [
+     56.38,
+     26.07
+    ]
+   ],
+   "bbox": [
+    [
+     51.57,
+     22.62
+    ],
+    [
+     56.38,
+     26.07
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [
+    "AE-X01~",
+    "AE-X02~"
+   ],
+   "ne_types": {
+    "Emirate": 9
+   },
+   "codes": [
+    "AE-AJ",
+    "AE-AZ",
+    "AE-DU",
+    "AE-FU",
+    "AE-RK",
+    "AE-SH",
+    "AE-UQ"
+   ]
+  },
+  "AR": {
+   "file": "AR.json",
+   "features": 24,
+   "bytes": 74393,
+   "gzip": 25667,
+   "level": "province",
+   "bounds": [
+    [
+     -73.57,
+     -55.05
+    ],
+    [
+     -53.66,
+     -21.79
+    ]
+   ],
+   "bbox": [
+    [
+     -73.57,
+     -55.05
+    ],
+    [
+     -53.66,
+     -21.79
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 21,
+    "National Territory": 1,
+    "Federal District": 2
+   },
+   "codes": [
+    "AR-A",
+    "AR-B",
+    "AR-C",
+    "AR-D",
+    "AR-E",
+    "AR-F",
+    "AR-G",
+    "AR-H",
+    "AR-J",
+    "AR-K",
+    "AR-L",
+    "AR-M",
+    "AR-N",
+    "AR-P",
+    "AR-Q",
+    "AR-R",
+    "AR-S",
+    "AR-T",
+    "AR-U",
+    "AR-V",
+    "AR-W",
+    "AR-X",
+    "AR-Y",
+    "AR-Z"
+   ]
+  },
+  "AT": {
+   "file": "AT.json",
+   "features": 9,
+   "bytes": 20216,
+   "gzip": 8134,
+   "level": "state",
+   "bounds": [
+    [
+     9.52,
+     46.38
+    ],
+    [
+     17.15,
+     49.01
+    ]
+   ],
+   "bbox": [
+    [
+     9.52,
+     46.38
+    ],
+    [
+     17.15,
+     49.01
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "State": 9
+   },
+   "codes": [
+    "AT-1",
+    "AT-2",
+    "AT-3",
+    "AT-4",
+    "AT-5",
+    "AT-6",
+    "AT-7",
+    "AT-8",
+    "AT-9"
+   ]
+  },
+  "AU": {
+   "file": "AU.json",
+   "features": 8,
+   "bytes": 71954,
+   "gzip": 25051,
+   "level": "state",
+   "bounds": [
+    [
+     112.92,
+     -43.64
+    ],
+    [
+     159.11,
+     -9.24
+    ]
+   ],
+   "bbox": [
+    [
+     112.92,
+     -43.64
+    ],
+    [
+     159.11,
+     -9.24
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [
+    "AU-X02~",
+    "AU-X03~",
+    "AU-X04~"
+   ],
+   "ne_types": {
+    "State": 6,
+    "Territory": 4,
+    "?": 2
+   },
+   "codes": [
+    "AU-ACT",
+    "AU-NSW",
+    "AU-NT",
+    "AU-QLD",
+    "AU-SA",
+    "AU-TAS",
+    "AU-VIC",
+    "AU-WA"
+   ]
+  },
+  "BE": {
+   "file": "BE.json",
+   "features": 11,
+   "bytes": 14996,
+   "gzip": 6185,
+   "level": "province",
+   "bounds": [
+    [
+     2.52,
+     49.5
+    ],
+    [
+     6.37,
+     51.5
+    ]
+   ],
+   "bbox": [
+    [
+     2.52,
+     49.5
+    ],
+    [
+     6.37,
+     51.5
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 10,
+    "Capital Region": 1
+   },
+   "codes": [
+    "BE-BRU",
+    "BE-VAN",
+    "BE-VBR",
+    "BE-VLI",
+    "BE-VOV",
+    "BE-VWV",
+    "BE-WBR",
+    "BE-WHT",
+    "BE-WLG",
+    "BE-WLX",
+    "BE-WNA"
+   ]
+  },
+  "BR": {
+   "file": "BR.json",
+   "features": 27,
+   "bytes": 110580,
+   "gzip": 37615,
+   "level": "state",
+   "bounds": [
+    [
+     -74.02,
+     -33.74
+    ],
+    [
+     -29.35,
+     5.27
+    ]
+   ],
+   "bbox": [
+    [
+     -74.02,
+     -33.74
+    ],
+    [
+     -29.35,
+     5.27
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "State": 26,
+    "Federal District": 1
+   },
+   "codes": [
+    "BR-AC",
+    "BR-AL",
+    "BR-AM",
+    "BR-AP",
+    "BR-BA",
+    "BR-CE",
+    "BR-DF",
+    "BR-ES",
+    "BR-GO",
+    "BR-MA",
+    "BR-MG",
+    "BR-MS",
+    "BR-MT",
+    "BR-PA",
+    "BR-PB",
+    "BR-PE",
+    "BR-PI",
+    "BR-PR",
+    "BR-RJ",
+    "BR-RN",
+    "BR-RO",
+    "BR-RR",
+    "BR-RS",
+    "BR-SC",
+    "BR-SE",
+    "BR-SP",
+    "BR-TO"
+   ]
+  },
+  "CA": {
+   "file": "CA.json",
+   "features": 13,
+   "bytes": 86692,
+   "gzip": 32487,
+   "level": "province",
+   "bounds": [
+    [
+     -141,
+     41.5
+    ],
+    [
+     -52,
+     72
+    ]
+   ],
+   "bbox": [
+    [
+     -141.01,
+     41.68
+    ],
+    [
+     -52.63,
+     83.12
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 10,
+    "Territory": 3
+   },
+   "codes": [
+    "CA-AB",
+    "CA-BC",
+    "CA-MB",
+    "CA-NB",
+    "CA-NL",
+    "CA-NS",
+    "CA-NT",
+    "CA-NU",
+    "CA-ON",
+    "CA-PE",
+    "CA-QC",
+    "CA-SK",
+    "CA-YT"
+   ]
+  },
+  "CH": {
+   "file": "CH.json",
+   "features": 26,
+   "bytes": 33979,
+   "gzip": 13106,
+   "level": "state",
+   "bounds": [
+    [
+     5.95,
+     45.82
+    ],
+    [
+     10.47,
+     47.8
+    ]
+   ],
+   "bbox": [
+    [
+     5.95,
+     45.82
+    ],
+    [
+     10.47,
+     47.8
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Canton": 26
+   },
+   "codes": [
+    "CH-AG",
+    "CH-AI",
+    "CH-AR",
+    "CH-BE",
+    "CH-BL",
+    "CH-BS",
+    "CH-FR",
+    "CH-GE",
+    "CH-GL",
+    "CH-GR",
+    "CH-JU",
+    "CH-LU",
+    "CH-NE",
+    "CH-NW",
+    "CH-OW",
+    "CH-SG",
+    "CH-SH",
+    "CH-SO",
+    "CH-SZ",
+    "CH-TG",
+    "CH-TI",
+    "CH-UR",
+    "CH-VD",
+    "CH-VS",
+    "CH-ZG",
+    "CH-ZH"
+   ]
+  },
+  "CL": {
+   "file": "CL.json",
+   "features": 16,
+   "bytes": 90576,
+   "gzip": 31671,
+   "level": "region",
+   "bounds": [
+    [
+     -109.45,
+     -55.92
+    ],
+    [
+     -66.42,
+     -17.51
+    ]
+   ],
+   "bbox": [
+    [
+     -109.45,
+     -55.92
+    ],
+    [
+     -66.42,
+     -17.51
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Region": 16
+   },
+   "codes": [
+    "CL-AI",
+    "CL-AN",
+    "CL-AP",
+    "CL-AR",
+    "CL-AT",
+    "CL-BI",
+    "CL-CO",
+    "CL-LI",
+    "CL-LL",
+    "CL-LR",
+    "CL-MA",
+    "CL-ML",
+    "CL-NB",
+    "CL-RM",
+    "CL-TA",
+    "CL-VS"
+   ]
+  },
+  "CN": {
+   "file": "CN.json",
+   "features": 31,
+   "bytes": 104525,
+   "gzip": 36293,
+   "level": "province",
+   "bounds": [
+    [
+     73.6,
+     18.17
+    ],
+    [
+     134.77,
+     53.57
+    ]
+   ],
+   "bbox": [
+    [
+     73.6,
+     18.17
+    ],
+    [
+     134.77,
+     53.57
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [
+    "CN-X01~"
+   ],
+   "ne_types": {
+    "Autonomous Region": 5,
+    "Province": 22,
+    "Municipality": 4,
+    "?": 1
+   },
+   "codes": [
+    "CN-AH",
+    "CN-BJ",
+    "CN-CQ",
+    "CN-FJ",
+    "CN-GD",
+    "CN-GS",
+    "CN-GX",
+    "CN-GZ",
+    "CN-HA",
+    "CN-HB",
+    "CN-HE",
+    "CN-HI",
+    "CN-HL",
+    "CN-HN",
+    "CN-JL",
+    "CN-JS",
+    "CN-JX",
+    "CN-LN",
+    "CN-NM",
+    "CN-NX",
+    "CN-QH",
+    "CN-SC",
+    "CN-SD",
+    "CN-SH",
+    "CN-SN",
+    "CN-SX",
+    "CN-TJ",
+    "CN-XJ",
+    "CN-XZ",
+    "CN-YN",
+    "CN-ZJ"
+   ]
+  },
+  "CO": {
+   "file": "CO.json",
+   "features": 33,
+   "bytes": 80980,
+   "gzip": 28521,
+   "level": "province",
+   "bounds": [
+    [
+     -81.72,
+     -4.24
+    ],
+    [
+     -66.88,
+     13.37
+    ]
+   ],
+   "bbox": [
+    [
+     -81.72,
+     -4.24
+    ],
+    [
+     -66.88,
+     13.37
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [
+    "CO-X01~"
+   ],
+   "ne_types": {
+    "Department": 23,
+    "Intendancy": 4,
+    "Commissiary": 5,
+    "?": 1,
+    "Federal District": 1
+   },
+   "codes": [
+    "CO-AMA",
+    "CO-ANT",
+    "CO-ARA",
+    "CO-ATL",
+    "CO-BOL",
+    "CO-BOY",
+    "CO-CAL",
+    "CO-CAQ",
+    "CO-CAS",
+    "CO-CAU",
+    "CO-CES",
+    "CO-CHO",
+    "CO-COR",
+    "CO-CUN",
+    "CO-DC",
+    "CO-GUA",
+    "CO-GUV",
+    "CO-HUI",
+    "CO-LAG",
+    "CO-MAG",
+    "CO-MET",
+    "CO-NAR",
+    "CO-NSA",
+    "CO-PUT",
+    "CO-QUI",
+    "CO-RIS",
+    "CO-SAN",
+    "CO-SAP",
+    "CO-SUC",
+    "CO-TOL",
+    "CO-VAC",
+    "CO-VAU",
+    "CO-VID"
+   ]
+  },
+  "DE": {
+   "file": "DE.json",
+   "features": 16,
+   "bytes": 84252,
+   "gzip": 29699,
+   "level": "state",
+   "bounds": [
+    [
+     5.85,
+     47.27
+    ],
+    [
+     15.02,
+     55.07
+    ]
+   ],
+   "bbox": [
+    [
+     5.85,
+     47.27
+    ],
+    [
+     15.02,
+     55.07
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "State": 16
+   },
+   "codes": [
+    "DE-BB",
+    "DE-BE",
+    "DE-BW",
+    "DE-BY",
+    "DE-HB",
+    "DE-HE",
+    "DE-HH",
+    "DE-MV",
+    "DE-NI",
+    "DE-NW",
+    "DE-RP",
+    "DE-SH",
+    "DE-SL",
+    "DE-SN",
+    "DE-ST",
+    "DE-TH"
+   ]
+  },
+  "EG": {
+   "file": "EG.json",
+   "features": 27,
+   "bytes": 35904,
+   "gzip": 13277,
+   "level": "province",
+   "bounds": [
+    [
+     24.69,
+     21.99
+    ],
+    [
+     36.9,
+     31.66
+    ]
+   ],
+   "bbox": [
+    [
+     24.69,
+     21.99
+    ],
+    [
+     36.9,
+     31.66
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Governorate": 27
+   },
+   "codes": [
+    "EG-ALX",
+    "EG-ASN",
+    "EG-AST",
+    "EG-BA",
+    "EG-BH",
+    "EG-BNS",
+    "EG-C",
+    "EG-DK",
+    "EG-DT",
+    "EG-FYM",
+    "EG-GH",
+    "EG-GZ",
+    "EG-IS",
+    "EG-JS",
+    "EG-KB",
+    "EG-KFS",
+    "EG-KN",
+    "EG-LX",
+    "EG-MN",
+    "EG-MNF",
+    "EG-MT",
+    "EG-PTS",
+    "EG-SHG",
+    "EG-SHR",
+    "EG-SIN",
+    "EG-SUZ",
+    "EG-WAD"
+   ]
+  },
+  "ES": {
+   "file": "ES.json",
+   "features": 19,
+   "bytes": 64339,
+   "gzip": 22043,
+   "level": "region",
+   "bounds": [
+    [
+     -10,
+     35.5
+    ],
+    [
+     4.5,
+     44
+    ]
+   ],
+   "bbox": [
+    [
+     -18.17,
+     27.64
+    ],
+    [
+     4.34,
+     43.79
+    ]
+   ],
+   "dissolved": true,
+   "remaps": [
+    {
+     "from": "ES-NA",
+     "to": "ES-NC"
+    },
+    {
+     "from": "ES-MU",
+     "to": "ES-MC"
+    },
+    {
+     "from": "ES-PM",
+     "to": "ES-IB"
+    },
+    {
+     "from": "ES-LO",
+     "to": "ES-RI"
+    }
+   ],
+   "dropped": [],
+   "ne_types": {
+    "Autonomous City": 2,
+    "Autonomous Community": 50
+   },
+   "codes": [
+    "ES-AN",
+    "ES-AR",
+    "ES-AS",
+    "ES-CB",
+    "ES-CE",
+    "ES-CL",
+    "ES-CM",
+    "ES-CN",
+    "ES-CT",
+    "ES-EX",
+    "ES-GA",
+    "ES-IB",
+    "ES-MC",
+    "ES-MD",
+    "ES-ML",
+    "ES-NC",
+    "ES-PV",
+    "ES-RI",
+    "ES-VC"
+   ]
+  },
+  "FR": {
+   "file": "FR.json",
+   "features": 18,
+   "bytes": 67074,
+   "gzip": 19377,
+   "level": "region",
+   "bounds": [
+    [
+     -5.5,
+     41
+    ],
+    [
+     10,
+     51.5
+    ]
+   ],
+   "bbox": [
+    [
+     -61.8,
+     -21.37
+    ],
+    [
+     55.85,
+     51.09
+    ]
+   ],
+   "dissolved": true,
+   "remaps": [
+    {
+     "from": "FR-GUF",
+     "to": "FR-GF"
+    },
+    {
+     "from": "FR-MTQ",
+     "to": "FR-MQ"
+    },
+    {
+     "from": "FR-GUA",
+     "to": "FR-GP"
+    },
+    {
+     "from": "FR-LRE",
+     "to": "FR-RE"
+    },
+    {
+     "from": "FR-MAY",
+     "to": "FR-YT"
+    }
+   ],
+   "dropped": [],
+   "ne_types": {
+    "Overseas department": 5,
+    "Metropolitan department": 96
+   },
+   "codes": [
+    "FR-ARA",
+    "FR-BFC",
+    "FR-BRE",
+    "FR-COR",
+    "FR-CVL",
+    "FR-GES",
+    "FR-GF",
+    "FR-GP",
+    "FR-HDF",
+    "FR-IDF",
+    "FR-MQ",
+    "FR-NAQ",
+    "FR-NOR",
+    "FR-OCC",
+    "FR-PAC",
+    "FR-PDL",
+    "FR-RE",
+    "FR-YT"
+   ]
+  },
+  "GB": {
+   "file": "GB.json",
+   "features": 4,
+   "bytes": 72738,
+   "gzip": 25814,
+   "level": "region",
+   "bounds": [
+    [
+     -8.17,
+     49.96
+    ],
+    [
+     1.77,
+     60.85
+    ]
+   ],
+   "bbox": [
+    [
+     -8.17,
+     49.96
+    ],
+    [
+     1.77,
+     60.85
+    ]
+   ],
+   "dissolved": true,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "London Borough (city)": 2,
+    "District": 24,
+    "Unitary Authority (wales)": 21,
+    "Unitary Authority": 50,
+    "Unitary Single-Tier County": 6,
+    "Administrative County": 26,
+    "Unitary District": 26,
+    "Unitary District (city)": 5,
+    "Metropolitan Borough": 36,
+    "Principality": 1,
+    "Island Area": 1,
+    "Province": 1,
+    "London Borough": 28,
+    "London Borough (royal)": 3,
+    "City Corporation": 1,
+    "Kingdom": 1
+   },
+   "codes": [
+    "GB-ENG",
+    "GB-NIR",
+    "GB-SCT",
+    "GB-WLS"
+   ]
+  },
+  "ID": {
+   "file": "ID.json",
+   "features": 33,
+   "bytes": 116327,
+   "gzip": 41102,
+   "level": "province",
+   "bounds": [
+    [
+     95.01,
+     -10.92
+    ],
+    [
+     140.98,
+     5.91
+    ]
+   ],
+   "bbox": [
+    [
+     95.01,
+     -10.92
+    ],
+    [
+     140.98,
+     5.91
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 30,
+    "Special district": 1,
+    "Special region": 1,
+    "Autonomous Province": 1
+   },
+   "codes": [
+    "ID-AC",
+    "ID-BA",
+    "ID-BB",
+    "ID-BE",
+    "ID-BT",
+    "ID-GO",
+    "ID-JA",
+    "ID-JB",
+    "ID-JI",
+    "ID-JK",
+    "ID-JT",
+    "ID-KB",
+    "ID-KI",
+    "ID-KR",
+    "ID-KS",
+    "ID-KT",
+    "ID-LA",
+    "ID-MA",
+    "ID-MU",
+    "ID-NB",
+    "ID-NT",
+    "ID-PA",
+    "ID-PB",
+    "ID-RI",
+    "ID-SA",
+    "ID-SB",
+    "ID-SG",
+    "ID-SN",
+    "ID-SR",
+    "ID-SS",
+    "ID-ST",
+    "ID-SU",
+    "ID-YO"
+   ]
+  },
+  "IN": {
+   "file": "IN.json",
+   "features": 36,
+   "bytes": 103662,
+   "gzip": 35978,
+   "level": "state",
+   "bounds": [
+    [
+     68.14,
+     6.75
+    ],
+    [
+     97.36,
+     35.5
+    ]
+   ],
+   "bbox": [
+    [
+     68.14,
+     6.75
+    ],
+    [
+     97.36,
+     35.5
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [
+    {
+     "from": "IN-UT",
+     "to": "IN-UK"
+    },
+    {
+     "from": "IN-OR",
+     "to": "IN-OD"
+    },
+    {
+     "from": "IN-CT",
+     "to": "IN-CG"
+    },
+    {
+     "from": "IN-TG",
+     "to": "IN-TS"
+    }
+   ],
+   "dropped": [],
+   "ne_types": {
+    "Union Territory": 9,
+    "State": 26,
+    "?": 1
+   },
+   "codes": [
+    "IN-AN",
+    "IN-AP",
+    "IN-AR",
+    "IN-AS",
+    "IN-BR",
+    "IN-CG",
+    "IN-CH",
+    "IN-DH",
+    "IN-DL",
+    "IN-GA",
+    "IN-GJ",
+    "IN-HP",
+    "IN-HR",
+    "IN-JH",
+    "IN-JK",
+    "IN-KA",
+    "IN-KL",
+    "IN-LA",
+    "IN-LD",
+    "IN-MH",
+    "IN-ML",
+    "IN-MN",
+    "IN-MP",
+    "IN-MZ",
+    "IN-NL",
+    "IN-OD",
+    "IN-PB",
+    "IN-PY",
+    "IN-RJ",
+    "IN-SK",
+    "IN-TN",
+    "IN-TR",
+    "IN-TS",
+    "IN-UK",
+    "IN-UP",
+    "IN-WB"
+   ]
+  },
+  "IT": {
+   "file": "IT.json",
+   "features": 20,
+   "bytes": 72190,
+   "gzip": 24878,
+   "level": "region",
+   "bounds": [
+    [
+     6.6,
+     35.49
+    ],
+    [
+     18.52,
+     47.09
+    ]
+   ],
+   "bbox": [
+    [
+     6.6,
+     35.49
+    ],
+    [
+     18.52,
+     47.09
+    ]
+   ],
+   "dissolved": true,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 110
+   },
+   "codes": [
+    "IT-21",
+    "IT-23",
+    "IT-25",
+    "IT-32",
+    "IT-34",
+    "IT-36",
+    "IT-42",
+    "IT-45",
+    "IT-52",
+    "IT-55",
+    "IT-57",
+    "IT-62",
+    "IT-65",
+    "IT-67",
+    "IT-72",
+    "IT-75",
+    "IT-77",
+    "IT-78",
+    "IT-82",
+    "IT-88"
+   ]
+  },
+  "JP": {
+   "file": "JP.json",
+   "features": 47,
+   "bytes": 94761,
+   "gzip": 31733,
+   "level": "province",
+   "bounds": [
+    [
+     122.94,
+     24.26
+    ],
+    [
+     145.83,
+     45.52
+    ]
+   ],
+   "bbox": [
+    [
+     122.94,
+     24.26
+    ],
+    [
+     145.83,
+     45.52
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Prefecture": 43,
+    "Urban Prefecture": 2,
+    "Metropolis": 1,
+    "Circuit": 1
+   },
+   "codes": [
+    "JP-01",
+    "JP-02",
+    "JP-03",
+    "JP-04",
+    "JP-05",
+    "JP-06",
+    "JP-07",
+    "JP-08",
+    "JP-09",
+    "JP-10",
+    "JP-11",
+    "JP-12",
+    "JP-13",
+    "JP-14",
+    "JP-15",
+    "JP-16",
+    "JP-17",
+    "JP-18",
+    "JP-19",
+    "JP-20",
+    "JP-21",
+    "JP-22",
+    "JP-23",
+    "JP-24",
+    "JP-25",
+    "JP-26",
+    "JP-27",
+    "JP-28",
+    "JP-29",
+    "JP-30",
+    "JP-31",
+    "JP-32",
+    "JP-33",
+    "JP-34",
+    "JP-35",
+    "JP-36",
+    "JP-37",
+    "JP-38",
+    "JP-39",
+    "JP-40",
+    "JP-41",
+    "JP-42",
+    "JP-43",
+    "JP-44",
+    "JP-45",
+    "JP-46",
+    "JP-47"
+   ]
+  },
+  "KE": {
+   "file": "KE.json",
+   "features": 8,
+   "bytes": 26616,
+   "gzip": 10066,
+   "level": "province",
+   "bounds": [
+    [
+     33.89,
+     -4.68
+    ],
+    [
+     41.89,
+     5.03
+    ]
+   ],
+   "bbox": [
+    [
+     33.89,
+     -4.68
+    ],
+    [
+     41.89,
+     5.03
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 6,
+    "National Capital Area": 2
+   },
+   "codes": [
+    "KE-110",
+    "KE-200",
+    "KE-300",
+    "KE-400",
+    "KE-500",
+    "KE-600",
+    "KE-700",
+    "KE-800"
+   ]
+  },
+  "KR": {
+   "file": "KR.json",
+   "features": 17,
+   "bytes": 41905,
+   "gzip": 15838,
+   "level": "province",
+   "bounds": [
+    [
+     124.61,
+     33.2
+    ],
+    [
+     130.92,
+     38.62
+    ]
+   ],
+   "bbox": [
+    [
+     124.61,
+     33.2
+    ],
+    [
+     130.92,
+     38.62
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 7,
+    "Metropolitan City": 8,
+    "Capital Metropolitan City": 1,
+    "Special self-governing city": 1
+   },
+   "codes": [
+    "KR-11",
+    "KR-26",
+    "KR-27",
+    "KR-28",
+    "KR-29",
+    "KR-30",
+    "KR-31",
+    "KR-41",
+    "KR-42",
+    "KR-43",
+    "KR-44",
+    "KR-45",
+    "KR-46",
+    "KR-47",
+    "KR-48",
+    "KR-49",
+    "KR-50"
+   ]
+  },
+  "MX": {
+   "file": "MX.json",
+   "features": 32,
+   "bytes": 76373,
+   "gzip": 27363,
+   "level": "state",
+   "bounds": [
+    [
+     -118.37,
+     14.55
+    ],
+    [
+     -86.7,
+     32.71
+    ]
+   ],
+   "bbox": [
+    [
+     -118.37,
+     14.55
+    ],
+    [
+     -86.7,
+     32.71
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [
+    {
+     "from": "MX-DIF",
+     "to": "MX-CMX"
+    }
+   ],
+   "dropped": [
+    "MX-X01~"
+   ],
+   "ne_types": {
+    "State": 31,
+    "?": 1,
+    "Federal District": 1
+   },
+   "codes": [
+    "MX-AGU",
+    "MX-BCN",
+    "MX-BCS",
+    "MX-CAM",
+    "MX-CHH",
+    "MX-CHP",
+    "MX-CMX",
+    "MX-COA",
+    "MX-COL",
+    "MX-DUR",
+    "MX-GRO",
+    "MX-GUA",
+    "MX-HID",
+    "MX-JAL",
+    "MX-MEX",
+    "MX-MIC",
+    "MX-MOR",
+    "MX-NAY",
+    "MX-NLE",
+    "MX-OAX",
+    "MX-PUE",
+    "MX-QUE",
+    "MX-ROO",
+    "MX-SIN",
+    "MX-SLP",
+    "MX-SON",
+    "MX-TAB",
+    "MX-TAM",
+    "MX-TLA",
+    "MX-VER",
+    "MX-YUC",
+    "MX-ZAC"
+   ]
+  },
+  "MY": {
+   "file": "MY.json",
+   "features": 16,
+   "bytes": 43452,
+   "gzip": 15725,
+   "level": "state",
+   "bounds": [
+    [
+     99.65,
+     0.85
+    ],
+    [
+     119.28,
+     7.36
+    ]
+   ],
+   "bbox": [
+    [
+     99.65,
+     0.85
+    ],
+    [
+     119.28,
+     7.36
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "State": 13,
+    "Federal Territory": 3
+   },
+   "codes": [
+    "MY-01",
+    "MY-02",
+    "MY-03",
+    "MY-04",
+    "MY-05",
+    "MY-06",
+    "MY-07",
+    "MY-08",
+    "MY-09",
+    "MY-10",
+    "MY-11",
+    "MY-12",
+    "MY-13",
+    "MY-14",
+    "MY-15",
+    "MY-16"
+   ]
+  },
+  "NG": {
+   "file": "NG.json",
+   "features": 37,
+   "bytes": 47235,
+   "gzip": 17899,
+   "level": "state",
+   "bounds": [
+    [
+     2.67,
+     4.27
+    ],
+    [
+     14.67,
+     13.88
+    ]
+   ],
+   "bbox": [
+    [
+     2.67,
+     4.27
+    ],
+    [
+     14.67,
+     13.88
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "State": 37
+   },
+   "codes": [
+    "NG-AB",
+    "NG-AD",
+    "NG-AK",
+    "NG-AN",
+    "NG-BA",
+    "NG-BE",
+    "NG-BO",
+    "NG-BY",
+    "NG-CR",
+    "NG-DE",
+    "NG-EB",
+    "NG-ED",
+    "NG-EK",
+    "NG-EN",
+    "NG-FC",
+    "NG-GO",
+    "NG-IM",
+    "NG-JI",
+    "NG-KD",
+    "NG-KE",
+    "NG-KN",
+    "NG-KO",
+    "NG-KT",
+    "NG-KW",
+    "NG-LA",
+    "NG-NA",
+    "NG-NI",
+    "NG-OG",
+    "NG-ON",
+    "NG-OS",
+    "NG-OY",
+    "NG-PL",
+    "NG-RI",
+    "NG-SO",
+    "NG-TA",
+    "NG-YO",
+    "NG-ZA"
+   ]
+  },
+  "NL": {
+   "file": "NL.json",
+   "features": 12,
+   "bytes": 18465,
+   "gzip": 7476,
+   "level": "province",
+   "bounds": [
+    [
+     3.35,
+     50.75
+    ],
+    [
+     7.2,
+     53.51
+    ]
+   ],
+   "bbox": [
+    [
+     3.35,
+     50.75
+    ],
+    [
+     7.2,
+     53.51
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [
+    "NL-BQ1",
+    "NL-BQ2",
+    "NL-BQ3"
+   ],
+   "ne_types": {
+    "Province": 12,
+    "Special Municipality": 3
+   },
+   "codes": [
+    "NL-DR",
+    "NL-FL",
+    "NL-FR",
+    "NL-GE",
+    "NL-GR",
+    "NL-LI",
+    "NL-NB",
+    "NL-NH",
+    "NL-OV",
+    "NL-UT",
+    "NL-ZE",
+    "NL-ZH"
+   ]
+  },
+  "NZ": {
+   "file": "NZ.json",
+   "features": 17,
+   "bytes": 46196,
+   "gzip": 14714,
+   "level": "region",
+   "bounds": [
+    [
+     165.5,
+     -47.5
+    ],
+    [
+     179,
+     -34
+    ]
+   ],
+   "bbox": [
+    [
+     166.47,
+     -47.28
+    ],
+    [
+     183.89,
+     -34.4
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [
+    "NZ-X01~",
+    "NZ-X03~",
+    "NZ-X04~",
+    "NZ-X05~",
+    "NZ-X06~",
+    "NZ-X07~"
+   ],
+   "ne_types": {
+    "?": 6,
+    "Special Island Authority": 1,
+    "Regional Council": 11,
+    "Unitary Authority": 5
+   },
+   "codes": [
+    "NZ-AUK",
+    "NZ-BOP",
+    "NZ-CAN",
+    "NZ-CIT",
+    "NZ-GIS",
+    "NZ-HKB",
+    "NZ-MBH",
+    "NZ-MWT",
+    "NZ-NSN",
+    "NZ-NTL",
+    "NZ-OTA",
+    "NZ-STL",
+    "NZ-TAS",
+    "NZ-TKI",
+    "NZ-WGN",
+    "NZ-WKO",
+    "NZ-WTC"
+   ]
+  },
+  "PE": {
+   "file": "PE.json",
+   "features": 26,
+   "bytes": 59349,
+   "gzip": 21426,
+   "level": "province",
+   "bounds": [
+    [
+     -81.34,
+     -18.34
+    ],
+    [
+     -68.68,
+     -0.03
+    ]
+   ],
+   "bbox": [
+    [
+     -81.34,
+     -18.34
+    ],
+    [
+     -68.68,
+     -0.03
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Department": 24,
+    "Captial District": 1,
+    "Departamento": 1
+   },
+   "codes": [
+    "PE-AMA",
+    "PE-ANC",
+    "PE-APU",
+    "PE-ARE",
+    "PE-AYA",
+    "PE-CAJ",
+    "PE-CAL",
+    "PE-CUS",
+    "PE-HUC",
+    "PE-HUV",
+    "PE-ICA",
+    "PE-JUN",
+    "PE-LAL",
+    "PE-LAM",
+    "PE-LIM",
+    "PE-LMA",
+    "PE-LOR",
+    "PE-MDD",
+    "PE-MOQ",
+    "PE-PAS",
+    "PE-PIU",
+    "PE-PUN",
+    "PE-SAM",
+    "PE-TAC",
+    "PE-TUM",
+    "PE-UCA"
+   ]
+  },
+  "PH": {
+   "file": "PH.json",
+   "features": 83,
+   "bytes": 102933,
+   "gzip": 36215,
+   "level": "province",
+   "bounds": [
+    [
+     116.95,
+     4.66
+    ],
+    [
+     126.62,
+     20.84
+    ]
+   ],
+   "bbox": [
+    [
+     116.95,
+     4.66
+    ],
+    [
+     126.62,
+     20.84
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 80,
+    "Highly Urbanized City": 32,
+    "Independent Component City": 5,
+    "Independent Municipality": 1
+   },
+   "codes": [
+    "PH-ABR",
+    "PH-AGN",
+    "PH-AGS",
+    "PH-AKL",
+    "PH-ALB",
+    "PH-ANT",
+    "PH-APA",
+    "PH-AUR",
+    "PH-BAN",
+    "PH-BAS",
+    "PH-BCD",
+    "PH-BEN",
+    "PH-BIL",
+    "PH-BOH",
+    "PH-BTG",
+    "PH-BTN",
+    "PH-BUK",
+    "PH-BUL",
+    "PH-CAG",
+    "PH-CAM",
+    "PH-CAN",
+    "PH-CAP",
+    "PH-CAS",
+    "PH-CAT",
+    "PH-CAV",
+    "PH-CEB",
+    "PH-COM",
+    "PH-DAO",
+    "PH-DAS",
+    "PH-DAV",
+    "PH-EAS",
+    "PH-GUI",
+    "PH-IFU",
+    "PH-ILI",
+    "PH-ILN",
+    "PH-ILS",
+    "PH-ISA",
+    "PH-KAL",
+    "PH-LAG",
+    "PH-LAN",
+    "PH-LAP",
+    "PH-LAS",
+    "PH-LEY",
+    "PH-LUN",
+    "PH-MAD",
+    "PH-MAG",
+    "PH-MAS",
+    "PH-MDC",
+    "PH-MDE",
+    "PH-MDR",
+    "PH-MNL",
+    "PH-MOU",
+    "PH-MSC",
+    "PH-MSR",
+    "PH-NCO",
+    "PH-NEC",
+    "PH-NER",
+    "PH-NSA",
+    "PH-NUE",
+    "PH-NUV",
+    "PH-PAM",
+    "PH-PAN",
+    "PH-PLW",
+    "PH-QUE",
+    "PH-QUI",
+    "PH-RIZ",
+    "PH-ROM",
+    "PH-SAR",
+    "PH-SCO",
+    "PH-SIG",
+    "PH-SLE",
+    "PH-SLU",
+    "PH-SOR",
+    "PH-SUK",
+    "PH-SUN",
+    "PH-SUR",
+    "PH-TAR",
+    "PH-TAW",
+    "PH-WSA",
+    "PH-ZAN",
+    "PH-ZAS",
+    "PH-ZMB",
+    "PH-ZSI"
+   ]
+  },
+  "PL": {
+   "file": "PL.json",
+   "features": 16,
+   "bytes": 27284,
+   "gzip": 10736,
+   "level": "province",
+   "bounds": [
+    [
+     14.12,
+     48.99
+    ],
+    [
+     24.14,
+     54.84
+    ]
+   ],
+   "bbox": [
+    [
+     14.12,
+     48.99
+    ],
+    [
+     24.14,
+     54.84
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Voivodeship|Province": 16
+   },
+   "codes": [
+    "PL-DS",
+    "PL-KP",
+    "PL-LB",
+    "PL-LD",
+    "PL-LU",
+    "PL-MA",
+    "PL-MZ",
+    "PL-OP",
+    "PL-PD",
+    "PL-PK",
+    "PL-PM",
+    "PL-SK",
+    "PL-SL",
+    "PL-WN",
+    "PL-WP",
+    "PL-ZP"
+   ]
+  },
+  "RU": {
+   "file": "RU.json",
+   "features": 83,
+   "bytes": 102332,
+   "gzip": 36448,
+   "level": "region",
+   "bounds": [
+    [
+     19.61,
+     41.19
+    ],
+    [
+     190.3,
+     81.86
+    ]
+   ],
+   "bbox": [
+    [
+     19.61,
+     41.19
+    ],
+    [
+     190.3,
+     81.86
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [
+    "RU-X01~"
+   ],
+   "ne_types": {
+    "Republic": 20,
+    "Region": 48,
+    "Territory": 7,
+    "Autonomous Region": 1,
+    "Autonomous Province": 5,
+    "Federal City": 2,
+    "?": 1
+   },
+   "codes": [
+    "RU-AD",
+    "RU-AL",
+    "RU-ALT",
+    "RU-AMU",
+    "RU-ARK",
+    "RU-AST",
+    "RU-BA",
+    "RU-BEL",
+    "RU-BRY",
+    "RU-BU",
+    "RU-CE",
+    "RU-CHE",
+    "RU-CHU",
+    "RU-CU",
+    "RU-DA",
+    "RU-IN",
+    "RU-IRK",
+    "RU-IVA",
+    "RU-KAM",
+    "RU-KB",
+    "RU-KC",
+    "RU-KDA",
+    "RU-KEM",
+    "RU-KGD",
+    "RU-KGN",
+    "RU-KHA",
+    "RU-KHM",
+    "RU-KIR",
+    "RU-KK",
+    "RU-KL",
+    "RU-KLU",
+    "RU-KO",
+    "RU-KOS",
+    "RU-KR",
+    "RU-KRS",
+    "RU-KYA",
+    "RU-LEN",
+    "RU-LIP",
+    "RU-MAG",
+    "RU-ME",
+    "RU-MO",
+    "RU-MOS",
+    "RU-MOW",
+    "RU-MUR",
+    "RU-NEN",
+    "RU-NGR",
+    "RU-NIZ",
+    "RU-NVS",
+    "RU-OMS",
+    "RU-ORE",
+    "RU-ORL",
+    "RU-PER",
+    "RU-PNZ",
+    "RU-PRI",
+    "RU-PSK",
+    "RU-ROS",
+    "RU-RYA",
+    "RU-SA",
+    "RU-SAK",
+    "RU-SAM",
+    "RU-SAR",
+    "RU-SE",
+    "RU-SMO",
+    "RU-SPE",
+    "RU-STA",
+    "RU-SVE",
+    "RU-TA",
+    "RU-TAM",
+    "RU-TOM",
+    "RU-TUL",
+    "RU-TVE",
+    "RU-TY",
+    "RU-TYU",
+    "RU-UD",
+    "RU-ULY",
+    "RU-VGG",
+    "RU-VLA",
+    "RU-VLG",
+    "RU-VOR",
+    "RU-YAN",
+    "RU-YAR",
+    "RU-YEV",
+    "RU-ZAB"
+   ]
+  },
+  "SA": {
+   "file": "SA.json",
+   "features": 13,
+   "bytes": 37726,
+   "gzip": 13763,
+   "level": "region",
+   "bounds": [
+    [
+     34.57,
+     16.37
+    ],
+    [
+     55.64,
+     32.12
+    ]
+   ],
+   "bbox": [
+    [
+     34.57,
+     16.37
+    ],
+    [
+     55.64,
+     32.12
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Region": 13
+   },
+   "codes": [
+    "SA-01",
+    "SA-02",
+    "SA-03",
+    "SA-04",
+    "SA-05",
+    "SA-06",
+    "SA-07",
+    "SA-08",
+    "SA-09",
+    "SA-10",
+    "SA-11",
+    "SA-12",
+    "SA-14"
+   ]
+  },
+  "SE": {
+   "file": "SE.json",
+   "features": 21,
+   "bytes": 64687,
+   "gzip": 23151,
+   "level": "province",
+   "bounds": [
+    [
+     11.11,
+     55.34
+    ],
+    [
+     24.16,
+     69.04
+    ]
+   ],
+   "bbox": [
+    [
+     11.11,
+     55.34
+    ],
+    [
+     24.16,
+     69.04
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "County": 21
+   },
+   "codes": [
+    "SE-AB",
+    "SE-AC",
+    "SE-BD",
+    "SE-C",
+    "SE-D",
+    "SE-E",
+    "SE-F",
+    "SE-G",
+    "SE-H",
+    "SE-I",
+    "SE-K",
+    "SE-M",
+    "SE-N",
+    "SE-O",
+    "SE-S",
+    "SE-T",
+    "SE-U",
+    "SE-W",
+    "SE-X",
+    "SE-Y",
+    "SE-Z"
+   ]
+  },
+  "TH": {
+   "file": "TH.json",
+   "features": 77,
+   "bytes": 87723,
+   "gzip": 31141,
+   "level": "province",
+   "bounds": [
+    [
+     97.35,
+     5.63
+    ],
+    [
+     105.65,
+     20.44
+    ]
+   ],
+   "bbox": [
+    [
+     97.35,
+     5.63
+    ],
+    [
+     105.65,
+     20.44
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 77
+   },
+   "codes": [
+    "TH-10",
+    "TH-11",
+    "TH-12",
+    "TH-13",
+    "TH-14",
+    "TH-15",
+    "TH-16",
+    "TH-17",
+    "TH-18",
+    "TH-19",
+    "TH-20",
+    "TH-21",
+    "TH-22",
+    "TH-23",
+    "TH-24",
+    "TH-25",
+    "TH-26",
+    "TH-27",
+    "TH-30",
+    "TH-31",
+    "TH-32",
+    "TH-33",
+    "TH-34",
+    "TH-35",
+    "TH-36",
+    "TH-37",
+    "TH-38",
+    "TH-39",
+    "TH-40",
+    "TH-41",
+    "TH-42",
+    "TH-43",
+    "TH-44",
+    "TH-45",
+    "TH-46",
+    "TH-47",
+    "TH-48",
+    "TH-49",
+    "TH-50",
+    "TH-51",
+    "TH-52",
+    "TH-53",
+    "TH-54",
+    "TH-55",
+    "TH-56",
+    "TH-57",
+    "TH-58",
+    "TH-60",
+    "TH-61",
+    "TH-62",
+    "TH-63",
+    "TH-64",
+    "TH-65",
+    "TH-66",
+    "TH-67",
+    "TH-70",
+    "TH-71",
+    "TH-72",
+    "TH-73",
+    "TH-74",
+    "TH-75",
+    "TH-76",
+    "TH-77",
+    "TH-80",
+    "TH-81",
+    "TH-82",
+    "TH-83",
+    "TH-84",
+    "TH-85",
+    "TH-86",
+    "TH-90",
+    "TH-91",
+    "TH-92",
+    "TH-93",
+    "TH-94",
+    "TH-95",
+    "TH-96"
+   ]
+  },
+  "TR": {
+   "file": "TR.json",
+   "features": 81,
+   "bytes": 79701,
+   "gzip": 29268,
+   "level": "province",
+   "bounds": [
+    [
+     25.66,
+     35.82
+    ],
+    [
+     44.81,
+     42.1
+    ]
+   ],
+   "bbox": [
+    [
+     25.66,
+     35.82
+    ],
+    [
+     44.81,
+     42.1
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 81
+   },
+   "codes": [
+    "TR-01",
+    "TR-02",
+    "TR-03",
+    "TR-04",
+    "TR-05",
+    "TR-06",
+    "TR-07",
+    "TR-08",
+    "TR-09",
+    "TR-10",
+    "TR-11",
+    "TR-12",
+    "TR-13",
+    "TR-14",
+    "TR-15",
+    "TR-16",
+    "TR-17",
+    "TR-18",
+    "TR-19",
+    "TR-20",
+    "TR-21",
+    "TR-22",
+    "TR-23",
+    "TR-24",
+    "TR-25",
+    "TR-26",
+    "TR-27",
+    "TR-28",
+    "TR-29",
+    "TR-30",
+    "TR-31",
+    "TR-32",
+    "TR-33",
+    "TR-34",
+    "TR-35",
+    "TR-36",
+    "TR-37",
+    "TR-38",
+    "TR-39",
+    "TR-40",
+    "TR-41",
+    "TR-42",
+    "TR-43",
+    "TR-44",
+    "TR-45",
+    "TR-46",
+    "TR-47",
+    "TR-48",
+    "TR-49",
+    "TR-50",
+    "TR-51",
+    "TR-52",
+    "TR-53",
+    "TR-54",
+    "TR-55",
+    "TR-56",
+    "TR-57",
+    "TR-58",
+    "TR-59",
+    "TR-60",
+    "TR-61",
+    "TR-62",
+    "TR-63",
+    "TR-64",
+    "TR-65",
+    "TR-66",
+    "TR-67",
+    "TR-68",
+    "TR-69",
+    "TR-70",
+    "TR-71",
+    "TR-72",
+    "TR-73",
+    "TR-74",
+    "TR-75",
+    "TR-76",
+    "TR-77",
+    "TR-78",
+    "TR-79",
+    "TR-80",
+    "TR-81"
+   ]
+  },
+  "US": {
+   "file": "US.json",
+   "features": 51,
+   "bytes": 97606,
+   "gzip": 32399,
+   "level": "state",
+   "bounds": [
+    [
+     -125,
+     24
+    ],
+    [
+     -66,
+     50
+    ]
+   ],
+   "bbox": [
+    [
+     172.48,
+     18.91
+    ],
+    [
+     293.02,
+     71.35
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "State": 50,
+    "Federal District": 1
+   },
+   "codes": [
+    "US-AK",
+    "US-AL",
+    "US-AR",
+    "US-AZ",
+    "US-CA",
+    "US-CO",
+    "US-CT",
+    "US-DC",
+    "US-DE",
+    "US-FL",
+    "US-GA",
+    "US-HI",
+    "US-IA",
+    "US-ID",
+    "US-IL",
+    "US-IN",
+    "US-KS",
+    "US-KY",
+    "US-LA",
+    "US-MA",
+    "US-MD",
+    "US-ME",
+    "US-MI",
+    "US-MN",
+    "US-MO",
+    "US-MS",
+    "US-MT",
+    "US-NC",
+    "US-ND",
+    "US-NE",
+    "US-NH",
+    "US-NJ",
+    "US-NM",
+    "US-NV",
+    "US-NY",
+    "US-OH",
+    "US-OK",
+    "US-OR",
+    "US-PA",
+    "US-RI",
+    "US-SC",
+    "US-SD",
+    "US-TN",
+    "US-TX",
+    "US-UT",
+    "US-VA",
+    "US-VT",
+    "US-WA",
+    "US-WI",
+    "US-WV",
+    "US-WY"
+   ]
+  },
+  "VN": {
+   "file": "VN.json",
+   "features": 63,
+   "bytes": 76679,
+   "gzip": 27441,
+   "level": "province",
+   "bounds": [
+    [
+     102.12,
+     8.57
+    ],
+    [
+     109.47,
+     23.37
+    ]
+   ],
+   "bbox": [
+    [
+     102.12,
+     8.57
+    ],
+    [
+     109.47,
+     23.37
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 52,
+    "Region": 9,
+    "City|Municipality|Thanh Pho": 2
+   },
+   "codes": [
+    "VN-01",
+    "VN-02",
+    "VN-03",
+    "VN-04",
+    "VN-05",
+    "VN-06",
+    "VN-07",
+    "VN-09",
+    "VN-13",
+    "VN-14",
+    "VN-18",
+    "VN-20",
+    "VN-21",
+    "VN-22",
+    "VN-23",
+    "VN-24",
+    "VN-25",
+    "VN-26",
+    "VN-27",
+    "VN-28",
+    "VN-29",
+    "VN-30",
+    "VN-31",
+    "VN-32",
+    "VN-33",
+    "VN-34",
+    "VN-35",
+    "VN-36",
+    "VN-37",
+    "VN-39",
+    "VN-40",
+    "VN-41",
+    "VN-43",
+    "VN-44",
+    "VN-45",
+    "VN-46",
+    "VN-47",
+    "VN-49",
+    "VN-50",
+    "VN-51",
+    "VN-52",
+    "VN-53",
+    "VN-54",
+    "VN-55",
+    "VN-56",
+    "VN-57",
+    "VN-58",
+    "VN-59",
+    "VN-61",
+    "VN-63",
+    "VN-66",
+    "VN-67",
+    "VN-68",
+    "VN-69",
+    "VN-70",
+    "VN-71",
+    "VN-72",
+    "VN-73",
+    "VN-CT",
+    "VN-DN",
+    "VN-HN",
+    "VN-HP",
+    "VN-SG"
+   ]
+  },
+  "ZA": {
+   "file": "ZA.json",
+   "features": 9,
+   "bytes": 40297,
+   "gzip": 14437,
+   "level": "province",
+   "bounds": [
+    [
+     16.47,
+     -46.97
+    ],
+    [
+     37.98,
+     -22.13
+    ]
+   ],
+   "bbox": [
+    [
+     16.47,
+     -46.97
+    ],
+    [
+     37.98,
+     -22.13
+    ]
+   ],
+   "dissolved": false,
+   "remaps": [],
+   "dropped": [],
+   "ne_types": {
+    "Province": 9
+   },
+   "codes": [
+    "ZA-EC",
+    "ZA-FS",
+    "ZA-GT",
+    "ZA-LP",
+    "ZA-MP",
+    "ZA-NC",
+    "ZA-NL",
+    "ZA-NW",
+    "ZA-WC"
+   ]
+  }
+ },
+ "source": {
+  "name": "Natural Earth 1:10m Admin-1 States and Provinces",
+  "url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson",
+  "etag": "\"9b655739502d5b6d79dcd6c5aa56376d01322724d6cda056a16a39a0e567c5c4\"",
+  "version": "5.2.0-pre",
+  "fetched_at": "2026-08-25T19:42:00Z",
+  "license": "public domain"
+ },
+ "generated_at": "2026-08-25T21:12:33.956Z",
+ "quantization": 100000,
+ "version": "e8ab1401"
+}

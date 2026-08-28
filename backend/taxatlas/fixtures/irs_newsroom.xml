@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>IRS Newsroom — News Releases and Guidance (fixture)</title>
+    <link>https://fixtures.taxatlas.test/irs/newsroom</link>
+    <description>Offline fixture modelled on IRS newsroom items. Not live data.</description>
+    <language>en-us</language>
+    <lastBuildDate>Fri, 21 Aug 2026 14:00:00 GMT</lastBuildDate>
+    <item>
+      <title>IR-2026-158: IRS issues Notice 2026-41 providing transitional relief under the Pillar Two CAMT interaction rules</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/irs-issues-notice-2026-41-pillar-two-camt-transitional-relief</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/irs-issues-notice-2026-41-pillar-two-camt-transitional-relief</guid>
+      <pubDate>Fri, 21 Aug 2026 13:30:00 GMT</pubDate>
+      <description>Notice 2026-41 extends the safe harbor for determining adjusted financial statement income where a taxpayer is subject to a qualified domestic minimum top-up tax, for tax years beginning before January 1, 2027.</description>
+    </item>
+    <item>
+      <title>IR-2026-157: Treasury and IRS release final regulations on section 163(j) interest limitation for partnerships</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/final-regulations-section-163j-partnerships-2026</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/final-regulations-section-163j-partnerships-2026</guid>
+      <pubDate>Wed, 19 Aug 2026 15:00:00 GMT</pubDate>
+      <description>T.D. 10082 finalizes rules for allocating excess business interest expense among partners and adopts the 11-step allocation with modifications in response to comments.</description>
+    </item>
+    <item>
+      <title>IR-2026-155: Interest rates remain the same for the fourth quarter of 2026</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/interest-rates-remain-the-same-for-the-fourth-quarter-of-2026</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/interest-rates-remain-the-same-for-the-fourth-quarter-of-2026</guid>
+      <pubDate>Mon, 17 Aug 2026 14:00:00 GMT</pubDate>
+      <description>Rev. Rul. 2026-17 announces that overpayment and underpayment rates will remain 7 percent for individuals for the calendar quarter beginning October 1, 2026.</description>
+    </item>
+    <item>
+      <title>IR-2026-152: IRS proposes regulations on digital asset broker reporting for decentralized exchanges</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/proposed-regulations-digital-asset-broker-reporting-decentralized-2026</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/proposed-regulations-digital-asset-broker-reporting-decentralized-2026</guid>
+      <pubDate>Thu, 13 Aug 2026 16:00:00 GMT</pubDate>
+      <description>REG-118642-25 would require front-end service providers to file Form 1099-DA for gross proceeds on digital asset sales beginning with transactions in 2028. Comments are due October 15, 2026.</description>
+    </item>
+    <item>
+      <title>IR-2026-149: Rev. Proc. 2026-28 updates the list of countries with information exchange agreements for bank deposit interest reporting</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/rev-proc-2026-28-information-exchange-agreements-deposit-interest</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/rev-proc-2026-28-information-exchange-agreements-deposit-interest</guid>
+      <pubDate>Tue, 11 Aug 2026 13:00:00 GMT</pubDate>
+      <description>The revenue procedure adds two jurisdictions to the list of countries with which the United States has an automatic exchange relationship for purposes of withholding on nonresident alien deposit interest.</description>
+    </item>
+    <item>
+      <title>IR-2026-147: IRS reminds employers of the September 15 deadline for second-quarter employment tax deposits adjustments</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/employers-september-15-employment-tax-deposit-reminder-2026</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/employers-september-15-employment-tax-deposit-reminder-2026</guid>
+      <pubDate>Fri, 07 Aug 2026 12:00:00 GMT</pubDate>
+      <description>Employers who filed Form 941 with an overpayment should reconcile payroll tax deposits before the deadline to avoid failure-to-deposit penalties.</description>
+    </item>
+    <item>
+      <title>IR-2026-144: Treasury, IRS issue guidance on the clean electricity production credit (section 45Y) domestic content bonus</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/guidance-section-45y-domestic-content-bonus-2026</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/guidance-section-45y-domestic-content-bonus-2026</guid>
+      <pubDate>Tue, 04 Aug 2026 15:30:00 GMT</pubDate>
+      <description>Notice 2026-38 provides an updated safe harbor table of cost percentages for qualified facilities and energy storage technology placed in service after 2026.</description>
+    </item>
+    <item>
+      <title>IR-2026-141: IRS announces tax relief for taxpayers affected by severe storms in Texas</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/tax-relief-texas-severe-storms-july-2026</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/tax-relief-texas-severe-storms-july-2026</guid>
+      <pubDate>Thu, 30 Jul 2026 18:00:00 GMT</pubDate>
+      <description>Individuals and businesses in 14 counties now have until February 2, 2027, to file various federal individual and business tax returns and make tax payments.</description>
+    </item>
+    <item>
+      <title>IR-2026-139: Final regulations issued on the corporate alternative minimum tax (CAMT) applicable financial statement definitions</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/final-regulations-camt-afs-definitions-2026</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/final-regulations-camt-afs-definitions-2026</guid>
+      <pubDate>Mon, 27 Jul 2026 14:00:00 GMT</pubDate>
+      <description>T.D. 10079 adopts the proposed definitions with changes that simplify the treatment of partnership investments for applicable corporations.</description>
+    </item>
+    <item>
+      <title>IR-2026-136: IRS Advisory Council issues mid-year report on transfer pricing documentation burden</title>
+      <link>https://fixtures.taxatlas.test/irs/newsroom/irsac-mid-year-report-transfer-pricing-documentation-2026</link>
+      <guid isPermaLink="true">https://fixtures.taxatlas.test/irs/newsroom/irsac-mid-year-report-transfer-pricing-documentation-2026</guid>
+      <pubDate>Wed, 22 Jul 2026 16:00:00 GMT</pubDate>
+      <description>The report recommends aligning section 6662(e) documentation requirements with the OECD master file and local file format to reduce duplicative compliance.</description>
+    </item>
+  </channel>
+</rss>

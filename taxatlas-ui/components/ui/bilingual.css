@@ -1,0 +1,93 @@
+@scope (.taxatlas-root) {
+/* Bilingual text (components/ui/Bilingual.tsx). Tokens only; no colour fills, no pills.
+   .bi        wrapper (block)            .bi-orig   original line, lang + dir="auto"
+   .bi-en     English line, ink-2        .bi-mark   mono "EN" marker, ink-3
+   .bi-missing "(no English translation yet)" — drawers/detail only
+   .bi-table  table-cell mode: one-line ellipsis per line, English one step down
+   .bi-lang   mono language tag for the Lang column */
+
+.bi { display: block; min-width: 0; }
+.bi-inline { display: inline; }
+.bi-orig { display: block; min-width: 0; unicode-bidi: plaintext; }
+.bi-inline .bi-orig { display: inline; }
+.bi-en { display: block; min-width: 0; color: var(--ink-2); direction: ltr; unicode-bidi: isolate; }
+.bi-inline .bi-en { display: inline; margin-left: 8px; }
+.bi-mark {
+  display: inline-block;
+  margin-right: 6px;
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--ink-3);
+  vertical-align: 0.08em;
+  user-select: none;
+  cursor: help;
+}
+.bi-missing { display: block; margin-top: 1px; font-size: var(--text-xs); color: var(--ink-3); font-style: normal; }
+
+/* Table cells: each line ellipses on its own; full text in the title attribute. The English line is one size step down. */
+.bi-table .bi-orig,
+.bi-table .bi-en,
+.bi-table-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bi-table .bi-en,
+.bi-table-line { font-size: var(--text-xs); line-height: 1.4; margin-top: 1px; }
+.bi-table .bi-en .bi-mark,
+.bi-table-line .bi-mark { font-size: 9.5px; margin-right: 5px; }
+/* `.sub` already sets ink-3 and xs; the English sub line stays readable in ink-2 and keeps the marker. */
+.sub.bi-sub.bi-en { color: var(--ink-2); }
+table.tbl td.title .bi-orig.t { display: block; }
+
+/* Drawer head: same size as the title, weight 400 so the original keeps the hierarchy. */
+.drawer-title .bi-title .bi-en { font-weight: 400; margin-top: 2px; }
+.drawer-title .bi-title .bi-missing { font-weight: 400; }
+
+/* Prose blocks in drawers: paragraphs, same size; English keeps the prose leading. */
+.bi-prose p { margin: 0; }
+.bi-prose .bi-en { margin-top: 6px; }
+.bi-prose .bi-missing { margin-top: 4px; }
+.ta-prose .holding.bi-orig + .bi-en { border-left: 2px solid var(--hairline); padding-left: 10px; }
+
+/* kv definition lists (drawer Overview): the value column stacks both lines. */
+.kv dd .bi { display: block; }
+
+/* Change feed rows: the title column is nowrap/ellipsis; with two lines each line ellipses separately. */
+.ta-change .t .bi-orig,
+.ta-change .t .bi-en { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ta-change .t .bi-en { font-size: var(--text-sm); }
+.ta-change.compact .t .bi-en { font-size: var(--text-xs); }
+.ta-change .d .old,
+.ta-change .d .new { unicode-bidi: plaintext; }
+
+/* Change history rows inside drawers. */
+.ta-ev .t .bi-en { font-size: var(--text-xs); }
+
+/* Jurisdiction sidebar items: clamp applies per line instead of to the pair. */
+.ta-item .t:has(.bi) { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.ta-item .t .bi-orig { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ta-item .t .bi-en { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--text-xs); margin-top: 1px; }
+
+/* Command palette rows grow to fit the English line. */
+.palette-row:has(.bi-en) { height: auto; min-height: 36px; padding-top: 6px; padding-bottom: 6px; }
+.palette-row .t .bi-orig { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.palette-row .t .bi-en { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-xs); }
+.palette-row .t .bi + .s { display: block; margin-left: 0; margin-top: 1px; }
+
+/* Jurisdiction plate ids row: authority + English beneath, baseline-aligned with its neighbours. */
+.ta-plate .ids .bi .bi-en { font-size: var(--text-xs); color: var(--ink-3); }
+.ta-plate .ids .bi .bi-en .bi-mark { font-size: 9.5px; }
+
+/* Lang column tag: mono text, ink-3, never a pill. */
+.bi-lang {
+  font-family: var(--font-mono);
+  font-feature-settings: var(--features-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+  white-space: nowrap;
+  cursor: help;
+}
+
+}
