@@ -8,6 +8,7 @@ import {
   FileText,
   Files,
   FolderKanban,
+  Globe2,
   PenTool,
 } from 'lucide-react'
 
@@ -86,6 +87,12 @@ export const DOCS_SECTIONS: DocSectionConfig[] = [
     title: 'Tasklytic',
     icon: FolderKanban,
     description: 'Projects, tasks, and client delivery',
+  },
+  {
+    slug: 'taxatlas',
+    title: 'TaxAtlas',
+    icon: Globe2,
+    description: 'Global tax intelligence and change monitoring',
   },
   {
     slug: 'prepared-by-client',

@@ -14,6 +14,7 @@ import {
   FileText,
   Files,
   FolderKanban,
+  Globe2,
   LayoutGrid,
   PenTool,
 } from 'lucide-react'
@@ -79,6 +80,15 @@ const PRODUCTS: Product[] = [
     tone: 'indigo',
     status: 'Available now',
     href: '#productivity-suite-showcase',
+  },
+  {
+    name: 'TaxAtlas',
+    description:
+      'Monitor global tax rates, regulations, court decisions, tariffs, and source-backed changes.',
+    icon: Globe2,
+    tone: 'amber',
+    status: 'Available now',
+    href: '#taxatlas-showcase',
   },
   {
     name: 'Prepared by Client (PBC)',

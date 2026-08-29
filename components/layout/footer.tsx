@@ -71,6 +71,9 @@ export default function Footer() {
                 </FooterLink>
               </li>
               <li>
+                <FooterLink href="/#taxatlas-showcase">TaxAtlas</FooterLink>
+              </li>
+              <li>
                 <FooterLink href="/#pbc-showcase">
                   Prepared by Client (PBC)
                 </FooterLink>

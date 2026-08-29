@@ -15,6 +15,7 @@ import {
   Files,
   FolderKanban,
   GraduationCap,
+  Globe2,
   Handshake,
   LogOut,
   Menu,
@@ -108,6 +109,12 @@ const PRODUCT_LINKS: ProductLink[] = [
     href: '/#productivity-suite-showcase',
     description: 'Projects, tasks, forms, time, reporting & AI',
     icon: FolderKanban,
+  },
+  {
+    label: 'TaxAtlas',
+    href: '/#taxatlas-showcase',
+    description: 'Global tax rates, law, tariffs & change monitoring',
+    icon: Globe2,
   },
   {
     label: 'Prepared by Client (PBC)',
@@ -306,7 +313,7 @@ export default function Header() {
                     aria-label="Products"
                     className="absolute left-0 top-full z-10 pt-2"
                   >
-                    <div className="w-80 rounded-xl border border-border bg-popover p-2 shadow-lg">
+                    <div className="max-h-[calc(100dvh-var(--header-height)-1rem)] w-80 overflow-y-auto rounded-xl border border-border bg-popover p-2 shadow-lg">
                       <div className="space-y-1">
                         {PRODUCT_LINKS.map((product) => (
                           <ProductCard

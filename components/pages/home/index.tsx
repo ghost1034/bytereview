@@ -17,6 +17,7 @@ const AutomationFlow = dynamic(() => import("./AutomationFlow"));
 const FormFillShowcase = dynamic(() => import("./FormFillShowcase"));
 const InkwiseShowcase = dynamic(() => import("./InkwiseShowcase"));
 const ProjectManagementShowcase = dynamic(() => import("./ProjectManagementShowcase"));
+const TaxAtlasShowcase = dynamic(() => import("./TaxAtlasShowcase"));
 const PbcShowcase = dynamic(() => import("./PbcShowcase"));
 const EsignShowcase = dynamic(() => import("./EsignShowcase"));
 const ChronaShowcase = dynamic(() => import("./ChronaShowcase"));
@@ -58,6 +59,7 @@ export default function Home() {
       <FormFillShowcase onTryProduct={handleProtectedNavigation} />
       <InkwiseShowcase onTryProduct={handleProtectedNavigation} />
       <ProjectManagementShowcase onTryProduct={handleProtectedNavigation} />
+      <TaxAtlasShowcase onTryProduct={handleProtectedNavigation} />
       <PbcShowcase onTryProduct={handleProtectedNavigation} />
       <EsignShowcase onTryProduct={handleProtectedNavigation} />
       <ChronaShowcase />
