@@ -71,7 +71,7 @@ export default function GlobeBackground() {
   const [paused, setPaused] = useState(false)
   const stopped = paused || reducedMotion
 
-  // The hero's black background stays visible while loading or without WebGL.
+  // The hero's light background stays visible while loading or without WebGL.
   if (!ready || !enabled) return null
 
   return <>

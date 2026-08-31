@@ -24,15 +24,17 @@
 .ph-home .ps-eyebrow__label { gap: .333em; }
 .ph-home .ps-eyebrow__dot { width: .6em; height: .6em; }
 
-/* Keep the redesigned hero composition over a black globe backdrop.
+/* Keep the redesigned hero composition over a light globe backdrop.
    The background also covers loading and WebGL-unavailable states. */
-.ph-home .ps-home-hero { height: 100svh; min-height: 40rem; background: #000; }
-.ph-home .ps-home-hero__shade { pointer-events: none; background: linear-gradient(#0006, #00000080 45%, #0006); }
+.ph-home .ps-home-hero { height: 100svh; min-height: 40rem; background: var(--ph-surface); color: #000; }
+.ph-home .ps-home-hero__shade { pointer-events: none; background: linear-gradient(#ffffffb3, #ffffffe6 45%, #ffffffb3); }
 .ph-home .ps-home-hero__content { padding-block: 7rem 5rem; }
-.ph-home .ps-home-hero__eyebrow { background: none; backdrop-filter: none; padding: .5rem 1rem; font-size: .75rem; text-transform: uppercase; margin-bottom: 1rem; }
-.ph-home .ps-home-hero h1 { font-size: 5rem; line-height: 1; letter-spacing: -.06em; }
-.ph-home .ps-home-hero p { max-width: 40rem; margin-top: 1.5rem; font-size: 1.125rem; color: #fff; }
+.ph-home .ps-home-hero__eyebrow { background: none; border-color: var(--ph-edge); backdrop-filter: none; padding: .5rem 1rem; font-size: .75rem; text-transform: uppercase; margin-bottom: 1rem; }
+.ph-home .ps-home-hero h1 { font-size: 5rem; line-height: 1; letter-spacing: -.06em; background: none; color: #000; mix-blend-mode: normal; }
+.ph-home .ps-home-hero h1 span { background: none; color: inherit; }
+.ph-home .ps-home-hero p { max-width: 40rem; margin-top: 1.5rem; font-size: 1.125rem; color: var(--ph-muted); }
 .ph-home .ps-home-hero__actions { margin-top: 5rem; }
+.ph-home .ps-home-hero .ps-button--ghost { background: #ffffffcc; border-color: var(--ph-edge); color: #000; box-shadow: none; }
 .ps-template .ps-button, .ps-template .ps-button.ps-button--dark { min-height: 3.75rem; border: 2px solid transparent; border-radius: 99rem; padding: .8rem 1.5rem; gap: .5rem; background: linear-gradient(#000, #000) padding-box, var(--ps-holo) border-box; color: #fff; box-shadow: inset 0 0 32px #ffffff66; font-size: 1rem; font-weight: 500; justify-content: center; transition: box-shadow .25s, transform .25s; }
 .ps-template .ps-button:hover { box-shadow: inset 0 0 32px #ffffffa8; transform: translateY(-2px); }
 .ps-template .ps-button > span:first-child { display: inline-flex; gap: .6rem; align-items: center; }
