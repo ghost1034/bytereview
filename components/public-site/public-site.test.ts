@@ -5,7 +5,6 @@ import {
   isPublicSitePath,
   NAV_ITEMS,
   PRODUCTS,
-  shouldShowPublicPreloader,
 } from './content'
 import {
   getPublicPlanFeatures,
@@ -50,13 +49,7 @@ describe('public-site route boundaries', () => {
   })
 })
 
-describe('public-site motion and dynamic states', () => {
-  it('fails open for returning visitors and reduced-motion users', () => {
-    expect(shouldShowPublicPreloader({ isPublicSite: true, hasPreloaded: false, reducedMotion: false })).toBe(true)
-    expect(shouldShowPublicPreloader({ isPublicSite: true, hasPreloaded: true, reducedMotion: false })).toBe(false)
-    expect(shouldShowPublicPreloader({ isPublicSite: true, hasPreloaded: false, reducedMotion: true })).toBe(false)
-  })
-
+describe('public-site dynamic states', () => {
   it('resolves pricing loading, error, empty, and ready states', () => {
     expect(getPublicPricingState({ isLoading: true, isError: false, planCount: 0 })).toBe('loading')
     expect(getPublicPricingState({ isLoading: false, isError: true, planCount: 0 })).toBe('error')

@@ -48,18 +48,6 @@ export function isPublicSitePath(pathname: string) {
   ))
 }
 
-export function shouldShowPublicPreloader({
-  isPublicSite,
-  hasPreloaded,
-  reducedMotion,
-}: {
-  isPublicSite: boolean
-  hasPreloaded: boolean
-  reducedMotion: boolean
-}) {
-  return isPublicSite && !hasPreloaded && !reducedMotion
-}
-
 export const NAV_ITEMS: PublicNavItem[] = [
   { label: 'Products', href: '/features', number: '01' },
   { label: 'Demo', href: '/demo', number: '02' },
