@@ -219,7 +219,8 @@
 .ph-pricing-state a, .ph-pricing-state button { display: inline-flex; align-items: center; gap: .5rem; margin: 1rem .5rem 0; padding: .5rem .75rem; color: #1a1a1a; text-decoration: underline; cursor: pointer; }
 .ph-pricing-state svg { width: 1rem; }
 
-.ph-carousel--people [aria-roledescription='slide'] { flex-basis: 33.333%; }
+.ph-carousel--people { max-width: 54rem; }
+.ph-carousel--people [aria-roledescription='slide'] { flex-basis: 50%; }
 .ph-person { text-align: center; }
 .ph-person__image { position: relative; border-radius: 5rem; aspect-ratio: 594/760; overflow: hidden; background: #e6e6e6; }
 .ph-person__image > img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1); transition: filter .35s; }
@@ -331,7 +332,6 @@
   .ph-pricing-table { gap: .5rem; padding: 1rem; }
   .ph-plan { padding: 1rem; border-radius: 2.5rem; }
   .ph-plan__price strong { font-size: 2.5rem; }
-  .ph-carousel--people [aria-roledescription='slide'] { flex-basis: 50%; }
   .ph-person__image { border-radius: 4rem; }
 }
 @media (max-width: 767px) {
