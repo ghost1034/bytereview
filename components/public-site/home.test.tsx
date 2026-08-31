@@ -4,7 +4,7 @@ import { act, type AnchorHTMLAttributes, type ImgHTMLAttributes } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
-import { HOME_CAPABILITIES, HOME_FAQS, HOME_PEOPLE, HOME_SECTIONS, HOME_STEPS } from './home-content'
+import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATIONS, HOME_INTEGRATION_ROWS, HOME_PEOPLE, HOME_SECTIONS, HOME_STEPS } from './home-content'
 import { PRODUCTS } from './content'
 
 const state = vi.hoisted(() => ({
@@ -80,6 +80,37 @@ describe('template-aligned homepage', () => {
     expect(host.querySelectorAll('.ph-quote > p')).toHaveLength(2)
     expect(host.textContent).not.toMatch(/Conicorn|Get this Template|SAVE 10%/)
     expect(HOME_PEOPLE.every((person) => ['/ian.jpg', '/ray.jpg'].includes(person.image))).toBe(true)
+  })
+
+  it('shows curated OpenConnector providers alongside clearly labeled native and file integrations', async () => {
+    await render(<PublicHome />)
+    const section = host.querySelector('#integrations-section')!
+    const originals = Array.from(section.querySelectorAll('.ph-integration-list:not([aria-hidden="true"]) .ph-integration'))
+    expect(originals.map((node) => node.querySelector('strong')?.textContent)).toEqual(HOME_INTEGRATIONS.map((item) => item.name))
+    expect(HOME_INTEGRATIONS.filter((item) => item.detail === 'OpenConnector').map((item) => item.name)).toEqual([
+      'Dropbox', 'Box', 'Outlook', 'NetSuite', 'Xero', 'Stripe',
+      'HubSpot', 'Airtable', 'Notion', 'Asana', 'Trello', 'ClickUp',
+    ])
+    expect(originals.find((node) => node.textContent?.includes('Microsoft Excel'))?.querySelector('small')?.textContent).toBe('File exports')
+    expect(originals.find((node) => node.textContent?.includes('PDF & Word'))?.querySelector('small')?.textContent).toBe('Document workflows')
+    expect(section.textContent).toContain('Provider availability depends on connection setup and account permissions.')
+  })
+
+  it('distributes integrations across three rows and hides only the seamless animation copies', async () => {
+    await render(<PublicHome />)
+    expect(HOME_INTEGRATION_ROWS).toHaveLength(3)
+    expect(HOME_INTEGRATION_ROWS.flat()).toEqual(HOME_INTEGRATIONS)
+    expect(new Set(HOME_INTEGRATIONS.map((item) => item.name)).size).toBe(HOME_INTEGRATIONS.length)
+    const rows = host.querySelectorAll('#integrations-section .ph-integration-line')
+    expect(rows).toHaveLength(3)
+    rows.forEach((row, index) => {
+      const lists = row.querySelectorAll('.ph-integration-list')
+      expect(lists).toHaveLength(2)
+      expect(lists[0].hasAttribute('aria-hidden')).toBe(false)
+      expect(lists[1].getAttribute('aria-hidden')).toBe('true')
+      expect(lists[0].querySelectorAll('.ph-integration')).toHaveLength(HOME_INTEGRATION_ROWS[index].length)
+      expect(lists[1].innerHTML).toBe(lists[0].innerHTML)
+    })
   })
 
   it('removes the accounting validator from People and uses initials without a portrait in her testimonial', async () => {

@@ -11,7 +11,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useSubscriptionPlans } from '@/hooks/useBilling'
 import { PRODUCTS } from '../content'
 import { getPublicPlanFeatures, getPublicPlanPrice, getPublicPricingState } from '../model'
-import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATIONS, HOME_PEOPLE, HOME_PROOF, HOME_QUOTES, HOME_SECURITY, HOME_VALUES } from '../home-content'
+import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATION_ROWS, HOME_PEOPLE, HOME_PROOF, HOME_QUOTES, HOME_SECURITY, HOME_VALUES } from '../home-content'
 import { AmbientVideo, HomeAboutHeading, HomeCarousel, HomeTimeline, VideoLightbox } from '../home-interactions'
 import { Eyebrow, Reveal, SectionHeading, SiteButton } from '../ui'
 
@@ -138,9 +138,9 @@ export default function PublicHome() {
     </article>)}</HomeCarousel></div></section>
 
     <section className="ph-section" id="integrations-section"><div className="ph-container"><SectionHeading number="006" eyebrow="Connected work" title="Your Technology Ecosystem" /></div>
-      <div className="ph-ecosystem"><div className="ph-integration-lines">{[0, 1, 2].map((row) => <div className="ph-integration-line" key={row}><div className="ph-marquee__track">{[0, 1].map((copy) => <div className="ph-integration-list" key={copy} aria-hidden={copy === 1 || undefined}>{[...HOME_INTEGRATIONS.slice(row * 2), ...HOME_INTEGRATIONS.slice(0, row * 2)].map((item) => { const Icon = item.icon; return <div className="ph-integration" key={item.name}><div><strong>{item.name}</strong><small>{item.detail}</small></div><Icon aria-hidden /></div> })}</div>)}</div></div>)}</div>
+      <div className="ph-ecosystem"><div className="ph-integration-lines">{HOME_INTEGRATION_ROWS.map((items, row) => <div className="ph-integration-line" key={row}><div className="ph-marquee__track">{[0, 1].map((copy) => <div className="ph-integration-list" key={copy} aria-hidden={copy === 1 || undefined}>{items.map((item) => { const Icon = item.icon; return <div className="ph-integration" key={item.name}><div><strong>{item.name}</strong><small>{item.detail}</small></div><Icon aria-hidden /></div> })}</div>)}</div></div>)}</div>
         <Link href="/features" className="ph-ecosystem__hub"><Network aria-hidden /><span>One connected<br />platform</span><ArrowUpRight aria-hidden /></Link>
-      </div><p className="ph-ecosystem__caption">Connect source material, review, and delivery through native integrations and familiar file formats. Keep the tools your team already uses.</p>
+      </div><p className="ph-ecosystem__caption">Keep the tools your team already uses with native integrations, OpenConnector providers, and familiar file formats. Provider availability depends on connection setup and account permissions.</p>
     </section>
 
     <section className="ph-section" id="testimonials-section"><div className="ph-container"><SectionHeading number="007" eyebrow="Professional voices" title="What They’re Saying" />

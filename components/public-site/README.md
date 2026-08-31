@@ -25,7 +25,12 @@ Responsive transitions follow the reference at 991px, 767px, and 479px.
 - One published customer case and two labeled demos replace fictional cases.
 - Published customer quotations stay anonymized. Professional validation is
   descriptive content, not an attributed quotation or invented employment.
-- Integration labels distinguish native connections from file interoperability.
+- The integrations strip includes a curated selection from the OpenConnector
+  provider catalog, with its source revision recorded in `home-content.ts`.
+  Labels distinguish OpenConnector providers, native connections, and file
+  interoperability; provider availability still depends on connection setup
+  and account permissions. Each entry appears in one of three rows, with an
+  accessibility-hidden duplicate for the seamless animation.
 - Genuine portraits and a CPAAutomation orbit graphic replace template branding.
 - The hero uses the contact section's monochrome ambient video, with white text
   and a full-frame dark overlay for contrast instead of a glass panel or globe.

@@ -1,6 +1,8 @@
 import {
-  BrainCircuit, FileSearch2, FileStack, LockKeyhole, Network,
-  ScanSearch, Scale, Send, Settings2, ShieldCheck, Workflow,
+  BookOpen, BrainCircuit, Building2, CheckSquare, CreditCard, Database,
+  FileSearch2, FileStack, FolderOpen, Kanban, ListTodo, LockKeyhole, Mail,
+  Network, NotebookPen, ScanSearch, Scale, Send, Settings2, ShieldCheck,
+  Users, Workflow,
 } from 'lucide-react'
 
 export const HOME_SECTIONS = [
@@ -46,16 +48,36 @@ export const HOME_PROOF = [
   { title: 'Grounded writing. Ready for review.', label: 'Product demonstration · Inkwise', body: 'Turn source material into a professional investor report with an AI-assisted writing workflow.', image: 'case3.png', href: '/demo', linkLabel: 'Explore Inkwise demos', videoId: 'OaloCO7Bh28', metrics: [['Sources', 'in context'], ['Drafts', 'with evidence'], ['Review', 'before delivery']] },
 ]
 
-// Distinguish native connections from file interoperability; do not imply a
-// direct NetSuite connector or copy the template's unsupported vendor list.
+// Curated OpenConnector providers verified against src/providers/*/definition.ts:
+// https://github.com/oomol-lab/open-connector/tree/07167b2b49c94cae8b4e69f08d6a859bcb3d60ce/src/providers
+// Keep broker-backed providers distinct from native connections and file formats.
+// Catalog presence does not imply that a provider's credentials/OAuth are configured.
 export const HOME_INTEGRATIONS = [
   { name: 'Google Drive', detail: 'Import & export', icon: FileStack },
   { name: 'Gmail', detail: 'Attachment workflows', icon: Send },
   { name: 'Slack', detail: 'Hosted Claw', icon: Network },
+  { name: 'Dropbox', detail: 'OpenConnector', icon: FolderOpen },
+  { name: 'Box', detail: 'OpenConnector', icon: FileStack },
+  { name: 'Outlook', detail: 'OpenConnector', icon: Mail },
+  { name: 'NetSuite', detail: 'OpenConnector', icon: Building2 },
+  { name: 'Xero', detail: 'OpenConnector', icon: BookOpen },
+  { name: 'Stripe', detail: 'OpenConnector', icon: CreditCard },
+  { name: 'HubSpot', detail: 'OpenConnector', icon: Users },
+  { name: 'Airtable', detail: 'OpenConnector', icon: Database },
+  { name: 'Notion', detail: 'OpenConnector', icon: NotebookPen },
+  { name: 'Asana', detail: 'OpenConnector', icon: CheckSquare },
+  { name: 'Trello', detail: 'OpenConnector', icon: Kanban },
+  { name: 'ClickUp', detail: 'OpenConnector', icon: ListTodo },
   { name: 'Microsoft Excel', detail: 'File exports', icon: FileSearch2 },
   { name: 'Google Sheets', detail: 'Exported data', icon: Workflow },
   { name: 'PDF & Word', detail: 'Document workflows', icon: ShieldCheck },
 ]
+
+// Each provider appears in one row; only the animation's seamless copy repeats it.
+const integrationsPerRow = Math.ceil(HOME_INTEGRATIONS.length / 3)
+export const HOME_INTEGRATION_ROWS = Array.from({ length: 3 }, (_, row) =>
+  HOME_INTEGRATIONS.slice(row * integrationsPerRow, (row + 1) * integrationsPerRow),
+)
 
 // Existing published customer copy, restored from the pre-redesign homepage.
 // Abbreviated identities must remain abbreviated; no stock portrait is assigned.
