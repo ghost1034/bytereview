@@ -18,9 +18,14 @@ def deployment_tools(tmp_path: Path):
     log = tmp_path / "calls.jsonl"
     stub = f"""#!{sys.executable}
 import json, os, sys
+from pathlib import Path
 args = sys.argv[1:]
 with open(os.environ['DEPLOY_TEST_LOG'], 'a') as out:
     out.write(json.dumps([os.path.basename(sys.argv[0]), *args]) + '\\n')
+if args[:1] == ['alpha']:
+    args = args[1:]
+elif args[:3] == ['monitoring', 'policies', 'list'] and '--help' in args:
+    sys.exit(int(os.environ.get('DEPLOY_TEST_ALPHA_ONLY', '0')))
 if args[:3] == ['run', 'jobs', 'execute'] and args[3] == 'taxatlas-seed':
     sys.exit(int(os.environ.get('DEPLOY_TEST_SEED_EXIT', '0')))
 if args[:3] == ['scheduler', 'jobs', 'describe']:
@@ -29,19 +34,51 @@ if args[:2] == ['auth', 'list']:
     print('deployer@example.com')
 if args[:3] == ['run', 'services', 'describe']:
     print('https://api.example.com')
-if args[:3] == ['monitoring', 'policies', 'list'] and os.environ.get('DEPLOY_TEST_LEGACY_ALERT'):
-    if '--format=value(displayName)' in args:
-        print('TaxAtlas crawl success missing for two hours')
-    if '--format=value(name)' in args:
-        print('projects/test-project/alertPolicies/legacy')
-if args[:3] == ['monitoring', 'policies', 'describe']:
-    print(json.dumps({{
-        'name': 'projects/test-project/alertPolicies/legacy',
-        'displayName': 'TaxAtlas crawl success missing for two hours',
-        'enabled': False,
-        'notificationChannels': ['projects/test-project/notificationChannels/123'],
-        'conditions': [{{'conditionAbsent': {{'duration': '7200s'}}}}],
-    }}))
+if args[:2] == ['monitoring', 'policies'] and '--help' not in args:
+    state_path = Path(os.environ['DEPLOY_TEST_LOG']).with_suffix('.policies.json')
+    if state_path.exists():
+        policies = json.loads(state_path.read_text())
+    else:
+        policies = {{}}
+        for kind, hours in [('legacy', 'two'), ('invalid', '26'), ('current', '25')]:
+            if kind not in os.environ.get('DEPLOY_TEST_ALERTS', '').split(','):
+                continue
+            name = 'projects/test-project/alertPolicies/' + kind
+            policies[name] = {{
+                'name': name,
+                'displayName': 'TaxAtlas crawl success missing for ' + hours + ' hours',
+                'enabled': os.environ.get('DEPLOY_TEST_ALERT_ENABLED') == '1',
+                'notificationChannels': ['projects/test-project/notificationChannels/123'],
+                'userLabels': {{'owner': 'taxatlas'}},
+                'conditions': [{{'conditionAbsent': {{'duration': '7200s'}}}}],
+            }}
+    action = args[2]
+    if action == 'list':
+        for policy in policies.values():
+            if '--format=value(displayName)' in args:
+                print(policy['displayName'])
+            elif '--filter=displayName="' + policy['displayName'] + '"' in args:
+                print(policy['name'])
+    elif action == 'describe':
+        print(json.dumps(policies[args[3]]))
+    elif action in ('create', 'update'):
+        if '--no-enabled' in args:
+            policies[args[3]]['enabled'] = False
+        else:
+            policy = next((json.loads(a.removeprefix('--policy=')) for a in args if a.startswith('--policy=')), None)
+            if policy is not None:
+                for condition in policy['conditions']:
+                    absent = condition.get('conditionAbsent')
+                    if absent and int(absent['duration'].removesuffix('s')) > 84600:
+                        sys.exit('Metric absence durations longer than 23h30m are not supported')
+                if os.environ.get('DEPLOY_TEST_POLICY_EXIT') == '1':
+                    sys.exit('Policy update failed')
+                for arg in args:
+                    if arg.startswith('--notification-channels='):
+                        policy['notificationChannels'] = arg.split('=', 1)[1].split(',')
+                name = args[3] if action == 'update' else 'projects/test-project/alertPolicies/new'
+                policies[name] = {{**policy, 'name': name}}
+    state_path.write_text(json.dumps(policies))
 """
     for tool in ("gcloud", "docker"):
         executable = tmp_path / tool
@@ -111,21 +148,96 @@ def test_jobs_have_runtime_config_and_seed_before_schedules(deployment_tools, sc
     for _, command in schedules:
         assert f"--schedule={expected[command[5]]}" in command
         assert "--time-zone=UTC" in command
-    absence = next(c for c in calls if "--if=absent" in c)
-    assert "--duration=93600s" in absence
+    policy = crawl_success_policy(calls)
+    assert_daily_success_condition(policy)
 
 
-def test_daily_deploy_migrates_old_alert_without_losing_channels_or_enabled_state(deployment_tools):
-    result, calls = deployment_tools("deploy-taxatlas-jobs.sh", DEPLOY_TEST_LEGACY_ALERT="1")
+def crawl_success_policy(calls):
+    return next(
+        json.loads(arg.removeprefix("--policy="))
+        for call in calls for arg in call if arg.startswith("--policy=")
+    )
+
+
+def assert_daily_success_condition(policy):
+    assert policy["displayName"] == "TaxAtlas crawl success missing for 25 hours"
+    assert len(policy["conditions"]) == 1
+    condition = policy["conditions"][0]
+    assert "conditionAbsent" not in condition
+    promql = condition["conditionPrometheusQueryLanguage"]
+    assert promql["duration"] == "0s"
+    assert promql["evaluationInterval"] == "300s"
+    assert promql["disableMetricValidation"] is True
+    assert promql["query"] == (
+        '(sum(sum_over_time(logging_googleapis_com:user_taxatlas_crawl_successes'
+        '{monitored_resource="cloud_run_job",project_id="test-project"}[25h])) or vector(0)) == 0'
+    )
+
+
+@pytest.mark.parametrize("existing,selected", [
+    ("legacy", "legacy"),
+    ("invalid", "invalid"),
+    ("current", "current"),
+    ("legacy,invalid", "invalid"),
+    ("legacy,invalid,current", "current"),
+])
+@pytest.mark.parametrize("enabled", ["0", "1"])
+def test_daily_deploy_migrates_old_alert_without_losing_channels_or_enabled_state(
+    deployment_tools, existing, selected, enabled
+):
+    result, calls = deployment_tools(
+        "../infra/taxatlas/configure-monitoring.sh",
+        DEPLOY_TEST_ALERTS=existing, DEPLOY_TEST_ALERT_ENABLED=enabled,
+    )
     assert result.returncode == 0, result.stderr
-    update = next(c for c in calls if c[1:4] == ["monitoring", "policies", "update"])
-    assert update[4] == "projects/test-project/alertPolicies/legacy"
-    policy = json.loads(next(arg.removeprefix("--policy=") for arg in update if arg.startswith("--policy=")))
-    assert policy["displayName"] == "TaxAtlas crawl success missing for 26 hours"
-    assert policy["conditions"][0]["conditionAbsent"]["duration"] == "93600s"
+    updates = [c for c in calls if c[1:4] == ["monitoring", "policies", "update"]]
+    assert updates[0][4] == f"projects/test-project/alertPolicies/{selected}"
+    policy = crawl_success_policy(calls)
+    assert_daily_success_condition(policy)
     assert policy["notificationChannels"] == ["projects/test-project/notificationChannels/123"]
-    assert policy["enabled"] is False
+    assert policy["enabled"] is (enabled == "1")
+    assert policy["userLabels"] == {"owner": "taxatlas"}
+    assert {c[4].rsplit("/", 1)[-1] for c in updates[1:]} == set(existing.split(",")) - {selected}
+    assert all("--no-enabled" in c for c in updates[1:])
     assert not any("--if=absent" in c for c in calls)
+
+
+@pytest.mark.parametrize("alpha_only", ["0", "1"])
+def test_monitoring_creates_daily_alert_with_channels_and_reruns_without_duplicates(
+    deployment_tools, alpha_only
+):
+    channels = "projects/test-project/notificationChannels/456"
+    result, calls = deployment_tools(
+        "../infra/taxatlas/configure-monitoring.sh",
+        TAXATLAS_NOTIFICATION_CHANNELS=channels, DEPLOY_TEST_ALPHA_ONLY=alpha_only,
+    )
+    assert result.returncode == 0, result.stderr
+    policy = crawl_success_policy(calls)
+    assert_daily_success_condition(policy)
+    assert policy["enabled"] is True
+    create = next(c for c in calls if any(a.startswith("--policy=") for a in c))
+    assert "create" in create
+    assert f"--notification-channels={channels}" in create
+    result, calls = deployment_tools(
+        "../infra/taxatlas/configure-monitoring.sh", DEPLOY_TEST_ALPHA_ONLY=alpha_only
+    )
+    assert result.returncode == 0, result.stderr
+    policy_calls = [c for c in calls if any(a.startswith("--policy=") for a in c)]
+    assert len(policy_calls) == 2
+    assert "update" in policy_calls[1]
+    assert "projects/test-project/alertPolicies/new" in policy_calls[1]
+    updated_policy = crawl_success_policy(policy_calls[1:])
+    assert_daily_success_condition(updated_policy)
+    assert updated_policy["notificationChannels"] == [channels]
+
+
+def test_monitoring_keeps_old_alerts_if_replacement_fails(deployment_tools):
+    result, calls = deployment_tools(
+        "../infra/taxatlas/configure-monitoring.sh",
+        DEPLOY_TEST_ALERTS="legacy,current", DEPLOY_TEST_POLICY_EXIT="1",
+    )
+    assert result.returncode != 0
+    assert not any("--no-enabled" in c for c in calls)
 
 
 def test_failed_seed_does_not_activate_schedules(deployment_tools):

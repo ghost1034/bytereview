@@ -82,8 +82,21 @@ schedules. The endpoint reports deployed configuration, not live Cloud Scheduler
 health or operator changes made in the Cloud console. Existing Scheduler IDs
 (including `hourly`, `six-hourly`, and `weekly` in their names) are retained and
 updated in place to avoid leaving duplicate triggers. Deployment explicitly sets
-the timezone to UTC and migrates the old two-hour crawl-success alert to 26 hours,
-allowing two hours beyond the daily interval before alerting.
+the timezone to UTC and migrates the old two-hour or 26-hour crawl-success alert
+to a 25-hour PromQL success-count check, allowing one hour beyond the daily
+interval before alerting. Google Monitoring caps metric-absence durations at
+23h30m and [PromQL queries on user-defined log metrics at 25 hours](https://cloud.google.com/monitoring/promql/promql-in-alerting).
+The query runs every five minutes, sums successes across this project's Cloud Run
+Jobs, and treats zero counts or entirely missing data as no success (including
+before the first successful crawl). Migration preserves notification channels and
+enabled state, and disables older duplicate alerts only after the replacement
+is installed successfully.
+
+To repair monitoring alone without rebuilding images or rerunning jobs:
+
+```bash
+PROJECT_ID=ace-rider-383100 ./infra/taxatlas/configure-monitoring.sh
+```
 
 To repair or update jobs without redeploying the API or frontend, use existing
 image tags (build the browser image first if necessary):
