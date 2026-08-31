@@ -4,7 +4,7 @@
    Two layers:
      1. PRIMITIVES + SEMANTIC ALIASES on .taxatlas-root (dark default), overridden for
         light by  [data-theme="light"]  and by  @media (prefers-color-scheme: light)
-        when [data-theme="auto"] (or no attribute) is set on <html>.
+        when [data-theme="auto"] (or no attribute) is set on .taxatlas-root.
      2. An  @theme inline  block that exposes the semantic aliases to Tailwind v4
         utilities (bg-surface-1, text-ink-2, border-hairline, font-mono, …).
         "inline" makes the utility resolve to var(--…) so theme switching works
@@ -296,8 +296,9 @@
 
 /* Auto mode: follow the OS when the app has not pinned a theme. */
 @media (prefers-color-scheme: light) {
-  .taxatlas-root:not([data-theme="dark"]):not([data-theme="light"]),
-  [data-theme="auto"] {
+  /* Match the explicit theme's specificity so the palette rules below can override the default ramp. */
+  .taxatlas-root:not([data-theme]),
+  .taxatlas-root[data-theme="auto"] {
     color-scheme: light;
     --surface-0: var(--paper-1);
     --surface-1: var(--paper-0);
@@ -524,7 +525,7 @@
   text-rendering: optimizeLegibility;
 }
 
-.taxatlas-root .font-mono, .num, [data-numeric], code, kbd, samp {
+.taxatlas-root :is(.font-mono, .num, [data-numeric], code, kbd, samp) {
   font-family: var(--font-mono);
   font-feature-settings: var(--features-mono);
   font-variant-numeric: tabular-nums slashed-zero;

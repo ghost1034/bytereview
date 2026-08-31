@@ -18,10 +18,12 @@ export default defineConfig({
       enabled: true,
       provider: 'playwright',
       headless: true,
-      instances: [{
+      instances: (['dark', 'light'] as const).map((colorScheme) => ({
         browser: 'chromium',
+        name: `chromium-system-${colorScheme}`,
+        context: { colorScheme },
         launch: existsSync(localChrome) ? { executablePath: localChrome } : {},
-      }],
+      })),
     },
   },
 })

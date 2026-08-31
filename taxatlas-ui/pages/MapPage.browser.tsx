@@ -105,7 +105,7 @@ afterEach(() => {
 })
 
 describe('TaxAtlas map palettes', () => {
-  it.each(['dark', 'light'] as const)('updates map and legend for every palette in %s mode', async (theme) => {
+  it.each(['dark', 'light', 'auto'] as const)('updates map and legend for every palette in %s mode', async (theme) => {
     const htmlAttributes = document.documentElement.outerHTML.split('>')[0]
     setTheme(theme)
     const screen = render(<Harness />)
@@ -118,6 +118,34 @@ describe('TaxAtlas map palettes', () => {
       expect(new URLSearchParams(navigation.search).get('palette')).toBe(id)
     }
     expect(document.documentElement.outerHTML.split('>')[0]).toBe(htmlAttributes)
+  })
+
+  it('allows palette changes when the container has no explicit theme', async () => {
+    const screen = render(<Harness />)
+    document.querySelector('.taxatlas-root')!.removeAttribute('data-theme')
+    await screen.getByRole('button', { name: 'Palette: Magma' }).click()
+    await expectPalette('magma')
+  })
+
+  it('keeps automatic-theme colors and numeric typography inside TaxAtlas', () => {
+    const screen = render(
+      <>
+        <div data-testid="other-product" data-theme="auto">
+          <code>External code</code>
+          <kbd>External shortcut</kbd>
+          <samp>External sample</samp>
+          <span className="num">External number</span>
+          <span data-numeric>External numeric data</span>
+        </div>
+        <div className="taxatlas-root" data-theme="auto"><code>TaxAtlas code</code></div>
+      </>,
+    )
+    const external = screen.getByTestId('other-product').element()
+    expect(getComputedStyle(external).getPropertyValue('--ink-1')).toBe('')
+    for (const element of external.children) {
+      expect(getComputedStyle(element).fontVariantNumeric).toBe('normal')
+    }
+    expect(getComputedStyle(screen.getByText('TaxAtlas code').element()).fontVariantNumeric).toBe('tabular-nums slashed-zero')
   })
 
   it('restores the stored palette after the TaxAtlas container is remounted', async () => {
