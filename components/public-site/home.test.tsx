@@ -95,6 +95,17 @@ describe('template-aligned homepage', () => {
     expect(validation?.textContent).toContain('healthcare-industry financial documents')
   })
 
+  it('keeps a labeled email link and decorative arrow on each founder card', async () => {
+    await render(<PublicHome />)
+    const links = host.querySelectorAll<HTMLAnchorElement>('#team-section .ph-person__image a')
+    expect(links).toHaveLength(HOME_PEOPLE.length)
+    HOME_PEOPLE.forEach((person, index) => {
+      expect(links[index].textContent).toBe(person.action)
+      expect(links[index].getAttribute('href')).toBe(person.href)
+      expect(links[index].querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
+    })
+  })
+
   it('uses initials for the accounting validation on the About page', async () => {
     await render(<PublicAbout />)
     expect(host.textContent).toContain('R. S. · Senior Director, Accounting')
