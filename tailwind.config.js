@@ -23,7 +23,7 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: [
-          "var(--font-ibm-plex-sans)",
+          "var(--font-instrument-sans)",
           "ui-sans-serif",
           "system-ui",
           "-apple-system",

@@ -301,7 +301,7 @@
 .ps-footer-signoff__brand img { display: block; width: 100%; height: auto; }
 .ps-footer-signoff > div { display: flex; justify-content: space-between; gap: 1rem; color: #fffc; font-size: .8rem; }
 .ps-footer-signoff > div > span:last-child { display: flex; gap: 1.5rem; }
-.ps-video-dialog { z-index: 100; width: 90vw; max-width: 64rem; border: 1px solid #525252; border-radius: 2rem !important; background: #1a1a1a; color: white; padding: 2rem; font-family: 'Public Geist', Arial, sans-serif; }
+.ps-video-dialog { z-index: 100; width: 90vw; max-width: 64rem; border: 1px solid #525252; border-radius: 2rem !important; background: #1a1a1a; color: white; padding: 2rem; font-family: var(--font-instrument-sans), Arial, sans-serif; }
 .ps-video-dialog iframe { width: 100%; aspect-ratio: 16/9; border: 0; }
 
 @media (max-width: 991px) {

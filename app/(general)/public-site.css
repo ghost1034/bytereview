@@ -1,29 +1,5 @@
 @import './public-home.css';
 
-@font-face {
-  font-family: 'Public Geist';
-  src: url('/public-site/geist-regular.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Public Geist';
-  src: url('/public-site/geist-medium.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'Public Geist';
-  src: url('/public-site/geist-semibold.ttf') format('truetype');
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-}
-
 .ps-site {
   --ps-black: #0a0a0a;
   --ps-ink: #1a1a1a;
@@ -38,7 +14,7 @@
   overflow: clip;
   background: var(--ps-white);
   color: var(--ps-ink);
-  font-family: 'Public Geist', Arial, sans-serif;
+  font-family: var(--font-instrument-sans), Arial, sans-serif;
   font-size: 16px;
   line-height: 1.375;
   letter-spacing: -.025em;
@@ -79,7 +55,7 @@
 .ps-button--ghost { border-color: rgba(255,255,255,.35); background: rgba(255,255,255,.08); color: #fff; backdrop-filter: blur(12px); }
 .ps-button--ghost .ps-button__icon { background: rgba(255,255,255,.18); }
 
-.ps-menu-dialog { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100dvh !important; max-width: none !important; max-height: none !important; transform: none !important; border: 0 !important; border-radius: 0 !important; padding: 1.25rem clamp(1.25rem, 5vw, 5rem) 2rem !important; display: flex !important; flex-direction: column; background: #0c0c0c !important; color: #fff !important; font-family: 'Public Geist', Arial, sans-serif; }
+.ps-menu-dialog { position: fixed !important; inset: 0 !important; width: 100vw !important; height: 100dvh !important; max-width: none !important; max-height: none !important; transform: none !important; border: 0 !important; border-radius: 0 !important; padding: 1.25rem clamp(1.25rem, 5vw, 5rem) 2rem !important; display: flex !important; flex-direction: column; background: #0c0c0c !important; color: #fff !important; font-family: var(--font-instrument-sans), Arial, sans-serif; }
 .ps-menu-dialog > button.absolute { display: none; }
 .ps-menu-dialog__top { display: flex; align-items: center; justify-content: space-between; }
 .ps-menu-close { padding: .75rem 0; font-size: .82rem; }
@@ -271,7 +247,7 @@
 .ps-pricing-card { min-height: 43rem; border: 1px solid var(--ps-grey-7); border-radius: 2.5rem; padding: 1.6rem; display: flex; flex-direction: column; background: #fff; }
 .ps-pricing-card--featured { background: var(--ps-ink); color: #fff; }
 .ps-pricing-card__top { display: flex; align-items: center; justify-content: space-between; color: var(--ps-grey-4); font: .68rem monospace; }
-.ps-pricing-card__top b { border-radius: 999px; padding: .4rem .65rem; display: flex; align-items: center; gap: .35rem; background: var(--ps-holo); color: #111; font: 500 .68rem 'Public Geist'; }
+.ps-pricing-card__top b { border-radius: 999px; padding: .4rem .65rem; display: flex; align-items: center; gap: .35rem; background: var(--ps-holo); color: #111; font: 500 .68rem var(--font-instrument-sans); }
 .ps-pricing-card__top b svg { width: .75rem; }
 .ps-pricing-card h2 { margin: 3.5rem 0 .5rem; font-size: 2.5rem; font-weight: 500; letter-spacing: -.06em; }
 .ps-pricing-card > p { min-height: 3rem; margin: 0; color: var(--ps-grey-3); font-size: .85rem; }
@@ -571,7 +547,7 @@
   .ps-reveal { opacity: 1; filter: none; transform: none; }
 }
 
-.ps-cookie-banner { position: fixed; z-index: 120; right: 1rem; bottom: 1rem; width: min(calc(100% - 2rem), 29rem); border: 1px solid rgba(255,255,255,.18); border-radius: 1.6rem; padding: 1.4rem; background: rgba(18,18,18,.94); color: #fff; font-family: 'Public Geist', Arial, sans-serif; box-shadow: 0 1.5rem 5rem rgba(0,0,0,.28); backdrop-filter: blur(18px); }
+.ps-cookie-banner { position: fixed; z-index: 120; right: 1rem; bottom: 1rem; width: min(calc(100% - 2rem), 29rem); border: 1px solid rgba(255,255,255,.18); border-radius: 1.6rem; padding: 1.4rem; background: rgba(18,18,18,.94); color: #fff; font-family: var(--font-instrument-sans), Arial, sans-serif; box-shadow: 0 1.5rem 5rem rgba(0,0,0,.28); backdrop-filter: blur(18px); }
 .ps-cookie-banner > button { position: absolute; right: 1rem; top: 1rem; border: 0; background: transparent; color: rgba(255,255,255,.6); }
 .ps-cookie-banner > button svg { width: 1rem; }
 .ps-cookie-banner > span { color: rgba(255,255,255,.45); font-size: .65rem; text-transform: uppercase; letter-spacing: .08em; }
@@ -581,6 +557,6 @@
 .ps-cookie-banner > div { margin-top: 1.2rem; display: flex; gap: .4rem; }
 .ps-cookie-banner > div button { flex: 1; border: 1px solid rgba(255,255,255,.2); border-radius: 999px; padding: .65rem .5rem; background: transparent; color: #fff; font-size: .68rem; }
 .ps-cookie-banner > div button:last-child { background: #fff; color: #111; }
-.ps-cookie-preferences { border: 0 !important; border-radius: 1.6rem !important; padding: 1.4rem !important; background: #f2f2f2 !important; color: #1a1a1a !important; font-family: 'Public Geist', Arial, sans-serif !important; }
+.ps-cookie-preferences { border: 0 !important; border-radius: 1.6rem !important; padding: 1.4rem !important; background: #f2f2f2 !important; color: #1a1a1a !important; font-family: var(--font-instrument-sans), Arial, sans-serif !important; }
 .ps-cookie-preferences section { border-color: #d7d7d7 !important; border-radius: 1rem !important; background: #fff !important; }
 .ps-cookie-preferences button { border-radius: 999px !important; }

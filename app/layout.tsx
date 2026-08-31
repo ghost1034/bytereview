@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import {
-  IBM_Plex_Sans,
+  Instrument_Sans,
   IBM_Plex_Mono,
   Dancing_Script,
   Caveat,
@@ -10,15 +10,14 @@ import {
 import './globals.css'
 import { Providers } from './providers'
 
-const ibmPlexSans = IBM_Plex_Sans({
+const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-ibm-plex-sans',
+  variable: '--font-instrument-sans',
   display: 'swap',
 })
 
 // Used for the hero eyebrow, metric numerals, and small data labels — a "ledger /
-// precision" accent face. Same superfamily as Plex Sans, so the metrics pair cleanly.
+// precision" accent face.
 const ibmPlexMono = IBM_Plex_Mono({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
@@ -139,7 +138,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${ibmPlexSans.variable} ${ibmPlexMono.variable} ${dancingScript.variable} ${caveat.variable} ${greatVibes.variable} ${homemadeApple.variable}`}
+      className={`${instrumentSans.variable} ${ibmPlexMono.variable} ${dancingScript.variable} ${caveat.variable} ${greatVibes.variable} ${homemadeApple.variable}`}
     >
       <body className="font-sans antialiased">
         <script
