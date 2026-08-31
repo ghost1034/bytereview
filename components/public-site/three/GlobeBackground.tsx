@@ -9,10 +9,11 @@ import { clone as cloneSkeleton } from 'three/examples/jsm/utils/SkeletonUtils.j
 
 import { ThreeCanvas } from '@/components/three/ThreeCanvas'
 import { useReduced3D } from '@/components/three/useReduced3D'
+import { getGlobeRadius } from './globe-framing'
 
 const MODEL_URL = '/models/globe.glb'
 
-// Normalize the sphere to a unit radius, then frame it to cover the hero.
+// Normalize the sphere to a unit radius, then fit it within the hero.
 const TARGET_SIZE = 2
 const GROUP_Z = -0.5
 const CAMERA_Z = 6
@@ -46,10 +47,7 @@ function GlobeModel() {
 function GlobeScene({ paused }: { paused: boolean }) {
   const group = useRef<THREE.Group>(null)
   const { width, height } = useThree((state) => state.size)
-  // Fill the longer hero dimension with a little overscan. Account for the
-  // sphere's perspective silhouette so wide screens never put the camera inside it.
-  const slope = Math.tan(THREE.MathUtils.degToRad(CAMERA_FOV / 2)) * Math.max(width / height, 1) * 1.1
-  const radius = (CAMERA_Z - GROUP_Z) * slope / Math.sqrt(1 + slope * slope)
+  const radius = getGlobeRadius(width, height, CAMERA_Z - GROUP_Z, CAMERA_FOV)
   useFrame((_, delta) => {
     if (!group.current || paused) return
     // Avoid a rotation jump when returning to a backgrounded tab.
@@ -67,7 +65,7 @@ function GlobeScene({ paused }: { paused: boolean }) {
   </>
 }
 
-/** Decorative globe centered and scaled across the entire hero. */
+/** Decorative globe centered and contained within the hero. */
 export default function GlobeBackground() {
   const { ready, enabled, quality, reducedMotion } = useReduced3D()
   const [paused, setPaused] = useState(false)
