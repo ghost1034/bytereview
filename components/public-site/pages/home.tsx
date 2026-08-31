@@ -13,7 +13,7 @@ import { useSubscriptionPlans } from '@/hooks/useBilling'
 import { PRODUCTS } from '../content'
 import { getPublicPlanFeatures, getPublicPlanPrice, getPublicPricingState } from '../model'
 import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATIONS, HOME_PEOPLE, HOME_PROOF, HOME_QUOTES, HOME_SECURITY, HOME_VALUES } from '../home-content'
-import { HomeCarousel, HomeTimeline, VideoLightbox } from '../home-interactions'
+import { HomeAboutHeading, HomeCarousel, HomeTimeline, VideoLightbox } from '../home-interactions'
 import { Eyebrow, Reveal, SectionHeading, SiteButton } from '../ui'
 
 const GlobeBackground = dynamic(() => import('../three/GlobeBackground'), { ssr: false })
@@ -93,7 +93,7 @@ export default function PublicHome() {
 
     <section className="ph-section ph-about" id="about-section">
       <div className="ph-container">
-        <Reveal className="ph-about__intro"><Eyebrow number="001">Who we are</Eyebrow><h2>We bring document intelligence, professional writing, engagement operations, analytics, and AI agents into one connected platform.</h2></Reveal>
+        <Reveal className="ph-about__intro"><Eyebrow number="001">Who we are</Eyebrow><HomeAboutHeading>We bring document intelligence, professional writing, engagement operations, analytics, and AI agents into one connected platform.</HomeAboutHeading></Reveal>
         <Reveal className="ph-about__media">
           <div className="ph-statistics" aria-label="11 purpose-built products, 3 professional domains, 1 connected platform"><div className="ph-marquee__track" aria-hidden>{[0, 1].map((copy) => <div key={copy}><span>11 <b>products</b></span><span>3 <b>professional domains</b></span><span>1 <b>connected platform</b></span></div>)}</div></div>
           <VideoLightbox videoId="tNwpajJZ8zA" title="Build a P&L in two minutes" className="ph-about__video">

@@ -4,9 +4,40 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Play, Pause } from 'lucide-react'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { SplitText } from 'gsap/SplitText'
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious, type CarouselApi } from '@/components/ui/carousel'
 import { HOME_STEPS } from './home-content'
+
+export function HomeAboutHeading({ children }: { children: string }) {
+  const ref = useRef<HTMLHeadingElement>(null)
+
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    gsap.registerPlugin(ScrollTrigger, SplitText)
+    const media = gsap.matchMedia()
+    media.add('(prefers-reduced-motion: no-preference)', () => {
+      const split = SplitText.create(node, { type: 'words,chars', tag: 'span' })
+      // Match the template's character-by-character reveal as the heading crosses the viewport.
+      gsap.fromTo(split.chars, { opacity: .1 }, {
+        opacity: 1,
+        duration: .01,
+        stagger: { amount: .5 },
+        ease: 'none',
+        scrollTrigger: {
+          trigger: node,
+          start: 'clamp(top bottom)',
+          end: 'clamp(top top)',
+          scrub: .8,
+        },
+      })
+    }, node)
+    return () => media.revert()
+  }, [children])
+
+  return <h2 ref={ref}>{children}</h2>
+}
 
 export function AmbientVideo({ name, className }: { name: 'hero' | 'footer'; className: string }) {
   const ref = useRef<HTMLVideoElement>(null)
