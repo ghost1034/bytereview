@@ -95,11 +95,27 @@ export function HomeTimeline() {
     const media = gsap.matchMedia()
     media.add('(prefers-reduced-motion: no-preference)', () => {
       const items = Array.from(node.querySelectorAll<HTMLElement>('.ph-step'))
-      items.forEach((item) => ScrollTrigger.create({
-        trigger: item, start: 'top center', end: 'bottom center',
-        toggleClass: { targets: item, className: 'is-active' },
-      }))
-      gsap.fromTo(node.querySelector('.ph-timeline__fill'), { scaleY: 0 }, { scaleY: 1, ease: 'none', scrollTrigger: { trigger: node, start: 'top center', end: 'bottom center', scrub: true } })
+      // The template uses one five-part timeline: each completed step stays
+      // active, and the line reaches the final node at four-fifths progress.
+      const timeline = gsap.timeline({
+        scrollTrigger: {
+          trigger: node,
+          start: 'clamp(top center)',
+          end: 'clamp(bottom center)',
+          scrub: .8,
+        },
+      })
+      timeline.fromTo(node.querySelector('.ph-timeline__fill'), { height: '10%' }, {
+        height: '90%', duration: items.length - 1, ease: 'none',
+      }).to({}, { duration: 1 })
+
+      const updateSteps = () => {
+        items.forEach((item, index) => item.classList.toggle('is-active', index <= timeline.time()))
+      }
+      timeline.eventCallback('onUpdate', updateSteps)
+      updateSteps()
+
+      return () => items.forEach((item, index) => item.classList.toggle('is-active', index === 0))
     }, node)
     return () => media.revert()
   }, [])
@@ -107,7 +123,7 @@ export function HomeTimeline() {
   return <ol ref={ref} className="ph-timeline">
     {HOME_STEPS.map((step, index) => {
       const Icon = step.icon
-      return <li className="ph-step" key={step.title}>
+      return <li className={`ph-step${index === 0 ? ' is-active' : ''}`} key={step.title}>
         <div className="ph-step__symbol"><span><Icon aria-hidden /></span><b>{String(index + 1).padStart(2, '0')}</b></div>
         <div className="ph-step__node" aria-hidden><span /></div>
         <div className="ph-step__copy"><h3>{step.title}</h3><p>{step.body}</p></div>
