@@ -133,14 +133,18 @@ export function PublicConsulting() {
           <SectionHeading number="003" eyebrow="What we build" title="Custom systems for high-stakes professional work." />
           <div className="ps-capability-grid">
             {[
-              [BrainCircuit, 'AI copilots and agents', 'Domain-aware assistants, review systems, and autonomous workers with explicit controls.'],
-              [Workflow, 'Workflow automation', 'Cross-system automation with human review at the points where judgment matters.'],
-              [FileSearch2, 'Document intelligence', 'Extraction, classification, validation, and downstream action for complex document sets.'],
-              [ShieldCheck, 'LLM governance', 'Risk tiers, policies, approval workflows, evaluation, and operational control design.'],
-            ].map(([Icon, title, body], index) => {
-              const CardIcon = Icon as typeof BrainCircuit
-              return <Reveal className="ps-simple-card" key={title as string}><div><span>0{index + 1}</span><CardIcon /></div><h3>{title as string}</h3><p>{body as string}</p></Reveal>
-            })}
+              { icon: BrainCircuit, title: 'AI copilots and agents', body: 'Domain-aware assistants, review systems, and autonomous workers with explicit controls.' },
+              { icon: Workflow, title: 'Workflow automation', body: 'Cross-system automation with human review at the points where judgment matters.' },
+              { icon: FileSearch2, title: 'Document intelligence', body: 'Extraction, classification, validation, and downstream action for complex document sets.' },
+              { icon: ShieldCheck, title: 'LLM governance', body: 'Risk tiers, policies, approval workflows, evaluation, and operational control design.', href: '/consulting/llm-governance' },
+            ].map(({ icon: CardIcon, title, body, href }, index) => (
+              <Reveal className="ps-simple-card" key={title}>
+                <div><span>0{index + 1}</span><CardIcon /></div>
+                <h3>{title}</h3>
+                <p>{body}</p>
+                {href && <Link href={href} className="ps-simple-card__link" aria-label="View the LLM governance slide deck">View the slide deck <ArrowUpRight aria-hidden /></Link>}
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>

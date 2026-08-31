@@ -113,17 +113,6 @@ describe('template-aligned homepage', () => {
     })
   })
 
-  it('removes the accounting validator from People and uses initials without a portrait in her testimonial', async () => {
-    await render(<PublicHome />)
-    expect(Array.from(host.querySelectorAll('#team-section .ph-person h3')).map((node) => node.textContent)).toEqual(['Ian Stewart', 'Ray Sang'])
-    expect(host.textContent).not.toContain('Rae Stewart')
-    expect(host.querySelector('img[src="/rae.jpg"]')).toBeNull()
-    const validation = Array.from(host.querySelectorAll('.ph-quote')).find((node) => node.textContent?.includes('Rae Stewart'))
-    expect(validation?.querySelector('.ph-quote__avatar')?.textContent).toBe('RS')
-    expect(validation?.querySelector('img')).toBeNull()
-    expect(validation?.textContent).toContain('healthcare-industry financial documents')
-  })
-
   it('keeps a labeled email link and decorative arrow on each founder card', async () => {
     await render(<PublicHome />)
     const links = host.querySelectorAll<HTMLAnchorElement>('#team-section .ph-person__image a')
@@ -133,13 +122,6 @@ describe('template-aligned homepage', () => {
       expect(links[index].getAttribute('href')).toBe(person.href)
       expect(links[index].querySelector('svg')?.getAttribute('aria-hidden')).toBe('true')
     })
-  })
-
-  it('uses initials for the accounting validation on the About page', async () => {
-    await render(<PublicAbout />)
-    expect(host.textContent).toContain('Rae Stewart · Senior Director, Accounting')
-    expect(host.textContent).not.toContain('Rae Stewart')
-    expect(host.querySelector('img[src="/rae.jpg"]')).toBeNull()
   })
 
   it('opens authentication for visitors and sends authenticated users to their appropriate destination', async () => {

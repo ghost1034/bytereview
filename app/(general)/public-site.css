@@ -171,6 +171,10 @@
 .ps-simple-card > div svg { width: 2rem; height: 2rem; color: var(--ps-ink); }
 .ps-simple-card h3 { margin: auto 0 .6rem; font-size: 2rem; font-weight: 500; letter-spacing: -.055em; }
 .ps-simple-card p { margin: 0; color: var(--ps-grey-3); }
+.ps-simple-card__link { align-self: flex-start; min-height: 2.75rem; margin-top: 1rem; display: inline-flex; align-items: center; gap: .5rem; border-bottom: 1px solid; font-size: .85rem; font-weight: 500; }
+.ps-simple-card__link svg { width: 1rem; height: 1rem; }
+.ps-simple-card__link:hover { color: var(--ps-grey-3); }
+.ps-simple-card__link:focus-visible { outline: 2px solid var(--ps-ink); outline-offset: 4px; }
 .ps-feature-products { border-top: 1px solid var(--ps-grey-7); }
 .ps-feature-product { min-height: 9rem; border-bottom: 1px solid var(--ps-grey-7); display: grid; grid-template-columns: 5rem 1fr auto; align-items: center; gap: 1.5rem; }
 .ps-feature-product > svg { width: 2rem; height: 2rem; }
