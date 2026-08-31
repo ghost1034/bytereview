@@ -24,10 +24,10 @@
 .ph-home .ps-eyebrow__label { gap: .333em; }
 .ph-home .ps-eyebrow__dot { width: .6em; height: .6em; }
 
-/* Keep the redesigned hero composition over the original navy globe backdrop.
+/* Keep the redesigned hero composition over a full-hero navy globe backdrop.
    The gradient is also the loading and WebGL-unavailable fallback. */
-.ph-home .ps-home-hero { height: 100svh; min-height: 40rem; background: radial-gradient(ellipse at 50% 100%, #122349, #0f1729 70%); }
-.ph-home .ps-home-hero__shade { pointer-events: none; background: linear-gradient(#0f172940, transparent 65%, #0f172980); }
+.ph-home .ps-home-hero { height: 100svh; min-height: 40rem; background: radial-gradient(ellipse at center, #122349, #0f1729 70%); }
+.ph-home .ps-home-hero__shade { pointer-events: none; background: linear-gradient(#0f172966, #0f172980 45%, #0f172966); }
 .ph-home .ps-home-hero__content { padding-block: 7rem 5rem; }
 .ph-home .ps-home-hero__eyebrow { background: none; backdrop-filter: none; padding: .5rem 1rem; font-size: .75rem; text-transform: uppercase; margin-bottom: 1rem; }
 .ph-home .ps-home-hero h1 { font-size: 5rem; line-height: 1; letter-spacing: -.06em; }
