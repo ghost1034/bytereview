@@ -17,7 +17,7 @@ from services.billing_service import BillingService
 
 
 logger = logging.getLogger(__name__)
-MODEL = "gemini-3.6-flash"
+MODEL = "gemini-3.7-flash"
 
 
 def _draft_response_schema() -> types.Schema:

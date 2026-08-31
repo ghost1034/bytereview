@@ -78,7 +78,7 @@ async def test_draft_request_list_uses_requested_model_minimal_thinking_and_no_o
     )
 
     config = captured["config"]
-    assert captured["model"] == "gemini-3.6-flash"
+    assert captured["model"] == "gemini-3.7-flash"
     assert config.response_schema.required == ["summary", "proposals"]
     assert config.thinking_config.thinking_level == "MINIMAL"
     assert config.max_output_tokens is None
@@ -124,7 +124,7 @@ async def test_match_document_uses_requested_model_minimal_thinking_and_no_outpu
     )
 
     config = captured["config"]
-    assert captured["model"] == "gemini-3.6-flash"
+    assert captured["model"] == "gemini-3.7-flash"
     assert config.thinking_config.thinking_level == "MINIMAL"
     assert config.max_output_tokens is None
-    assert result["model"] == "gemini-3.6-flash"
+    assert result["model"] == "gemini-3.7-flash"
