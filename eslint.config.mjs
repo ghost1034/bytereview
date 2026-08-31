@@ -99,6 +99,8 @@ const eslintConfig = [
       'next-env.d.ts',
       'public/pdf-worker.min.mjs',
       'public/draco/**',
+      // Archived Webflow export retained only as a visual reference.
+      'redesign/**',
       'backend/scripts/convert_inkwise_docx.cjs',
     ],
   },

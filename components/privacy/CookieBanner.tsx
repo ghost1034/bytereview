@@ -1,15 +1,31 @@
 "use client";
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useCookieConsentContext } from './CookieConsentProvider';
 import { X } from 'lucide-react';
+import { isPublicSitePath } from '@/components/public-site/content';
 
 export default function CookieBanner() {
   const { showBanner, acceptAll, acceptNecessary, openPreferences } = useCookieConsentContext();
+  const pathname = usePathname();
+  const publicSite = isPublicSitePath(pathname);
 
   if (!showBanner) return null;
+
+  if (publicSite) {
+    return (
+      <aside className="ps-cookie-banner" aria-label="Cookie notice">
+        <button aria-label="Close cookie banner" onClick={acceptNecessary}><X /></button>
+        <span>Privacy, clearly handled</span>
+        <h3>Your preferences stay in your control.</h3>
+        <p>Necessary cookies keep CPAAutomation secure. Optional cookies help us understand and improve the site. Read our <Link href="/privacy">privacy policy</Link>.</p>
+        <div><button onClick={acceptNecessary}>Necessary only</button><button onClick={openPreferences}>Customize</button><button onClick={acceptAll}>Accept all</button></div>
+      </aside>
+    )
+  }
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-50 px-4 pb-4">

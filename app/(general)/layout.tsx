@@ -1,9 +1,10 @@
-import MainLayout from '@/components/layout/main-layout'
+import { PublicSiteLayout } from '@/components/public-site/site-layout'
+import './public-site.css'
 
 interface MarketingLayoutProps {
   children: React.ReactNode
 }
 
 export default function MarketingLayout({ children }: MarketingLayoutProps) {
-  return <MainLayout>{children}</MainLayout>
+  return <PublicSiteLayout>{children}</PublicSiteLayout>
 }

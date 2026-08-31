@@ -5,12 +5,16 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useCookieConsentContext } from './CookieConsentProvider';
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { isPublicSitePath } from '@/components/public-site/content';
 
 export default function CookiePreferencesModal() {
   const { isPreferencesOpen, closePreferences, consent, savePreferences, resetPreferences } = useCookieConsentContext();
   const [analytics, setAnalytics] = useState(false);
   const [functional, setFunctional] = useState(false);
   const [marketing, setMarketing] = useState(false);
+  const pathname = usePathname();
+  const publicSite = isPublicSitePath(pathname);
 
   useEffect(() => {
     if (consent) {
@@ -33,7 +37,7 @@ export default function CookiePreferencesModal() {
 
   return (
     <Dialog open={isPreferencesOpen} onOpenChange={closePreferences}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className={publicSite ? 'ps-cookie-preferences max-w-lg' : 'max-w-lg'}>
         <DialogHeader>
           <DialogTitle>Cookie Preferences</DialogTitle>
           <DialogDescription>

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-import { DocsSidebar } from '@/components/docs/docs-sidebar'
+import { PublicDocsSidebar } from '@/components/public-site/docs'
 import { loadDocsTree } from '@/lib/docs/content'
 
 /**
@@ -13,12 +13,10 @@ export default async function DocsLayout({ children }: { children: ReactNode }) 
   const sections = await loadDocsTree()
 
   return (
-    <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <div className="lg:grid lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
-        <aside className="mb-6 lg:mb-0">
-          <DocsSidebar sections={sections} />
-        </aside>
-        <div className="min-w-0">{children}</div>
+    <div className="ps-doc-shell">
+      <div className="ps-container ps-doc-shell__grid">
+        <PublicDocsSidebar sections={sections} />
+        <div className="ps-doc-shell__content">{children}</div>
       </div>
     </div>
   )
