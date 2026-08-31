@@ -1,9 +1,9 @@
-/* Map colours come from the design tokens (src/tokens.css) at runtime, so the MapLibre canvas follows the
+/* Map colours come from the design tokens (taxatlas.css) at runtime, so the MapLibre canvas follows the
  * same light/dark theme as the DOM. MapLibre paint properties cannot reference CSS variables, so we read the
- * computed values off <html> and re-resolve whenever the theme changes (see theme.ts).
+ * computed values off .taxatlas-root and re-resolve whenever the theme or palette changes (see theme.ts).
  *
- * FALLBACK mirrors the dark values in tokens.css and is used only if the tokens stylesheet is not loaded
- * (e.g. a unit test or a page rendered before index.css imports it). Keep it in sync with tokens.css. */
+ * FALLBACK mirrors the default dark Ocean palette and is used only if the module or stylesheet is not loaded
+ * (e.g. a unit test or the first render before the container mounts). Keep it in sync with taxatlas.css. */
 
 export interface MapPalette {
   ocean: string;
@@ -27,13 +27,13 @@ const FALLBACK: Record<string, string> = {
   "--map-land-outline-hover": "#d9d5cc",
   "--map-land-outline-selected": "#e0b765",
   "--map-graticule": "rgba(235, 232, 225, 0.035)",
-  "--viz-seq-1": "#33414d",
-  "--viz-seq-2": "#48494b",
-  "--viz-seq-3": "#655641",
-  "--viz-seq-4": "#8a6e2c",
-  "--viz-seq-5": "#b08a26",
-  "--viz-seq-6": "#d4a534",
-  "--viz-seq-7": "#f3cf6c",
+  "--viz-seq-1": "#243a50",
+  "--viz-seq-2": "#214d66",
+  "--viz-seq-3": "#2a6b84",
+  "--viz-seq-4": "#38899c",
+  "--viz-seq-5": "#5ea9b1",
+  "--viz-seq-6": "#92c9c6",
+  "--viz-seq-7": "#cfe8e3",
   "--viz-nodata-fill": "#1b1b19",
   "--viz-nodata-line": "#33332f",
   "--viz-nodata-hatch": "repeating-linear-gradient(135deg, transparent 0 3px, #2a2a27 3px 4px)",
@@ -45,7 +45,8 @@ const FALLBACK: Record<string, string> = {
 
 export function cssVar(name: string): string {
   if (typeof document === "undefined") return FALLBACK[name] ?? "";
-  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const root = document.querySelector<HTMLElement>(".taxatlas-root");
+  const v = root ? getComputedStyle(root).getPropertyValue(name).trim() : "";
   return v || FALLBACK[name] || "";
 }
 

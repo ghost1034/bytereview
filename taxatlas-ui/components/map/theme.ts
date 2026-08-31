@@ -1,8 +1,9 @@
-/* Theme access for the map. The app-wide hook (WP-A, hooks/useTheme.ts) owns the preference; this module only
+/* Theme access for the map. The app-wide hook (hooks/useTheme.ts) owns the preference; this module only
  * needs to (a) know the effective theme so MapLibre paint colours can be re-resolved, and (b) offer the toggle
  * that lives in the map controls (pages/map.md: the projector use case). Both write the same contract:
- *   <html data-theme="dark" | "light" | "auto">  +  localStorage "ta.theme". */
+ *   .taxatlas-root[data-theme="dark" | "light" | "auto"]  +  localStorage "ta.theme". */
 import { useCallback, useEffect, useState } from "react";
+import { getTheme, resolvedTheme, setTheme } from "@/taxatlas-ui/hooks/useTheme";
 import { resolvePalette, type MapPalette } from "./colors";
 
 export type ThemePref = "dark" | "light" | "auto";
@@ -10,36 +11,24 @@ export type Theme = "dark" | "light";
 export const THEME_KEY = "ta.theme";
 
 export function readThemePref(): ThemePref {
-  const attr = document.documentElement.dataset.theme;
+  const attr = typeof document === "undefined" ? undefined : document.querySelector<HTMLElement>(".taxatlas-root")?.dataset.theme;
   if (attr === "dark" || attr === "light" || attr === "auto") return attr;
-  try {
-    const stored = localStorage.getItem(THEME_KEY);
-    if (stored === "dark" || stored === "light" || stored === "auto") return stored;
-  } catch {
-    /* storage unavailable */
-  }
-  return "dark";
+  return getTheme();
 }
 
 export function applyThemePref(pref: ThemePref): void {
-  document.documentElement.dataset.theme = pref;
-  try {
-    localStorage.setItem(THEME_KEY, pref);
-  } catch {
-    /* storage unavailable */
-  }
+  setTheme(pref);
   window.dispatchEvent(new CustomEvent("ta:theme", { detail: pref }));
 }
 
-/** What the stylesheet actually resolved to. tokens.css sets `color-scheme` in every theme block, so reading the
+/** What the stylesheet actually resolved to. taxatlas.css sets `color-scheme` in every theme block, so reading the
  *  computed value covers dark, light and auto (OS) without re-implementing the media-query logic. */
 export function effectiveTheme(): Theme {
-  const scheme = getComputedStyle(document.documentElement).colorScheme;
+  const root = typeof document === "undefined" ? null : document.querySelector<HTMLElement>(".taxatlas-root");
+  const scheme = root ? getComputedStyle(root).colorScheme : "";
   if (scheme.includes("light")) return "light";
   if (scheme.includes("dark")) return "dark";
-  const pref = readThemePref();
-  if (pref === "auto") return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-  return pref;
+  return resolvedTheme();
 }
 
 export function useMapTheme(): { theme: Theme; palette: MapPalette; toggle: () => void } {
@@ -53,7 +42,8 @@ export function useMapTheme(): { theme: Theme; palette: MapPalette; toggle: () =
       raf = requestAnimationFrame(() => setState({ theme: effectiveTheme(), palette: resolvePalette() }));
     };
     const mo = new MutationObserver(refresh);
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-palette", "class", "style"] });
+    const root = document.querySelector<HTMLElement>(".taxatlas-root");
+    if (root) mo.observe(root, { attributes: true, attributeFilter: ["data-theme", "data-palette", "class", "style"] });
     const mq = window.matchMedia("(prefers-color-scheme: light)");
     mq.addEventListener("change", refresh);
     window.addEventListener("ta:theme", refresh);

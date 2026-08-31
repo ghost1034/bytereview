@@ -43,6 +43,8 @@ Local commands:
 - `npm run taxatlas:crawl`
 - `npm run taxatlas:dispatch`
 - `npm run test:taxatlas`
+- `npm run test:taxatlas:browser` — frontend palette and theme regression tests
+  (uses local Chrome on macOS or Playwright Chromium installed with `npx playwright install chromium`).
 
 Routine deployments skip TaxAtlas's browser-image build, job deployment, seed,
 schedule updates, and monitoring configuration. Existing jobs and schedules

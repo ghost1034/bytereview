@@ -1,5 +1,5 @@
-/* Choropleth palette (sequential ramp) preference. Mirrors theme.ts: the choice lives on <html data-palette> so
- * tokens.css can copy the selected ramp into --viz-seq-1…7 (which colors.ts reads for MapLibre and the legend
+/* Choropleth palette (sequential ramp) preference. The choice lives on .taxatlas-root[data-palette] so
+ * taxatlas.css can copy the selected ramp into --viz-seq-1…7 (which colors.ts reads for MapLibre and the legend
  * swatches), and in localStorage "ta.palette" so it survives reloads. MapPage also reflects it in ?palette= so a
  * shared link reproduces the presenter's colours. Default (no attribute) is "ocean". */
 
@@ -19,7 +19,7 @@ export function isPaletteId(v: unknown): v is PaletteId {
 }
 
 export function readPalette(): PaletteId {
-  const attr = document.documentElement.dataset.palette;
+  const attr = typeof document === "undefined" ? undefined : document.querySelector<HTMLElement>(".taxatlas-root")?.dataset.palette;
   if (isPaletteId(attr)) return attr;
   try {
     const stored = localStorage.getItem(PALETTE_KEY);
@@ -32,8 +32,11 @@ export function readPalette(): PaletteId {
 
 /** Apply and persist. The default palette removes the attribute so the stylesheet's own default applies. */
 export function applyPalette(id: PaletteId): void {
-  if (id === DEFAULT_PALETTE) delete document.documentElement.dataset.palette;
-  else document.documentElement.dataset.palette = id;
+  const root = document.querySelector<HTMLElement>(".taxatlas-root");
+  if (root) {
+    if (id === DEFAULT_PALETTE) delete root.dataset.palette;
+    else root.dataset.palette = id;
+  }
   try {
     localStorage.setItem(PALETTE_KEY, id);
   } catch {

@@ -25,7 +25,7 @@ import { MapTooltip } from "@/taxatlas-ui/components/map/MapTooltip";
 import { JurisdictionPanel } from "@/taxatlas-ui/components/map/JurisdictionPanel";
 import { PANEL_TABS, type PanelTab } from "@/taxatlas-ui/components/map/panelTabs";
 import { useMapTheme } from "@/taxatlas-ui/components/map/theme";
-import { DEFAULT_PALETTE, applyPalette, isPaletteId, readPalette, type PaletteId } from "@/taxatlas-ui/components/map/palette";
+import { applyPalette, isPaletteId, readPalette, type PaletteId } from "@/taxatlas-ui/components/map/palette";
 import { errorMessage } from "@/taxatlas-ui/components/ui/Toast";
 import { usePageTitle } from "@/taxatlas-ui/hooks/usePageTitle";
 import "@/taxatlas-ui/components/map/map.css";
@@ -235,19 +235,18 @@ export default function MapPage() {
 
   // --- Palette (sequential ramp) -------------------------------------------------------------------------------
   // ?palette= wins on load (shared links reproduce the presenter's colours), else the stored preference. Picking
-  // one writes both; the DOM attribute is what tokens.css and colors.ts react to.
+  // one writes both; the scoped DOM attribute is what taxatlas.css and colors.ts react to.
   const urlPalette = sp.get("palette");
   const [paletteId, setPaletteId] = useState<PaletteId>(() => (isPaletteId(urlPalette) ? urlPalette : readPalette()));
   useEffect(() => {
     if (isPaletteId(urlPalette) && urlPalette !== paletteId) setPaletteId(urlPalette);
   }, [urlPalette]); // eslint-disable-line react-hooks/exhaustive-deps -- URL → state only
   useEffect(() => {
-    if (readPalette() !== paletteId || document.documentElement.dataset.palette !== (paletteId === DEFAULT_PALETTE ? undefined : paletteId)) applyPalette(paletteId);
+    applyPalette(paletteId);
   }, [paletteId]);
   const onPalette = useCallback(
     (id: PaletteId) => {
       setPaletteId(id);
-      applyPalette(id);
       patch({ palette: id });
     },
     [patch],

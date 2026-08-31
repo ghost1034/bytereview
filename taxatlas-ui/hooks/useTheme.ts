@@ -1,4 +1,4 @@
-/* Theme store: writes data-theme on <html>, persists under `ta.theme`.
+/* Theme store: writes data-theme on .taxatlas-root, persists under `ta.theme`.
  * "dark" is the in-app default; auth pages force "auto" (follow the OS) while mounted. */
 import { useEffect, useState } from "react";
 

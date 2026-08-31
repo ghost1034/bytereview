@@ -479,7 +479,7 @@
       border-hairline  text-accent  fill-viz-seq-4  font-mono  text-sm  rounded-sm
       shadow-popover  duration-fast  ease-out  z-drawer
    --------------------------------------------------------------------------- */
-/* Choropleth palette switch (map legend “Palette” control). Default is ocean; <html data-palette> selects another
+/* Choropleth palette switch (map legend “Palette” control). Default is ocean; .taxatlas-root[data-palette] selects another
    ramp. Ramps are defined per theme above, so each selection stays contrast-checked in dark and light. */
 .taxatlas-root[data-palette="ember"] {
   --viz-seq-1: var(--viz-ramp-ember-1);

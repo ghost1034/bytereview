@@ -24,6 +24,7 @@
     "test:tasklytic:browser": "vitest run --config vitest.tasklytic-browser.config.ts",
     "test:tasklytic:backend": "backend/.venv/bin/python -m pytest backend/tests/test_tasklytic_service.py backend/tests/test_tasklytic_psa.py backend/tests/test_tasklytic_billing.py backend/tests/test_tasklytic_integrations.py -q",
     "test:taxatlas": "backend/.venv/bin/python -m pytest backend/tests/test_taxatlas_*.py -q",
+    "test:taxatlas:browser": "vitest run --config vitest.taxatlas-browser.config.ts",
     "taxatlas:seed": "cd backend && .venv/bin/python -m taxatlas.jobs seed",
     "taxatlas:crawl": "cd backend && .venv/bin/python -m taxatlas.jobs crawl",
     "taxatlas:dispatch": "cd backend && .venv/bin/python -m taxatlas.jobs dispatch",
