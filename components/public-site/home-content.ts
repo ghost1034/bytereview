@@ -85,7 +85,7 @@ export const HOME_QUOTES = [
   { name: 'A*** Manufacturing', role: 'D*** Wilton · Supply Chain Director', quote: 'We process thousands of supplier certifications, quality reports, and invoices monthly. The custom extraction feature lets us automatically categorize materials by grade and extract compliance codes for our procurement system.' },
   { name: 'S****** Ventures', role: 'J*** Park · Partner', quote: 'We evaluate hundreds of companies quarterly. Extracting financial metrics, revenue breakdowns, and key performance indicators from pitch decks and financial statements used to take weeks. Now it’s literally done in minutes.' },
   { name: 'N********** Technologies', role: 'A*** Kumar · CLO', quote: 'Our legal team reviews hundreds of vendor agreements monthly. We now extract key terms, pricing structures, and SLA commitments automatically. What used to take 3 hours per contract now takes two minutes.' },
-  { kind: 'validation', name: 'R. S.', role: 'Professional validation · Accounting', initials: 'RS', quote: 'Provided extensive validation of our extraction algorithms for healthcare-industry financial documents and compliance requirements.' },
+  { kind: 'validation', name: 'Rae Stewart', role: 'Professional validation · Accounting', initials: 'RS', quote: 'Provided extensive validation of our extraction algorithms for healthcare-industry financial documents and compliance requirements.' },
   { kind: 'validation', name: 'Ray Sang', role: 'Professional validation · Finance systems', image: '/ray.jpg', quote: 'Validated our platform’s ability to handle complex technology-sector financial processes and automation workflows.' },
 ]
 

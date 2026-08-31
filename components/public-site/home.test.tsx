@@ -118,7 +118,7 @@ describe('template-aligned homepage', () => {
     expect(Array.from(host.querySelectorAll('#team-section .ph-person h3')).map((node) => node.textContent)).toEqual(['Ian Stewart', 'Ray Sang'])
     expect(host.textContent).not.toContain('Rae Stewart')
     expect(host.querySelector('img[src="/rae.jpg"]')).toBeNull()
-    const validation = Array.from(host.querySelectorAll('.ph-quote')).find((node) => node.textContent?.includes('R. S.'))
+    const validation = Array.from(host.querySelectorAll('.ph-quote')).find((node) => node.textContent?.includes('Rae Stewart'))
     expect(validation?.querySelector('.ph-quote__avatar')?.textContent).toBe('RS')
     expect(validation?.querySelector('img')).toBeNull()
     expect(validation?.textContent).toContain('healthcare-industry financial documents')
@@ -137,7 +137,7 @@ describe('template-aligned homepage', () => {
 
   it('uses initials for the accounting validation on the About page', async () => {
     await render(<PublicAbout />)
-    expect(host.textContent).toContain('R. S. · Senior Director, Accounting')
+    expect(host.textContent).toContain('Rae Stewart · Senior Director, Accounting')
     expect(host.textContent).not.toContain('Rae Stewart')
     expect(host.querySelector('img[src="/rae.jpg"]')).toBeNull()
   })

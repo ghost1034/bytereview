@@ -195,7 +195,7 @@ export function PublicAbout() {
         <div className="ps-container">
           <SectionHeading number="002" eyebrow="Professional validation" title="Pressure-tested by people who know the documents." />
           <div className="ps-proof-grid">
-            <Reveal className="ps-proof-card ps-proof-card--quote"><Quote /><blockquote>“Provided extensive validation of our extraction algorithms for healthcare-industry financial documents and compliance requirements.”</blockquote><p>R. S. · Senior Director, Accounting</p></Reveal>
+            <Reveal className="ps-proof-card ps-proof-card--quote"><Quote /><blockquote>“Provided extensive validation of our extraction algorithms for healthcare-industry financial documents and compliance requirements.”</blockquote><p>Rae Stewart · Senior Director, Accounting</p></Reveal>
             <Reveal className="ps-proof-card ps-proof-card--quote"><Quote /><blockquote>“Validated our platform’s ability to handle complex technology-sector financial processes and automation workflows.”</blockquote><p>Ray Sang · Finance Systems</p></Reveal>
           </div>
         </div>
