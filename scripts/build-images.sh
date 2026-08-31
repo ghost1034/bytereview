@@ -21,9 +21,11 @@ ARTIFACT_REGISTRY_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTR
 # deployment entry points avoid building an image they will not deploy.
 GIT_HASH=""
 BUILD_TARGET="all"
+WITH_TAXATLAS=false
 
 usage() {
-    echo "Usage: $0 [IMAGE_TAG] [--frontend-only|--backend-only]"
+    echo "Usage: $0 [IMAGE_TAG] [--frontend-only|--backend-only] [--with-taxatlas]"
+    echo "  --with-taxatlas  Also build the TaxAtlas browser image (excluded by default; requires backend)"
 }
 
 set_target() {
@@ -49,6 +51,10 @@ while [[ $# -gt 0 ]]; do
             set_target "backend"
             shift
             ;;
+        --with-taxatlas)
+            WITH_TAXATLAS=true
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -60,6 +66,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [ "$WITH_TAXATLAS" = true ] && [ "$BUILD_TARGET" = "frontend" ]; then
+    echo -e "${RED}--with-taxatlas requires a build that includes the backend${NC}"
+    exit 1
+fi
 
 if [ -z "$GIT_HASH" ]; then
     GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || true)
@@ -126,7 +137,9 @@ if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "backend" ]; then
     # Build backend image (API + Workers)
     echo -e "${BLUE}=== Building Backend (API + Workers) ===${NC}"
     build_and_push "backend" "backend/Dockerfile" "." ""
-    build_and_push "taxatlas-browser" "backend/Dockerfile.taxatlas-browser" "." ""
+    if [ "$WITH_TAXATLAS" = true ]; then
+        build_and_push "taxatlas-browser" "backend/Dockerfile.taxatlas-browser" "." ""
+    fi
 fi
 
 if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "frontend" ]; then
@@ -184,7 +197,9 @@ echo ""
 echo -e "${BLUE}📋 Built images:${NC}"
 if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "backend" ]; then
     echo -e "• Backend (API + Workers): ${ARTIFACT_REGISTRY_URL}/backend:${GIT_HASH}"
-    echo -e "• TaxAtlas browser: ${ARTIFACT_REGISTRY_URL}/taxatlas-browser:${GIT_HASH}"
+    if [ "$WITH_TAXATLAS" = true ]; then
+        echo -e "• TaxAtlas browser: ${ARTIFACT_REGISTRY_URL}/taxatlas-browser:${GIT_HASH}"
+    fi
 fi
 if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "frontend" ]; then
     echo -e "• Frontend: ${ARTIFACT_REGISTRY_URL}/frontend:${GIT_HASH}"
@@ -196,6 +211,9 @@ if [ "$BUILD_TARGET" = "frontend" ]; then
     TARGET_ARG=" --frontend-only"
 elif [ "$BUILD_TARGET" = "backend" ]; then
     TARGET_ARG=" --backend-only"
+fi
+if [ "$WITH_TAXATLAS" = true ]; then
+    TARGET_ARG+=" --with-taxatlas"
 fi
 echo -e "1. Deploy services using: ./scripts/deploy-services.sh --image-tag ${GIT_HASH} --skip-build${TARGET_ARG}"
 echo -e "2. Or deploy existing images: ./scripts/deploy.sh --deploy-only${TARGET_ARG}"

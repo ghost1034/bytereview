@@ -44,19 +44,24 @@ Local commands:
 - `npm run taxatlas:dispatch`
 - `npm run test:taxatlas`
 
-Production backend deployments (`scripts/deploy.sh` or
-`scripts/deploy-services.sh`) build the browser image and invoke
-`scripts/deploy-taxatlas-jobs.sh` after the shared Alembic migration. Frontend-only
-and staging deployments do not modify the production TaxAtlas jobs. With
-`--skip-build` / `--deploy-only`, both `backend:TAG` and `taxatlas-browser:TAG`
-must already exist in Artifact Registry.
+Routine deployments skip TaxAtlas's browser-image build, job deployment, seed,
+schedule updates, and monitoring configuration. Existing jobs and schedules
+continue running unchanged. Opt in with `./scripts/deploy.sh --with-taxatlas`
+or `./scripts/deploy-services.sh --with-taxatlas` when releasing TaxAtlas job,
+seed, schedule, or monitoring changes. This builds the browser image and invokes
+`scripts/deploy-taxatlas-jobs.sh` after the shared Alembic migration.
+`--with-taxatlas` cannot be combined with frontend-only or staging deployments.
+With `--with-taxatlas --skip-build` / `--with-taxatlas --deploy-only`, both
+`backend:TAG` and `taxatlas-browser:TAG` must already exist in Artifact Registry.
+Build them separately with `./scripts/build-images.sh TAG --backend-only --with-taxatlas`
+or `./scripts/deploy.sh --backend-only --build-only --with-taxatlas`.
 
 The TaxAtlas job script schedules every crawl batch once per 24 hours in UTC:
 HTTP at 00:00, news at 00:10, browser at 00:25, and the rate watcher at 03:40.
 Notification dispatch remains every minute. Translation backfill remains
-operator-triggered; seed runs during deployment or on demand. Browser crawling uses
-`backend/Dockerfile.taxatlas-browser`; ordinary API and job images do not carry
-Chromium. Every job uses a PostgreSQL advisory lock and emits a structured JSON
+operator-triggered; seed runs during opted-in TaxAtlas deployment or on demand.
+Browser crawling uses `backend/Dockerfile.taxatlas-browser`; ordinary API and job
+images do not carry Chromium. Every job uses a PostgreSQL advisory lock and emits a structured JSON
 summary. Deployment also creates alerts for missing crawl success, failed jobs,
 source failures, and dead-letter deliveries. The deploy command requires the
 shared Cloud SQL instance and VPC connector, plus the API's `DATABASE_URL` and

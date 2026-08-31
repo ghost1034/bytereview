@@ -27,6 +27,7 @@ usage() {
     echo "  --skip-build     Alias for --deploy-only"
     echo "  --skip-deploy    Alias for --build-only"
     echo "  --skip-migrate   Skip the database migration job"
+    echo "  --with-taxatlas  Include TaxAtlas browser image, jobs, seed, schedules, and monitoring (production backend only)"
     echo "  --staging        Use the staging environment"
     echo "  -h, --help       Show this help message"
 }
@@ -52,6 +53,7 @@ MODE="both"
 DEPLOY_TARGET="all"
 ENVIRONMENT="production"
 SKIP_MIGRATE=false
+WITH_TAXATLAS=false
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -79,6 +81,10 @@ while [[ $# -gt 0 ]]; do
             SKIP_MIGRATE=true
             shift
             ;;
+        --with-taxatlas)
+            WITH_TAXATLAS=true
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -90,6 +96,11 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+if [ "$WITH_TAXATLAS" = true ] && { [ "$DEPLOY_TARGET" = "frontend" ] || [ "$ENVIRONMENT" != "production" ]; }; then
+    echo -e "${RED}--with-taxatlas requires a production deployment that includes the backend${NC}"
+    exit 1
+fi
 
 RUN_BUILD=false
 RUN_DEPLOY=false
@@ -186,6 +197,9 @@ if [ "$RUN_BUILD" = true ]; then
     elif [ "$DEPLOY_TARGET" = "backend" ]; then
         BUILD_IMAGE_ARGS+=(--backend-only)
     fi
+    if [ "$WITH_TAXATLAS" = true ]; then
+        BUILD_IMAGE_ARGS+=(--with-taxatlas)
+    fi
     ./scripts/build-images.sh "${BUILD_IMAGE_ARGS[@]}"
 else
     echo -e "${YELLOW}⏭️  Skipping image build${NC}"
@@ -228,6 +242,9 @@ if [ "$RUN_DEPLOY" = true ]; then
     if [ "$SKIP_MIGRATE" = true ]; then
         DEPLOY_SERVICE_ARGS+=(--skip-migrate)
     fi
+    if [ "$WITH_TAXATLAS" = true ]; then
+        DEPLOY_SERVICE_ARGS+=(--with-taxatlas)
+    fi
     ./scripts/deploy-services.sh "${DEPLOY_SERVICE_ARGS[@]}"
 else
     echo -e "${YELLOW}⏭️  Skipping service deployment${NC}"
@@ -241,6 +258,9 @@ if [ "$RUN_DEPLOY" = false ]; then
         TARGET_ARG=" --frontend-only"
     elif [ "$DEPLOY_TARGET" = "backend" ]; then
         TARGET_ARG=" --backend-only"
+    fi
+    if [ "$WITH_TAXATLAS" = true ]; then
+        TARGET_ARG+=" --with-taxatlas"
     fi
     if [ "$ENVIRONMENT" = "staging" ]; then
         echo -e "${YELLOW}Deploy them with: ./scripts/deploy.sh --deploy-only${TARGET_ARG} --staging${NC}"

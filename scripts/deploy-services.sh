@@ -111,6 +111,7 @@ CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT="${CPAA_LEGALCLAW_BUNDLE_GCS_OBJECT:-legalclaw/
 
 SKIP_BUILD=false
 SKIP_MIGRATE=false
+WITH_TAXATLAS=false
 ROTATE_TASK_TOKEN=false
 DEPLOY_TARGET="all"
 
@@ -150,6 +151,7 @@ Options:
   --backend-only            Build/deploy only cpa-api and backend resources
   --skip-build              Reuse existing backend/frontend images
   --skip-migrate            Skip Alembic migration job
+  --with-taxatlas           Include TaxAtlas browser image, jobs, seed, schedules, and monitoring (production backend only)
   --rotate-task-token       Force a new Inkwise task token secret version
   -h, --help                Show this help text
 EOF
@@ -550,6 +552,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_MIGRATE=true
       shift
       ;;
+    --with-taxatlas)
+      WITH_TAXATLAS=true
+      shift
+      ;;
     --rotate-task-token)
       ROTATE_TASK_TOKEN=true
       shift
@@ -563,6 +569,10 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [ "$WITH_TAXATLAS" = true ] && { [ "$DEPLOY_TARGET" = "frontend" ] || [ "$ENVIRONMENT" != "production" ]; }; then
+  die "--with-taxatlas requires a production deployment that includes the backend"
+fi
 
 DEPLOY_BACKEND=false
 DEPLOY_FRONTEND=false
@@ -684,6 +694,9 @@ if [ "$SKIP_BUILD" = false ]; then
   elif [ "$DEPLOY_TARGET" = "backend" ]; then
     BUILD_IMAGE_ARGS+=(--backend-only)
   fi
+  if [ "$WITH_TAXATLAS" = true ]; then
+    BUILD_IMAGE_ARGS+=(--with-taxatlas)
+  fi
   "$ROOT_DIR/scripts/build-images.sh" "${BUILD_IMAGE_ARGS[@]}"
 else
   warn "Skipping image build"
@@ -739,15 +752,17 @@ if [ "$DEPLOY_BACKEND" = true ]; then
   fi
 fi
 
-# TaxAtlas jobs use the shared schema and must follow the migration. Never
-# point a staging deploy at the production schedules/job names.
-if [ "$DEPLOY_BACKEND" = true ] && [ "$ENVIRONMENT" = production ]; then
+# TaxAtlas jobs are opt-in and use the shared schema, so must follow the
+# migration. Never point a staging deploy at production schedules/job names.
+if [ "$WITH_TAXATLAS" = true ] && [ "$DEPLOY_BACKEND" = true ] && [ "$ENVIRONMENT" = production ]; then
   section "Deploying TaxAtlas jobs and schedules"
   PROJECT_ID="$PROJECT_ID" REGION="$REGION" SERVICE_ACCOUNT="$SERVICE_ACCOUNT" \
     CLOUD_SQL_INSTANCE="$CLOUD_SQL_INSTANCE" VPC_CONNECTOR="$VPC_CONNECTOR" \
     TAXATLAS_API_IMAGE="$BACKEND_IMAGE" \
     TAXATLAS_BROWSER_IMAGE="${ARTIFACT_REGISTRY_URL}/taxatlas-browser:${IMAGE_TAG}" \
     "$ROOT_DIR/scripts/deploy-taxatlas-jobs.sh"
+elif [ "$DEPLOY_BACKEND" = true ] && [ "$ENVIRONMENT" = production ]; then
+  info "Skipping TaxAtlas jobs, seed, schedules, and monitoring (opt in with --with-taxatlas)"
 fi
 
 if [ "$DEPLOY_BACKEND" = true ] && [ "$HOSTED_CLAW_ENABLED" = true ]; then

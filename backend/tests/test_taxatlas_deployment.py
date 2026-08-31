@@ -104,7 +104,7 @@ if args[:2] == ['monitoring', 'policies'] and '--help' not in args:
             capture_output=True,
             timeout=30,
         )
-        calls = [json.loads(line) for line in log.read_text().splitlines()]
+        calls = [json.loads(line) for line in log.read_text().splitlines()] if log.exists() else []
         return result, calls
 
     return run
@@ -263,32 +263,102 @@ def test_job_deploy_preserves_explicit_shared_runtime_configuration(deployment_t
         assert any("TAXATLAS_PUBLIC_URL=https://custom.example.com" in arg for arg in job)
 
 
-@pytest.mark.parametrize("target,environment,expected", [
-    ("--backend-only", "production", True),
-    ("--frontend-only", "production", False),
-    ("--backend-only", "staging", False),
+@pytest.mark.parametrize("target,environment", [
+    ((), "production"),
+    (("--backend-only",), "production"),
+    (("--frontend-only",), "production"),
+    (("--backend-only",), "staging"),
 ])
-def test_standard_deploy_includes_jobs_after_migration_only_in_production_backend(
-    deployment_tools, target, environment, expected
-):
+def test_standard_deploy_skips_taxatlas(deployment_tools, target, environment):
     result, calls = deployment_tools(
-        "deploy-services.sh", target, "--skip-build", "--image-tag", "release-test",
-        "--environment", environment,
+        "deploy-services.sh", *target, "--skip-build", "--environment", environment,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not any("taxatlas" in arg.lower() for call in calls for arg in call)
+    if target != ("--frontend-only",):
+        assert any(c[1:4] == ["run", "jobs", "execute"] for c in calls)
+
+
+@pytest.mark.parametrize("skip_build", [False, True])
+@pytest.mark.parametrize("skip_migrate", [False, True])
+def test_opted_in_deploy_includes_jobs_after_migration(
+    deployment_tools, skip_build, skip_migrate
+):
+    options = ["--with-taxatlas", "--backend-only"]
+    if skip_build:
+        options.append("--skip-build")
+    if skip_migrate:
+        options.append("--skip-migrate")
+    result, calls = deployment_tools(
+        "deploy-services.sh", "release-test", "production", *options,
     )
     assert result.returncode == 0, result.stderr
     jobs = [(i, c) for i, c in enumerate(calls) if c[1:4] == ["run", "jobs", "deploy"]]
-    assert bool(jobs) is expected
-    if expected:
+    assert len(jobs) == 7
+    if not skip_migrate:
         migration = next(i for i, c in enumerate(calls) if c[1:5] == ["run", "jobs", "execute", "cpa-inkwise-migrate"])
         assert all(i > migration for i, _ in jobs)
-        browser = next(c for _, c in jobs if c[4] == "taxatlas-crawl-browser")
-        assert "--image=us-central1-docker.pkg.dev/test-project/cpa-docker/taxatlas-browser:release-test" in browser
+    else:
+        assert not any("cpa-inkwise-migrate" in c for c in calls)
+    browser = next(c for _, c in jobs if c[4] == "taxatlas-crawl-browser")
+    assert "--image=us-central1-docker.pkg.dev/test-project/cpa-docker/taxatlas-browser:release-test" in browser
+    builds = [c for c in calls if c[:3] == ["docker", "buildx", "build"]]
+    assert len(builds) == (0 if skip_build else 2)
+    if not skip_build:
+        assert any("backend/Dockerfile.taxatlas-browser" in c for c in builds)
 
 
-def test_backend_build_includes_browser_image(deployment_tools):
-    result, calls = deployment_tools("build-images.sh", "release-test", "--backend-only")
+@pytest.mark.parametrize("with_taxatlas", [False, True])
+def test_backend_build_includes_browser_image_only_when_requested(deployment_tools, with_taxatlas):
+    options = ["--with-taxatlas"] if with_taxatlas else []
+    result, calls = deployment_tools("build-images.sh", "release-test", "--backend-only", *options)
     assert result.returncode == 0, result.stderr
     builds = [c for c in calls if c[:3] == ["docker", "buildx", "build"]]
-    assert len(builds) == 2
-    assert any("backend/Dockerfile.taxatlas-browser" in c for c in builds)
+    assert len(builds) == (2 if with_taxatlas else 1)
+    assert any("backend/Dockerfile.taxatlas-browser" in c for c in builds) is with_taxatlas
     assert all("linux/amd64" in c for c in builds)
+
+
+@pytest.mark.parametrize("mode", [(), ("--build-only",), ("--deploy-only",)])
+@pytest.mark.parametrize("with_taxatlas", [False, True])
+def test_main_deploy_forwards_taxatlas_opt_in_to_build_and_deploy(deployment_tools, mode, with_taxatlas):
+    options = ["--with-taxatlas"] if with_taxatlas else []
+    result, calls = deployment_tools("deploy.sh", "--backend-only", *mode, *options)
+    assert result.returncode == 0, result.stderr
+    builds = [c for c in calls if c[:3] == ["docker", "buildx", "build"]]
+    jobs = [c for c in calls if c[1:4] == ["run", "jobs", "deploy"]]
+    assert any("backend/Dockerfile.taxatlas-browser" in c for c in builds) is (
+        with_taxatlas and mode != ("--deploy-only",)
+    )
+    assert len(jobs) == (7 if with_taxatlas and mode != ("--build-only",) else 0)
+    if mode == ("--deploy-only",):
+        assert not builds
+    if mode == ("--build-only",):
+        assert not any(c[1:3] == ["run", "jobs"] for c in calls)
+        if with_taxatlas:
+            assert "--deploy-only --backend-only --with-taxatlas" in result.stdout
+    if not with_taxatlas:
+        assert not any("taxatlas" in arg.lower() for call in calls for arg in call)
+
+
+@pytest.mark.parametrize("script,options", [
+    ("deploy.sh", ("--frontend-only",)),
+    ("deploy.sh", ("--staging",)),
+    ("deploy-services.sh", ("--frontend-only",)),
+    ("deploy-services.sh", ("--environment", "staging")),
+    ("deploy-services.sh", ("release-test", "staging")),
+    ("build-images.sh", ("--frontend-only",)),
+])
+def test_taxatlas_rejects_incompatible_targets_before_cloud_calls(deployment_tools, script, options):
+    result, calls = deployment_tools(script, *options, "--with-taxatlas")
+    assert result.returncode != 0
+    assert "--with-taxatlas requires" in result.stdout
+    assert not calls
+
+
+@pytest.mark.parametrize("script", ["deploy.sh", "deploy-services.sh", "build-images.sh"])
+def test_help_documents_taxatlas_opt_in_without_cloud_calls(deployment_tools, script):
+    result, calls = deployment_tools(script, "--help")
+    assert result.returncode == 0, result.stderr
+    assert "--with-taxatlas" in result.stdout
+    assert not calls
