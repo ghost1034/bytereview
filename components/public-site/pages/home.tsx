@@ -21,7 +21,7 @@ const GlobeBackground = dynamic(() => import('../three/GlobeBackground'), { ssr:
 function VoiceCard({ item }: { item: typeof HOME_QUOTES[number] }) {
   return <figure className="ph-quote">
     <figcaption>
-      {item.image ? <Image src={item.image} width={56} height={56} alt="" /> : <span className="ph-quote__avatar"><LockKeyhole aria-hidden /></span>}
+      {item.image ? <Image src={item.image} width={56} height={56} alt="" /> : <span className="ph-quote__avatar" aria-hidden>{item.initials ?? <LockKeyhole aria-hidden />}</span>}
       <div><strong>{item.name}</strong><span>{item.role}</span></div>{item.kind === 'validation' ? <ShieldCheck aria-hidden /> : <Quote aria-hidden />}
     </figcaption>
     {item.kind === 'validation' ? <p>{item.quote}</p> : <blockquote>{item.quote}</blockquote>}

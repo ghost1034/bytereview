@@ -42,6 +42,7 @@ vi.mock('embla-carousel-react', () => {
 })
 
 import PublicHome from './pages/home'
+import { PublicAbout } from './pages/marketing-pages'
 import PublicHeader from './header'
 import PublicFooter from './footer'
 import { AmbientVideo, HomeCarousel, VideoLightbox } from './home-interactions'
@@ -80,7 +81,25 @@ describe('template-aligned homepage', () => {
     expect(host.querySelectorAll('.ph-quote blockquote')).toHaveLength(3)
     expect(host.querySelectorAll('.ph-quote > p')).toHaveLength(2)
     expect(host.textContent).not.toMatch(/Conicorn|Get this Template|SAVE 10%/)
-    expect(HOME_PEOPLE.every((person) => ['/ian.jpg', '/ray.jpg', '/rae.jpg'].includes(person.image))).toBe(true)
+    expect(HOME_PEOPLE.every((person) => ['/ian.jpg', '/ray.jpg'].includes(person.image))).toBe(true)
+  })
+
+  it('removes the accounting validator from People and uses initials without a portrait in her testimonial', async () => {
+    await render(<PublicHome />)
+    expect(Array.from(host.querySelectorAll('#team-section .ph-person h3')).map((node) => node.textContent)).toEqual(['Ian Stewart', 'Ray Sang'])
+    expect(host.textContent).not.toContain('Rae Stewart')
+    expect(host.querySelector('img[src="/rae.jpg"]')).toBeNull()
+    const validation = Array.from(host.querySelectorAll('.ph-quote')).find((node) => node.textContent?.includes('R. S.'))
+    expect(validation?.querySelector('.ph-quote__avatar')?.textContent).toBe('RS')
+    expect(validation?.querySelector('img')).toBeNull()
+    expect(validation?.textContent).toContain('healthcare-industry financial documents')
+  })
+
+  it('uses initials for the accounting validation on the About page', async () => {
+    await render(<PublicAbout />)
+    expect(host.textContent).toContain('R. S. · Senior Director, Accounting')
+    expect(host.textContent).not.toContain('Rae Stewart')
+    expect(host.querySelector('img[src="/rae.jpg"]')).toBeNull()
   })
 
   it('opens authentication for visitors and sends authenticated users to their appropriate destination', async () => {
