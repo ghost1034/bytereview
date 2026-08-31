@@ -739,6 +739,17 @@ if [ "$DEPLOY_BACKEND" = true ]; then
   fi
 fi
 
+# TaxAtlas jobs use the shared schema and must follow the migration. Never
+# point a staging deploy at the production schedules/job names.
+if [ "$DEPLOY_BACKEND" = true ] && [ "$ENVIRONMENT" = production ]; then
+  section "Deploying TaxAtlas jobs and schedules"
+  PROJECT_ID="$PROJECT_ID" REGION="$REGION" SERVICE_ACCOUNT="$SERVICE_ACCOUNT" \
+    CLOUD_SQL_INSTANCE="$CLOUD_SQL_INSTANCE" VPC_CONNECTOR="$VPC_CONNECTOR" \
+    TAXATLAS_API_IMAGE="$BACKEND_IMAGE" \
+    TAXATLAS_BROWSER_IMAGE="${ARTIFACT_REGISTRY_URL}/taxatlas-browser:${IMAGE_TAG}" \
+    "$ROOT_DIR/scripts/deploy-taxatlas-jobs.sh"
+fi
+
 if [ "$DEPLOY_BACKEND" = true ] && [ "$HOSTED_CLAW_ENABLED" = true ]; then
   section "Configuring Hosted Claw cron dispatcher"
   scheduler_name="hosted-claw-cron-dispatch"

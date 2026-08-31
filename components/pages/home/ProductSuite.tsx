@@ -227,7 +227,7 @@ export default function ProductSuite() {
       <motion.div
         ref={productGridRef}
         aria-label="Products"
-        className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-4 pb-4 scroll-px-4 touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 sm:scroll-px-6 md:mx-0 md:grid md:auto-rows-fr md:grid-cols-6 md:overflow-visible md:px-0 md:pb-0"
+        className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain px-4 pb-4 scroll-px-4 touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-6 sm:px-6 sm:scroll-px-6 md:mx-0 md:grid md:auto-rows-fr md:grid-cols-2 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-5"
         onScroll={handleProductScroll}
         variants={staggerContainerSlow}
         initial="hidden"
@@ -243,9 +243,7 @@ export default function ProductSuite() {
               key={product.name}
               variants={staggerChild}
               {...hoverLift}
-              className={cn(
-                'w-[85%] shrink-0 snap-start md:col-span-3 md:w-auto lg:col-span-2',
-              )}
+              className="w-[85%] shrink-0 snap-start md:w-auto"
             >
               <a
                 href={product.href}

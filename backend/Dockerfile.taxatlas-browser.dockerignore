@@ -1,0 +1,15 @@
+# The build context is the repository root. Include only backend runtime files;
+# backend/.dockerignore is not used for this Dockerfile.
+**
+!backend/
+!backend/**
+backend/.env*
+backend/.venv/
+backend/venv/
+backend/service-account*.json
+backend/firebase-key*.json
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/tests/
+backend/*.db
+backend/*.sqlite*

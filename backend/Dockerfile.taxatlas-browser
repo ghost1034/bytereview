@@ -1,12 +1,14 @@
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app TAXATLAS_BROWSER_ENABLED=true
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONPATH=/app \
+    TAXATLAS_BROWSER_ENABLED=true PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 WORKDIR /app
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt playwright && playwright install --with-deps chromium
 COPY backend/ .
 RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
 USER app
+# Exercise the installed browser as the runtime user, without network access.
+RUN python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(headless=True); b.close(); p.stop()"
 ENTRYPOINT ["python", "-m", "taxatlas.jobs"]
 CMD ["crawl-browser"]
-

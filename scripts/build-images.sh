@@ -126,6 +126,7 @@ if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "backend" ]; then
     # Build backend image (API + Workers)
     echo -e "${BLUE}=== Building Backend (API + Workers) ===${NC}"
     build_and_push "backend" "backend/Dockerfile" "." ""
+    build_and_push "taxatlas-browser" "backend/Dockerfile.taxatlas-browser" "." ""
 fi
 
 if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "frontend" ]; then
@@ -183,6 +184,7 @@ echo ""
 echo -e "${BLUE}📋 Built images:${NC}"
 if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "backend" ]; then
     echo -e "• Backend (API + Workers): ${ARTIFACT_REGISTRY_URL}/backend:${GIT_HASH}"
+    echo -e "• TaxAtlas browser: ${ARTIFACT_REGISTRY_URL}/taxatlas-browser:${GIT_HASH}"
 fi
 if [ "$BUILD_TARGET" = "all" ] || [ "$BUILD_TARGET" = "frontend" ]; then
     echo -e "• Frontend: ${ARTIFACT_REGISTRY_URL}/frontend:${GIT_HASH}"

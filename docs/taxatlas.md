@@ -44,16 +44,44 @@ Local commands:
 - `npm run taxatlas:dispatch`
 - `npm run test:taxatlas`
 
-`scripts/deploy-taxatlas-jobs.sh` deploys the HTTP crawl hourly, news and browser
+Production backend deployments (`scripts/deploy.sh` or
+`scripts/deploy-services.sh`) build the browser image and invoke
+`scripts/deploy-taxatlas-jobs.sh` after the shared Alembic migration. Frontend-only
+and staging deployments do not modify the production TaxAtlas jobs. With
+`--skip-build` / `--deploy-only`, both `backend:TAG` and `taxatlas-browser:TAG`
+must already exist in Artifact Registry.
+
+The TaxAtlas job script deploys the HTTP crawl hourly, news and browser
 crawls every six hours, the rate watcher weekly, and notification dispatch each
 minute. Translation backfill remains operator-triggered. Browser crawling uses
 `backend/Dockerfile.taxatlas-browser`; ordinary API and job images do not carry
 Chromium. Every job uses a PostgreSQL advisory lock and emits a structured JSON
 summary. Deployment also creates alerts for missing crawl success, failed jobs,
 source failures, and dead-letter deliveries. The deploy command requires the
-shared Cloud SQL instance, `DATABASE_URL` Secret Manager binding, and production
-KMS key; optional SMTP and Redis secrets can be appended with
-`TAXATLAS_JOB_SECRETS`.
+shared Cloud SQL instance and VPC connector, plus the API's `DATABASE_URL` and
+`ENCRYPTION_KEY` Secret Manager bindings. Set `KMS_KEY_RESOURCE_NAME` to the same
+key as the API when KMS is configured; production webhook-secret creation still
+requires KMS. Do not choose a different key just for the crawler. Optional SMTP
+and Redis secrets can be appended with `TAXATLAS_JOB_SECRETS` (retain the shared
+bindings). `TAXATLAS_PUBLIC_URL` defaults to `https://cpaautomation.ai` for jobs.
+Chromium is installed in a shared path and smoke-tested as the non-root image
+user; its job receives 2 CPUs and 2 GiB of memory.
+
+To repair or update jobs without redeploying the API or frontend, use existing
+image tags (build the browser image first if necessary):
+
+```bash
+PROJECT_ID=ace-rider-383100 \
+TAXATLAS_API_IMAGE=us-central1-docker.pkg.dev/ace-rider-383100/cpa-docker/backend:TAG \
+TAXATLAS_BROWSER_IMAGE=us-central1-docker.pkg.dev/ace-rider-383100/cpa-docker/taxatlas-browser:TAG \
+./scripts/deploy-taxatlas-jobs.sh
+```
+
+The script seeds before creating schedules and grants the runner permission to
+invoke each job. Verify `gcloud run jobs list --region=us-central1`, the five
+TaxAtlas Cloud Scheduler schedules, and the structured summaries from executions.
+An API error saying `Resource 'taxatlas-crawl' ... does not exist` means the jobs
+were not deployed; redeploying the API alone does not create them.
 
 TaxAtlas reuses the shared database, Firebase, billing, and KMS configuration.
 Crawler, rate-limit, Redis, SMTP, translation, public URL, and job-name settings
