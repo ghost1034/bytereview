@@ -39,7 +39,7 @@ export function HomeAboutHeading({ children }: { children: string }) {
   return <h2 ref={ref}>{children}</h2>
 }
 
-export function AmbientVideo({ name, className }: { name: 'hero' | 'footer'; className: string }) {
+export function AmbientVideo({ name, source = name, className }: { name: 'hero' | 'footer'; source?: 'hero' | 'footer'; className: string }) {
   const ref = useRef<HTMLVideoElement>(null)
   const [paused, setPaused] = useState(false)
 
@@ -65,9 +65,9 @@ export function AmbientVideo({ name, className }: { name: 'hero' | 'footer'; cla
   }
 
   return <>
-    <video ref={ref} className={className} muted loop playsInline preload="none" poster={`/public-site/${name}-poster.jpg`} aria-hidden="true">
-      <source src={`/public-site/${name}.webm`} type="video/webm" />
-      <source src={`/public-site/${name}.mp4`} type="video/mp4" />
+    <video ref={ref} className={className} muted loop playsInline preload="none" poster={`/public-site/${source}-poster.jpg`} aria-hidden="true">
+      <source src={`/public-site/${source}.webm`} type="video/webm" />
+      <source src={`/public-site/${source}.mp4`} type="video/mp4" />
     </video>
     <button type="button" className="ps-ambient-toggle" onClick={toggle} aria-label={`${paused ? 'Play' : 'Pause'} ${name} background video`}>
       {paused ? <Play aria-hidden /> : <Pause aria-hidden />}

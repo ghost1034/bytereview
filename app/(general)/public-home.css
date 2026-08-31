@@ -9,6 +9,8 @@
   --ph-surface: #f2f2f2;
   --ph-edge: #e6e6e6;
   --ph-inset: inset 0 -2px 1px #0000001f, inset 0 0 1px 2px #fff;
+  --ps-glass-background: linear-gradient(#0009, #0005), #0003;
+  --ps-glass-shadow: inset 0 0 40px #fff, inset 0 0 4px #fffc;
 }
 .ps-template :is(a, button, input, textarea):focus-visible { outline: 2px solid #839aff; outline-offset: 5px; }
 .ph-container { width: min(90%, 80rem); margin-inline: auto; }
@@ -24,15 +26,15 @@
 .ph-home .ps-eyebrow__label { gap: .333em; }
 .ph-home .ps-eyebrow__dot { width: .6em; height: .6em; }
 
-/* Keep the redesigned hero composition over a black globe backdrop.
-   The background also covers loading and WebGL-unavailable states. */
-.ph-home .ps-home-hero { height: 100svh; min-height: 40rem; background: #000; }
-.ph-home .ps-home-hero__shade { pointer-events: none; background: linear-gradient(#0006, #00000080 45%, #0006); }
-.ph-home .ps-home-hero__content { padding-block: 7rem 5rem; }
+/* Share the contact section's ambient video without a panel around the copy.
+   Keep a dark overlay across the full frame for contrast as the video moves. */
+.ph-home .ps-home-hero { height: auto; min-height: max(40rem, 100svh); padding-block: 8rem 4rem; background: #b8b8b8; }
+.ph-home .ps-home-hero__shade { pointer-events: none; background: linear-gradient(#0009, #000a 65%, #000b); }
+.ph-home .ps-home-hero__content { max-width: 70rem; padding: 4rem 3.75rem; }
 .ph-home .ps-home-hero__eyebrow { background: none; backdrop-filter: none; padding: .5rem 1rem; font-size: .75rem; text-transform: uppercase; margin-bottom: 1rem; }
-.ph-home .ps-home-hero h1 { font-size: 5rem; line-height: 1; letter-spacing: -.06em; }
-.ph-home .ps-home-hero p { max-width: 40rem; margin-top: 1.5rem; font-size: 1.125rem; color: #fff; }
-.ph-home .ps-home-hero__actions { margin-top: 5rem; }
+.ph-home .ps-home-hero h1 { font-size: 4.5rem; line-height: 1.1; letter-spacing: -.04em; }
+.ph-home .ps-home-hero p { max-width: 40rem; margin-top: 1.5rem; font-size: 1.125rem; color: var(--ps-grey-8); }
+.ph-home .ps-home-hero__actions { margin-top: 3rem; }
 .ps-template .ps-button, .ps-template .ps-button.ps-button--dark { min-height: 3.75rem; border: 2px solid transparent; border-radius: 99rem; padding: .8rem 1.5rem; gap: .5rem; background: linear-gradient(#000, #000) padding-box, var(--ps-holo) border-box; color: #fff; box-shadow: inset 0 0 32px #ffffff66; font-size: 1rem; font-weight: 500; justify-content: center; transition: box-shadow .25s, transform .25s; }
 .ps-template .ps-button:hover { box-shadow: inset 0 0 32px #ffffffa8; transform: translateY(-2px); }
 .ps-template .ps-button > span:first-child { display: inline-flex; gap: .6rem; align-items: center; }
@@ -40,6 +42,9 @@
 .ps-template .ps-button__icon svg { width: 1rem; height: 1rem; }
 .ps-template .ps-button--ghost { border-color: transparent; background: #fff3; box-shadow: inset 0 0 12px #fff; }
 .ps-template .ps-button--light { background: #fff; color: #1a1a1a; border-color: #fff; }
+.ps-template .ps-home-hero .ps-button { border-color: transparent; background: #000; box-shadow: inset 0 0 32px #ffffff80; }
+.ps-template .ps-home-hero .ps-button--ghost { border-color: #fff6; background: #0006; box-shadow: none; }
+.ps-template .ps-home-hero .ps-button:hover { box-shadow: inset 0 0 32px #ffffffa8; }
 .ps-button__people { display: flex; padding-left: .5rem; }
 .ps-button__people img { width: 1.75rem; height: 1.75rem; border-radius: 50%; margin-left: -.5rem; object-fit: cover; box-shadow: 0 0 0 1px #8b8a8acc; }
 .ps-ambient-toggle { position: absolute; right: 1.5rem; bottom: 1.5rem; z-index: 3; width: 2.5rem; height: 2.5rem; border: 1px solid #fff6; border-radius: 50%; display: grid; place-items: center; background: #0006; color: #fff; cursor: pointer; }
@@ -255,7 +260,7 @@
    so fonts and tokens survive; app/auth dialogs remain above this chrome. */
 .ps-template .ps-header { z-index: 40; padding: 2rem 1rem 0; }
 .ps-template .ps-header__bar { position: relative; width: fit-content; height: auto; padding: 0; gap: .25rem; border: 0; background: none; box-shadow: none; backdrop-filter: none; }
-/* Keep the original navy/teal logo legible over the globe and footer video. */
+/* Keep the original navy/teal logo legible over the hero and footer backdrops. */
 .ps-template .ps-header__brand { display: grid; place-items: center; flex: none; width: 10.5rem; height: 3.5rem; padding: .25rem .75rem; border-radius: 999px; background: #fff; }
 .ps-header__brand img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .ps-template .ps-header__actions { gap: 1.5rem; padding: .25rem .25rem .25rem 1.5rem; border-radius: 99rem; background: #0009; backdrop-filter: blur(40px); }
@@ -276,7 +281,7 @@
 .ps-template .ps-footer__shade { background: linear-gradient(#b8b8b8, #0000 40%, #0009); }
 .ps-template .ps-footer__inner { padding: 0 0 1.5rem; }
 .ps-footer__top { min-height: 100svh; padding-block: 5rem; display: flex; align-items: center; }
-.ps-footer-contact { position: relative; display: flex; flex-direction: column; gap: 3rem; max-width: 42.5rem; width: 100%; margin-inline: auto; padding: 2.5rem 3.75rem; border-radius: 7.5rem; background: linear-gradient(#0009, #0005), #0003; box-shadow: inset 0 0 40px #fff, inset 0 0 4px #fffc; scroll-margin-top: 7rem; }
+.ps-footer-contact { position: relative; display: flex; flex-direction: column; gap: 3rem; max-width: 42.5rem; width: 100%; margin-inline: auto; padding: 2.5rem 3.75rem; border-radius: 7.5rem; background: var(--ps-glass-background); box-shadow: var(--ps-glass-shadow); scroll-margin-top: 7rem; }
 .ps-footer-contact__orbit { width: 5rem; height: 5rem; margin: 0 auto -1.5rem; background: url('/public-site/brand-orbit.svg') center/contain no-repeat; animation: ps-spin 24s linear infinite; }
 .ps-footer-contact__heading { text-align: center; }
 .ps-footer-contact h2 { font-size: 2rem; line-height: 1.1; letter-spacing: -.04em; font-weight: 500; margin: 0 0 1rem; }
@@ -343,7 +348,8 @@
 @media (max-width: 767px) {
   .ps-site.ps-template { --ph-section-space: 3.5rem; --ph-section-gap: 3rem; --ph-radius: 3.5rem; }
   .ph-home .ps-section-heading h2 { font-size: 2.5rem; }
-  .ph-home .ps-home-hero { min-height: 38rem; }
+  .ph-home .ps-home-hero { min-height: max(38rem, 100svh); padding-block: 7rem 3rem; }
+  .ph-home .ps-home-hero__content { padding: 3rem 2rem; }
   .ph-home .ps-home-hero h1 { font-size: 3rem; }
   .ph-home .ps-home-hero__actions { margin-top: 3rem; }
   .ph-about { padding-block: 4rem; }
@@ -392,8 +398,8 @@
 @media (max-width: 479px) {
   .ph-home .ps-home-hero__actions { flex-direction: column; align-items: stretch; }
   .ph-home .ps-home-hero p { font-size: 1rem; }
-  .ph-home .ps-home-hero__content { padding-top: 7rem; }
-  .ph-home .ps-home-hero h1 { font-size: clamp(2.4rem, 10.5vw, 3rem); }
+  .ph-home .ps-home-hero__content { padding: 2.5rem 1.5rem; }
+  .ph-home .ps-home-hero h1 { font-size: clamp(2rem, 8.5vw, 2.5rem); }
   .ph-home .ps-home-hero__eyebrow { font-size: .65rem; }
   .ps-template .ps-header { padding-top: 1.25rem; }
   .ps-template .ps-header__brand { width: 8rem; padding-inline: .5rem; }

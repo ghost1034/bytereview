@@ -70,8 +70,7 @@
 .ps-home-hero__content { position: relative; z-index: 1; padding-block: 7rem 5rem; text-align: center; }
 .ps-home-hero__eyebrow { width: max-content; margin: 0 auto 1.5rem; padding: .45rem .75rem; border: 1px solid rgba(255,255,255,.3); border-radius: 999px; display: flex; align-items: center; gap: .45rem; background: rgba(0,0,0,.24); font-size: .72rem; backdrop-filter: blur(10px); }
 .ps-home-hero__eyebrow svg { width: .9rem; height: .9rem; }
-.ps-home-hero h1 { margin: 0 auto; max-width: 70rem; font-size: 5rem; font-weight: 600; line-height: 1; letter-spacing: -.06em; background: var(--ps-holo); background-clip: text; color: transparent; mix-blend-mode: hard-light; }
-.ps-home-hero h1 span { background: var(--ps-holo); background-clip: text; color: transparent; }
+.ps-home-hero h1 { margin: 0 auto; max-width: 70rem; font-size: 5rem; font-weight: 500; line-height: 1; letter-spacing: -.06em; color: var(--ps-white); }
 .ps-home-hero p { max-width: 39rem; margin: 1.75rem auto 0; color: rgba(255,255,255,.78); font-size: 1.08rem; letter-spacing: -.03em; }
 .ps-home-hero__actions { margin-top: 5rem; display: flex; justify-content: center; gap: .5rem; }
 .ps-home-hero__scroll { position: absolute; left: 50%; bottom: -10rem; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: .5rem; color: rgba(255,255,255,.6); font-size: .7rem; }

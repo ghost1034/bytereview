@@ -8,8 +8,6 @@ Responsive transitions follow the reference at 991px, 767px, and 479px.
 ## Ownership
 
 - `pages/home.tsx`: homepage sections and live billing states.
-- `three/GlobeBackground.tsx`: the original rotating globe model and lighting,
-  loaded only in the browser, with pause, reduced-motion, and WebGL fallbacks.
 - `home-content.ts`: CPAAutomation products, existing customer feedback,
   professional-validation descriptions, case study, demos, and real people.
 - `home-interactions.tsx`: ambient video controls, on-demand video dialogs,
@@ -29,8 +27,10 @@ Responsive transitions follow the reference at 991px, 767px, and 479px.
   descriptive content, not an attributed quotation or invented employment.
 - Integration labels distinguish native connections from file interoperability.
 - Genuine portraits and a CPAAutomation orbit graphic replace template branding.
-- The original 3D globe replaces the template's hero video; the redesigned
-  typography, layout, calls to action, and footer media remain unchanged.
+- The hero uses the contact section's monochrome ambient video, with white text
+  and a full-frame dark overlay for contrast instead of a glass panel or globe.
+  Both hero calls to action remain unchanged; hero and footer playback controls
+  are labeled separately even though they share the same video assets.
 - Reduced-motion preferences stop decorative video and animation. Videos have
   explicit pause controls; moving strips pause on hover, and demos load only on activation.
 
