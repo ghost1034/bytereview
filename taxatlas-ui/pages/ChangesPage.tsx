@@ -140,9 +140,9 @@ export default function ChangesPage() {
         </div>
         <div className="ta-actions">
           <label className={auto ? "ta-toggle on" : "ta-toggle"} title="Refetch silently every 30 s">
-            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} aria-label="Auto-refresh every 30 seconds" />
+            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} aria-label="Auto-refresh" />
             <i aria-hidden="true" />
-            Auto-refresh <span className="mono">30 s</span>
+            Auto-refresh
           </label>
           <button type="button" className="btn" onClick={exportCsv} disabled={items.length === 0} title="CSV of the events on this page, with the current filters applied">Export CSV</button>
           {filters.jurisdiction ? <WatchButton code={filters.jurisdiction} taxType={filters.tax_type || null} long /> : <button type="button" className="btn btn-ghost" disabled title="Add a Jurisdiction filter to watch this view">Watch this view</button>}

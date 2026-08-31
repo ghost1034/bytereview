@@ -153,7 +153,7 @@ export default function SourcesPage() {
                 {next && <> · next scheduled batch <span className="num">{formatScheduleTime(next)}</span></>}
                 {scheduleData?.mode === 'manual' && <> · manual runs only</>}
                 {schedules.isError && <> · schedule unavailable <button type="button" className="ta-link-btn" onClick={() => schedules.refetch()}>Retry</button></>}
-                <span className="ta-faint"> · auto-refresh 15 s</span>
+                <span className="ta-faint"> · crawls every 24 h</span>
               </>
             ) : (
               "Registered crawler sources and their recent runs"
@@ -306,7 +306,7 @@ export default function SourcesPage() {
               )}
             </>
           }
-          right={<span className="result">auto-refresh <b>15 s</b></span>}
+          right={<span className="result">crawls every <b>24 h</b></span>}
         />
         <div className="ta-tblwrap" style={{ maxHeight: "40vh" }}>
           <table className={`tbl lt ${settings.density}`} aria-label="Recent crawl runs">
