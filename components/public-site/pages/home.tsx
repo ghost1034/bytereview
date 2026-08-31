@@ -106,7 +106,18 @@ export default function PublicHome() {
 
     <section className="ph-section" id="values-section"><div className="ph-container ph-container--medium">
       <SectionHeading number="002" eyebrow="Values" title="Why Choose Us?" description="Professional judgment deserves software built around the way you work." />
-      <Reveal className="ph-values">{HOME_VALUES.map((value, index) => { const Icon = value.icon; return <article className="ph-value" key={value.title}><div className="ph-value__visual"><div className="ph-value__halo"><span><Icon aria-hidden /></span></div><b>0{index + 1}</b></div><div className="ph-value__copy"><h3>{value.title}</h3><p>{value.body}</p></div></article> })}</Reveal>
+      <Reveal className="ph-values">
+        {HOME_VALUES.map((value, index) => {
+          const Icon = value.icon
+          return <article className="ph-value" key={value.title}>
+            <div className="ph-value__visual">
+              <div className="ph-value__halo"><div className="ph-value__ring"><span className="ph-value__frame"><Icon aria-hidden /></span></div></div>
+              <b>0{index + 1}</b>
+            </div>
+            <div className="ph-value__copy"><h3>{value.title}</h3><p>{value.body}</p></div>
+          </article>
+        })}
+      </Reveal>
     </div></section>
 
     <section className="ph-section" id="service-section"><div className="ph-container">
