@@ -35,7 +35,7 @@ export function PublicSiteLayout({ children }: { children: React.ReactNode }) {
   if (!isPublicSite) return <MainLayout>{children}</MainLayout>
 
   return (
-    <div className="ps-site">
+    <div className="ps-site ps-template">
       {preloading && <div className="ps-preloader" aria-hidden><span>CA</span><strong>CPAAutomation</strong></div>}
       <a href="#main-content" className="ps-skip-link">Skip to content</a>
       <PublicHeader />

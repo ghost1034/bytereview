@@ -1,259 +1,155 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
-import {
-  ArrowDown,
-  ArrowRight,
-  ArrowUpRight,
-  BadgeCheck,
-  Blocks,
-  BrainCircuit,
-  Check,
-  FileStack,
-  LockKeyhole,
-  Network,
-  Quote,
-  Scale,
-  Sparkles,
-  Workflow,
-} from 'lucide-react'
-
+import { useRouter } from 'next/navigation'
+import { ArrowUpRight, BadgeCheck, Check, LockKeyhole, Network, Play, Quote, ShieldCheck, Sparkles } from 'lucide-react'
 import AuthModal from '@/components/auth/AuthModal'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
+import { useAuth } from '@/contexts/AuthContext'
 import { useSubscriptionPlans } from '@/hooks/useBilling'
-import { PRODUCTS, PRODUCT_NAMES } from '../content'
-import { DotPattern, Eyebrow, Marquee, Reveal, SectionHeading, SiteButton } from '../ui'
+import { PRODUCTS } from '../content'
+import { getPublicPlanFeatures, getPublicPlanPrice, getPublicPricingState } from '../model'
+import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATIONS, HOME_PEOPLE, HOME_PROOF, HOME_QUOTES, HOME_SECURITY, HOME_VALUES } from '../home-content'
+import { AmbientVideo, HomeCarousel, HomeTimeline, VideoLightbox } from '../home-interactions'
+import { Eyebrow, Reveal, SectionHeading, SiteButton } from '../ui'
 
-const CAPABILITIES = [
-  {
-    number: '01',
-    icon: FileStack,
-    title: 'Document intelligence',
-    body: 'Extract, validate, transform, and route the information buried in financial and legal documents.',
-    products: ['Universal Document Analysis', 'Form Fill', 'Prepared by Client'],
-  },
-  {
-    number: '02',
-    icon: BrainCircuit,
-    title: 'Knowledge work',
-    body: 'Draft with grounded sources, prepare signature workflows, and turn review into a repeatable system.',
-    products: ['Inkwise', 'E-Signature', 'TaxAtlas'],
-  },
-  {
-    number: '03',
-    icon: Workflow,
-    title: 'Practice operations',
-    body: 'Coordinate projects, capture time, collect evidence, and keep every engagement moving.',
-    products: ['Tasklytic', 'Chrona', 'CPE Tracker'],
-  },
-  {
-    number: '04',
-    icon: Network,
-    title: 'Agents and analytics',
-    body: 'Deploy digital workers and purpose-built analysis for accounting, finance, and legal teams.',
-    products: ['Claw Series', 'AI Analytics Suite'],
-  },
-]
+function VoiceCard({ item }: { item: typeof HOME_QUOTES[number] }) {
+  return <figure className="ph-quote">
+    <figcaption>
+      {item.image ? <Image src={item.image} width={56} height={56} alt="" /> : <span className="ph-quote__avatar"><LockKeyhole aria-hidden /></span>}
+      <div><strong>{item.name}</strong><span>{item.role}</span></div>{item.kind === 'validation' ? <ShieldCheck aria-hidden /> : <Quote aria-hidden />}
+    </figcaption>
+    {item.kind === 'validation' ? <p>{item.quote}</p> : <blockquote>{item.quote}</blockquote>}
+  </figure>
+}
 
-const STEPS = [
-  ['01', 'Bring the work', 'Upload documents, connect a source, or start with a professional workflow.'],
-  ['02', 'Set the standard', 'Choose the fields, rules, evidence, and review points that matter to your team.'],
-  ['03', 'Let AI do the heavy lifting', 'CPAAutomation handles the extraction, drafting, coordination, or analysis.'],
-  ['04', 'Review and act', 'Keep professional judgment in the loop, then export, sign, deliver, or automate.'],
-]
+function DemoCard({ videoId, title, image }: { videoId: string; title: string; image: string }) {
+  return <VideoLightbox videoId={videoId} title={title} className="ph-demo">
+    <Image src={image} alt="" fill sizes="(max-width: 991px) 80vw, 33vw" />
+    <span className="ph-demo__play"><Play aria-hidden /></span>
+    <span className="ph-demo__copy"><small>CPAAutomation · Product demo</small><strong>{title}</strong></span>
+  </VideoLightbox>
+}
 
-const FAQS = [
-  ['Who is CPAAutomation for?', 'Accounting, finance, and legal professionals who need reliable automation without rebuilding their practice around a generic AI tool.'],
-  ['Do I need technical training?', 'No. The products follow familiar professional workflows and are designed to be useful without prompt engineering or custom development.'],
-  ['Does CPAAutomation train on customer data?', 'No. Customer data is not used to train shared AI models. Security controls include encryption in transit and at rest.'],
-  ['Can your team build a custom workflow?', 'Yes. Forward-Deployed Consulting embeds technical and business expertise to scope and ship custom AI software.'],
-]
+function HomePricing() {
+  const { data: plans, isLoading, isError, refetch } = useSubscriptionPlans()
+  const sortedPlans = [...(plans ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+  const state = getPublicPricingState({ isLoading, isError, planCount: sortedPlans.length })
+  return <>
+    <p className="ph-pricing-period">Monthly plans <span /> No annual commitment</p>
+    {state !== 'ready' ? <div className="ph-pricing-state" role={state === 'error' ? 'alert' : 'status'}>
+      <p>{state === 'loading' ? 'Loading available plans…' : state === 'error' ? 'Plans could not be loaded.' : 'No plans are currently available.'}</p>
+      {state === 'error' && <button type="button" onClick={() => void refetch()}>Try again</button>}
+      {state !== 'loading' && <Link href="/pricing">Visit pricing <ArrowUpRight aria-hidden /></Link>}
+    </div> : <div className="ph-pricing-table">
+      {sortedPlans.map((plan) => <article className={`ph-plan${plan.code === 'pro' ? ' ph-plan--featured' : ''}`} key={plan.code}>
+        <div className="ph-plan__top">
+          <span className="ph-plan__icon"><Sparkles aria-hidden /></span>
+          {plan.code === 'pro' && <span className="ph-plan__tag">Most popular</span>}
+          <h3>{plan.display_name}</h3>
+          <p>{plan.code === 'free' ? 'Explore your first workflow' : plan.code === 'basic' ? 'For everyday professional work' : 'For teams ready to scale'}</p>
+          <div className="ph-plan__price"><strong>{getPublicPlanPrice(plan.code)}</strong>{plan.code !== 'free' && <span>/Month</span>}</div>
+        </div>
+        <div className="ph-plan__bottom"><strong>What’s included:</strong><ul>{getPublicPlanFeatures(plan).map((feature) => <li key={feature}><Check aria-hidden />{feature}</li>)}</ul>
+          <SiteButton href={plan.code === 'free' ? '/pricing' : `/pricing?plan=${encodeURIComponent(plan.code)}`}>Explore {plan.display_name}</SiteButton>
+        </div>
+      </article>)}
+    </div>}
+    <div className="ph-consult-cta"><div><h3>A workflow that needs a custom build?</h3><p>Talk with the people who will design and ship it.</p></div><SiteButton href="/consulting">Explore consulting</SiteButton></div>
+  </>
+}
 
 export default function PublicHome() {
   const [authOpen, setAuthOpen] = useState(false)
-  const { data: plans } = useSubscriptionPlans()
+  const [motionPaused, setMotionPaused] = useState(false)
+  const { user, requiresMfaEnrollment } = useAuth()
+  const router = useRouter()
+  const start = () => {
+    if (user) router.push(requiresMfaEnrollment ? '/complete-signup' : '/dashboard')
+    else setAuthOpen(true)
+  }
 
-  return (
-    <>
-      <section className="ps-home-hero">
-        <video
-          className="ps-home-hero__video"
-          autoPlay
-          muted
-          loop
-          playsInline
-          poster="/public-site/hero-poster.jpg"
-          aria-hidden
-        >
-          <source src="/public-site/hero.webm" type="video/webm" />
-          <source src="/public-site/hero.mp4" type="video/mp4" />
-        </video>
-        <div className="ps-home-hero__shade" aria-hidden />
-        <div className="ps-container ps-home-hero__content">
-          <div className="ps-home-hero__eyebrow"><BadgeCheck /> Built by CPAs for professional work</div>
-          <h1>Intelligent automation<br />for <span>modern professionals</span></h1>
-          <p>One AI platform for the documents, decisions, and workflows that power accounting, finance, and legal teams.</p>
-          <div className="ps-home-hero__actions">
-            <SiteButton onClick={() => setAuthOpen(true)}>Get started free</SiteButton>
-            <SiteButton href="/demo" variant="ghost">Watch the demos</SiteButton>
-          </div>
-          <a className="ps-home-hero__scroll" href="#platform">
-            <span>Explore the platform</span><ArrowDown aria-hidden />
-          </a>
-        </div>
-      </section>
+  return <div className="ph-home" data-motion-paused={motionPaused || undefined}>
+    <section className="ps-home-hero" aria-label="CPAAutomation">
+      <AmbientVideo name="hero" className="ps-home-hero__video" />
+      <div className="ps-home-hero__shade" aria-hidden />
+      <div className="ph-container ps-home-hero__content">
+        <div className="ps-home-hero__eyebrow"><BadgeCheck aria-hidden />Built for professional work</div>
+        <h1>Intelligent Automation<br />for Modern Professionals</h1>
+        <p>One AI platform for the documents, decisions, and workflows that power accounting, finance, and legal teams.</p>
+        <div className="ps-home-hero__actions"><SiteButton onClick={start}>{user ? 'Go to dashboard' : 'Get started free'}</SiteButton><SiteButton href="#CTA-Form" variant="ghost"><span className="ps-button__people" aria-hidden><Image src="/ian.jpg" alt="" width={28} height={28} /><Image src="/ray.jpg" alt="" width={28} height={28} /></span>Work with us</SiteButton></div>
+      </div>
+    </section>
 
-      <Marquee items={PRODUCT_NAMES} />
+    <div className="ph-brand-strip">
+      <div className="ph-container"><div className="ph-marquee" aria-label="Eleven CPAAutomation products"><div className="ph-marquee__track">
+        {[0, 1].map((copy) => <div className="ph-brand-list" key={copy} aria-hidden={copy === 1 || undefined}>{PRODUCTS.map((product) => { const Icon = product.icon; return <span key={product.name}><Icon aria-hidden />{product.name}</span> })}</div>)}
+      </div></div></div>
+      <button className="ph-motion-toggle" type="button" aria-pressed={motionPaused} onClick={() => setMotionPaused(!motionPaused)}>{motionPaused ? 'Resume' : 'Pause'} moving strips</button>
+    </div>
 
-      <section className="ps-section ps-section--intro" id="platform">
-        <div className="ps-container">
-          <Reveal className="ps-intro">
-            <Eyebrow number="001">The platform</Eyebrow>
-            <p>CPAAutomation brings document intelligence, professional writing, engagement operations, analytics, and AI agents into one connected platform.</p>
-          </Reveal>
-          <div className="ps-intro__metrics">
-            <div><strong>11</strong><span>purpose-built products</span></div>
-            <div><strong>3</strong><span>professional domains</span></div>
-            <div><strong>1</strong><span>connected AI platform</span></div>
-          </div>
-        </div>
-      </section>
+    <section className="ph-section ph-about" id="about-section">
+      <div className="ph-container">
+        <Reveal className="ph-about__intro"><Eyebrow number="001">Who we are</Eyebrow><h2>We bring document intelligence, professional writing, engagement operations, analytics, and AI agents into one connected platform.</h2></Reveal>
+        <Reveal className="ph-about__media">
+          <div className="ph-statistics" aria-label="11 purpose-built products, 3 professional domains, 1 connected platform"><div className="ph-marquee__track" aria-hidden>{[0, 1].map((copy) => <div key={copy}><span>11 <b>products</b></span><span>3 <b>professional domains</b></span><span>1 <b>connected platform</b></span></div>)}</div></div>
+          <VideoLightbox videoId="tNwpajJZ8zA" title="Build a P&L in two minutes" className="ph-about__video">
+            <Image src="/public-site/caseimg1.png" alt="" fill sizes="(max-width: 767px) 70vw, 600px" />
+            <span className="ph-demo__play"><Play aria-hidden /></span><span className="ph-about__caption">See CPAAutomation in action</span>
+          </VideoLightbox>
+        </Reveal>
+      </div>
+    </section>
 
-      <section className="ps-section ps-section--soft">
-        <div className="ps-container">
-          <SectionHeading
-            number="002"
-            eyebrow="Why CPAAutomation"
-            title="Professional judgment deserves professional software."
-            description="Built around the standards, evidence, and review cycles real teams already use."
-          />
-          <div className="ps-value-grid">
-            {[
-              [Scale, 'Domain-native by design', 'Workflows reflect how accountants, finance teams, and legal professionals actually review and deliver work.'],
-              [LockKeyhole, 'Your data stays yours', 'Encryption, US-based infrastructure, and zero customer-data training are built into the platform.'],
-              [Blocks, 'One platform, many workflows', 'Start with one painful process, then connect the rest of the engagement without adding another point solution.'],
-            ].map(([Icon, title, body], index) => {
-              const ValueIcon = Icon as typeof Scale
-              return (
-                <Reveal key={title as string} className="ps-value-card">
-                  <div className="ps-value-card__top"><span><ValueIcon /></span><b>0{index + 1}</b></div>
-                  <h3>{title as string}</h3><p>{body as string}</p>
-                </Reveal>
-              )
-            })}
-          </div>
-        </div>
-      </section>
+    <section className="ph-section" id="values-section"><div className="ph-container ph-container--medium">
+      <SectionHeading number="002" eyebrow="Values" title="Why Choose Us?" description="Professional judgment deserves software built around the way you work." />
+      <Reveal className="ph-values">{HOME_VALUES.map((value, index) => { const Icon = value.icon; return <article className="ph-value" key={value.title}><div className="ph-value__visual"><div className="ph-value__halo"><span><Icon aria-hidden /></span></div><b>0{index + 1}</b></div><div className="ph-value__copy"><h3>{value.title}</h3><p>{value.body}</p></div></article> })}</Reveal>
+    </div></section>
 
-      <section className="ps-section" id="capabilities">
-        <div className="ps-container">
-          <SectionHeading number="003" eyebrow="Capabilities" title="The work is complex. The interface isn’t." />
-          <div className="ps-capability-grid">
-            {CAPABILITIES.map((capability) => {
-              const Icon = capability.icon
-              return (
-                <Reveal key={capability.title} className="ps-capability-card">
-                  <div className="ps-capability-card__head"><span>{capability.number}</span><Icon /></div>
-                  <h3>{capability.title}</h3><p>{capability.body}</p>
-                  <ul>{capability.products.map((product) => <li key={product}><Check />{product}</li>)}</ul>
-                  <Link href="/features">Explore capabilities <ArrowRight /></Link>
-                  <DotPattern />
-                </Reveal>
-              )
-            })}
-          </div>
-        </div>
-      </section>
+    <section className="ph-section" id="service-section"><div className="ph-container">
+      <SectionHeading number="003" eyebrow="Capabilities" title="Your AI-Powered Platform" />
+      <Reveal className="ph-capabilities">
+        {HOME_CAPABILITIES.map((item, index) => <article className={`ph-capability${index === 0 ? ' ph-capability--lead' : ''}`} key={item.title}>
+          <div><h3>{item.title}</h3><p>{item.body}</p><ul>{item.products.map((product) => <li key={product}><Check aria-hidden />{product}</li>)}</ul></div>
+          <div className="ph-capability__image"><Image src={`/public-site/${item.image}`} alt="Illustrative automation workflow" width={item.image === 'cap1.png' ? 752 : 656} height={item.image === 'cap1.png' ? 790 : 280} /></div>
+          <Link href={item.href} aria-label={`Explore ${item.title.replace(/\.$/, '')}`}>Explore <ArrowUpRight aria-hidden /></Link>
+        </article>)}
+        <aside className="ph-capability-cta"><span className="ph-contact-portraits"><Image src="/ian.jpg" alt="" width={80} height={80} /><Image src="/ray.jpg" alt="" width={80} height={80} /></span><div><h3>Let’s build your next workflow.</h3><p>Custom AI software, delivered alongside your team.</p></div><SiteButton href="/consulting">Work with us</SiteButton></aside>
+        <article className="ph-security"><h3>Your Data. Protected. Always.</h3><div>{HOME_SECURITY.map(([image, title]) => <div key={title}><Image src={`/public-site/${image}`} alt="" width={92} height={92} /><span>{title}</span></div>)}</div></article>
+      </Reveal>
+    </div></section>
 
-      <section className="ps-section ps-section--ink">
-        <div className="ps-container">
-          <SectionHeading number="004" eyebrow="How it works" title="From source material to finished work." />
-          <div className="ps-process">
-            {STEPS.map(([number, title, body]) => (
-              <Reveal key={number} className="ps-process__item">
-                <span>{number}</span><div><h3>{title}</h3><p>{body}</p></div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
+    <section className="ph-section" id="process-section"><div className="ph-container ph-container--medium"><SectionHeading number="004" eyebrow="Process" title="From Source to Finished Work" description="A familiar workflow, with AI handling the heavy lifting and professional judgment in control." /><HomeTimeline /></div></section>
 
-      <section className="ps-section">
-        <div className="ps-container">
-          <SectionHeading
-            number="005"
-            eyebrow="Proof in practice"
-            title="See the platform doing real work."
-            description="Product demonstrations and a customer result—no concept videos, no placeholder outcomes."
-          />
-          <div className="ps-proof-grid">
-            <Reveal className="ps-proof-card ps-proof-card--feature">
-              <div className="ps-video-frame">
-                <iframe src="https://www.youtube-nocookie.com/embed/tNwpajJZ8zA" title="Build a P&L in two minutes" loading="lazy" allowFullScreen />
-              </div>
-              <span>Universal Document Analysis</span><h3>Build a P&amp;L in two minutes</h3>
-              <Link href="/demo">Watch more demos <ArrowUpRight /></Link>
-            </Reveal>
-            <Reveal className="ps-proof-card">
-              <div className="ps-proof-card__metric">95%</div>
-              <span>Leonardo Family Office</span><h3>Quarterly processing reduced from three days to two hours.</h3>
-              <Link href="/case-study/LFO">Read the case study <ArrowUpRight /></Link>
-            </Reveal>
-            <Reveal className="ps-proof-card ps-proof-card--quote">
-              <Quote />
-              <blockquote>“Validated our platform’s ability to handle complex technology-sector financial processes and automation workflows.”</blockquote>
-              <p>Ray Sang · Finance Systems</p>
-            </Reveal>
-          </div>
-        </div>
-      </section>
+    <section className="ph-section" id="project-section"><div className="ph-container"><SectionHeading number="005" eyebrow="In practice" title="See What’s Possible" /><HomeCarousel label="Customer stories and demonstrations" kind="proof">{HOME_PROOF.map((item) => <article className="ph-case" key={item.title}>
+      <div className="ph-case__image"><Image src={`/public-site/${item.image}`} alt="" fill sizes="(max-width: 991px) 90vw, 520px" />{item.videoId && <VideoLightbox videoId={item.videoId} title={item.title} className="ph-case__play"><Play aria-hidden /></VideoLightbox>}</div>
+      <div className="ph-case__copy"><div><span className="ph-case__label">{item.label}</span><h3>{item.title}</h3><p>{item.body}</p><Link href={item.href}>{item.linkLabel}<ArrowUpRight aria-hidden /></Link></div><dl>{item.metrics.map(([value, label]) => <div key={label}><dt>{value}</dt><dd>{label}</dd></div>)}</dl></div>
+    </article>)}</HomeCarousel></div></section>
 
-      <section className="ps-section ps-section--soft">
-        <div className="ps-container">
-          <SectionHeading number="006" eyebrow="Products" title="Start with the workflow costing you the most time." />
-          <div className="ps-product-list">
-            {PRODUCTS.map((product, index) => {
-              const Icon = product.icon
-              return (
-                <Link href={product.href} key={product.name} className="ps-product-row">
-                  <span>{String(index + 1).padStart(2, '0')}</span><Icon />
-                  <strong>{product.name}</strong><p>{product.description}</p><ArrowUpRight />
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      </section>
+    <section className="ph-section" id="integrations-section"><div className="ph-container"><SectionHeading number="006" eyebrow="Connected work" title="Your Technology Ecosystem" /></div>
+      <div className="ph-ecosystem"><div className="ph-integration-lines">{[0, 1, 2].map((row) => <div className="ph-integration-line" key={row}><div className="ph-marquee__track">{[0, 1].map((copy) => <div className="ph-integration-list" key={copy} aria-hidden={copy === 1 || undefined}>{[...HOME_INTEGRATIONS.slice(row * 2), ...HOME_INTEGRATIONS.slice(0, row * 2)].map((item) => { const Icon = item.icon; return <div className="ph-integration" key={item.name}><div><strong>{item.name}</strong><small>{item.detail}</small></div><Icon aria-hidden /></div> })}</div>)}</div></div>)}</div>
+        <Link href="/features" className="ph-ecosystem__hub"><Network aria-hidden /><span>One connected<br />platform</span><ArrowUpRight aria-hidden /></Link>
+      </div><p className="ph-ecosystem__caption">Connect source material, review, and delivery through native integrations and familiar file formats. Keep the tools your team already uses.</p>
+    </section>
 
-      <section className="ps-section ps-section--ink">
-        <div className="ps-container">
-          <SectionHeading number="007" eyebrow="Connected work" title="Bring the tools your team already uses." description="Available integrations and export paths connect source material, review, and delivery without forcing a new system of record." />
-          <div className="ps-integration-grid">{['Google Drive', 'Gmail', 'Slack', 'NetSuite', 'Microsoft Excel', 'Google Sheets'].map((name, index) => <Reveal key={name}><span>0{index + 1}</span><strong>{name}</strong><Network /></Reveal>)}</div>
-        </div>
-      </section>
+    <section className="ph-section" id="testimonials-section"><div className="ph-container"><SectionHeading number="007" eyebrow="Professional voices" title="What They’re Saying" />
+      <Reveal className="ph-testimonials">
+        <div><DemoCard videoId="tNwpajJZ8zA" title="Build a P&L in two minutes" image="/public-site/caseimg1.png" /><VoiceCard item={HOME_QUOTES[0]} /></div>
+        <div><VoiceCard item={HOME_QUOTES[1]} /><VoiceCard item={HOME_QUOTES[3]} /><VoiceCard item={HOME_QUOTES[2]} /></div>
+        <div><VoiceCard item={HOME_QUOTES[4]} /><DemoCard videoId="OaloCO7Bh28" title="A professional investor report, in minutes" image="/public-site/case3.png" /></div>
+      </Reveal><p className="ph-testimonials__note"><LockKeyhole aria-hidden />Customer names abbreviated to protect confidentiality. Product demos are labeled separately.</p>
+    </div></section>
 
-      <section className="ps-section ps-section--soft">
-        <div className="ps-container">
-          <SectionHeading number="008" eyebrow="Pricing" title="Start free. Add capacity when the workflow proves itself." />
-          <div className="ps-home-pricing">{[...(plans ?? [])].sort((a, b) => a.sort_order - b.sort_order).slice(0, 3).map((plan) => <Reveal key={plan.code}><span>{plan.display_name}</span><strong>{plan.code === 'basic' ? '$9.99' : plan.code === 'pro' ? '$49.99' : 'Free'}</strong><small>{plan.code === 'free' ? 'No monthly charge' : 'per month'}</small><p>{plan.pages_included === 999999 ? 'Unlimited' : plan.pages_included.toLocaleString()} pages · {plan.tokens_included.toLocaleString()} AI tokens</p><Link href="/pricing">Compare plans <ArrowUpRight /></Link></Reveal>)}</div>
-        </div>
-      </section>
+    <section className="ph-section" id="pricing-section"><div className="ph-container ph-container--medium"><SectionHeading number="008" eyebrow="Pricing" title="Built for Every Stage" description="Start free. Add capacity when the workflow proves itself." /><HomePricing /></div></section>
 
-      <section className="ps-section">
-        <div className="ps-container">
-          <SectionHeading number="009" eyebrow="Common questions" title="Useful answers, before you start." />
-          <div className="ps-faq-list">
-            {FAQS.map(([question, answer], index) => (
-              <details key={question} className="ps-faq-item">
-                <summary><span>0{index + 1}</span><strong>{question}</strong><Sparkles /></summary>
-                <p>{answer}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
+    <section className="ph-section" id="team-section"><div className="ph-container"><SectionHeading number="009" eyebrow="People" title="Built Close to the Work" description="Meet the people building and validating CPAAutomation." /><HomeCarousel kind="people" label="The people behind CPAAutomation">{HOME_PEOPLE.map((person) => <article className="ph-person" key={person.name}><div className="ph-person__image"><Image src={person.image} alt={person.name} width={594} height={760} /><Link href={person.href}>{person.action}<ArrowUpRight aria-hidden /></Link></div><h3>{person.name}</h3><p>{person.role}</p></article>)}</HomeCarousel></div></section>
 
-      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} redirectTo="/dashboard" defaultTab="signin" />
-    </>
-  )
+    <section className="ph-section ph-faq" id="FAQ-section"><div className="ph-container ph-container--medium"><SectionHeading number="010" eyebrow="FAQs" title="Common Questions" />
+      <Accordion type="single" collapsible className="ph-faq-list">{HOME_FAQS.map(([question, answer], index) => <AccordionItem className="ph-faq-item" value={`faq-${index}`} key={question}><AccordionTrigger><span className="ph-faq-item__number">{index + 1}</span><span>{question}</span></AccordionTrigger><AccordionContent>{answer}</AccordionContent></AccordionItem>)}</Accordion>
+      <div className="ph-faq-cta"><p>Still have a question?</p><Link href="/contact">Let’s talk <ArrowUpRight aria-hidden /></Link></div>
+    </div></section>
+    <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} redirectTo="/dashboard" defaultTab="signin" />
+  </div>
 }

@@ -135,6 +135,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@tailwindcss/typography": "^0.5.16",
+    "@testing-library/user-event": "^14.6.1",
     "@types/file-saver": "^2.0.7",
     "@types/jszip": "^3.4.1",
     "@types/node": "^24",
@@ -150,6 +151,7 @@
     "axe-core": "^4.13.0",
     "eslint": "^9",
     "eslint-config-next": "15.4.4",
+    "jsdom": "^26.1.0",
     "openapi-typescript": "^7.8.0",
     "playwright": "^1.55.0",
     "postcss": "^8.5.6",
