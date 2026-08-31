@@ -25,6 +25,8 @@ vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: state.user, r
 vi.mock('@/hooks/useBilling', () => ({ useSubscriptionPlans: () => ({ data: state.plans, isLoading: state.loading, isError: state.error, refetch: state.refetch }) }))
 vi.mock('@/lib/api', () => ({ apiClient: { submitContact: (...args: unknown[]) => state.submit(...args) } }))
 vi.mock('@/components/auth/AuthModal', () => ({ default: ({ isOpen }: { isOpen: boolean }) => isOpen ? <div role="dialog" aria-label="Sign in" /> : null }))
+// WebGL rendering is verified in the browser; jsdom has no canvas context.
+vi.mock('./three/GlobeBackground', () => ({ default: () => null }))
 vi.mock('gsap', () => ({ gsap: { registerPlugin: vi.fn(), matchMedia: () => ({ add: vi.fn(), revert: vi.fn() }) } }))
 vi.mock('gsap/ScrollTrigger', () => ({ ScrollTrigger: {} }))
 vi.mock('embla-carousel-react', () => {

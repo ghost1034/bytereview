@@ -24,9 +24,10 @@
 .ph-home .ps-eyebrow__label { gap: .333em; }
 .ph-home .ps-eyebrow__dot { width: .6em; height: .6em; }
 
-/* Full-viewport hero, like the reference: the media is not darkened or filtered
-   into a different scene, and the gradient covers the complete headline. */
-.ph-home .ps-home-hero { height: 100svh; min-height: 40rem; }
+/* Keep the redesigned hero composition over the original navy globe backdrop.
+   The gradient is also the loading and WebGL-unavailable fallback. */
+.ph-home .ps-home-hero { height: 100svh; min-height: 40rem; background: radial-gradient(ellipse at 50% 100%, #122349, #0f1729 70%); }
+.ph-home .ps-home-hero__shade { pointer-events: none; background: linear-gradient(#0f172940, transparent 65%, #0f172980); }
 .ph-home .ps-home-hero__content { padding-block: 7rem 5rem; }
 .ph-home .ps-home-hero__eyebrow { background: none; backdrop-filter: none; padding: .5rem 1rem; font-size: .75rem; text-transform: uppercase; margin-bottom: 1rem; }
 .ph-home .ps-home-hero h1 { font-size: 5rem; line-height: 1; letter-spacing: -.06em; }
@@ -303,8 +304,6 @@
   .ps-site.ps-template { --ph-section-space: 5rem; --ph-section-gap: 4rem; --ph-radius: 4rem; }
   .ph-home .ps-section-heading h2 { font-size: 3rem; }
   .ph-home .ps-home-hero h1 { font-size: 4rem; }
-  .ph-home .ps-home-hero__video { top: 20%; height: 60%; }
-  .ph-home .ps-home-hero__shade { background: linear-gradient(#d9d9d9 0% 12%, #0000 32% 65%, #b8b8b8 83%), linear-gradient(#0006, #0000001a); }
   .ph-about { padding-block: 6rem; }
   .ph-about__media { margin-top: 6rem; }
   .ph-about__video { width: 60vw; border-radius: 4.5rem; }

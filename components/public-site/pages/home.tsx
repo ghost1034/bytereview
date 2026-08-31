@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -12,8 +13,10 @@ import { useSubscriptionPlans } from '@/hooks/useBilling'
 import { PRODUCTS } from '../content'
 import { getPublicPlanFeatures, getPublicPlanPrice, getPublicPricingState } from '../model'
 import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATIONS, HOME_PEOPLE, HOME_PROOF, HOME_QUOTES, HOME_SECURITY, HOME_VALUES } from '../home-content'
-import { AmbientVideo, HomeCarousel, HomeTimeline, VideoLightbox } from '../home-interactions'
+import { HomeCarousel, HomeTimeline, VideoLightbox } from '../home-interactions'
 import { Eyebrow, Reveal, SectionHeading, SiteButton } from '../ui'
+
+const GlobeBackground = dynamic(() => import('../three/GlobeBackground'), { ssr: false })
 
 function VoiceCard({ item }: { item: typeof HOME_QUOTES[number] }) {
   return <figure className="ph-quote">
@@ -73,7 +76,7 @@ export default function PublicHome() {
 
   return <div className="ph-home" data-motion-paused={motionPaused || undefined}>
     <section className="ps-home-hero" aria-label="CPAAutomation">
-      <AmbientVideo name="hero" className="ps-home-hero__video" />
+      <GlobeBackground />
       <div className="ps-home-hero__shade" aria-hidden />
       <div className="ph-container ps-home-hero__content">
         <div className="ps-home-hero__eyebrow"><BadgeCheck aria-hidden />Built for professional work</div>

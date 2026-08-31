@@ -56,9 +56,9 @@ export function useReduced3D(): Reduced3DState {
   })
 
   useEffect(() => {
-    const reducedMotion = window.matchMedia(
+    const motionPreference = window.matchMedia(
       '(prefers-reduced-motion: reduce)',
-    ).matches
+    )
     const hasWebGL = detectWebGL()
     const coarsePointer = window.matchMedia('(pointer: coarse)').matches
     const lowCores = (navigator.hardwareConcurrency || 4) <= 4
@@ -68,7 +68,10 @@ export function useReduced3D(): Reduced3DState {
     if (!hasWebGL) quality = 'off'
     else if (lowPower) quality = 'low'
 
-    setState({ ready: true, enabled: hasWebGL, quality, reducedMotion })
+    const sync = () => setState({ ready: true, enabled: hasWebGL, quality, reducedMotion: motionPreference.matches })
+    sync()
+    motionPreference.addEventListener('change', sync)
+    return () => motionPreference.removeEventListener('change', sync)
   }, [])
 
   return state
