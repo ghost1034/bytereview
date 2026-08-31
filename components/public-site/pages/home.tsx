@@ -76,7 +76,7 @@ export default function PublicHome() {
       <div className="ps-home-hero__shade" aria-hidden />
       <div className="ph-container ps-home-hero__content">
         <div className="ps-home-hero__eyebrow"><BadgeCheck aria-hidden />Built for professional work</div>
-        <h1>Intelligent Automation<br />for Modern Professionals</h1>
+        <h1>Less busywork.<br />More billable hours.</h1>
         <p>One AI platform for the documents, decisions, and workflows that power accounting, finance, and legal teams.</p>
         <div className="ps-home-hero__actions"><SiteButton onClick={start}>{user ? 'Go to dashboard' : 'Get started free'}</SiteButton><SiteButton href="#CTA-Form" variant="ghost"><span className="ps-button__people" aria-hidden><Image src="/ian.jpg" alt="" width={28} height={28} /><Image src="/ray.jpg" alt="" width={28} height={28} /></span>Work with us</SiteButton></div>
       </div>
