@@ -248,8 +248,9 @@
    so fonts and tokens survive; app/auth dialogs remain above this chrome. */
 .ps-template .ps-header { z-index: 40; padding: 2rem 1rem 0; }
 .ps-template .ps-header__bar { position: relative; width: fit-content; height: auto; padding: 0; gap: .25rem; border: 0; background: none; box-shadow: none; backdrop-filter: none; }
-.ps-template .ps-header__brand { display: grid; place-items: center; width: 3.5rem; height: 3.5rem; border-radius: 50%; background: #0009; backdrop-filter: blur(40px); }
-.ps-header__brand > span { font-size: 1.1rem; letter-spacing: -.09em; font-weight: 600; color: #fff; }
+/* Keep the original navy/teal logo legible over the globe and footer video. */
+.ps-template .ps-header__brand { display: grid; place-items: center; flex: none; width: 10.5rem; height: 3.5rem; padding: .25rem .75rem; border-radius: 999px; background: #fff; }
+.ps-header__brand img { display: block; width: 100%; height: 100%; object-fit: contain; }
 .ps-template .ps-header__actions { gap: 1.5rem; padding: .25rem .25rem .25rem 1.5rem; border-radius: 99rem; background: #0009; backdrop-filter: blur(40px); }
 .ps-template .ps-menu-trigger { padding: 0; border: 0; background: none; min-height: 2.5rem; font-size: .875rem; gap: .5rem; }
 .ps-template .ps-header .ps-button { min-height: 3rem; padding: .6rem 1.25rem; border: 1px solid #fff; background: #fffc; color: #1a1a1a; box-shadow: none; font-size: .875rem; }
@@ -294,7 +295,8 @@
 .ps-footer-nav nav { padding-top: 1.5rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
 .ps-footer-nav a:hover { text-decoration: underline; }
 .ps-footer-signoff { margin-top: 7rem; }
-.ps-footer-signoff__brand { display: block; width: fit-content; margin: 0 auto 1rem; font-size: clamp(2.5rem, 6vw, 4.5rem); font-weight: 600; letter-spacing: -.07em; line-height: 1; }
+.ps-footer-signoff__brand { display: block; width: min(100%, 22rem); margin: 0 auto 1rem; padding: .75rem 1.25rem; border-radius: 1.5rem; background: #fff; }
+.ps-footer-signoff__brand img { display: block; width: 100%; height: auto; }
 .ps-footer-signoff > div { display: flex; justify-content: space-between; gap: 1rem; color: #fffc; font-size: .8rem; }
 .ps-footer-signoff > div > span:last-child { display: flex; gap: 1.5rem; }
 .ps-video-dialog { z-index: 100; width: 90vw; max-width: 64rem; border: 1px solid #525252; border-radius: 2rem !important; background: #1a1a1a; color: white; padding: 2rem; font-family: 'Public Geist', Arial, sans-serif; }
@@ -388,8 +390,11 @@
   .ph-home .ps-home-hero h1 { font-size: clamp(2.4rem, 10.5vw, 3rem); }
   .ph-home .ps-home-hero__eyebrow { font-size: .65rem; }
   .ps-template .ps-header { padding-top: 1.25rem; }
-  .ps-template .ps-header__actions { gap: .75rem; padding-left: 1rem; }
-  .ps-template .ps-header .ps-button { padding-inline: 1rem; }
+  .ps-template .ps-header__brand { width: 8rem; padding-inline: .5rem; }
+  .ps-template .ps-header__actions { gap: .25rem; padding: .25rem; }
+  .ps-template .ps-menu-trigger { width: 2.5rem; justify-content: center; }
+  .ps-template .ps-menu-trigger > span { display: none; }
+  .ps-template .ps-header .ps-button { padding-inline: .75rem; white-space: nowrap; }
   .ph-about__video { width: 70vw; border-radius: 2.25rem; }
   .ph-about__caption { inset-inline: .75rem; bottom: 1rem; font-size: .7rem; }
   .ph-demo__play, .ph-case__play { width: 3rem; height: 3rem; }
@@ -414,7 +419,6 @@
   .ph-pricing-period { font-size: .65rem; gap: .5rem; }
   .ps-footer-contact { padding-inline: 1.5rem; border-radius: 3.5rem; }
   .ps-footer-contact__heading p { font-size: 1rem; }
-  .ps-footer-signoff__brand { font-size: 2.5rem; }
   .ps-video-dialog { padding: 2.5rem 1rem 1rem; border-radius: 1.5rem !important; }
 }
 @media (prefers-reduced-motion: reduce) {

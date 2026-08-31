@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
@@ -23,7 +24,9 @@ export default function PublicHeader() {
     <header className="ps-header" ref={setContainer}>
       {menuOpen && <div className="ps-nav-scrim" aria-hidden="true" />}
       <div className="ps-header__bar">
-        <Link href="/" className="ps-header__brand" aria-label="CPAAutomation home"><span aria-hidden>CA</span></Link>
+        <Link href="/" className="ps-header__brand" aria-label="CPAAutomation home">
+          <Image src="/logo.png" alt="CPAAutomation" width={1050} height={350} sizes="(max-width: 479px) 112px, 144px" priority />
+        </Link>
         <div className="ps-header__actions">
           <Popover open={menuOpen} onOpenChange={setMenuOpen}>
             <PopoverTrigger asChild><button type="button" className="ps-menu-trigger" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'}>{menuOpen ? <X aria-hidden /> : <Menu aria-hidden />}<span>{menuOpen ? 'Close' : 'Menu'}</span></button></PopoverTrigger>

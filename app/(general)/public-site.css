@@ -52,10 +52,9 @@
 .ps-skip-link { position: fixed; left: 1rem; top: -10rem; z-index: 999; border-radius: 999px; background: #fff; padding: .75rem 1rem; color: #000; }
 .ps-skip-link:focus { top: 1rem; }
 .ps-preloader { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; gap: .8rem; background: #080808; color: #fff; animation: ps-preloader-out .3s ease .55s forwards; }
-.ps-preloader span { width: 2.8rem; height: 2.8rem; border-radius: 50%; display: grid; place-items: center; background: var(--ps-holo); color: #111; font-size: .72rem; font-weight: 600; animation: ps-preloader-mark .6s ease both; }
-.ps-preloader strong { font-size: 1.15rem; font-weight: 500; letter-spacing: -.04em; animation: ps-preloader-copy .55s ease .1s both; }
+.ps-preloader__brand { width: min(18rem, calc(100% - 3rem)); padding: .75rem 1.25rem; border-radius: 1.5rem; background: #fff; animation: ps-preloader-mark .6s ease both; }
+.ps-preloader__brand img { display: block; width: 100%; height: auto; }
 @keyframes ps-preloader-mark { from { opacity: 0; filter: blur(5px); transform: scale(.7) rotate(-20deg); } }
-@keyframes ps-preloader-copy { from { opacity: 0; filter: blur(4px); transform: translateX(-.5rem); } }
 @keyframes ps-preloader-out { to { opacity: 0; visibility: hidden; } }
 
 .ps-header { position: fixed; inset: 0 0 auto; z-index: 80; padding: 1rem 1.25rem; pointer-events: none; }

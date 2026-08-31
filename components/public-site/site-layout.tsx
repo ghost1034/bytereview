@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 
 import MainLayout from '@/components/layout/main-layout'
@@ -36,7 +37,7 @@ export function PublicSiteLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="ps-site ps-template">
-      {preloading && <div className="ps-preloader" aria-hidden><span>CA</span><strong>CPAAutomation</strong></div>}
+      {preloading && <div className="ps-preloader" aria-hidden><div className="ps-preloader__brand"><Image src="/logo.png" alt="" width={1050} height={350} sizes="248px" priority /></div></div>}
       <a href="#main-content" className="ps-skip-link">Skip to content</a>
       <PublicHeader />
       <main id="main-content" tabIndex={-1}>{children}</main>

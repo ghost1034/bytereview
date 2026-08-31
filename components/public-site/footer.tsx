@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ArrowUpRight, Check, Linkedin } from 'lucide-react'
@@ -50,7 +51,7 @@ export default function PublicFooter() {
         <div className="ps-footer-nav__social"><a href="https://www.linkedin.com/company/cpa-automation-inc" target="_blank" rel="noreferrer"><Linkedin aria-hidden />LinkedIn<ArrowUpRight aria-hidden /></a><a href="mailto:support@cpaautomation.ai">support@cpaautomation.ai<ArrowUpRight aria-hidden /></a></div>
         <nav aria-label="Footer navigation">{NAV_ITEMS.map((item) => <Link href={item.href} key={item.href}>{item.label}</Link>)}</nav>
       </div>
-      <div className="ps-footer-signoff"><Link href="/" className="ps-footer-signoff__brand">CPAAutomation</Link><div><span>© {new Date().getFullYear()} CPA Automation, Inc.</span><span><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></span></div></div>
+      <div className="ps-footer-signoff"><Link href="/" className="ps-footer-signoff__brand" aria-label="CPAAutomation home"><Image src="/logo.png" alt="CPAAutomation" width={1050} height={350} sizes="(max-width: 479px) 240px, 312px" /></Link><div><span>© {new Date().getFullYear()} CPA Automation, Inc.</span><span><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link></span></div></div>
     </div>
   </footer>
 }
