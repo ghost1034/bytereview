@@ -7460,6 +7460,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/taxatlas/v1/sources/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Source Schedules
+         * @description Report the batch schedules shared with deployment, independently of source metadata.
+         *
+         *     The integrated development API does not start a scheduler; local crawls are
+         *     operator-triggered. In production these are scheduled trigger times, not a
+         *     guarantee of execution (Cloud Run startup, running jobs, and source order apply).
+         */
+        get: operations["source_schedules_api_taxatlas_v1_sources_schedules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/taxatlas/v1/sources/{source_id}": {
         parameters: {
             query?: never;
@@ -15617,6 +15641,24 @@ export interface components {
              */
             latest_run_id: string;
         };
+        /** JobScheduleOut */
+        JobScheduleOut: {
+            /** Job */
+            job: string;
+            /** Adapters */
+            adapters: string[];
+            /** Schedule Cron */
+            schedule_cron: string;
+            /** Timezone */
+            timezone: string;
+            /** Label */
+            label: string;
+            /**
+             * Next Run At
+             * @description Next scheduled batch trigger, not the start time of an individual source.
+             */
+            next_run_at: string | null;
+        };
         /**
          * JobStatus
          * @description Job status enumeration
@@ -17154,7 +17196,10 @@ export interface components {
             category: string;
             /** Adapter */
             adapter: string;
-            /** Schedule Cron */
+            /**
+             * Schedule Cron
+             * @description Legacy source metadata. Use /sources/schedules for effective batch timing.
+             */
             schedule_cron: string;
             /** Enabled */
             enabled: boolean;
@@ -17174,6 +17219,16 @@ export interface components {
             items_total: number;
             /** Consecutive Failures */
             consecutive_failures: number;
+        };
+        /** SourceSchedulesOut */
+        SourceSchedulesOut: {
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "cloud_run" | "manual";
+            /** Jobs */
+            jobs: components["schemas"]["JobScheduleOut"][];
         };
         /**
          * StartCpeSheetResponse
@@ -33756,6 +33811,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_CrawlRunOut_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_schedules_api_taxatlas_v1_sources_schedules_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+                "x-api-key"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceSchedulesOut"];
                 };
             };
             /** @description Validation Error */

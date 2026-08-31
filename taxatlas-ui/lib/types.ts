@@ -1,5 +1,10 @@
 /* TypeScript mirrors of backend/app/schemas/*.py and models/enums.py. Keep in sync with the API. */
 
+import type { components } from '@/lib/api-types';
+
+export type SourceSchedulesOut = components['schemas']['SourceSchedulesOut'];
+export type JobScheduleOut = components['schemas']['JobScheduleOut'];
+
 // ---------------------------------------------------------------- enums
 export type JurisdictionLevel = "supranational" | "country" | "state" | "province" | "territory" | "region" | "city";
 export type TaxType =

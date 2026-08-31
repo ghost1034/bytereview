@@ -5,16 +5,12 @@ from __future__ import annotations
 import os
 
 from core.runtime import is_production
+from taxatlas.schedules import schedule_for_adapter
 
 
 def job_for_adapter(adapter: str) -> str:
-    if adapter == "browser":
-        return "crawl-browser"
-    if adapter == "news":
-        return "crawl-news"
-    if adapter == "rates_table":
-        return "rates-watch"
-    return "crawl"
+    schedule = schedule_for_adapter(adapter)
+    return schedule.job if schedule is not None else "crawl"
 
 
 def start_job(job: str) -> str:

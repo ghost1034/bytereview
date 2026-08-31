@@ -9,7 +9,7 @@ import type {
   DeliveryChannelOut, DeliveryChannelPatch, DeliveryTestResult, ChangeHistogram, ChoroplethPoint, CourtDecisionCreate,
   CourtDecisionOut, CourtDecisionPatch, CrawlRunOut, EnumsOut, JurisdictionDetail, JurisdictionOut, JurisdictionPatch,
   JurisdictionSummary, MapMetricsOut, Message, NotificationOut, Page, Quickstart, RateCreate, RatePatch, RegulationCreate,
-  RegulationDetail, RegulationOut, RegulationPatch, SourceOut, StatsOverview, SubnationalCountry, TariffCreate, TariffOut,
+  RegulationDetail, RegulationOut, RegulationPatch, SourceOut, SourceSchedulesOut, StatsOverview, SubnationalCountry, TariffCreate, TariffOut,
   TariffPatch, TaxRateOut, WatchItemIn, WatchItemOut,
 } from "./types";
 
@@ -254,6 +254,7 @@ export const api = {
     patchJurisdiction: (code: string, body: JurisdictionPatch) => http.patch<JurisdictionDetail>(`/admin/jurisdictions/${encodeURIComponent(code)}`, body),
   },
   sources: {
+    schedules: () => http.get<SourceSchedulesOut>("/sources/schedules"),
     list: (q?: Query) => http.get<SourceOut[]>("/sources", q),
     runs: (q?: Query) => http.get<Page<CrawlRunOut>>("/sources/runs", q),
     crawl: (id: number) => http.post<Message>(`/sources/${id}/crawl`),

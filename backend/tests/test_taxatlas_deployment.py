@@ -29,6 +29,19 @@ if args[:2] == ['auth', 'list']:
     print('deployer@example.com')
 if args[:3] == ['run', 'services', 'describe']:
     print('https://api.example.com')
+if args[:3] == ['monitoring', 'policies', 'list'] and os.environ.get('DEPLOY_TEST_LEGACY_ALERT'):
+    if '--format=value(displayName)' in args:
+        print('TaxAtlas crawl success missing for two hours')
+    if '--format=value(name)' in args:
+        print('projects/test-project/alertPolicies/legacy')
+if args[:3] == ['monitoring', 'policies', 'describe']:
+    print(json.dumps({{
+        'name': 'projects/test-project/alertPolicies/legacy',
+        'displayName': 'TaxAtlas crawl success missing for two hours',
+        'enabled': False,
+        'notificationChannels': ['projects/test-project/notificationChannels/123'],
+        'conditions': [{{'conditionAbsent': {{'duration': '7200s'}}}}],
+    }}))
 """
     for tool in ("gcloud", "docker"):
         executable = tmp_path / tool
@@ -87,6 +100,32 @@ def test_jobs_have_runtime_config_and_seed_before_schedules(deployment_tools, sc
     assert len(schedules) == 5
     assert all(i > seed for i, _ in schedules)
     assert all("--oauth-service-account-email=cpaautomation-runner@test-project.iam.gserviceaccount.com" in c for _, c in schedules)
+    expected = {
+        "taxatlas-crawl-hourly": "0 0 * * *",
+        "taxatlas-news-six-hourly": "10 0 * * *",
+        "taxatlas-browser-six-hourly": "25 0 * * *",
+        "taxatlas-rate-watch-weekly": "40 3 * * *",
+        "taxatlas-dispatch-minute": "* * * * *",
+    }
+    assert {c[5] for _, c in schedules} == set(expected)
+    for _, command in schedules:
+        assert f"--schedule={expected[command[5]]}" in command
+        assert "--time-zone=UTC" in command
+    absence = next(c for c in calls if "--if=absent" in c)
+    assert "--duration=93600s" in absence
+
+
+def test_daily_deploy_migrates_old_alert_without_losing_channels_or_enabled_state(deployment_tools):
+    result, calls = deployment_tools("deploy-taxatlas-jobs.sh", DEPLOY_TEST_LEGACY_ALERT="1")
+    assert result.returncode == 0, result.stderr
+    update = next(c for c in calls if c[1:4] == ["monitoring", "policies", "update"])
+    assert update[4] == "projects/test-project/alertPolicies/legacy"
+    policy = json.loads(next(arg.removeprefix("--policy=") for arg in update if arg.startswith("--policy=")))
+    assert policy["displayName"] == "TaxAtlas crawl success missing for 26 hours"
+    assert policy["conditions"][0]["conditionAbsent"]["duration"] == "93600s"
+    assert policy["notificationChannels"] == ["projects/test-project/notificationChannels/123"]
+    assert policy["enabled"] is False
+    assert not any("--if=absent" in c for c in calls)
 
 
 def test_failed_seed_does_not_activate_schedules(deployment_tools):

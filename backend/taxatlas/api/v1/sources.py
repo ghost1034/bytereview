@@ -7,18 +7,22 @@ trigger cannot be pointed at an arbitrary URL (no SSRF surface from this router)
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from core.runtime import is_production
 from taxatlas.api.deps import get_principal, require_admin
 from taxatlas.api.v1._util import enum_filter, limit_q, offset_q, paginate, resolve_jurisdiction
 from taxatlas.core.db import SessionLocal, get_db
-from core.runtime import is_production
 from taxatlas.cloud_jobs import job_for_adapter, start_job
 from taxatlas.models import CrawlRun, CrawlStatus, Source, SourceCategory, User
 from taxatlas.schemas.common import Message, Page
+from taxatlas.schemas.schedules import JobScheduleOut, SourceSchedulesOut
 from taxatlas.schemas.tax import CrawlRunOut, SourceOut
+from taxatlas.schedules import JOB_SCHEDULES
 
 router = APIRouter(prefix="/sources", tags=["sources"], dependencies=[Depends(get_principal)])
 
@@ -57,6 +61,32 @@ def list_runs(
         stmt = stmt.where(CrawlRun.status == status)
     items, total = paginate(db, stmt.order_by(CrawlRun.started_at.desc(), CrawlRun.id.desc()), limit, offset)
     return Page(items=items, total=total, limit=limit, offset=offset)
+
+
+@router.get("/schedules", response_model=SourceSchedulesOut)
+def source_schedules() -> SourceSchedulesOut:
+    """Report the batch schedules shared with deployment, independently of source metadata.
+
+    The integrated development API does not start a scheduler; local crawls are
+    operator-triggered. In production these are scheduled trigger times, not a
+    guarantee of execution (Cloud Run startup, running jobs, and source order apply).
+    """
+    automated = is_production()
+    now = datetime.now(UTC)
+    return SourceSchedulesOut(
+        mode="cloud_run" if automated else "manual",
+        jobs=[
+            JobScheduleOut(
+                job=schedule.job,
+                adapters=list(schedule.adapters),
+                schedule_cron=schedule.cron,
+                timezone=schedule.timezone,
+                label=schedule.label,
+                next_run_at=schedule.next_run(now) if automated else None,
+            )
+            for schedule in JOB_SCHEDULES
+        ],
+    )
 
 
 @router.get("/{source_id}", response_model=SourceOut)

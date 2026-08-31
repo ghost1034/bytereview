@@ -1,5 +1,5 @@
-/* Source detail (pages/sources.md): name, slug (copy), URL, authority, jurisdiction, tax types, adapter, cron with a human
-   reading, last run / success, failures, items, last error in a code block, run history (last 50). Admin: enable/disable with confirm. */
+/* Source detail: source metadata, effective batch schedule, last run / success,
+   failures, items, last error, and run history. Admin: enable/disable with confirm. */
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/taxatlas-ui/lib/api";
@@ -11,27 +11,14 @@ import { DetailPanel, Kv, Prose, type PanelMode } from "@/taxatlas-ui/components
 import { StatusMarker } from "@/taxatlas-ui/components/detail/Marker";
 import { JRef, SourceLink } from "@/taxatlas-ui/components/detail/JRef";
 import { Bilingual } from "@/taxatlas-ui/components/ui/Bilingual";
-
-export function cronToWords(cron: string): string {
-  const parts = cron.trim().split(/\s+/);
-  if (parts.length < 5) return cron;
-  const [min, hour, dom, , dow] = parts;
-  const hh = hour.includes("*") ? null : hour.padStart(2, "0");
-  const mm = min.includes("*") ? null : min.padStart(2, "0");
-  if (hour.startsWith("*/")) return `every ${hour.slice(2)} h`;
-  if (min.startsWith("*/") && hour === "*") return `every ${min.slice(2)} min`;
-  const time = hh != null && mm != null ? `${hh}:${mm} UTC` : "";
-  if (dow !== "*" && dom === "*") {
-    const names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const days = dow.split(",").map((d) => names[Number(d) % 7] ?? d).join(", ");
-    return `weekly ${days} ${time}`.trim();
-  }
-  if (dom !== "*") return `monthly on day ${dom} ${time}`.trim();
-  return `daily ${time}`.trim();
-}
+import { useSourceSchedules } from '@/taxatlas-ui/hooks/useSourceSchedules';
+import { formatScheduleTime, scheduleForSource, sourceScheduleLabel } from '@/taxatlas-ui/lib/schedules';
 
 export function SourceDrawer({ source, onClose, mode = "push", isAdmin, onToggle, onCrawl, busy }: { source: SourceOut | null; onClose: () => void; mode?: PanelMode; isAdmin?: boolean; onToggle?: (s: SourceOut) => void; onCrawl?: (s: SourceOut) => void; busy?: boolean }) {
   const s = source;
+  const schedules = useSourceSchedules();
+  const scheduleData = schedules.isError ? undefined : schedules.data;
+  const schedule = s ? scheduleForSource(s, scheduleData) : undefined;
   const [confirm, setConfirm] = useState(false);
   // ↑/↓ swap the source behind an open drawer; a pending Disable/Enable confirmation must not carry over.
   useEffect(() => setConfirm(false), [s?.id]);
@@ -62,8 +49,8 @@ export function SourceDrawer({ source, onClose, mode = "push", isAdmin, onToggle
           <>
             <a className="btn" href={s.url} target="_blank" rel="noreferrer">Open source ↗</a>
             {isAdmin && onCrawl && (
-              <button type="button" className="btn btn-ghost" aria-busy={busy || undefined} disabled={busy || !s.enabled} onClick={() => onCrawl(s)} title={s.enabled ? "Queue a crawl now" : "Enable the source first"}>
-                Run now
+              <button type="button" className="btn btn-ghost" aria-busy={busy || undefined} disabled={busy || !s.enabled} onClick={() => onCrawl(s)} title={s.enabled ? (scheduleData?.mode === 'cloud_run' ? 'Run all enabled sources in this adapter batch' : 'Queue a crawl now') : "Enable the source first"}>
+                {scheduleData?.mode === 'cloud_run' ? 'Run batch now' : 'Run now'}
               </button>
             )}
             {isAdmin && onToggle && !confirm && (
@@ -92,7 +79,8 @@ export function SourceDrawer({ source, onClose, mode = "push", isAdmin, onToggle
               ["Jurisdiction", <JRef j={s.jurisdiction} />],
               ["Tax types", (s.tax_types ?? []).map((t) => label(TAX_TYPE_LABEL, t)).join(" · ") || null],
               ["Adapter", s.adapter, { mono: true }],
-              ["Schedule", <><span className="mono">{s.schedule_cron}</span> <span className="ta-faint">· {cronToWords(s.schedule_cron)}</span></>],
+              ["Batch schedule", schedules.isLoading && s.enabled ? 'Loading…' : sourceScheduleLabel(s, scheduleData)],
+              ["Next scheduled batch", formatScheduleTime(s.enabled && scheduleData?.mode === 'cloud_run' ? schedule?.next_run_at : null), { mono: true }],
               ["Last run", fmtDateTime(s.last_run_at), { mono: true }],
               ["Last success", fmtDateTime(s.last_success_at), { mono: true }],
               ["Failures", s.consecutive_failures > 0 ? `${s.consecutive_failures} consecutive` : "0", { mono: true }],

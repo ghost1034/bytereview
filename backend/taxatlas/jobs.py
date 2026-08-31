@@ -15,15 +15,11 @@ from sqlalchemy import text
 from core.database import db_config
 from taxatlas.core.config import get_settings
 from taxatlas.core.db import SessionLocal
+from taxatlas.schedules import JOB_SCHEDULES
 
 log = logging.getLogger("taxatlas.jobs")
 
-ADAPTERS = {
-    "crawl": ("rss", "html", "json", "fixture"),
-    "crawl-news": ("news",),
-    "crawl-browser": ("browser",),
-    "rates-watch": ("rates_table",),
-}
+ADAPTERS = {schedule.job: schedule.adapters for schedule in JOB_SCHEDULES if schedule.adapters}
 
 
 def lock_key(name: str) -> int:
@@ -144,4 +140,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

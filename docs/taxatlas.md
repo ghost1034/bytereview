@@ -51,9 +51,10 @@ and staging deployments do not modify the production TaxAtlas jobs. With
 `--skip-build` / `--deploy-only`, both `backend:TAG` and `taxatlas-browser:TAG`
 must already exist in Artifact Registry.
 
-The TaxAtlas job script deploys the HTTP crawl hourly, news and browser
-crawls every six hours, the rate watcher weekly, and notification dispatch each
-minute. Translation backfill remains operator-triggered. Browser crawling uses
+The TaxAtlas job script schedules every crawl batch once per 24 hours in UTC:
+HTTP at 00:00, news at 00:10, browser at 00:25, and the rate watcher at 03:40.
+Notification dispatch remains every minute. Translation backfill remains
+operator-triggered; seed runs during deployment or on demand. Browser crawling uses
 `backend/Dockerfile.taxatlas-browser`; ordinary API and job images do not carry
 Chromium. Every job uses a PostgreSQL advisory lock and emits a structured JSON
 summary. Deployment also creates alerts for missing crawl success, failed jobs,
@@ -66,6 +67,23 @@ and Redis secrets can be appended with `TAXATLAS_JOB_SECRETS` (retain the shared
 bindings). `TAXATLAS_PUBLIC_URL` defaults to `https://cpaautomation.ai` for jobs.
 Chromium is installed in a shared path and smoke-tested as the non-root image
 user; its job receives 2 CPUs and 2 GiB of memory.
+
+`backend/taxatlas/schedules.py` is the single schedule definition used by the
+deployment script, adapter routing, and `/api/taxatlas/v1/sources/schedules`.
+The Sources page and source drawer use that endpoint for batch frequency and
+the next scheduled trigger, with explicit UTC formatting. Legacy per-source
+`schedule_cron` metadata does not control production runs. Each batch processes
+its enabled sources sequentially, so individual source start times can be later.
+Manual runs do not move the next scheduled trigger. In development, the integrated
+API does not run a scheduler and the interface shows manual-only operation.
+
+Deploy the API/frontend and TaxAtlas jobs from the same revision when changing
+schedules. The endpoint reports deployed configuration, not live Cloud Scheduler
+health or operator changes made in the Cloud console. Existing Scheduler IDs
+(including `hourly`, `six-hourly`, and `weekly` in their names) are retained and
+updated in place to avoid leaving duplicate triggers. Deployment explicitly sets
+the timezone to UTC and migrates the old two-hour crawl-success alert to 26 hours,
+allowing two hours beyond the daily interval before alerting.
 
 To repair or update jobs without redeploying the API or frontend, use existing
 image tags (build the browser image first if necessary):

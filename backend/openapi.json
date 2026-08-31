@@ -27370,6 +27370,73 @@
         }
       }
     },
+    "/api/taxatlas/v1/sources/schedules": {
+      "get": {
+        "tags": [
+          "taxatlas",
+          "sources"
+        ],
+        "summary": "Source Schedules",
+        "description": "Report the batch schedules shared with deployment, independently of source metadata.\n\nThe integrated development API does not start a scheduler; local crawls are\noperator-triggered. In production these are scheduled trigger times, not a\nguarantee of execution (Cloud Run startup, running jobs, and source order apply).",
+        "operationId": "source_schedules_api_taxatlas_v1_sources_schedules_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceSchedulesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/taxatlas/v1/sources/{source_id}": {
       "get": {
         "tags": [
@@ -51392,6 +51459,56 @@
         "title": "JobRunListResponse",
         "description": "Response for job run listing"
       },
+      "JobScheduleOut": {
+        "properties": {
+          "job": {
+            "type": "string",
+            "title": "Job"
+          },
+          "adapters": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Adapters"
+          },
+          "schedule_cron": {
+            "type": "string",
+            "title": "Schedule Cron"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "next_run_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Run At",
+            "description": "Next scheduled batch trigger, not the start time of an individual source."
+          }
+        },
+        "type": "object",
+        "required": [
+          "job",
+          "adapters",
+          "schedule_cron",
+          "timezone",
+          "label",
+          "next_run_at"
+        ],
+        "title": "JobScheduleOut"
+      },
       "JobStatus": {
         "type": "string",
         "enum": [
@@ -56665,7 +56782,8 @@
           },
           "schedule_cron": {
             "type": "string",
-            "title": "Schedule Cron"
+            "title": "Schedule Cron",
+            "description": "Legacy source metadata. Use /sources/schedules for effective batch timing."
           },
           "enabled": {
             "type": "boolean",
@@ -56769,6 +56887,31 @@
           "consecutive_failures"
         ],
         "title": "SourceOut"
+      },
+      "SourceSchedulesOut": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "cloud_run",
+              "manual"
+            ],
+            "title": "Mode"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/JobScheduleOut"
+            },
+            "type": "array",
+            "title": "Jobs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "jobs"
+        ],
+        "title": "SourceSchedulesOut"
       },
       "StartCpeSheetResponse": {
         "properties": {

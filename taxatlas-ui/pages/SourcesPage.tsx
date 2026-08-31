@@ -9,6 +9,8 @@ import { CRAWL_STATUSES, SOURCE_CATEGORIES, label } from "@/taxatlas-ui/lib/enum
 import type { CrawlRunOut, SourceOut } from "@/taxatlas-ui/lib/types";
 import { useSearchFilters } from "@/taxatlas-ui/hooks/useSearchFilters";
 import { usePageTitle } from "@/taxatlas-ui/hooks/usePageTitle";
+import { useSourceSchedules } from '@/taxatlas-ui/hooks/useSourceSchedules';
+import { formatScheduleTime, nextCrawlBatch, scheduleForSource, sourceScheduleLabel } from '@/taxatlas-ui/lib/schedules';
 import { useToast } from "@/taxatlas-ui/components/ui/Toast";
 import { PushLayout } from "@/taxatlas-ui/components/detail/DetailPanel";
 import { ChipInput, ChipSelect, FilterRow, ResultSentence, SearchChip } from "@/taxatlas-ui/components/detail/FilterChips";
@@ -16,7 +18,7 @@ import { ErrorRow, MessageRow, SkeletonRows, TableFoot, TableRegion, Th, Toolbar
 import { StatusMarker } from "@/taxatlas-ui/components/detail/Marker";
 import { JRef } from "@/taxatlas-ui/components/detail/JRef";
 import { SparkBars } from "@/taxatlas-ui/components/detail/Sparkline";
-import { SourceDrawer, cronToWords } from "@/taxatlas-ui/components/drawers/SourceDrawer";
+import { SourceDrawer } from "@/taxatlas-ui/components/drawers/SourceDrawer";
 import { EnLine } from "@/taxatlas-ui/components/ui/Bilingual";
 
 const KEYS = ["category", "run_status", "source_id", "q", "jurisdiction", "health"] as const;
@@ -39,25 +41,6 @@ function host(url: string): string {
   } catch {
     return url;
   }
-}
-
-/** Next run for simple `m h * * *` / `m h * * d` crons, UTC. Returns null for anything fancier. */
-function nextRun(crons: string[]): Date | null {
-  const now = new Date();
-  let best: Date | null = null;
-  crons.forEach((c) => {
-    const [m, h, dom, , dow] = c.trim().split(/\s+/);
-    if (!/^\d+$/.test(m) || !/^\d+$/.test(h) || dom !== "*") return;
-    const days = dow === "*" ? [0, 1, 2, 3, 4, 5, 6] : dow.split(",").map(Number).filter((d) => !Number.isNaN(d));
-    for (let i = 0; i < 8; i++) {
-      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + i, Number(h), Number(m)));
-      if (d > now && days.includes(d.getUTCDay())) {
-        if (!best || d < best) best = d;
-        break;
-      }
-    }
-  });
-  return best;
 }
 
 /** True while the viewport matches `query`; re-evaluated on resize. */
@@ -88,6 +71,8 @@ export default function SourcesPage() {
   const [openId, setOpenId] = useState<number | null>(null);
 
   const sources = useQuery({ queryKey: ["sources", filters.category], queryFn: () => api.sources.list({ category: filters.category }), refetchInterval: 15_000 });
+  const schedules = useSourceSchedules();
+  const scheduleData = schedules.isError ? undefined : schedules.data;
   const runs = useQuery({
     queryKey: ["source-runs", filters.run_status, filters.source_id, limit, offset],
     queryFn: () => api.sources.runs({ status: filters.run_status, source_id: filters.source_id, limit, offset }),
@@ -100,6 +85,7 @@ export default function SourcesPage() {
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["sources"] });
     qc.invalidateQueries({ queryKey: ["source-runs"] });
+    qc.invalidateQueries({ queryKey: ['source-schedules'] });
   }, [qc]);
 
   const crawl = useMutation({
@@ -147,7 +133,7 @@ export default function SourcesPage() {
   }, [history.data]);
   const enabled = all.filter((s) => s.enabled).length;
   const failing = all.filter((s) => s.consecutive_failures > 0).length;
-  const next = useMemo(() => nextRun(all.filter((s) => s.enabled).map((s) => s.schedule_cron)), [all]);
+  const next = nextCrawlBatch(scheduleData);
 
   const ids = useMemo(() => visible.map((s) => s.id), [visible]);
   useListKeys({ ids, selected: openId, onSelect: setOpenId, onClose: () => setOpenId(null) });
@@ -164,7 +150,9 @@ export default function SourcesPage() {
               <>
                 <span className="num">{all.length}</span> sources · <span className="num">{enabled}</span> enabled
                 {failing > 0 && <> · <span className="num" style={{ color: "var(--negative)" }}>{failing}</span> failing</>}
-                {next && <> · next run <span className="num">{fmtDateTime(next.toISOString())} UTC</span></>}
+                {next && <> · next scheduled batch <span className="num">{formatScheduleTime(next)}</span></>}
+                {scheduleData?.mode === 'manual' && <> · manual runs only</>}
+                {schedules.isError && <> · schedule unavailable <button type="button" className="ta-link-btn" onClick={() => schedules.refetch()}>Retry</button></>}
                 <span className="ta-faint"> · auto-refresh 15 s</span>
               </>
             ) : (
@@ -206,14 +194,14 @@ export default function SourcesPage() {
                 <Th width={60} hidden={!show("jurisdiction")}>Juris</Th>
                 <Th width={86} hidden={!show("category")}>Category</Th>
                 <Th width={70} hidden={!show("adapter")}>Adapter</Th>
-                <Th width={124} hidden={!show("schedule")}>Schedule</Th>
+                <Th width={166} hidden={!show("schedule")}>Batch schedule</Th>
                 <Th width={124} hidden={!show("last_run")}>Last run</Th>
                 <Th width={110}>Status</Th>
                 <Th width={70} num hidden={!show("items")}>Items</Th>
                 <Th width={60} num hidden={!show("fails")}>Fails</Th>
                 <Th width={64} hidden={!show("spark")}><span title="Items per run, last 14 runs">⌇</span></Th>
                 <Th width={60}>Enabled</Th>
-                {isAdmin && <Th width={60}><span className="sr-only">Actions</span></Th>}
+                {isAdmin && <Th width={90}><span className="sr-only">Actions</span></Th>}
               </tr>
             </thead>
             <tbody>
@@ -259,7 +247,7 @@ export default function SourcesPage() {
                       {show("jurisdiction") && <td>{s.jurisdiction ? <JRef j={s.jurisdiction} nameless /> : <span className="ta-faint">Global</span>}</td>}
                       {show("category") && <td className="text">{label({}, s.category)}</td>}
                       {show("adapter") && <td className="code">{s.adapter}</td>}
-                      {show("schedule") && <td className="text" title={s.schedule_cron}>{cronToWords(s.schedule_cron)}</td>}
+                      {show("schedule") && <td className="text" title={scheduleData?.mode === 'cloud_run' ? scheduleForSource(s, scheduleData)?.schedule_cron : undefined}>{schedules.isLoading && s.enabled ? 'Loading…' : sourceScheduleLabel(s, scheduleData)}</td>}
                       {show("last_run") && <td className="date" title={s.last_success_at ? `last success ${fmtDateTime(s.last_success_at)}` : undefined}>{fmtDateTime(s.last_run_at)}</td>}
                       <td>
                         {!s.enabled ? <StatusMarker value="disabled" tone="neutral" /> : running ? <StatusMarker value="running" /> : <StatusMarker value={s.last_status ?? "pending"} text={s.last_status ?? "never run"} />}
@@ -288,8 +276,8 @@ export default function SourcesPage() {
                       </td>
                       {isAdmin && (
                         <td className="act" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" className="btn btn-ghost btn-sm" aria-busy={busyId === s.id || undefined} disabled={busyId === s.id || !s.enabled} aria-label="Crawl now" title={s.enabled ? `Crawl ${s.slug} now` : "Enable the source first"} onClick={() => crawl.mutate(s.id)}>
-                            Run
+                          <button type="button" className="btn btn-ghost btn-sm" aria-busy={busyId === s.id || undefined} disabled={busyId === s.id || !s.enabled} aria-label={scheduleData?.mode === 'cloud_run' ? 'Run adapter batch now' : 'Crawl now'} title={s.enabled ? (scheduleData?.mode === 'cloud_run' ? 'Run all enabled sources in the same job now' : `Crawl ${s.slug} now`) : "Enable the source first"} onClick={() => crawl.mutate(s.id)}>
+                            {scheduleData?.mode === 'cloud_run' ? 'Run batch' : 'Run'}
                           </button>
                         </td>
                       )}
@@ -340,7 +328,7 @@ export default function SourcesPage() {
               ) : runs.isError ? (
                 <ErrorRow cols={8} error={runs.error} noun="crawl runs" onRetry={() => runs.refetch()} />
               ) : runs.data && runs.data.items.length === 0 ? (
-                <MessageRow cols={8}>No crawl runs yet. <span className="ta-faint">{isAdmin ? "Use Run or Crawl all enabled to trigger one." : "Runs are recorded when the scheduler or an admin triggers a crawl."}</span></MessageRow>
+                <MessageRow cols={8}>No crawl runs yet. <span className="ta-faint">{isAdmin ? `Use ${scheduleData?.mode === 'cloud_run' ? 'Run batch' : 'Run'} or Crawl all enabled to trigger one.` : "Runs are recorded when the scheduler or an admin triggers a crawl."}</span></MessageRow>
               ) : (
                 runs.data?.items.map((r) => <RunRow key={r.id} r={r} source={byId.get(r.source_id)} />)
               )}
@@ -349,7 +337,10 @@ export default function SourcesPage() {
         </div>
         {runs.data && <TableFoot total={runs.data.total} limit={limit} offset={offset} onOffset={(o) => set({ offset: o })} onLimit={(l) => set({ limit: l, offset: 0 })} />}
       </TableRegion>
-      <div className="ta-prov">Runs are recorded by the scheduler (`scheduler`), the CLI (`cli`) or an admin (`manual`). A source is disabled automatically after repeated failures only by an admin; failures are counted consecutively.</div>
+      <div className="ta-prov">
+        {scheduleData?.mode === 'cloud_run' ? 'Crawl batches run every 24 hours. Times shown are scheduled batch triggers in UTC; enabled sources run sequentially, so individual start times can be later. Run batch starts all enabled sources in the same job. Manual runs do not reset the daily schedule. Notification delivery runs every minute. ' : scheduleData?.mode === 'manual' ? 'Automatic scheduling is not active in this environment. Use Run or the CLI to start a crawl. ' : 'Batch schedules could not be confirmed. '}
+        Sources are automatically disabled after 10 consecutive failures; an admin can re-enable them.
+      </div>
     </PushLayout>
   );
 }

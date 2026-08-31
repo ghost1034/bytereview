@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Resolve the same schedule definitions that the API reports to the interface.
+# Fail before deploying anything if this configuration cannot be loaded.
+job_schedules="$(python3 "$(dirname "$0")/../backend/taxatlas/schedules.py")"
+
 PROJECT_ID="${PROJECT_ID:?PROJECT_ID is required}"
 REGION="${REGION:-us-central1}"
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-cpaautomation-runner@${PROJECT_ID}.iam.gserviceaccount.com}"
@@ -64,24 +68,23 @@ gcloud run jobs execute taxatlas-seed --project="$PROJECT_ID" --region="$REGION"
 schedule_job() {
   local scheduler="$1"
   local cron="$2"
-  local job="$3"
+  local timezone="$3"
+  local job="$4"
   local uri="https://run.googleapis.com/v2/projects/${PROJECT_ID}/locations/${REGION}/jobs/${job}:run"
   if gcloud scheduler jobs describe "$scheduler" --project="$PROJECT_ID" --location="$REGION" >/dev/null 2>&1; then
     gcloud scheduler jobs update http "$scheduler" --project="$PROJECT_ID" --location="$REGION" \
-      --schedule="$cron" --uri="$uri" --http-method=POST \
+      --schedule="$cron" --time-zone="$timezone" --uri="$uri" --http-method=POST \
       --oauth-service-account-email="$SERVICE_ACCOUNT" --quiet
   else
     gcloud scheduler jobs create http "$scheduler" --project="$PROJECT_ID" --location="$REGION" \
-      --schedule="$cron" --uri="$uri" --http-method=POST \
+      --schedule="$cron" --time-zone="$timezone" --uri="$uri" --http-method=POST \
       --oauth-service-account-email="$SERVICE_ACCOUNT" --quiet
   fi
 }
 
-schedule_job taxatlas-crawl-hourly '0 * * * *' taxatlas-crawl
-schedule_job taxatlas-news-six-hourly '10 */6 * * *' taxatlas-crawl-news
-schedule_job taxatlas-browser-six-hourly '25 */6 * * *' taxatlas-crawl-browser
-schedule_job taxatlas-rate-watch-weekly '40 3 * * 0' taxatlas-rates-watch
-schedule_job taxatlas-dispatch-minute '* * * * *' taxatlas-dispatch
+while IFS=$'\t' read -r scheduler cron timezone job; do
+  schedule_job "$scheduler" "$cron" "$timezone" "$job"
+done <<< "$job_schedules"
 
 PROJECT_ID="$PROJECT_ID" \
   TAXATLAS_NOTIFICATION_CHANNELS="${TAXATLAS_NOTIFICATION_CHANNELS:-}" \

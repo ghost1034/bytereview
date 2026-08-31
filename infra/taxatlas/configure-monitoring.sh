@@ -45,15 +45,42 @@ ensure_threshold_alert() {
 }
 
 ensure_absence_alert() {
-  local display_name='TaxAtlas crawl success missing for two hours'
+  local display_name='TaxAtlas crawl success missing for 26 hours'
+  local legacy_name='TaxAtlas crawl success missing for two hours'
+  local documentation='No successful TaxAtlas HTTP crawl was recorded for 26 hours. Inspect the daily Cloud Run Job and source failures.'
+  local legacy_ids policy_id policy
+  legacy_ids="$("${monitoring_policies[@]}" list --project="$project_id" \
+    --filter="displayName=\"${legacy_name}\"" --format='value(name)')"
+  # Migrate the existing alert in place, preserving channels and enabled state.
+  # If a new daily alert already exists, retire any remaining two-hour alert.
+  for policy_id in $legacy_ids; do
+    if printf '%s\n' "$existing_alert_names" | grep -Fqx "$display_name"; then
+      "${monitoring_policies[@]}" update "$policy_id" --project="$project_id" --no-enabled >/dev/null
+    else
+      policy="$("${monitoring_policies[@]}" describe "$policy_id" --project="$project_id" --format=json \
+        | python3 -c '
+import json, sys
+policy = json.load(sys.stdin)
+policy["displayName"] = sys.argv[1]
+policy["documentation"] = {"content": sys.argv[2], "mimeType": "text/markdown"}
+for condition in policy["conditions"]:
+    if "conditionAbsent" in condition:
+        condition["displayName"] = sys.argv[1]
+        condition["conditionAbsent"]["duration"] = "93600s"
+print(json.dumps(policy))
+' "$display_name" "$documentation")"
+      "${monitoring_policies[@]}" update "$policy_id" --project="$project_id" --policy="$policy" >/dev/null
+    fi
+  done
+  if [ -n "$legacy_ids" ]; then return; fi
   if printf '%s\n' "$existing_alert_names" | grep -Fqx "$display_name"; then return; fi
   "${monitoring_policies[@]}" create "${create_args[@]}" \
     --display-name="$display_name" --combiner=OR \
     --condition-display-name="$display_name" \
     --condition-filter='metric.type="logging.googleapis.com/user/taxatlas_crawl_successes" AND resource.type="cloud_run_job"' \
     --aggregation='{"alignmentPeriod":"3600s","perSeriesAligner":"ALIGN_SUM","crossSeriesReducer":"REDUCE_SUM"}' \
-    --if=absent --duration='7200s' \
-    --documentation='No successful TaxAtlas HTTP crawl was recorded for two hours. Inspect the hourly Cloud Run Job and source failures.' >/dev/null
+    --if=absent --duration='93600s' \
+    --documentation="$documentation" >/dev/null
 }
 
 job_filter='resource.type="cloud_run_job"'

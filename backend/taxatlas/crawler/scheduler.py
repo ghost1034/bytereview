@@ -5,7 +5,7 @@ Design notes
 - coalesce=True / max_instances=1 so a slow source never stacks up.
 - misfire_grace_time=3600 so a restart within the hour still runs missed crawls.
 - `refresh-jobs` every 15 min re-reads the Source table: adds new/enabled sources, removes
-  disabled/deleted ones, and re-creates jobs whose cron expression changed.
+  disabled/deleted ones, and applies the shared daily schedule for each adapter.
 - start_scheduler() must never crash app startup: missing tables or an empty registry just
   produce a scheduler with only the refresh job.
 """
@@ -20,12 +20,14 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy import select
 
+from taxatlas.schedules import schedule_for_adapter
+
 log = logging.getLogger("taxatlas.crawler.scheduler")
 
 JOB_PREFIX = "crawl:"
 REFRESH_JOB_ID = "refresh-jobs"
 REFRESH_MINUTES = 15
-DEFAULT_CRON = "0 */6 * * *"
+DEFAULT_CRON = "0 0 * * *"
 
 
 def _job_id(source_id: int) -> str:
@@ -74,15 +76,16 @@ def sync_jobs(scheduler: BackgroundScheduler) -> dict[str, int]:
     counts = {"added": 0, "updated": 0, "removed": 0, "total": 0}
     try:
         with SessionLocal() as db:
-            rows = list(db.execute(select(Source.id, Source.slug, Source.schedule_cron, Source.enabled)))
+            rows = list(db.execute(select(Source.id, Source.slug, Source.adapter, Source.enabled)))
     except Exception as exc:  # tables missing, DB down, ...
         log.warning("scheduler: could not read sources (%s); will retry in %s min", exc, REFRESH_MINUTES)
         return counts
 
     wanted: dict[str, tuple[int, str, str]] = {}
-    for sid, slug, cron, enabled in rows:
-        if enabled:
-            wanted[_job_id(sid)] = (sid, slug, cron or DEFAULT_CRON)
+    for sid, slug, adapter, enabled in rows:
+        schedule = schedule_for_adapter(adapter)
+        if enabled and schedule is not None:
+            wanted[_job_id(sid)] = (sid, slug, schedule.cron)
 
     existing = {j.id: j for j in scheduler.get_jobs() if j.id.startswith(JOB_PREFIX)}
     for jid, job in existing.items():

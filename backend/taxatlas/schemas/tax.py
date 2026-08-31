@@ -155,7 +155,7 @@ class SourceOut(ORMModel):
     tax_types: list | None
     category: str
     adapter: str
-    schedule_cron: str
+    schedule_cron: str = Field(description="Legacy source metadata. Use /sources/schedules for effective batch timing.")
     enabled: bool
     authority: str | None
     authority_en: str | None = None
