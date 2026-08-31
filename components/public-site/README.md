@@ -31,8 +31,8 @@ Responsive transitions follow the reference at 991px, 767px, and 479px.
 - Genuine portraits and a CPAAutomation orbit graphic replace template branding.
 - The original 3D globe replaces the template's hero video; the redesigned
   typography, layout, calls to action, and footer media remain unchanged.
-- Reduced-motion preferences stop decorative video and animation. Videos and
-  moving strips also have explicit pause controls; demos load only on activation.
+- Reduced-motion preferences stop decorative video and animation. Videos have
+  explicit pause controls; moving strips pause on hover, and demos load only on activation.
 
 ## Verification
 

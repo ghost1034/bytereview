@@ -66,7 +66,6 @@ function HomePricing() {
 
 export default function PublicHome() {
   const [authOpen, setAuthOpen] = useState(false)
-  const [motionPaused, setMotionPaused] = useState(false)
   const { user, requiresMfaEnrollment } = useAuth()
   const router = useRouter()
   const start = () => {
@@ -74,7 +73,7 @@ export default function PublicHome() {
     else setAuthOpen(true)
   }
 
-  return <div className="ph-home" data-motion-paused={motionPaused || undefined}>
+  return <div className="ph-home">
     <section className="ps-home-hero" aria-label="CPAAutomation">
       <GlobeBackground />
       <div className="ps-home-hero__shade" aria-hidden />
@@ -90,7 +89,6 @@ export default function PublicHome() {
       <div className="ph-container"><div className="ph-marquee" aria-label="Eleven CPAAutomation products"><div className="ph-marquee__track">
         {[0, 1].map((copy) => <div className="ph-brand-list" key={copy} aria-hidden={copy === 1 || undefined}>{PRODUCTS.map((product) => { const Icon = product.icon; return <span key={product.name}><Icon aria-hidden />{product.name}</span> })}</div>)}
       </div></div></div>
-      <button className="ph-motion-toggle" type="button" aria-pressed={motionPaused} onClick={() => setMotionPaused(!motionPaused)}>{motionPaused ? 'Resume' : 'Pause'} moving strips</button>
     </div>
 
     <section className="ph-section ph-about" id="about-section">

@@ -27,7 +27,7 @@ vi.mock('@/lib/api', () => ({ apiClient: { submitContact: (...args: unknown[]) =
 vi.mock('@/components/auth/AuthModal', () => ({ default: ({ isOpen }: { isOpen: boolean }) => isOpen ? <div role="dialog" aria-label="Sign in" /> : null }))
 // WebGL rendering is verified in the browser; jsdom has no canvas context.
 vi.mock('./three/GlobeBackground', () => ({ default: () => null }))
-vi.mock('gsap', () => ({ gsap: { registerPlugin: vi.fn(), matchMedia: () => ({ add: vi.fn(), revert: vi.fn() }) } }))
+vi.mock('gsap', () => ({ gsap: { registerPlugin: vi.fn(), context: () => ({ revert: vi.fn() }), matchMedia: () => ({ add: vi.fn(), revert: vi.fn() }) } }))
 vi.mock('gsap/ScrollTrigger', () => ({ ScrollTrigger: {} }))
 vi.mock('embla-carousel-react', () => {
   const select = (delta: number) => { state.selected = Math.max(0, Math.min(2, state.selected + delta)); state.listeners.forEach((listener) => listener(api)) }
@@ -162,11 +162,13 @@ describe('template-aligned homepage', () => {
     expect(host.textContent).not.toContain('ANNUALLY')
   })
 
-  it('lets visitors pause all moving strips', async () => {
+  it.each([false, true])('keeps the moving strips without a pause/resume control (reduced motion: %s)', async (reducedMotion) => {
+    state.reducedMotion = reducedMotion
     await render(<PublicHome />)
-    await click(button('Pause moving strips'))
-    expect(host.querySelector('.ph-home')?.getAttribute('data-motion-paused')).toBe('true')
-    expect(button('Resume moving strips').getAttribute('aria-pressed')).toBe('true')
+    expect(host.querySelector('.ph-brand-strip .ph-marquee__track')).not.toBeNull()
+    expect(button('Pause moving strips')).toBeUndefined()
+    expect(button('Resume moving strips')).toBeUndefined()
+    expect(host.querySelector('.ph-home')?.hasAttribute('data-motion-paused')).toBe(false)
   })
 })
 
