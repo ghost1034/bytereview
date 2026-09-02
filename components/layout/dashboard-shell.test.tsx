@@ -4,8 +4,10 @@ import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+const navigationState = vi.hoisted(() => ({ pathname: '/dashboard' }))
+
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/dashboard',
+  usePathname: () => navigationState.pathname,
   useRouter: () => ({ push: vi.fn() }),
 }))
 vi.mock('@/components/ui/command', () => ({
@@ -25,7 +27,14 @@ vi.mock('@/components/tour/welcome-tour-dialog', () => ({
   WelcomeTourDialog: () => null,
 }))
 vi.mock('@/lib/product-catalog', () => ({
-  getProductForPathname: () => null,
+  getProductForPathname: (pathname: string) => pathname === '/dashboard'
+    ? null
+    : {
+        id: 'test-product',
+        name: 'Test product',
+        appHref: '/dashboard/test-product',
+        icon: () => null,
+      },
   isImmersiveDashboardPath: () => false,
   PRODUCT_CATALOG: [
     {
@@ -56,6 +65,7 @@ describe('DashboardShell', () => {
 
   beforeEach(() => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
+    navigationState.pathname = '/dashboard'
     host = document.createElement('div')
     document.body.append(host)
     root = createRoot(host)
@@ -71,5 +81,18 @@ describe('DashboardShell', () => {
     await act(async () => root.render(<DashboardShell>Content</DashboardShell>))
 
     expect(host.querySelector('[data-command-dialog-modal]')?.getAttribute('data-command-dialog-modal')).toBe('false')
+  })
+
+  it('scrolls to the top when entering a product', async () => {
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined)
+
+    await act(async () => root.render(<DashboardShell>Products</DashboardShell>))
+    expect(scrollTo).not.toHaveBeenCalled()
+
+    navigationState.pathname = '/dashboard/test-product'
+    await act(async () => root.render(<DashboardShell>Product workspace</DashboardShell>))
+
+    expect(scrollTo).toHaveBeenCalledOnce()
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'auto' })
   })
 })

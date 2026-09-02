@@ -47,6 +47,7 @@ function DashboardShellContent({ children }: DashboardShellProps) {
   const router = useRouter()
   const pathname = usePathname() ?? '/dashboard'
   const product = getProductForPathname(pathname)
+  const previousProductId = React.useRef(product?.id)
   const moduleChrome = useRegisteredDashboardModuleChrome()
   const [paletteOpen, setPaletteOpen] = React.useState(false)
   const isHub = pathname === '/dashboard'
@@ -68,6 +69,14 @@ function DashboardShellContent({ children }: DashboardShellProps) {
   const openLocalPalette = React.useCallback(() => setPaletteOpen(true), [])
   const openCommandPalette = moduleChrome?.openCommandPalette
     ?? (paletteItems.length ? openLocalPalette : undefined)
+
+  React.useEffect(() => {
+    const productId = product?.id
+    if (previousProductId.current !== productId) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
+      previousProductId.current = productId
+    }
+  }, [product?.id])
 
   React.useEffect(() => {
     if (!openCommandPalette) return
