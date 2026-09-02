@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATIONS, HOME_INTEGRATION_ROWS, HOME_PEOPLE, HOME_SECTIONS, HOME_STEPS } from './home-content'
 import { PRODUCTS } from './content'
+import { PRODUCT_CATALOG, PRODUCT_GROUPS } from '@/lib/product-catalog'
 
 const state = vi.hoisted(() => ({
   user: null as null | { uid: string }, mfa: false, pathname: '/', reducedMotion: true,
@@ -24,7 +25,7 @@ vi.mock('next/image', () => ({ default: ({ fill, priority, ...props }: ImgHTMLAt
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: state.user, requiresMfaEnrollment: state.mfa }) }))
 vi.mock('@/hooks/useBilling', () => ({ useSubscriptionPlans: () => ({ data: state.plans, isLoading: state.loading, isError: state.error, refetch: state.refetch }) }))
 vi.mock('@/lib/api', () => ({ apiClient: { submitContact: (...args: unknown[]) => state.submit(...args) } }))
-vi.mock('@/components/auth/AuthModal', () => ({ default: ({ isOpen }: { isOpen: boolean }) => isOpen ? <div role="dialog" aria-label="Sign in" /> : null }))
+vi.mock('@/components/auth/AuthModal', () => ({ default: ({ isOpen, redirectTo }: { isOpen: boolean; redirectTo?: string }) => isOpen ? <div role="dialog" aria-label="Sign in" data-redirect-to={redirectTo} /> : null }))
 vi.mock('gsap', () => ({ gsap: { registerPlugin: vi.fn(), context: () => ({ revert: vi.fn() }), matchMedia: () => ({ add: vi.fn(), revert: vi.fn() }) } }))
 vi.mock('gsap/ScrollTrigger', () => ({ ScrollTrigger: {} }))
 vi.mock('embla-carousel-react', () => {
@@ -40,7 +41,7 @@ vi.mock('embla-carousel-react', () => {
 })
 
 import PublicHome from './pages/home'
-import { PublicAbout } from './pages/marketing-pages'
+import { PublicFeatures } from './pages/marketing-pages'
 import PublicHeader from './header'
 import PublicFooter from './footer'
 import { AmbientVideo, HomeCarousel, VideoLightbox } from './home-interactions'
@@ -237,6 +238,34 @@ describe('shared navigation and media', () => {
     expect(host.querySelector('[aria-live]')?.textContent).toBe('Position 3 of 3')
     await click(button('Previous slide'))
     expect(host.querySelector('[aria-live]')?.textContent).toBe('Position 2 of 3')
+  })
+})
+
+describe('products page', () => {
+  const orderedProducts = PRODUCT_GROUPS.flatMap((group) => (
+    PRODUCT_CATALOG.filter((product) => product.groupId === group.id)
+  ))
+
+  it('opens sign in for visitors and preserves the selected product destination', async () => {
+    await render(<PublicFeatures />)
+    const inkwiseLink = host.querySelector<HTMLAnchorElement>('[aria-label="Explore Inkwise"]')!
+
+    await click(inkwiseLink)
+
+    expect(host.querySelector('[aria-label="Sign in"]')?.getAttribute('data-redirect-to')).toBe('/dashboard/inkwise')
+  })
+
+  it('links signed-in users directly to every product', async () => {
+    state.user = { uid: 'test-user' }
+    await render(<PublicFeatures />)
+    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.ps-feature-product > a'))
+
+    expect(links).toHaveLength(orderedProducts.length)
+    expect(links.map((link) => link.getAttribute('href'))).toEqual(orderedProducts.map((product) => product.appHref))
+
+    links[0].addEventListener('click', (event) => event.preventDefault())
+    await click(links[0])
+    expect(host.querySelector('[aria-label="Sign in"]')).toBeNull()
   })
 })
 

@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 
 import { PRODUCT_CATALOG, PRODUCT_GROUPS } from '@/lib/product-catalog'
-import { PRODUCTS } from '../content'
+import { ProductExploreLink } from '../product-explore-link'
 import { PageHero, Reveal, SectionHeading, SiteButton } from '../ui'
 
 const DEMO_GROUPS = [
@@ -156,9 +156,7 @@ export function PublicConsulting() {
 export function PublicFeatures() {
   const groups = PRODUCT_GROUPS.map((group) => ({
     ...group,
-    productNames: PRODUCT_CATALOG
-      .filter((product) => product.groupId === group.id)
-      .map((product) => product.name),
+    products: PRODUCT_CATALOG.filter((product) => product.groupId === group.id),
   }))
   return (
     <>
@@ -168,10 +166,9 @@ export function PublicFeatures() {
           <div className="ps-container">
             <SectionHeading number={`00${groupIndex + 1}`} eyebrow={group.name} title={group.name} description={group.description} />
             <div className="ps-feature-products">
-              {group.productNames.map((name) => {
-                const product = PRODUCTS.find((item) => item.name === name)!
+              {group.products.map((product) => {
                 const Icon = product.icon
-                return <Reveal key={name} className="ps-feature-product"><Icon /><div><h3>{name}</h3><p>{product.description}</p></div><Link href={product.href}>Explore <ArrowUpRight /></Link></Reveal>
+                return <Reveal key={product.id} className="ps-feature-product"><Icon /><div><h3>{product.name}</h3><p>{product.description}</p></div><ProductExploreLink href={product.appHref} productName={product.name} /></Reveal>
               })}
             </div>
           </div>
