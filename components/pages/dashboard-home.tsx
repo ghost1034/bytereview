@@ -11,12 +11,6 @@ import {
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
 import { ActionCard } from '@/components/ui/action-card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
@@ -84,48 +78,15 @@ export function DashboardHome() {
         description="Extract structured data from your documents with AI. Start a new job or continue where you left off."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="tour"
-                  data-tour="dashboard-tour-button"
-                >
-                  <Sparkles className="mr-1.5 size-4" aria-hidden />
-                  Take product tour
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="w-72">
-                <DropdownMenuItem
-                  className="flex-col items-start gap-0.5"
-                  onClick={() => startTour('extraction')}
-                >
-                  <span className="font-medium">Extraction Jobs</span>
-                  <span className="text-xs text-foreground-muted">
-                    Create a job, upload documents, extract fields, and review
-                    results.
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="flex-col items-start gap-0.5"
-                  onClick={() => startTour('form-fill')}
-                >
-                  <span className="font-medium">Form Fill</span>
-                  <span className="text-xs text-foreground-muted">
-                    Fill a PDF or DOCX target from uploaded or extracted data.
-                  </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="flex-col items-start gap-0.5"
-                  onClick={() => startTour('inkwise')}
-                >
-                  <span className="font-medium">Inkwise</span>
-                  <span className="text-xs text-foreground-muted">
-                    Grounded AI writing with references, chat, and review.
-                  </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <Button
+              type="button"
+              variant="tour"
+              data-tour="dashboard-tour-button"
+              onClick={() => startTour('extraction')}
+            >
+              <Sparkles className="mr-1.5 size-4" aria-hidden />
+              Take product tour
+            </Button>
             <Button asChild>
               <Link href="/dashboard/jobs">
                 <Plus className="mr-1.5 size-4" aria-hidden />
