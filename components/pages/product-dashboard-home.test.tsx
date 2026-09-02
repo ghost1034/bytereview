@@ -6,23 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { PRODUCT_CATALOG, PRODUCT_GROUPS } from '@/lib/product-catalog'
 
-const state = vi.hoisted(() => ({
-  billing: { data: { plan_code: 'free' }, isLoading: false, isPending: false, isError: false },
-  analytics: { data: { needs_onboarding: true }, isLoading: false, isPending: false, isError: false },
-  activation: { data: { has_key: false, revoked: false }, isLoading: false, isPending: false, isError: false },
-}))
-
 vi.mock('next/link', () => ({
   default: (props: AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
 }))
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { uid: 'user-1' } }) }))
 vi.mock('@/hooks/useUserProfile', () => ({
   useCurrentUser: () => ({ user: { display_name: 'Avery', email: 'avery@example.com' }, isLoading: false }),
 }))
-vi.mock('@/hooks/useBilling', () => ({ useBillingAccount: () => state.billing }))
-vi.mock('@/hooks/useAnalyticsTeam', () => ({ useAnalyticsFirmOnboardingStatus: () => state.analytics }))
-vi.mock('@tanstack/react-query', () => ({ useQuery: () => state.activation }))
-vi.mock('@/lib/api', () => ({ apiClient: { getActivation: vi.fn() } }))
 
 import { ProductDashboardHome } from './product-dashboard-home'
 
@@ -49,25 +38,32 @@ describe('product dashboard home', () => {
     expect(Array.from(host.querySelectorAll('h2')).map((node) => node.textContent)).toEqual(
       PRODUCT_GROUPS.map((group) => group.name),
     )
-    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('a[aria-label^="Open "]'))
+    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('a[aria-label^="Go to "]'))
     expect(links).toHaveLength(11)
     expect(links.map((link) => link.getAttribute('href'))).toEqual(
       PRODUCT_GROUPS.flatMap((group) => (
         PRODUCT_CATALOG.filter((product) => product.groupId === group.id).map((product) => product.appHref)
       )),
     )
-    expect(host.textContent).toContain('Paid')
-    expect(host.textContent).toContain('Setup required')
-    expect(host.textContent).toContain('Free')
+    expect(host.textContent).not.toContain('Open product')
+    expect(host.textContent).not.toContain('Setup required')
+    expect(host.textContent).not.toContain('purpose-built products')
   })
 
-  it('keeps every card navigable when access checks fail', async () => {
-    state.billing = { data: undefined as never, isLoading: false, isPending: false, isError: true }
-    state.analytics = { data: undefined as never, isLoading: false, isPending: false, isError: true }
-    state.activation = { data: undefined as never, isLoading: false, isPending: false, isError: true }
+  it('omits dashboard chrome that competes with the product catalog', async () => {
     await act(async () => root.render(<ProductDashboardHome />))
 
-    expect(host.textContent).toContain('Access unknown')
-    expect(host.querySelectorAll('a[aria-label^="Open "]')).toHaveLength(11)
+    const removedCopy = [
+      'Your connected workspace',
+      'Everything your team needs',
+      'Workspace / All products',
+      'Choose the right tool for the work in front of you',
+      '04 areas',
+    ]
+    removedCopy.forEach((copy) => expect(host.textContent).not.toContain(copy))
+    expect(host.textContent).not.toMatch(/\d{2} products/)
+    const productIndex = host.querySelector('[aria-label="Product categories"]')
+    expect(productIndex?.querySelectorAll('small')).toHaveLength(0)
+    expect(host.querySelectorAll('a[aria-label^="Go to "]')).toHaveLength(11)
   })
 })
