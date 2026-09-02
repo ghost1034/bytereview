@@ -113,7 +113,7 @@ function getExtractionStepByRoute(pathname: string): string | null {
   if (/^\/dashboard\/jobs\/[^/]+\/fields$/.test(pathname)) return 'configure-fields'
   if (/^\/dashboard\/jobs\/[^/]+\/upload$/.test(pathname)) return 'upload-files'
   if (pathname === '/dashboard/jobs') return 'jobs-new-job'
-  if (pathname === '/dashboard') return 'dashboard-intro'
+  if (pathname === '/dashboard/uda') return 'dashboard-intro'
   return null
 }
 
@@ -152,7 +152,7 @@ const FORM_FILL_STEPS: TourStep[] = [
 
 function getFormFillStepByRoute(pathname: string): string | null {
   if (pathname === '/dashboard/form-fill') return 'form-fill-source'
-  if (pathname === '/dashboard') return 'form-fill-intro'
+  if (pathname === '/dashboard/uda') return 'form-fill-intro'
   return null
 }
 
@@ -253,7 +253,7 @@ function getInkwiseStepByRoute(pathname: string): string | null {
   if (pathname === '/dashboard/inkwise/write') return 'inkwise-module-nav'
   if (pathname === '/dashboard/inkwise/references') return 'inkwise-import-panel'
   if (pathname === '/dashboard/inkwise/templates') return 'inkwise-templates'
-  if (pathname === '/dashboard') return 'inkwise-intro'
+  if (pathname === '/dashboard/uda') return 'inkwise-intro'
   return null
 }
 
@@ -340,7 +340,7 @@ export function ProductTourProvider({ children }: { children: React.ReactNode })
       } else {
         // Otherwise start at the intro step on the dashboard.
         setStep(nextTourId, def.steps[0].id)
-        if (pathname !== '/dashboard') router.push('/dashboard')
+        if (pathname !== '/dashboard/uda') router.push('/dashboard/uda')
       }
     },
     [pathname, router, setStep],

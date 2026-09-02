@@ -19,6 +19,7 @@ import {
   Workflow,
 } from 'lucide-react'
 
+import { PRODUCT_CATALOG, PRODUCT_GROUPS } from '@/lib/product-catalog'
 import { PRODUCTS } from '../content'
 import { PageHero, Reveal, SectionHeading, SiteButton } from '../ui'
 
@@ -153,12 +154,12 @@ export function PublicConsulting() {
 }
 
 export function PublicFeatures() {
-  const groups = [
-    { id: 'document-intelligence', name: 'Document intelligence', description: 'Turn source files into structured, reviewed, actionable work.', productNames: ['Universal Document Analysis', 'Form Fill', 'Prepared by Client'] },
-    { id: 'knowledge-work', name: 'Knowledge work', description: 'Draft, research, sign, and deliver with evidence attached.', productNames: ['Inkwise', 'E-Signature', 'Claw Series'] },
-    { id: 'practice-operations', name: 'Practice operations', description: 'Coordinate teams, time, tasks, client requests, and learning.', productNames: ['Tasklytic', 'Chrona', 'CPE Tracker'] },
-    { id: 'analytics', name: 'Analytics and intelligence', description: 'Investigate performance, reconcile data, and monitor changing rules.', productNames: ['AI Analytics Suite', 'TaxAtlas'] },
-  ]
+  const groups = PRODUCT_GROUPS.map((group) => ({
+    ...group,
+    productNames: PRODUCT_CATALOG
+      .filter((product) => product.groupId === group.id)
+      .map((product) => product.name),
+  }))
   return (
     <>
       <PageHero eyebrow="Platform capabilities" title={<>One platform. <span className="ps-gradient-text">Eleven purpose-built products.</span></>} description="Choose the workflow you need today and connect the rest of the engagement when you are ready." actions={<SiteButton href="/pricing" variant="light">Get started</SiteButton>} />

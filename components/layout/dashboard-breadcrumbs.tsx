@@ -4,10 +4,12 @@ import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronRight } from 'lucide-react'
+import { getProductForPathname } from '@/lib/product-catalog'
 import { cn } from '@/lib/utils'
 
 const SEGMENT_LABELS: Record<string, string> = {
   dashboard: 'Dashboard',
+  uda: 'Overview',
   jobs: 'Jobs',
   templates: 'Templates',
   integrations: 'Integrations',
@@ -38,15 +40,41 @@ interface Crumb {
 
 export function useBreadcrumbs(): Crumb[] {
   const pathname = usePathname() ?? '/dashboard'
-  const segments = pathname.split('/').filter(Boolean)
-  const crumbs: Crumb[] = []
-  let acc = ''
-  segments.forEach((seg, i) => {
+  if (pathname === '/dashboard') {
+    return [{ label: 'All products', href: '/dashboard', current: true }]
+  }
+
+  if (pathname === '/dashboard/settings') {
+    return [
+      { label: 'All products', href: '/dashboard', current: false },
+      { label: 'Settings', href: pathname, current: true },
+    ]
+  }
+
+  const product = getProductForPathname(pathname)
+  if (!product) return []
+
+  const isLegacyUdaRoute = product.id === 'uda' && !pathname.startsWith('/dashboard/uda')
+  const routeBase = isLegacyUdaRoute ? '/dashboard' : product.appHref
+  const relativePath = pathname.slice(routeBase.length).replace(/^\//, '')
+  const segments = relativePath ? relativePath.split('/') : []
+  const crumbs: Crumb[] = [{
+    label: product.name,
+    href: product.appHref,
+    current: segments.length === 0,
+  }]
+  let acc = routeBase
+  const routeCrumbs: Array<{ label: string; href: string }> = []
+  segments.forEach((seg) => {
     acc += `/${seg}`
     const label = humanize(seg)
     if (!label) return
-    crumbs.push({ label, href: acc, current: i === segments.length - 1 })
+    routeCrumbs.push({ label, href: acc })
   })
+  routeCrumbs.forEach((crumb, index) => {
+    crumbs.push({ ...crumb, current: index === routeCrumbs.length - 1 })
+  })
+  if (segments.length > 0 && routeCrumbs.length === 0) crumbs[0].current = true
   return crumbs
 }
 

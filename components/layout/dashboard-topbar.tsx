@@ -2,8 +2,10 @@
 
 import * as React from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
+  Boxes,
   LifeBuoy,
   LogOut,
   Search,
@@ -20,9 +22,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { SidebarTrigger } from '@/components/ui/sidebar'
 import { useAuth } from '@/contexts/AuthContext'
 import { useCurrentUser } from '@/hooks/useUserProfile'
+import type { ProductCatalogItem } from '@/lib/product-catalog'
 
 import { DashboardBreadcrumbs } from './dashboard-breadcrumbs'
 
@@ -31,6 +33,7 @@ interface DashboardTopbarProps {
   breadcrumbs?: Array<{ label: string; href?: string }>
   actions?: React.ReactNode
   className?: string
+  product?: ProductCatalogItem | null
 }
 
 export function DashboardTopbar({
@@ -38,6 +41,7 @@ export function DashboardTopbar({
   breadcrumbs,
   actions,
   className,
+  product,
 }: DashboardTopbarProps) {
   const { user, signOut } = useAuth()
   const { user: profile } = useCurrentUser()
@@ -60,39 +64,60 @@ export function DashboardTopbar({
   return (
     <header
       className={cn(
-        'app-header sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background/85 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-4',
+        'app-header sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/90 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:px-4 lg:px-6',
         className,
       )}
     >
-      <SidebarTrigger
-        className="size-9 text-foreground-muted hover:text-foreground"
-        aria-label="Toggle sidebar"
-      />
+      <Link
+        href="/dashboard"
+        aria-label="CPAAutomation home"
+        className="flex h-10 shrink-0 items-center rounded-md px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <Image src="/logo.png" alt="CPAAutomation" width={240} height={80} priority className="h-7 w-auto" />
+      </Link>
 
-      <div className="hidden h-6 w-px bg-border sm:block" aria-hidden />
+      <div className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
 
-      <DashboardBreadcrumbs breadcrumbs={breadcrumbs} className="hidden flex-1 sm:flex" />
-
-      {/* Spacer on mobile (breadcrumbs hidden) */}
-      <div className="flex-1 sm:hidden" />
-
-      {/* Command palette trigger */}
-      <button
-        type="button"
-        onClick={onOpenCommandPalette}
-        aria-label="Open command palette"
+      <Link
+        href="/dashboard"
         className={cn(
-          'group inline-flex h-9 items-center gap-2 rounded-md border border-border bg-surface-muted px-2.5 text-sm text-foreground-muted shadow-xs transition-colors',
-          'hover:border-border-strong hover:bg-surface hover:text-foreground',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          'inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         )}
       >
-        <Search className="size-4" aria-hidden />
-        <span className="hidden md:inline">Search…</span>
-        <kbd className="hidden items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 font-sans text-[10px] font-medium tabular-nums text-foreground-subtle md:inline-flex">
-          <span className="text-[11px]">⌘</span>K
-        </kbd>
-      </button>
+        <Boxes className="size-4" aria-hidden />
+        <span className="hidden sm:inline">All products</span>
+      </Link>
+
+      {product ? (
+        <div className="ml-1 hidden min-w-0 items-center gap-2 lg:flex">
+          <product.icon className="size-4 shrink-0 text-foreground-muted" aria-hidden />
+          <span className="truncate text-sm font-semibold text-foreground">{product.name}</span>
+        </div>
+      ) : null}
+
+      <DashboardBreadcrumbs breadcrumbs={breadcrumbs} className="ml-2 hidden flex-1 xl:flex" />
+
+      <div className="flex-1 xl:hidden" />
+
+      {onOpenCommandPalette ? (
+        <button
+          type="button"
+          onClick={onOpenCommandPalette}
+          aria-label="Open command palette"
+          className={cn(
+            'group inline-flex h-9 items-center gap-2 rounded-full border border-border bg-surface-muted px-2.5 text-sm text-foreground-muted shadow-xs transition-colors',
+            'hover:border-border-strong hover:bg-surface hover:text-foreground',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+          )}
+        >
+          <Search className="size-4" aria-hidden />
+          <span className="hidden md:inline">Search</span>
+          <kbd className="hidden items-center gap-0.5 rounded border border-border bg-background px-1.5 py-0.5 font-sans text-[10px] font-medium tabular-nums text-foreground-subtle lg:inline-flex">
+            <span className="text-[11px]">⌘</span>K
+          </kbd>
+        </button>
+      ) : null}
 
       {actions ? (
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-1" aria-label="Module actions">

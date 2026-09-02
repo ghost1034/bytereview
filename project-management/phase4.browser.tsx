@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { page } from '@vitest/browser/context'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
-import { SidebarProvider } from '@/components/ui/sidebar'
-import { AppSidebar } from '@/components/layout/app-sidebar'
+import { DashboardTopbar } from '@/components/layout/dashboard-topbar'
+import { getProductById } from '@/lib/product-catalog'
 import type { Project, ProjectView, Task, Team, User, Workspace } from './types'
 
 vi.mock('next/navigation', () => ({
@@ -19,6 +19,9 @@ vi.mock('@/contexts/AuthContext', () => ({
     user: { uid: 'user-1' },
     loading: false,
   }),
+}))
+vi.mock('@/hooks/useUserProfile', () => ({
+  useCurrentUser: () => ({ user: { display_name: 'Test user' } }),
 }))
 
 import { ProjectViewCards } from './features/projects/ProjectViewCards'
@@ -269,19 +272,17 @@ describe('Phase 4 desktop and mobile browser gate', () => {
       .toBeVisible()
   })
 
-  it('keeps global product navigation and local Tasklytic navigation available together', async () => {
+  it('keeps the all-products return path and local Tasklytic navigation available together', async () => {
     await page.viewport(1440, 900)
     const screen = render(
-      <div className="flex">
-        <SidebarProvider defaultOpen>
-          <AppSidebar />
-        </SidebarProvider>
+      <div>
+        <DashboardTopbar product={getProductById('tasklytic')} />
         <TasklyticSidebar />
       </div>,
     )
 
     await expect
-      .element(screen.getByRole('link', { name: 'Tasklytic' }))
+      .element(screen.getByRole('link', { name: 'All products' }))
       .toBeVisible()
     await expect
       .element(screen.getByRole('link', { name: 'Close project' }))

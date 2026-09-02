@@ -1,24 +1,8 @@
 'use client'
 
 import * as React from 'react'
-import { useRouter, usePathname } from 'next/navigation'
-import {
-  Briefcase,
-  FileText,
-  FolderKanban,
-  Home,
-  Plug,
-  Settings as SettingsIcon,
-  Zap,
-  GraduationCap,
-  Globe2,
-  Files,
-  ClipboardCheck,
-  FileSignature,
-  PenTool,
-} from 'lucide-react'
+import { usePathname, useRouter } from 'next/navigation'
 
-import { cn } from '@/lib/utils'
 import {
   CommandDialog,
   CommandEmpty,
@@ -26,108 +10,67 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from '@/components/ui/command'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
+import { ProductTourProvider } from '@/components/tour/product-tour'
+import { WelcomeTourDialog } from '@/components/tour/welcome-tour-dialog'
+import {
+  getProductForPathname,
+  isImmersiveDashboardPath,
+  PRODUCT_CATALOG,
+} from '@/lib/product-catalog'
+import { cn } from '@/lib/utils'
 
-import { AppSidebar } from './app-sidebar'
 import {
   DashboardModuleChromeProvider,
-  resolveDashboardCommandPalette,
   useRegisteredDashboardModuleChrome,
 } from './dashboard-module-chrome'
 import { DashboardTopbar } from './dashboard-topbar'
-import { ProductTourProvider } from '@/components/tour/product-tour'
-import { WelcomeTourDialog } from '@/components/tour/welcome-tour-dialog'
+import {
+  getProductLocalNavigation,
+  ProductLocalNav,
+  type ProductNavItem,
+} from './product-local-nav'
 
 interface DashboardShellProps {
   children: React.ReactNode
-  defaultSidebarOpen?: boolean
 }
 
-const QUICK_ACTIONS: Array<{
-  group: string
-  items: Array<{
-    label: string
-    href: string
-    icon: React.ComponentType<{ className?: string }>
-    badge?: string
-  }>
-}> = [
-  {
-    group: 'Workspace',
-    items: [
-      { label: 'Dashboard', href: '/dashboard', icon: Home },
-      { label: 'Jobs', href: '/dashboard/jobs', icon: Briefcase },
-      { label: 'Templates', href: '/dashboard/templates', icon: FileText },
-      { label: 'Integrations', href: '/dashboard/integrations', icon: Plug },
-      { label: 'Automations', href: '/dashboard/automations', icon: Zap },
-      { label: 'Settings', href: '/dashboard/settings', icon: SettingsIcon },
-    ],
-  },
-  {
-    group: 'Tools',
-    items: [
-      { label: 'CPE Tracker', href: '/dashboard/cpe-tracker', icon: GraduationCap },
-      { label: 'Form Fill', href: '/dashboard/form-fill', icon: Files },
-      { label: 'PBC', href: '/dashboard/pbc', icon: ClipboardCheck },
-      { label: 'Inkwise', href: '/dashboard/inkwise', icon: PenTool },
-      {
-        label: 'Tasklytic',
-        href: '/dashboard/project-management',
-        icon: FolderKanban,
-      },
-      {
-        label: 'TaxAtlas',
-        href: '/dashboard/taxatlas',
-        icon: Globe2,
-        badge: 'Paid',
-      },
-      { label: 'E-Signature', href: '/dashboard/esign', icon: FileSignature },
-    ],
-  },
-]
-
-export function DashboardShell({
-  children,
-  defaultSidebarOpen = true,
-}: DashboardShellProps) {
+export function DashboardShell({ children }: DashboardShellProps) {
   return (
     <DashboardModuleChromeProvider>
-      <DashboardShellContent defaultSidebarOpen={defaultSidebarOpen}>
-        {children}
-      </DashboardShellContent>
+      <DashboardShellContent>{children}</DashboardShellContent>
     </DashboardModuleChromeProvider>
   )
 }
 
-function DashboardShellContent({
-  children,
-  defaultSidebarOpen = true,
-}: DashboardShellProps) {
+function DashboardShellContent({ children }: DashboardShellProps) {
   const router = useRouter()
-  const pathname = usePathname() ?? ''
+  const pathname = usePathname() ?? '/dashboard'
+  const product = getProductForPathname(pathname)
   const moduleChrome = useRegisteredDashboardModuleChrome()
-  const isWideRoute =
-    pathname.startsWith('/dashboard/cpe-tracker') ||
-    pathname.startsWith('/dashboard/inkwise') ||
-    pathname.startsWith('/dashboard/pbc') ||
-    pathname.startsWith('/dashboard/project-management')
-    || pathname.startsWith('/dashboard/taxatlas')
-  const isImmersiveEsign =
-    pathname.startsWith('/dashboard/esign/sign/') ||
-    /\/dashboard\/esign\/[^/]+\/(prepare|fields|review|documents|recipients)$/.test(pathname) ||
-    /\/dashboard\/esign\/templates\/[^/]+/.test(pathname)
-  const isProjectManagement = pathname.startsWith('/dashboard/project-management')
-  const isTaxAtlas = pathname.startsWith('/dashboard/taxatlas')
   const [paletteOpen, setPaletteOpen] = React.useState(false)
-  const openGlobalPalette = React.useCallback(() => setPaletteOpen(true), [])
-  const openCommandPalette = React.useMemo(
-    () => resolveDashboardCommandPalette(moduleChrome, openGlobalPalette),
-    [moduleChrome, openGlobalPalette],
-  )
+  const isHub = pathname === '/dashboard'
+  const isProjectManagement = product?.id === 'tasklytic'
+  const isTaxAtlas = product?.id === 'taxatlas'
+  const isWideProduct = ['cpe-tracker', 'inkwise', 'pbc', 'analytics-suite', 'chrona'].includes(product?.id ?? '')
+
+  const paletteItems = React.useMemo<ProductNavItem[]>(() => {
+    if (isHub) {
+      return PRODUCT_CATALOG.map((item) => ({
+        label: item.name,
+        href: item.appHref,
+        icon: item.icon,
+      }))
+    }
+    return getProductLocalNavigation(product?.id)
+  }, [isHub, product?.id])
+
+  const openLocalPalette = React.useCallback(() => setPaletteOpen(true), [])
+  const openCommandPalette = moduleChrome?.openCommandPalette
+    ?? (paletteItems.length ? openLocalPalette : undefined)
 
   React.useEffect(() => {
+    if (!openCommandPalette) return
     const onKey = (event: KeyboardEvent) => {
       if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
         event.preventDefault()
@@ -138,15 +81,7 @@ function DashboardShellContent({
     return () => window.removeEventListener('keydown', onKey)
   }, [openCommandPalette])
 
-  const runCommand = React.useCallback(
-    (action: () => void) => {
-      setPaletteOpen(false)
-      action()
-    },
-    [],
-  )
-
-  if (isImmersiveEsign) {
+  if (isImmersiveDashboardPath(pathname)) {
     return (
       <main id="main-content" tabIndex={-1} className="min-h-dvh bg-surface outline-none">
         <ProductTourProvider>{children}</ProductTourProvider>
@@ -155,91 +90,77 @@ function DashboardShellContent({
   }
 
   return (
-    <SidebarProvider
-      defaultOpen={defaultSidebarOpen}
-      className={cn(isProjectManagement && 'h-svh max-h-svh overflow-hidden')}
-    >
+    <div className={cn('flex min-h-dvh flex-col bg-surface', isProjectManagement && 'h-svh max-h-svh overflow-hidden')}>
       <a
         href="#main-content"
         className={cn(
           'sr-only z-50 m-2 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground',
-          'focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:outline-none',
+          'focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:outline-none',
           'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         )}
       >
         Skip to content
       </a>
 
-      <AppSidebar />
+      <DashboardTopbar
+        product={product}
+        actions={moduleChrome?.actions}
+        breadcrumbs={moduleChrome?.breadcrumbs}
+        onOpenCommandPalette={openCommandPalette}
+      />
 
-      <SidebarInset
+      {product ? <ProductLocalNav productId={product.id} /> : null}
+
+      <main
+        id="main-content"
+        tabIndex={-1}
         className={cn(
-          'min-w-0 bg-surface',
-          isProjectManagement && 'min-h-0 overflow-hidden',
+          'relative min-h-0 flex-1 outline-none focus-visible:outline-none',
+          isProjectManagement && 'overflow-hidden',
         )}
       >
-        <DashboardTopbar
-          actions={moduleChrome?.actions}
-          breadcrumbs={moduleChrome?.breadcrumbs}
-          onOpenCommandPalette={openCommandPalette}
-        />
-
-        <main
-          id="main-content"
-          tabIndex={-1}
+        <div
           className={cn(
-            'relative flex-1 outline-none focus-visible:outline-none',
-            isProjectManagement && 'min-h-0 overflow-hidden',
+            'h-full w-full',
+            isProjectManagement || isTaxAtlas
+              ? 'min-h-0 max-w-none p-0'
+              : 'mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
+            !isProjectManagement && !isTaxAtlas && (isWideProduct ? 'max-w-[96rem]' : 'max-w-7xl'),
           )}
         >
-          <div
-            className={cn(
-              'w-full',
-              isProjectManagement || isTaxAtlas
-                ? 'h-full min-h-0 max-w-none p-0'
-                : 'mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
-              !isProjectManagement && !isTaxAtlas && (isWideRoute ? 'max-w-none' : 'max-w-7xl'),
-            )}
-          >
-            <ProductTourProvider>
-              <WelcomeTourDialog />
-              {children}
-            </ProductTourProvider>
-          </div>
-        </main>
-      </SidebarInset>
+          <ProductTourProvider>
+            {product?.id === 'uda' ? <WelcomeTourDialog /> : null}
+            {children}
+          </ProductTourProvider>
+        </div>
+      </main>
 
-      <CommandDialog open={paletteOpen} onOpenChange={setPaletteOpen}>
-        <CommandInput placeholder="Search the workspace…" />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          {QUICK_ACTIONS.map((group, gi) => (
-            <React.Fragment key={group.group}>
-              {gi > 0 && <CommandSeparator />}
-              <CommandGroup heading={group.group}>
-                {group.items.map((item) => {
-                  const Icon = item.icon
-                  return (
-                    <CommandItem
-                      key={item.href}
-                      value={`${item.label} ${item.href}`}
-                      onSelect={() => runCommand(() => router.push(item.href))}
-                    >
-                      <Icon className="mr-2 size-4 text-foreground-muted" />
-                      <span>{item.label}</span>
-                      {item.badge && (
-                        <span className="ml-auto rounded-full bg-surface-muted px-2 py-0.5 text-xs text-foreground-subtle">
-                          {item.badge}
-                        </span>
-                      )}
-                    </CommandItem>
-                  )
-                })}
-              </CommandGroup>
-            </React.Fragment>
-          ))}
-        </CommandList>
-      </CommandDialog>
-    </SidebarProvider>
+      {paletteItems.length ? (
+        <CommandDialog open={paletteOpen} onOpenChange={setPaletteOpen}>
+          <CommandInput placeholder={isHub ? 'Search products…' : `Search ${product?.name ?? 'product'}…`} />
+          <CommandList>
+            <CommandEmpty>No results found.</CommandEmpty>
+            <CommandGroup heading={isHub ? 'Products' : product?.name}>
+              {paletteItems.map((item) => {
+                const Icon = item.icon
+                return (
+                  <CommandItem
+                    key={item.href}
+                    value={`${item.label} ${item.href}`}
+                    onSelect={() => {
+                      setPaletteOpen(false)
+                      router.push(item.href)
+                    }}
+                  >
+                    <Icon className="mr-2 size-4 text-foreground-muted" />
+                    <span>{item.label}</span>
+                  </CommandItem>
+                )
+              })}
+            </CommandGroup>
+          </CommandList>
+        </CommandDialog>
+      ) : null}
+    </div>
   )
 }

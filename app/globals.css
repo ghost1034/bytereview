@@ -390,10 +390,4 @@ body {
     pointer-events: none;
   }
 
-  body.inkwise-focus-mode-active .dashboard-sidebar-shell {
-    transform: translateX(-120%);
-    opacity: 0;
-    pointer-events: none;
-  }
-
 }

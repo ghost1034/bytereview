@@ -1,16 +1,4 @@
-import {
-  BarChart3,
-  Bot,
-  Clock3,
-  FileCheck2,
-  FileSearch2,
-  FileSignature,
-  Files,
-  FolderKanban,
-  Globe2,
-  GraduationCap,
-  PenTool,
-} from 'lucide-react'
+import { PRODUCT_CATALOG } from '@/lib/product-catalog'
 
 export interface PublicNavItem {
   label: string
@@ -22,7 +10,7 @@ export interface ProductItem {
   name: string
   description: string
   href: string
-  icon: React.ComponentType<{ className?: string }>
+  icon: (typeof PRODUCT_CATALOG)[number]['icon']
 }
 
 export const PUBLIC_ROUTES = [
@@ -58,73 +46,11 @@ export const NAV_ITEMS: PublicNavItem[] = [
   { label: 'Contact', href: '/contact', number: '07' },
 ]
 
-export const PRODUCTS: ProductItem[] = [
-  {
-    name: 'Universal Document Analysis',
-    description: 'Extract, validate, and automate work from complex documents.',
-    href: '/features#document-intelligence',
-    icon: FileSearch2,
-  },
-  {
-    name: 'Form Fill',
-    description: 'Move source data into PDF and Word forms with AI.',
-    href: '/features#document-intelligence',
-    icon: Files,
-  },
-  {
-    name: 'Inkwise',
-    description: 'Draft grounded professional writing with citations.',
-    href: '/features#knowledge-work',
-    icon: PenTool,
-  },
-  {
-    name: 'Tasklytic',
-    description: 'Projects, forms, time, reporting, and team coordination.',
-    href: '/features#practice-operations',
-    icon: FolderKanban,
-  },
-  {
-    name: 'Prepared by Client',
-    description: 'Secure request lists, evidence collection, and review.',
-    href: '/features#knowledge-work',
-    icon: FileCheck2,
-  },
-  {
-    name: 'E-Signature',
-    description: 'Prepare, send, sign, and verify documents.',
-    href: '/features#knowledge-work',
-    icon: FileSignature,
-  },
-  {
-    name: 'Chrona',
-    description: 'Reconstruct billable work without manual timers.',
-    href: '/features#practice-operations',
-    icon: Clock3,
-  },
-  {
-    name: 'AI Analytics Suite',
-    description: 'Variance, reconciliation, fixed assets, and research bots.',
-    href: '/features#analytics',
-    icon: BarChart3,
-  },
-  {
-    name: 'TaxAtlas',
-    description: 'Global tax rates, law, tariffs, and change monitoring.',
-    href: '/features#analytics',
-    icon: Globe2,
-  },
-  {
-    name: 'Claw Series',
-    description: 'Deployable AI digital workers for accounting and legal work.',
-    href: '/claw',
-    icon: Bot,
-  },
-  {
-    name: 'CPE Tracker',
-    description: 'Track continuing professional education at no cost.',
-    href: '/dashboard/cpe-tracker',
-    icon: GraduationCap,
-  },
-]
+export const PRODUCTS: ProductItem[] = PRODUCT_CATALOG.map((product) => ({
+  name: product.name,
+  description: product.description,
+  href: product.marketingHref,
+  icon: product.icon,
+}))
 
 export const PRODUCT_NAMES = PRODUCTS.map((product) => product.name)

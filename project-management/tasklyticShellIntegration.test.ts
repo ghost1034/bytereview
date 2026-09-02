@@ -6,20 +6,19 @@ const root = process.cwd()
 const read = (file: string) => readFileSync(path.join(root, file), 'utf8')
 
 describe('Tasklytic dashboard shell integration', () => {
-  it('keeps Tasklytic in the shared shell with edge-to-edge bounded content', () => {
+  it('keeps Tasklytic in the shared product header with edge-to-edge bounded content', () => {
     const shell = read('components/layout/dashboard-shell.tsx')
     const topbar = read('components/layout/dashboard-topbar.tsx')
 
-    expect(shell).toContain(
-      "pathname.startsWith('/dashboard/project-management')",
-    )
+    expect(shell).toContain("product?.id === 'tasklytic'")
     expect(shell).not.toContain('isImmersiveEsign || isProjectManagement')
     expect(shell).toContain(
       "isProjectManagement && 'h-svh max-h-svh overflow-hidden'",
     )
-    expect(shell).toContain("'h-full min-h-0 max-w-none p-0'")
-    expect(shell).toContain('<AppSidebar />')
+    expect(shell).toContain("'min-h-0 max-w-none p-0'")
+    expect(shell).not.toContain('<AppSidebar />')
     expect(shell).toContain('<DashboardTopbar')
+    expect(topbar).toContain('All products')
     expect(topbar).toContain('aria-label="Account menu"')
     expect(topbar).toContain('href="/contact"')
     expect(topbar).toContain('Sign out')
@@ -56,12 +55,10 @@ describe('Tasklytic dashboard shell integration', () => {
     expect(moduleChrome).toContain('export type DashboardModuleChrome')
     expect(moduleChrome).toContain('export function useDashboardModuleChrome')
     expect(shell).toContain('<DashboardModuleChromeProvider>')
-    expect(shell).toContain(
-      'resolveDashboardCommandPalette(moduleChrome, openGlobalPalette)',
-    )
+    expect(shell).toContain('moduleChrome?.openCommandPalette')
     expect(topbar).toContain('breadcrumbs={breadcrumbs}')
     expect(topbar).toContain('{actions}')
-    expect(topbar).toContain('<SidebarTrigger')
+    expect(topbar).not.toContain('<SidebarTrigger')
     expect(chrome).toContain('useDashboardModuleChrome(moduleChrome)')
     expect(chrome).toContain('openCommandPalette: openTasklyticCommandPalette')
     expect(actions).toContain('aria-label="Tasklytic actions"')

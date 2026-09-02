@@ -26,7 +26,7 @@ import {
  * down as a prop; icons can't cross the RSC boundary, so they stay an import,
  * looked up by section slug via `findSection`.
  *
- * Mirrors the NavItem/NavGroup pattern in `components/layout/app-sidebar.tsx`
+ * Mirrors the grouped-navigation pattern used throughout the application.
  * and reuses the product names + icons from `PRODUCT_LINKS` in
  * `components/layout/header.tsx`.
  */
