@@ -1,13 +1,7 @@
 import type { ReactNode } from 'react'
 
-import { AIAssistant } from '@/components/analytics/AIAssistant'
-import { AnalyticsFirmGate } from '@/components/analytics/AnalyticsFirmGate'
+import { AnalyticsSuiteBoundary } from '@/components/analytics/AnalyticsSuiteBoundary'
 
 export default function AnalyticsLayout({ children }: { children: ReactNode }) {
-  return (
-    <AnalyticsFirmGate>
-      {children}
-      <AIAssistant />
-    </AnalyticsFirmGate>
-  )
+  return <AnalyticsSuiteBoundary>{children}</AnalyticsSuiteBoundary>
 }
