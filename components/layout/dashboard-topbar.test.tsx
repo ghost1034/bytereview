@@ -41,6 +41,7 @@ vi.mock('./dashboard-breadcrumbs', () => ({
 }))
 
 import { DashboardTopbar } from './dashboard-topbar'
+import { PRODUCT_CATALOG } from '@/lib/product-catalog'
 
 describe('DashboardTopbar', () => {
   let host: HTMLDivElement
@@ -63,5 +64,30 @@ describe('DashboardTopbar', () => {
     await act(async () => root.render(<DashboardTopbar />))
 
     expect(host.querySelector('[data-dropdown-modal]')?.getAttribute('data-dropdown-modal')).toBe('false')
+  })
+
+  it('links the logo to the public homepage', async () => {
+    await act(async () => root.render(<DashboardTopbar />))
+
+    expect(host.querySelector('a[aria-label="CPAAutomation home"]')?.getAttribute('href')).toBe('/')
+  })
+
+  it('only links to all products from within a product', async () => {
+    await act(async () => root.render(<DashboardTopbar />))
+    expect(host.textContent).not.toContain('All products')
+
+    await act(async () => root.render(<DashboardTopbar product={PRODUCT_CATALOG[0]} />))
+
+    const allProductsLink = Array.from(host.querySelectorAll('a')).find(
+      (link) => link.textContent === 'All products',
+    )
+    expect(allProductsLink?.getAttribute('href')).toBe('/dashboard')
+  })
+
+  it('leaves the product name to the breadcrumb instead of repeating it', async () => {
+    const product = PRODUCT_CATALOG[0]
+    await act(async () => root.render(<DashboardTopbar product={product} />))
+
+    expect(host.textContent).not.toContain(product.name)
   })
 })

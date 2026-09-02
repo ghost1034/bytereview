@@ -5,7 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
-  Boxes,
+  ArrowLeft,
   LifeBuoy,
   LogOut,
   Search,
@@ -69,7 +69,7 @@ export function DashboardTopbar({
       )}
     >
       <Link
-        href="/dashboard"
+        href="/"
         aria-label="CPAAutomation home"
         className="flex h-10 shrink-0 items-center rounded-md px-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -78,22 +78,17 @@ export function DashboardTopbar({
 
       <div className="mx-1 hidden h-6 w-px bg-border sm:block" aria-hidden />
 
-      <Link
-        href="/dashboard"
-        className={cn(
-          'inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-        )}
-      >
-        <Boxes className="size-4" aria-hidden />
-        <span className="hidden sm:inline">All products</span>
-      </Link>
-
       {product ? (
-        <div className="ml-1 hidden min-w-0 items-center gap-2 lg:flex">
-          <product.icon className="size-4 shrink-0 text-foreground-muted" aria-hidden />
-          <span className="truncate text-sm font-semibold text-foreground">{product.name}</span>
-        </div>
+        <Link
+          href="/dashboard"
+          className={cn(
+            'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground-muted transition-colors',
+            'hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          )}
+        >
+          <ArrowLeft className="size-4" aria-hidden />
+          <span className="hidden sm:inline">All products</span>
+        </Link>
       ) : null}
 
       <DashboardBreadcrumbs breadcrumbs={breadcrumbs} className="ml-2 hidden flex-1 xl:flex" />
