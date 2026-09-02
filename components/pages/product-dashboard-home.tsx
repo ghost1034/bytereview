@@ -3,7 +3,7 @@
 import type { CSSProperties } from 'react'
 import Link from 'next/link'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowUpRight, Boxes } from 'lucide-react'
+import { ArrowRight, ArrowUpRight, BadgeCheck, Boxes, Sparkles } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
@@ -24,6 +24,8 @@ import {
 } from '@/lib/product-access'
 import { cn } from '@/lib/utils'
 
+import styles from './product-dashboard-home.module.css'
+
 const ACCESS_TONE_CLASSES: Record<ProductAccessTone, string> = {
   success: 'border-success/20 bg-success-soft text-success',
   info: 'border-primary/15 bg-primary-soft text-primary-soft-foreground',
@@ -34,9 +36,13 @@ const ACCESS_TONE_CLASSES: Record<ProductAccessTone, string> = {
 function ProductCard({
   product,
   access,
+  index,
+  groupNumber,
 }: {
   product: ProductCatalogItem
   access: ProductAccessContext
+  index: number
+  groupNumber: string
 }) {
   const Icon = product.icon
   const badge = resolveProductAccessBadge(product, access)
@@ -45,26 +51,17 @@ function ProductCard({
     <Link
       href={product.appHref}
       className={cn(
-        'group relative min-h-56 overflow-hidden rounded-[1.75rem] border border-border bg-card p-6 shadow-sm',
-        'transition duration-300 hover:-translate-y-1 hover:border-border-strong hover:shadow-lg',
+        'group',
+        styles.productCard,
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-surface',
       )}
       aria-label={`Open ${product.name}`}
     >
-      <span
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-1 opacity-80 transition-opacity group-hover:opacity-100"
-        style={{ backgroundImage: 'var(--product-holo)' }}
-      />
+      <span aria-hidden className={styles.productCardGlow} />
 
-      <article className="flex h-full flex-col">
-        <div className="flex items-start justify-between gap-4">
-          <span
-            className="grid size-12 shrink-0 place-items-center rounded-2xl text-primary shadow-sm ring-1 ring-black/5"
-            style={{ backgroundImage: 'var(--product-holo)' }}
-          >
-            <Icon className="size-5" aria-hidden />
-          </span>
+      <article className={styles.productCardInner}>
+        <div className={styles.productCardTopline}>
+          <span className={styles.productNumber}>{groupNumber}.{String(index + 1).padStart(2, '0')}</span>
           <Badge
             variant="outline"
             className={cn('shrink-0 font-medium', ACCESS_TONE_CLASSES[badge.tone])}
@@ -73,20 +70,20 @@ function ProductCard({
           </Badge>
         </div>
 
-        <div className="mt-auto pt-8">
-          <div className="flex items-end justify-between gap-4">
-            <div>
-              <h3 className="text-xl font-semibold tracking-[-0.035em] text-foreground">
-                {product.name}
-              </h3>
-              <p className="mt-2 max-w-sm text-sm leading-6 text-foreground-muted">
-                {product.description}
-              </p>
-            </div>
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-transform duration-300 group-hover:rotate-45">
-              <ArrowUpRight className="size-4" aria-hidden />
-            </span>
-          </div>
+        <div className={styles.productIcon}>
+          <Icon aria-hidden />
+        </div>
+
+        <div className={styles.productCardCopy}>
+          <h3>{product.name}</h3>
+          <p>{product.description}</p>
+        </div>
+
+        <div className={styles.productCardAction} aria-hidden>
+          <span>Open product</span>
+          <span className={styles.productArrow}>
+            <ArrowUpRight />
+          </span>
         </div>
       </article>
     </Link>
@@ -137,51 +134,89 @@ export function ProductDashboardHome() {
 
   return (
     <div
-      className="space-y-14 pb-12"
+      className={styles.dashboard}
       style={{ '--product-holo': 'linear-gradient(110deg, #c9aaff 0%, #feffbc 27%, #ffcdfd 52%, #b3e2ff 76%, #839aff 100%)' } as CSSProperties}
     >
-      <section className="relative overflow-hidden rounded-[2rem] bg-primary px-6 py-8 text-primary-foreground shadow-lg sm:px-9 sm:py-10 lg:px-12">
-        <div
-          aria-hidden
-          className="absolute -right-20 -top-32 size-80 rounded-full opacity-25 blur-3xl"
-          style={{ backgroundImage: 'var(--product-holo)' }}
-        />
-        <div className="relative max-w-3xl">
-          <div className="mb-5 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-primary-foreground/65">
-            <Boxes className="size-4" aria-hidden />
-            CPAAutomation workspace
+      <section className={styles.hero} aria-labelledby="workspace-heading">
+        <div className={styles.heroGlow} aria-hidden />
+        <div className={styles.heroPattern} aria-hidden />
+
+        <div className={styles.heroCopy}>
+          <div className={styles.heroEyebrow}>
+            <BadgeCheck aria-hidden />
+            Your connected workspace
           </div>
-          <h1 className="text-3xl font-medium tracking-[-0.05em] sm:text-4xl">
+          <h1 id="workspace-heading">
             {profileLoading ? 'Welcome back.' : `Welcome back, ${greetingName}.`}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-6 text-primary-foreground/70 sm:text-base">
-            Choose the product that fits the work in front of you. Every CPAAutomation workflow is available from this workspace.
+          <p>
+            Everything your team needs to move from source documents to finished,
+            review-ready work—together in one place.
           </p>
-          <div className="mt-6 inline-flex items-center rounded-full border border-primary-foreground/15 bg-primary-foreground/10 px-3 py-1.5 text-xs font-medium text-primary-foreground/85">
-            11 connected products
+
+          <div className={styles.heroActions}>
+            <a href="#product-workspace" className={styles.primaryAction}>
+              Explore products
+              <span><ArrowRight aria-hidden /></span>
+            </a>
+            <span className={styles.heroMeta}>
+              <Sparkles aria-hidden />
+              11 purpose-built products
+            </span>
           </div>
         </div>
+
+        <nav className={styles.workspaceIndex} aria-label="Product categories">
+          <div className={styles.workspaceIndexHeader}>
+            <span><Boxes aria-hidden /> Product index</span>
+            <span>04 areas</span>
+          </div>
+          <div className={styles.workspaceIndexList}>
+            {PRODUCT_GROUPS.map((group) => {
+              const productCount = PRODUCT_CATALOG.filter((product) => product.groupId === group.id).length
+              return (
+                <a key={group.id} href={`#${group.id}-heading`}>
+                  <span>{group.number}</span>
+                  <strong>{group.name}</strong>
+                  <small>{productCount}</small>
+                  <ArrowUpRight aria-hidden />
+                </a>
+              )
+            })}
+          </div>
+        </nav>
       </section>
+
+      <div id="product-workspace" className={styles.catalogIntro}>
+        <p><span>Workspace</span> / All products</p>
+        <p>Choose the right tool for the work in front of you.</p>
+      </div>
 
       {PRODUCT_GROUPS.map((group) => {
         const products = PRODUCT_CATALOG.filter((product) => product.groupId === group.id)
         return (
-          <section key={group.id} aria-labelledby={`${group.id}-heading`}>
-            <div className="mb-6 grid gap-2 border-t border-border pt-5 sm:grid-cols-[4rem_1fr] sm:gap-4">
-              <span className="font-mono text-xs text-foreground-subtle">{group.number}</span>
-              <div>
+          <section key={group.id} aria-labelledby={`${group.id}-heading`} className={styles.productGroup}>
+            <div className={styles.groupHeader}>
+              <span>{group.number}</span>
+              <div className={styles.groupHeadingCopy}>
                 <h2
                   id={`${group.id}-heading`}
-                  className="text-2xl font-medium tracking-[-0.04em] text-foreground sm:text-3xl"
                 >
                   {group.name}
                 </h2>
-                <p className="mt-1 text-sm leading-6 text-foreground-muted">{group.description}</p>
+                <p>{group.description}</p>
               </div>
+              <span className={styles.groupCount}>{String(products.length).padStart(2, '0')} products</span>
             </div>
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {products.map((product) => (
-                <ProductCard key={product.id} product={product} access={access} />
+            <div className={styles.productGrid}>
+              {products.map((product, index) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  access={access}
+                  index={index}
+                  groupNumber={group.number}
+                />
               ))}
             </div>
           </section>

@@ -90,7 +90,11 @@ function DashboardShellContent({ children }: DashboardShellProps) {
   }
 
   return (
-    <div className={cn('flex min-h-dvh flex-col bg-surface', isProjectManagement && 'h-svh max-h-svh overflow-hidden')}>
+    <div className={cn(
+      'flex min-h-dvh flex-col bg-surface',
+      isHub && 'bg-surface-muted/55',
+      isProjectManagement && 'h-svh max-h-svh overflow-hidden',
+    )}>
       <a
         href="#main-content"
         className={cn(
@@ -125,7 +129,7 @@ function DashboardShellContent({ children }: DashboardShellProps) {
             isProjectManagement || isTaxAtlas
               ? 'min-h-0 max-w-none p-0'
               : 'mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
-            !isProjectManagement && !isTaxAtlas && (isWideProduct ? 'max-w-[96rem]' : 'max-w-7xl'),
+            !isProjectManagement && !isTaxAtlas && (isHub || isWideProduct ? 'max-w-[96rem]' : 'max-w-7xl'),
           )}
         >
           <ProductTourProvider>
