@@ -140,7 +140,7 @@ function DashboardShellContent({ children }: DashboardShellProps) {
       </main>
 
       {paletteItems.length ? (
-        <CommandDialog open={paletteOpen} onOpenChange={setPaletteOpen}>
+        <CommandDialog modal={false} open={paletteOpen} onOpenChange={setPaletteOpen}>
           <CommandInput placeholder={isHub ? 'Search products…' : `Search ${product?.name ?? 'product'}…`} />
           <CommandList>
             <CommandEmpty>No results found.</CommandEmpty>

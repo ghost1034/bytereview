@@ -154,7 +154,7 @@ export function CommandPalette() {
   let runningIndex = 0
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog modal={false} open={open} onOpenChange={setOpen}>
       <DialogContent aria-describedby={undefined} className="max-w-[600px] gap-0 overflow-hidden p-0">
         <DialogTitle className="sr-only">Search project management</DialogTitle>
         <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'hsl(var(--border))' }}>

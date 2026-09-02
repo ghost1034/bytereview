@@ -81,6 +81,7 @@ describe('Tasklytic dashboard shell integration', () => {
       expect(palette).toContain(`group: '${group}'`)
     }
     expect(palette).toContain("group: 'CPAAutomation destinations'")
+    expect(palette).toContain('<Dialog modal={false}')
     expect(palette).not.toMatch(/Sign out|Toggle theme|signOut|toggleTheme/)
   })
 
