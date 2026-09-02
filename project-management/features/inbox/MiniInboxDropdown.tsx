@@ -36,7 +36,7 @@ export function MiniInboxDropdown({ userId, inboxHref }: Omit<Props, 'workspaceI
   const latest = getActiveInbox(userId).slice(0, 7)
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <button
           type="button"

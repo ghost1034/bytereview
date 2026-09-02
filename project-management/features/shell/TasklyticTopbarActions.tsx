@@ -39,7 +39,7 @@ export function TasklyticTopbarActions({
 
   return (
     <div className="tasklytic-root flex items-center gap-0.5 bg-transparent sm:gap-1" aria-label="Tasklytic actions">
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
