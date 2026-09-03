@@ -517,6 +517,8 @@
 .taxatlas-root {
   background: var(--surface-0);
   color: var(--ink-1);
+  container-name: taxatlas-shell;
+  container-type: size;
   font-family: var(--font-sans);
   font-size: var(--text-base);
   line-height: var(--leading-ui);
@@ -1583,6 +1585,7 @@ table.tbl tbody.dim {
   top: 0;
   align-self: flex-start;
   height: calc(100vh - var(--bar-h));
+  height: calc(100cqh - var(--bar-h));
   flex: none;
   box-shadow: none;
   z-index: var(--z-sticky);
@@ -2527,7 +2530,7 @@ table.tbl tbody.dim {
 .ta-seg button:hover { color: var(--ink-1); }
 .ta-seg button[aria-pressed="true"] { background: var(--surface-3); color: var(--ink-1); }
 .ta-seg button svg { width: 12px; height: 12px; stroke: currentColor; stroke-width: 1.75; fill: none; }
-.ta-tblwrap { overflow: auto; max-height: calc(100vh - 262px); position: relative; }
+.ta-tblwrap { overflow: auto; max-height: calc(100vh - 262px); max-height: calc(100cqh - 262px); position: relative; }
 .ta-tblwrap.dim table tbody { opacity: 0.6; }
 .ta-tblwrap.tall { max-height: none; }
 

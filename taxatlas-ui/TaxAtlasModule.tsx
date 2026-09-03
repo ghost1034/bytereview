@@ -45,7 +45,7 @@ export function TaxAtlasModule() {
   useEffect(() => initTheme(), [])
 
   return (
-    <div className="taxatlas-root relative h-full min-h-[640px] min-w-0 overflow-hidden" data-theme="dark">
+    <div className="taxatlas-root relative h-full min-h-0 min-w-0 overflow-hidden" data-theme="dark">
       <ToastProvider>
         <AppShell>
           <Page />
@@ -54,4 +54,3 @@ export function TaxAtlasModule() {
     </div>
   )
 }
-

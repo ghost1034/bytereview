@@ -27,14 +27,16 @@ vi.mock('@/components/tour/welcome-tour-dialog', () => ({
   WelcomeTourDialog: () => null,
 }))
 vi.mock('@/lib/product-catalog', () => ({
-  getProductForPathname: (pathname: string) => pathname === '/dashboard'
-    ? null
-    : {
-        id: 'test-product',
-        name: 'Test product',
-        appHref: '/dashboard/test-product',
-        icon: () => null,
-      },
+  getProductForPathname: (pathname: string) => {
+    if (pathname === '/dashboard') return null
+    const isTaxAtlas = pathname.startsWith('/dashboard/taxatlas')
+    return {
+      id: isTaxAtlas ? 'taxatlas' : 'test-product',
+      name: isTaxAtlas ? 'TaxAtlas' : 'Test product',
+      appHref: isTaxAtlas ? '/dashboard/taxatlas' : '/dashboard/test-product',
+      icon: () => null,
+    }
+  },
   isImmersiveDashboardPath: () => false,
   PRODUCT_CATALOG: [
     {
@@ -94,5 +96,18 @@ describe('DashboardShell', () => {
 
     expect(scrollTo).toHaveBeenCalledOnce()
     expect(scrollTo).toHaveBeenCalledWith({ top: 0, left: 0, behavior: 'auto' })
+  })
+
+  it('gives TaxAtlas a bounded viewport for its map and internal scrollers', async () => {
+    navigationState.pathname = '/dashboard/taxatlas/map'
+    await act(async () => root.render(<DashboardShell>TaxAtlas map</DashboardShell>))
+
+    const shell = host.firstElementChild
+    const main = host.querySelector('#main-content')
+
+    expect(shell?.classList.contains('h-dvh')).toBe(true)
+    expect(shell?.classList.contains('max-h-dvh')).toBe(true)
+    expect(shell?.classList.contains('overflow-hidden')).toBe(true)
+    expect(main?.classList.contains('overflow-hidden')).toBe(true)
   })
 })
