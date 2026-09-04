@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.db
+*.egg-info/
+node_modules/
+dist/
+.env
+backups/
+.env.*
+!.env.production.example
+!backend/.env.example
+*.db-*
+*.tsbuildinfo

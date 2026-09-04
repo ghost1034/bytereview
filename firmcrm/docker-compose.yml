@@ -1,0 +1,87 @@
+# Production-shaped local stack: Postgres + API + nginx/SPA.
+#   cp .env.production.example .env && edit SECRET_KEY, POSTGRES_PASSWORD
+#   docker compose up --build -d          # web on http://localhost:8080
+#   docker compose --profile seed run --rm seed   # demo data (dev only)
+#   docker compose --profile ops run --rm backup  # pg_dump to ./backups
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-crm}
+      POSTGRES_USER: ${POSTGRES_USER:-crm}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-crm} -d ${POSTGRES_DB:-crm}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    image: firmcrm-api:local
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      APP_ENV: ${APP_ENV:-production}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-crm}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-crm}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env (>=32 chars)}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://crm.example.com}
+      TRUST_PROXY_HEADERS: "true"
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-15}
+      REFRESH_TOKEN_DAYS: ${REFRESH_TOKEN_DAYS:-14}
+      LOGIN_RATE_LIMIT_PER_MINUTE: ${LOGIN_RATE_LIMIT_PER_MINUTE:-10}
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    expose: ["8000"]
+    restart: unless-stopped
+
+  web:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    depends_on: [api]
+    restart: unless-stopped
+
+  seed:
+    # Runs the SAME image as api (no separate build) so schema/seed code can never drift from the API's migrations.
+    profiles: ["seed"]
+    image: firmcrm-api:local
+    pull_policy: never
+    command: ["seed"]
+    environment:
+      APP_ENV: development
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-crm}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-crm}
+      SECRET_KEY: ${SECRET_KEY}
+    depends_on:
+      db: { condition: service_healthy }
+
+  backup:
+    profiles: ["ops"]
+    image: postgres:16-alpine
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./backups:/backups
+    entrypoint: ["sh", "-c", "pg_dump -h db -U ${POSTGRES_USER:-crm} -d ${POSTGRES_DB:-crm} -Fc -f /backups/crm-$$(date +%Y%m%dT%H%M%S).dump && ls -la /backups | tail -3"]
+    depends_on:
+      db: { condition: service_healthy }
+
+volumes:
+  pgdata:
