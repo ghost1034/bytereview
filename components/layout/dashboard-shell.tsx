@@ -53,7 +53,8 @@ function DashboardShellContent({ children }: DashboardShellProps) {
   const isHub = pathname === '/dashboard'
   const isProjectManagement = product?.id === 'tasklytic'
   const isTaxAtlas = product?.id === 'taxatlas'
-  const isViewportProduct = isProjectManagement || isTaxAtlas
+  const isFirmCrm = product?.id === 'firmcrm'
+  const isViewportProduct = isProjectManagement || isTaxAtlas || isFirmCrm
   const isWideProduct = ['cpe-tracker', 'inkwise', 'pbc', 'analytics-suite', 'chrona'].includes(product?.id ?? '')
 
   const paletteItems = React.useMemo<ProductNavItem[]>(() => {
@@ -104,7 +105,7 @@ function DashboardShellContent({ children }: DashboardShellProps) {
       'flex min-h-dvh flex-col bg-surface',
       isHub && 'bg-surface-muted/55',
       isProjectManagement && 'h-svh max-h-svh overflow-hidden',
-      isTaxAtlas && 'h-dvh max-h-dvh overflow-hidden',
+      (isTaxAtlas || isFirmCrm) && 'h-dvh max-h-dvh overflow-hidden',
     )}>
       <a
         href="#main-content"
@@ -140,7 +141,7 @@ function DashboardShellContent({ children }: DashboardShellProps) {
             isViewportProduct
               ? 'min-h-0 max-w-none p-0'
               : 'mx-auto px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
-            !isProjectManagement && !isTaxAtlas && (isHub || isWideProduct ? 'max-w-[96rem]' : 'max-w-7xl'),
+            !isViewportProduct && (isHub || isWideProduct ? 'max-w-[96rem]' : 'max-w-7xl'),
           )}
         >
           <ProductTourProvider>

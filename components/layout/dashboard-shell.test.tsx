@@ -30,10 +30,11 @@ vi.mock('@/lib/product-catalog', () => ({
   getProductForPathname: (pathname: string) => {
     if (pathname === '/dashboard') return null
     const isTaxAtlas = pathname.startsWith('/dashboard/taxatlas')
+    const isFirmCrm = pathname.startsWith('/dashboard/firmcrm')
     return {
-      id: isTaxAtlas ? 'taxatlas' : 'test-product',
-      name: isTaxAtlas ? 'TaxAtlas' : 'Test product',
-      appHref: isTaxAtlas ? '/dashboard/taxatlas' : '/dashboard/test-product',
+      id: isTaxAtlas ? 'taxatlas' : isFirmCrm ? 'firmcrm' : 'test-product',
+      name: isTaxAtlas ? 'TaxAtlas' : isFirmCrm ? 'FirmCRM' : 'Test product',
+      appHref: isTaxAtlas ? '/dashboard/taxatlas' : isFirmCrm ? '/dashboard/firmcrm' : '/dashboard/test-product',
       icon: () => null,
     }
   },
@@ -109,5 +110,24 @@ describe('DashboardShell', () => {
     expect(shell?.classList.contains('max-h-dvh')).toBe(true)
     expect(shell?.classList.contains('overflow-hidden')).toBe(true)
     expect(main?.classList.contains('overflow-hidden')).toBe(true)
+  })
+
+  it('gives FirmCRM a bounded viewport with internal workspace scrolling', async () => {
+    navigationState.pathname = '/dashboard/firmcrm'
+    await act(async () => root.render(<DashboardShell>FirmCRM workspace</DashboardShell>))
+
+    const shell = host.firstElementChild
+    const main = host.querySelector('#main-content')
+    const workspace = host.querySelector('#main-content > div')
+
+    expect(shell?.classList.contains('h-dvh')).toBe(true)
+    expect(shell?.classList.contains('max-h-dvh')).toBe(true)
+    expect(shell?.classList.contains('overflow-hidden')).toBe(true)
+    expect(main?.classList.contains('overflow-hidden')).toBe(true)
+    expect(workspace?.classList.contains('max-w-none')).toBe(true)
+    expect(workspace?.classList.contains('p-0')).toBe(true)
+    expect(workspace?.classList.contains('mx-auto')).toBe(false)
+    expect(workspace?.classList.contains('max-w-[96rem]')).toBe(false)
+    expect(workspace?.classList.contains('max-w-7xl')).toBe(false)
   })
 })
