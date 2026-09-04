@@ -45,7 +45,7 @@ describe('public-site route boundaries', () => {
     expect(new Set(NAV_ITEMS.map((item) => item.number)).size).toBe(NAV_ITEMS.length)
     expect(new Set(NAV_ITEMS.map((item) => item.href)).size).toBe(NAV_ITEMS.length)
     expect(new Set(PRODUCTS.map((product) => product.name)).size).toBe(PRODUCTS.length)
-    expect(PRODUCTS).toHaveLength(11)
+    expect(PRODUCTS).toHaveLength(12)
   })
 })
 

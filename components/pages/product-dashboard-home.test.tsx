@@ -39,7 +39,7 @@ describe('product dashboard home', () => {
       PRODUCT_GROUPS.map((group) => group.name),
     )
     const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('a[aria-label^="Go to "]'))
-    expect(links).toHaveLength(11)
+    expect(links).toHaveLength(12)
     expect(links.map((link) => link.getAttribute('href'))).toEqual(
       PRODUCT_GROUPS.flatMap((group) => (
         PRODUCT_CATALOG.filter((product) => product.groupId === group.id).map((product) => product.appHref)
@@ -64,6 +64,6 @@ describe('product dashboard home', () => {
     expect(host.textContent).not.toMatch(/\d{2} products/)
     const productIndex = host.querySelector('[aria-label="Product categories"]')
     expect(productIndex?.querySelectorAll('small')).toHaveLength(0)
-    expect(host.querySelectorAll('a[aria-label^="Go to "]')).toHaveLength(11)
+    expect(host.querySelectorAll('a[aria-label^="Go to "]')).toHaveLength(12)
   })
 })

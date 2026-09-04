@@ -17,12 +17,12 @@ const AVAILABLE_CONTEXT: ProductAccessContext = {
 }
 
 describe('CPAAutomation product catalog', () => {
-  it('defines exactly eleven unique products across four populated groups', () => {
-    expect(PRODUCT_CATALOG).toHaveLength(11)
+  it('defines exactly twelve unique products across four populated groups', () => {
+    expect(PRODUCT_CATALOG).toHaveLength(12)
     expect(PRODUCT_GROUPS).toHaveLength(4)
-    expect(new Set(PRODUCT_CATALOG.map((product) => product.id)).size).toBe(11)
-    expect(new Set(PRODUCT_CATALOG.map((product) => product.name)).size).toBe(11)
-    expect(new Set(PRODUCT_CATALOG.map((product) => product.appHref)).size).toBe(11)
+    expect(new Set(PRODUCT_CATALOG.map((product) => product.id)).size).toBe(12)
+    expect(new Set(PRODUCT_CATALOG.map((product) => product.name)).size).toBe(12)
+    expect(new Set(PRODUCT_CATALOG.map((product) => product.appHref)).size).toBe(12)
     expect(PRODUCT_GROUPS.every((group) => (
       PRODUCT_CATALOG.some((product) => product.groupId === group.id)
     ))).toBe(true)
@@ -41,6 +41,7 @@ describe('CPAAutomation product catalog', () => {
   })
 
   it.each([
+    ['/dashboard/firmcrm/accounts/1', 'firmcrm'],
     ['/dashboard/uda', 'uda'],
     ['/dashboard/jobs/abc/results', 'uda'],
     ['/dashboard/form-fill', 'form-fill'],
@@ -84,6 +85,7 @@ describe('product access badges', () => {
   it('uses stable labels for free and ungated products', () => {
     expect(resolveProductAccessBadge(product('cpe-tracker'), AVAILABLE_CONTEXT).label).toBe('Free')
     expect(resolveProductAccessBadge(product('uda'), AVAILABLE_CONTEXT).label).toBe('Available')
+    expect(resolveProductAccessBadge(product('firmcrm'), { ...AVAILABLE_CONTEXT, analytics: 'upgrade', paidPlan: 'upgrade' }).label).toBe('Available')
   })
 
   it('reflects plan, setup, loading, and error states without changing destinations', () => {

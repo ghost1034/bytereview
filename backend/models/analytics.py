@@ -112,6 +112,7 @@ class FirmExportResponse(BaseModel):
     journal_entries: List[Dict[str, Any]] = Field(default_factory=list)
     audit_logs: List[Dict[str, Any]] = Field(default_factory=list)
     pbc: Dict[str, List[Dict[str, Any]]] = Field(default_factory=dict)
+    firmcrm: Dict[str, List[Dict[str, Any]]] = Field(default_factory=dict)
     exported_at: datetime
 
 

@@ -300,6 +300,8 @@ def delete_shared_client(
         action="client.deleted",
         client=client,
     )
+    from firmcrm.services.shared_clients import require_client_unlinked
+    require_client_unlinked(db, client.id)
     db.delete(client)
     db.query(TasklyticEntityRecord).filter(
         TasklyticEntityRecord.entity_kind == "clients",

@@ -1,0 +1,295 @@
+/*
+  FirmCRM design system — "finance-grade editorial" (design/proposals/finance/DESIGN.md).
+  Warm sand neutrals, indigo-ink accent, semantic success/warn/danger/info, hairline borders,
+  shadows only on overlays, Geist with tabular numerals, 13px base.
+
+  Legacy Tailwind palettes used across pages (slate / emerald / amber / red / sky / violet) are
+  aliased onto the new tokens below so existing utilities pick up the palette without edits.
+  New code should use sand-* / success-* / warn-* / danger-* / info-* directly.
+*/
+.firmcrm-root {
+  /* ---------- Typography ---------- */
+  --firmcrm-font-sans: var(--font-firmcrm-geist), sans-serif;
+  --firmcrm-font-mono: var(--font-firmcrm-mono), monospace;
+
+  /* ---------- Neutral scale (warm) ---------- */
+  --firmcrm-color-sand-0: #ffffff;
+  --firmcrm-color-sand-25: #fbfaf8;
+  --firmcrm-color-sand-50: #f7f5f1;
+  --firmcrm-color-sand-100: #efede8;
+  --firmcrm-color-sand-150: #e7e4de;
+  --firmcrm-color-sand-200: #dcd8d0;
+  --firmcrm-color-sand-300: #c4bfb5;
+  --firmcrm-color-sand-400: #a39e94; /* placeholders, chart ticks, disabled glyphs ONLY — 2.5:1 on canvas, never readable text */
+  --firmcrm-color-sand-500: #6f6a61; /* tertiary text (meta, timestamps): 4.6:1 on canvas, 5.1:1 on white — the darkest step that still reads as tertiary */
+  --firmcrm-color-sand-600: #5f5b53;
+  --firmcrm-color-sand-700: #44413b;
+  --firmcrm-color-sand-800: #2b2925;
+  --firmcrm-color-sand-900: #1a1916;
+
+  /* ---------- Accent: indigo ink ---------- */
+  --firmcrm-color-accent-50: #eef0fb;
+  --firmcrm-color-accent-100: #dde1f7;
+  --firmcrm-color-accent-200: #bec5ef;
+  --firmcrm-color-accent-300: #97a2e4;
+  --firmcrm-color-accent-400: #7080d8;
+  --firmcrm-color-accent-500: #5563cc;
+  --firmcrm-color-accent-600: #4b55c8;
+  --firmcrm-color-accent-700: #3c44a6;
+  --firmcrm-color-accent-800: #2f3684;
+  --firmcrm-color-accent-900: #252a62;
+
+  /* ---------- Semantic ---------- */
+  --firmcrm-color-success-50: #e8f5ec;
+  --firmcrm-color-success-100: #d3ecdb;
+  --firmcrm-color-success-200: #b9e3c6;
+  --firmcrm-color-success-300: #8fd0a6;
+  --firmcrm-color-success-500: #2f9664;
+  --firmcrm-color-success-600: #1e7b4f;
+  --firmcrm-color-success-700: #176440;
+  --firmcrm-color-success-800: #124e33;
+
+  --firmcrm-color-warn-50: #fbf1e2;
+  --firmcrm-color-warn-100: #f8e7c9;
+  --firmcrm-color-warn-200: #f3d9a6;
+  --firmcrm-color-warn-300: #e9c27a;
+  --firmcrm-color-warn-500: #c97a1f;
+  --firmcrm-color-warn-600: #b4600f;
+  --firmcrm-color-warn-700: #8f4c0b;
+  --firmcrm-color-warn-800: #6e3a09;
+
+  --firmcrm-color-danger-50: #fbe9e7;
+  --firmcrm-color-danger-100: #f8d9d5;
+  --firmcrm-color-danger-200: #f3c1bc;
+  --firmcrm-color-danger-300: #ea9d95;
+  --firmcrm-color-danger-400: #dc6c60;
+  --firmcrm-color-danger-500: #d04c3d;
+  --firmcrm-color-danger-600: #c2392b;
+  --firmcrm-color-danger-700: #a02e22;
+  --firmcrm-color-danger-800: #7e251b;
+
+  --firmcrm-color-info-50: #e7effa;
+  --firmcrm-color-info-100: #d3e2f6;
+  --firmcrm-color-info-200: #bdd3f1;
+  --firmcrm-color-info-300: #8fb5e6;
+  --firmcrm-color-info-500: #3f76c7;
+  --firmcrm-color-info-600: #2c63b8;
+  --firmcrm-color-info-700: #234f94;
+  --firmcrm-color-info-800: #1c3e74;
+
+  /* ---------- Legacy palette aliases (slate → sand, emerald → success, amber → warn, red → danger, sky → info, violet → accent) ---------- */
+  --firmcrm-color-slate-50: var(--firmcrm-color-sand-50);
+  --firmcrm-color-slate-100: var(--firmcrm-color-sand-100);
+  --firmcrm-color-slate-200: var(--firmcrm-color-sand-150);
+  --firmcrm-color-slate-300: var(--firmcrm-color-sand-200);
+  --firmcrm-color-slate-400: var(--firmcrm-color-sand-400);
+  --firmcrm-color-slate-500: var(--firmcrm-color-sand-500);
+  --firmcrm-color-slate-600: var(--firmcrm-color-sand-600);
+  --firmcrm-color-slate-700: var(--firmcrm-color-sand-700);
+  --firmcrm-color-slate-800: var(--firmcrm-color-sand-800);
+  --firmcrm-color-slate-900: var(--firmcrm-color-sand-900);
+  --firmcrm-color-slate-950: var(--firmcrm-color-sand-900);
+
+  --firmcrm-color-emerald-50: var(--firmcrm-color-success-50);
+  --firmcrm-color-emerald-100: var(--firmcrm-color-success-100);
+  --firmcrm-color-emerald-200: var(--firmcrm-color-success-200);
+  --firmcrm-color-emerald-300: var(--firmcrm-color-success-300);
+  --firmcrm-color-emerald-500: var(--firmcrm-color-success-500);
+  --firmcrm-color-emerald-600: var(--firmcrm-color-success-600);
+  --firmcrm-color-emerald-700: var(--firmcrm-color-success-700);
+  --firmcrm-color-emerald-800: var(--firmcrm-color-success-800);
+
+  --firmcrm-color-amber-50: var(--firmcrm-color-warn-50);
+  --firmcrm-color-amber-100: var(--firmcrm-color-warn-100);
+  --firmcrm-color-amber-200: var(--firmcrm-color-warn-200);
+  --firmcrm-color-amber-300: var(--firmcrm-color-warn-300);
+  --firmcrm-color-amber-500: var(--firmcrm-color-warn-500);
+  --firmcrm-color-amber-600: var(--firmcrm-color-warn-600);
+  --firmcrm-color-amber-700: var(--firmcrm-color-warn-700);
+  --firmcrm-color-amber-800: var(--firmcrm-color-warn-800);
+
+  --firmcrm-color-red-50: var(--firmcrm-color-danger-50);
+  --firmcrm-color-red-100: var(--firmcrm-color-danger-100);
+  --firmcrm-color-red-200: var(--firmcrm-color-danger-200);
+  --firmcrm-color-red-300: var(--firmcrm-color-danger-300);
+  --firmcrm-color-red-400: var(--firmcrm-color-danger-400);
+  --firmcrm-color-red-500: var(--firmcrm-color-danger-500);
+  --firmcrm-color-red-600: var(--firmcrm-color-danger-600);
+  --firmcrm-color-red-700: var(--firmcrm-color-danger-700);
+  --firmcrm-color-red-800: var(--firmcrm-color-danger-800);
+
+  --firmcrm-color-sky-50: var(--firmcrm-color-info-50);
+  --firmcrm-color-sky-100: var(--firmcrm-color-info-100);
+  --firmcrm-color-sky-200: var(--firmcrm-color-info-200);
+  --firmcrm-color-sky-500: var(--firmcrm-color-info-500);
+  --firmcrm-color-sky-600: var(--firmcrm-color-info-600);
+  --firmcrm-color-sky-700: var(--firmcrm-color-info-700);
+  --firmcrm-color-sky-800: var(--firmcrm-color-info-800);
+
+  --firmcrm-color-violet-50: var(--firmcrm-color-accent-50);
+  --firmcrm-color-violet-200: var(--firmcrm-color-accent-200);
+  --firmcrm-color-violet-700: var(--firmcrm-color-accent-700);
+
+  /* ---------- Radii ---------- */
+  --firmcrm-radius-xs: 3px;
+  --firmcrm-radius-sm: 4px;
+  --firmcrm-radius-md: 6px;
+  --firmcrm-radius-lg: 8px;
+  --firmcrm-radius-xl: 12px;
+
+  /* ---------- Shadows (overlays only) ---------- */
+  --firmcrm-shadow-menu: 0 1px 2px rgba(26, 25, 22, 0.06), 0 8px 24px -8px rgba(26, 25, 22, 0.16);
+  --firmcrm-shadow-modal: 0 1px 2px rgba(26, 25, 22, 0.08), 0 24px 64px -16px rgba(26, 25, 22, 0.28);
+  --firmcrm-shadow-toast: 0 1px 2px rgba(26, 25, 22, 0.08), 0 12px 32px -12px rgba(26, 25, 22, 0.24);
+  --firmcrm-shadow-drag: 0 2px 6px rgba(26, 25, 22, 0.1), 0 12px 32px -12px rgba(26, 25, 22, 0.2);
+  /* Tailwind's generic shadow utilities used by legacy code resolve to overlay-grade shadows. */
+  --firmcrm-shadow-sm: var(--firmcrm-shadow-menu);
+  --firmcrm-shadow-md: var(--firmcrm-shadow-menu);
+  --firmcrm-shadow-lg: var(--firmcrm-shadow-menu);
+  --firmcrm-shadow-xl: var(--firmcrm-shadow-modal);
+
+  /* ---------- Z-index ---------- */
+  --firmcrm-z-index-sticky: 10;
+  --firmcrm-z-index-topbar: 20;
+  --firmcrm-z-index-sidebar: 30;
+  --firmcrm-z-index-dropdown: 40;
+  --firmcrm-z-index-drawer: 50;
+  --firmcrm-z-index-modal: 60;
+  --firmcrm-z-index-toast: 70;
+
+  /* ---------- Motion ---------- */
+  --firmcrm-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+/* ---------- Base (layered so utilities such as text-sand-700 / hover:no-underline always win) ---------- */
+@layer base {
+  .firmcrm-root, .firmcrm-root, .firmcrm-root { height: 100%; }
+  .firmcrm-root {
+    background: var(--firmcrm-color-sand-50);
+    color: var(--firmcrm-color-sand-900);
+    font-family: var(--firmcrm-font-sans);
+    font-size: 13px;
+    line-height: 20px;
+    font-feature-settings: "tnum" 1, "cv11" 1;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  :where(.firmcrm-root) ::selection { background: var(--firmcrm-color-accent-100); }
+  :where(.firmcrm-root) a { color: var(--firmcrm-color-accent-600); }
+  :where(.firmcrm-root) a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  :where(.firmcrm-root) button, :where(.firmcrm-root) input, :where(.firmcrm-root) select, :where(.firmcrm-root) textarea { font: inherit; color: inherit; }
+  /* Focus ring is instant (§7): the colour is preset at rest so `transition-colors` (which includes outline-color) has nothing to animate
+     and Tailwind preflight's `outline-color: currentColor` on anchors never shows. */
+  :where(.firmcrm-root) a, :where(.firmcrm-root) button, :where(.firmcrm-root) input, :where(.firmcrm-root) select, :where(.firmcrm-root) textarea, :where(.firmcrm-root) summary, :where(.firmcrm-root) [tabindex] { outline-color: var(--firmcrm-color-accent-600); }
+  :where(.firmcrm-root) :focus-visible { outline: 2px solid var(--firmcrm-color-accent-600); outline-offset: 2px; }
+  :where(.firmcrm-root) input:focus-visible, :where(.firmcrm-root) select:focus-visible, :where(.firmcrm-root) textarea:focus-visible { outline: none; }
+  @media (prefers-reduced-motion: reduce) { :where(.firmcrm-root) *, :where(.firmcrm-root) *::before, :where(.firmcrm-root) *::after { transition-duration: 0s !important; animation-duration: 0s !important; } }
+}
+
+/* ---------- Component classes (layered below utilities so `field pl-8` etc. compose correctly) ---------- */
+@layer components {
+  /* ---------- Numerals & identifiers ---------- */
+  :where(.firmcrm-root) .num, :where(.firmcrm-root) [data-numeric] { font-variant-numeric: tabular-nums lining-nums; }
+  :where(.firmcrm-root) .mono { font-family: var(--firmcrm-font-mono); font-size: 12px; line-height: 16px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+
+  /* ---------- Surfaces ---------- */
+  :where(.firmcrm-root) .card { background: var(--firmcrm-color-sand-0); border: 1px solid var(--firmcrm-color-sand-150); border-radius: var(--firmcrm-radius-lg); }
+
+  /* ---------- Form field ---------- */
+  :where(.firmcrm-root) .field {
+    display: block; width: 100%; height: 32px; padding: 0 10px;
+    background: var(--firmcrm-color-sand-0); color: var(--firmcrm-color-sand-900);
+    border: 1px solid var(--firmcrm-color-sand-200); border-radius: var(--firmcrm-radius-md);
+    font-size: 13px; line-height: 20px; outline: none;
+    transition: border-color 120ms var(--firmcrm-ease-standard), box-shadow 120ms var(--firmcrm-ease-standard);
+  }
+  :where(.firmcrm-root) .field::placeholder { color: var(--firmcrm-color-sand-400); }
+  :where(.firmcrm-root) .field:hover { border-color: var(--firmcrm-color-sand-300); }
+  :where(.firmcrm-root) .field:focus { border-color: var(--firmcrm-color-accent-600); box-shadow: 0 0 0 3px var(--firmcrm-color-accent-100); }
+  :where(.firmcrm-root) .field:disabled { background: var(--firmcrm-color-sand-50); color: var(--firmcrm-color-sand-500); border-color: var(--firmcrm-color-sand-150); cursor: not-allowed; }
+  :where(.firmcrm-root) .field[aria-invalid="true"], :where(.firmcrm-root) .field:user-invalid { border-color: var(--firmcrm-color-danger-600); box-shadow: 0 0 0 3px var(--firmcrm-color-danger-50); }
+  :where(.firmcrm-root) textarea.field { height: auto; min-height: 84px; padding: 6px 10px; resize: vertical; }
+  :where(.firmcrm-root) select.field { appearance: none; padding-right: 30px; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236f6a61' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m6 9 6 6 6-6'/></svg>"); background-repeat: no-repeat; background-position: right 10px center; }
+  /* Checkbox (§6.10): 16px, radius-xs, sand-300 border; checked accent-600 with a white check; focus ring as inputs. */
+  :where(.firmcrm-root) input[type="checkbox"] {
+    appearance: none; -webkit-appearance: none;
+    display: inline-block; flex-shrink: 0; width: 16px; height: 16px; margin: 0; padding: 0;
+    background: var(--firmcrm-color-sand-0); border: 1px solid var(--firmcrm-color-sand-300); border-radius: var(--firmcrm-radius-xs);
+    vertical-align: -3px; cursor: pointer;
+    transition: background-color 120ms var(--firmcrm-ease-standard), border-color 120ms var(--firmcrm-ease-standard), box-shadow 120ms var(--firmcrm-ease-standard);
+  }
+  :where(.firmcrm-root) input[type="checkbox"]:hover { border-color: var(--firmcrm-color-sand-400); }
+  :where(.firmcrm-root) input[type="checkbox"]:focus-visible { outline: none; border-color: var(--firmcrm-color-accent-600); box-shadow: 0 0 0 3px var(--firmcrm-color-accent-100); }
+  :where(.firmcrm-root) input[type="checkbox"]:checked, :where(.firmcrm-root) input[type="checkbox"]:indeterminate { background-color: var(--firmcrm-color-accent-600); border-color: var(--firmcrm-color-accent-600); }
+  :where(.firmcrm-root) input[type="checkbox"]:checked::after, :where(.firmcrm-root) input[type="checkbox"]:indeterminate::after {
+    content: ""; display: block; width: 10px; height: 10px; margin: 2px; background: #fff;
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>") center / contain no-repeat;
+  }
+  :where(.firmcrm-root) input[type="checkbox"]:indeterminate::after {
+    mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round'><path d='M5 12h14'/></svg>") center / contain no-repeat;
+    -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.5' stroke-linecap='round'><path d='M5 12h14'/></svg>") center / contain no-repeat;
+  }
+  :where(.firmcrm-root) input[type="checkbox"]:disabled { background: var(--firmcrm-color-sand-50); border-color: var(--firmcrm-color-sand-200); cursor: not-allowed; }
+  :where(.firmcrm-root) input[type="checkbox"]:disabled:checked { background-color: var(--firmcrm-color-sand-300); border-color: var(--firmcrm-color-sand-300); }
+
+  /* Money adornment (§6.10): `$` 13px sand-500 inside the left padding; the input itself is right-aligned tabular. */
+  :where(.firmcrm-root) .field-prefix { position: absolute; left: 10px; top: 0; height: 32px; display: flex; align-items: center; font-size: 13px; line-height: 20px; color: var(--firmcrm-color-sand-500); pointer-events: none; }
+  :where(.firmcrm-root) .field-error { display: block; margin-top: 4px; font-size: 12px; line-height: 16px; color: var(--firmcrm-color-danger-600); }
+
+  /* Label: 12px/500, normal case, secondary tone (no uppercase tracking). */
+  :where(.firmcrm-root) .label { display: block; font-size: 12px; line-height: 16px; font-weight: 500; color: var(--firmcrm-color-sand-600); margin-bottom: 6px; }
+
+  /* ---------- Data table ---------- */
+  :where(.firmcrm-root) table.tbl { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  :where(.firmcrm-root) table.tbl thead th {
+    position: sticky; top: 0; z-index: var(--firmcrm-z-index-sticky);
+    height: 36px; padding: 0 16px;
+    background: var(--firmcrm-color-sand-25); border-bottom: 1px solid var(--firmcrm-color-sand-150);
+    color: var(--firmcrm-color-sand-600); font-size: 12px; line-height: 16px; font-weight: 500;
+    text-align: left; white-space: nowrap; text-transform: none; letter-spacing: 0;
+  }
+  :where(.firmcrm-root) table.tbl tbody td { height: 40px; padding: 0 16px; border-bottom: 1px solid var(--firmcrm-color-sand-100); vertical-align: middle; }
+  :where(.firmcrm-root) table.tbl tbody tr:last-child td { border-bottom: 0; }
+  :where(.firmcrm-root) table.tbl tbody tr.clickable { cursor: pointer; }
+  :where(.firmcrm-root) table.tbl tbody tr.clickable:hover td { background: var(--firmcrm-color-sand-25); }
+  :where(.firmcrm-root) table.tbl tbody tr.selected td { background: var(--firmcrm-color-accent-50); }
+  :where(.firmcrm-root) table.tbl tbody tr.selected td:first-child { box-shadow: inset 2px 0 0 var(--firmcrm-color-accent-600); }
+  :where(.firmcrm-root) table.tbl tfoot td { height: 36px; padding: 0 16px; background: var(--firmcrm-color-sand-25); border-top: 1px solid var(--firmcrm-color-sand-150); font-weight: 600; }
+  :where(.firmcrm-root) table.tbl.dense tbody td { height: 36px; }
+  /* Two-line record cells (§6.6): the row grows to 52px and the cell gets vertical padding so text clears the rules. */
+  :where(.firmcrm-root) table.tbl tbody tr.row-2line td { height: 52px; padding: 6px 16px; }
+  :where(.firmcrm-root) table.tbl tbody tr.clickable:focus-visible { outline: 2px solid var(--firmcrm-color-accent-600); outline-offset: -2px; }
+  :where(.firmcrm-root) table.tbl td.num, :where(.firmcrm-root) table.tbl th.num, :where(.firmcrm-root) table.tbl .text-right { font-variant-numeric: tabular-nums lining-nums; }
+
+  /* ---------- Skeleton ---------- */
+  @keyframes firmcrm-skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+  :where(.firmcrm-root) .skeleton { display: block; height: 12px; border-radius: var(--firmcrm-radius-xs); background: var(--firmcrm-color-sand-100); animation: firmcrm-skeleton-pulse 1.4s ease-in-out infinite; }
+
+  /* ---------- Overlay motion (fade only; nothing animates on page entry) ---------- */
+  @keyframes firmcrm-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  :where(.firmcrm-root) .fade-in { animation: firmcrm-fade-in 160ms var(--firmcrm-ease-standard); }
+  /* Modal panel (§7): 180ms opacity + scale(.98)→1. */
+  @keyframes firmcrm-modal-in { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+  :where(.firmcrm-root) .modal-in { animation: firmcrm-modal-in 180ms cubic-bezier(0, 0, 0.2, 1); }
+  /* Drawer panel (§7): 200ms translateX(16px)→0. */
+  @keyframes firmcrm-drawer-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+  :where(.firmcrm-root) .drawer-in { animation: firmcrm-drawer-in 200ms cubic-bezier(0, 0, 0.2, 1); }
+  /* Menu / popover (§7): 120ms opacity + translateY(-4px)→0. */
+  @keyframes firmcrm-menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  :where(.firmcrm-root) .menu-in { animation: firmcrm-menu-in 120ms var(--firmcrm-ease-standard); }
+}
+
+/* Native date inputs: match the field chrome (§6.10); the picker glyph takes the tertiary tone and the accent on hover. */
+@layer components {
+  :where(.firmcrm-root) input[type="date"].field, :where(.firmcrm-root) .field input[type="date"], :where(.firmcrm-root) input[type="date"] { font-variant-numeric: tabular-nums; }
+  :where(.firmcrm-root) input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.55; cursor: pointer; filter: grayscale(1); }
+  :where(.firmcrm-root) input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+  :where(.firmcrm-root) input[type="date"]::-webkit-datetime-edit { color: var(--firmcrm-color-sand-900); }
+  :where(.firmcrm-root) input[type="date"]:invalid::-webkit-datetime-edit, :where(.firmcrm-root) input[type="date"]::-webkit-datetime-edit-fields-wrapper:empty { color: var(--firmcrm-color-sand-400); }
+}
+
+@media (max-width: 639px) {
+  :where(.firmcrm-root) .crm-details-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  :where(.firmcrm-root) .crm-details-grid > div { grid-column: auto !important; }
+}

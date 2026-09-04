@@ -242,6 +242,8 @@ async def export_firm(
 ):
     _, firm = get_or_create_user_firm(db, actor.id)
     payload = build_firm_export(db, firm)
+    from firmcrm.lifecycle import export_firm_crm
+    payload["firmcrm"] = export_firm_crm(db, firm.id, actor.id)
     record_audit(
         db,
         firm_id=firm.id,

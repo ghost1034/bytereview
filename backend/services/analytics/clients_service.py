@@ -104,6 +104,8 @@ def update_client(
 def delete_client(db: Session, firm_id, client_id: str, *, actor_user_id: str) -> None:
     client = get_client(db, firm_id, client_id)
     snapshot = {"client_id": str(client.id), "name": client.name}
+    from firmcrm.services.shared_clients import require_client_unlinked
+    require_client_unlinked(db, client.id)
     delete_tasklytic_client_profiles(db, firm_id, str(client.id))
     db.delete(client)
     db.commit()

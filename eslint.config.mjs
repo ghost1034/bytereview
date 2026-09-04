@@ -94,6 +94,7 @@ const eslintConfig = [
   {
     ignores: [
       '.next/**',
+      'firmcrm/**',
       'out/**',
       'build/**',
       'next-env.d.ts',

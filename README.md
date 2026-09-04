@@ -21,6 +21,8 @@ Table of contents
 
 ## Overview
 
+FirmCRM is available under `/dashboard/firmcrm` for firm members. See [FirmCRM integration and release guide](docs/firmcrm.md) for roles, shared-client behavior, migration, and verification.
+
 CPAAutomation lets users define extraction templates composed of fields (name, data type, and an AI prompt) and apply them to documents. Documents can be uploaded from a computer, imported from Google Drive, or ingested automatically from Gmail attachments. The system runs extractions using Google Gemini and produces structured results that can be reviewed and edited in-app (spreadsheet-style), then downloaded as CSV/XLSX or exported to Google Drive. Automations allow continuous, rule-based ingestion and processing.
 
 Key technologies

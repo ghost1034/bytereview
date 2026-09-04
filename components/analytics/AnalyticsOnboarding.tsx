@@ -14,7 +14,7 @@ import {
 
 type OnboardingMode = 'select' | 'create' | 'join'
 
-export function AnalyticsOnboarding() {
+export function AnalyticsOnboarding({ productName = 'CPA Analytics' }: { productName?: string }) {
   const { signOut } = useAuth()
   const createFirm = useCreateAnalyticsFirm()
   const joinFirm = useJoinAnalyticsFirm()
@@ -59,7 +59,7 @@ export function AnalyticsOnboarding() {
           <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
             <Building className="size-8 text-primary-foreground" aria-hidden />
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome to CPA Analytics</h1>
+          <h1 className="text-2xl font-bold text-foreground">Welcome to {productName}</h1>
           <p className="mt-2 text-sm text-foreground-muted">Set up your firm to get started.</p>
         </div>
 

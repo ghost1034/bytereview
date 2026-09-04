@@ -1,0 +1,98 @@
+{
+  "colors": {
+    "crm-sand": {
+      "0": "#ffffff",
+      "25": "#fbfaf8",
+      "50": "#f7f5f1",
+      "100": "#efede8",
+      "150": "#e7e4de",
+      "200": "#dcd8d0",
+      "300": "#c4bfb5",
+      "400": "#a39e94",
+      "500": "#6f6a61",
+      "600": "#5f5b53",
+      "700": "#44413b",
+      "800": "#2b2925",
+      "900": "#1a1916"
+    },
+    "crm-accent": {
+      "50": "#eef0fb",
+      "100": "#dde1f7",
+      "200": "#bec5ef",
+      "300": "#97a2e4",
+      "400": "#7080d8",
+      "500": "#5563cc",
+      "600": "#4b55c8",
+      "700": "#3c44a6",
+      "800": "#2f3684",
+      "900": "#252a62"
+    },
+    "crm-success": {
+      "50": "#e8f5ec",
+      "100": "#d3ecdb",
+      "200": "#b9e3c6",
+      "300": "#8fd0a6",
+      "500": "#2f9664",
+      "600": "#1e7b4f",
+      "700": "#176440",
+      "800": "#124e33"
+    },
+    "crm-warn": {
+      "50": "#fbf1e2",
+      "100": "#f8e7c9",
+      "200": "#f3d9a6",
+      "300": "#e9c27a",
+      "500": "#c97a1f",
+      "600": "#b4600f",
+      "700": "#8f4c0b",
+      "800": "#6e3a09"
+    },
+    "crm-danger": {
+      "50": "#fbe9e7",
+      "100": "#f8d9d5",
+      "200": "#f3c1bc",
+      "300": "#ea9d95",
+      "400": "#dc6c60",
+      "500": "#d04c3d",
+      "600": "#c2392b",
+      "700": "#a02e22",
+      "800": "#7e251b"
+    },
+    "crm-info": {
+      "50": "#e7effa",
+      "100": "#d3e2f6",
+      "200": "#bdd3f1",
+      "300": "#8fb5e6",
+      "500": "#3f76c7",
+      "600": "#2c63b8",
+      "700": "#234f94",
+      "800": "#1c3e74"
+    }
+  },
+  "borderRadius": {
+    "crm-xs": "3px",
+    "crm-sm": "4px",
+    "crm-md": "6px",
+    "crm-lg": "8px",
+    "crm-xl": "12px"
+  },
+  "boxShadow": {
+    "crm-menu": "0 1px 2px rgba(26, 25, 22, 0.06), 0 8px 24px -8px rgba(26, 25, 22, 0.16)",
+    "crm-modal": "0 1px 2px rgba(26, 25, 22, 0.08), 0 24px 64px -16px rgba(26, 25, 22, 0.28)",
+    "crm-toast": "0 1px 2px rgba(26, 25, 22, 0.08), 0 12px 32px -12px rgba(26, 25, 22, 0.24)",
+    "crm-drag": "0 2px 6px rgba(26, 25, 22, 0.1), 0 12px 32px -12px rgba(26, 25, 22, 0.2)",
+    "crm-sm": "var(--firmcrm-shadow-menu)",
+    "crm-md": "var(--firmcrm-shadow-menu)",
+    "crm-lg": "var(--firmcrm-shadow-menu)",
+    "crm-xl": "var(--firmcrm-shadow-modal)"
+  },
+  "zIndex": {
+    "crm-sticky": "10",
+    "crm-topbar": "20",
+    "crm-sidebar": "30",
+    "crm-dropdown": "40",
+    "crm-drawer": "50",
+    "crm-modal": "60",
+    "crm-toast": "70"
+  }
+}

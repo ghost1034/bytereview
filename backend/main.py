@@ -208,6 +208,8 @@ app.include_router(hosted_claw.internal_router)
 app.include_router(hosted_claw.admin_router)
 app.include_router(pbc.router)
 app.include_router(pbc.portal_router)
+from firmcrm.router import router as firmcrm_router
+app.include_router(firmcrm_router)
 
 # ---------- Dev entrypoint (Cloud Run ignores this; CMD in Dockerfile is used) ----------
 if __name__ == "__main__":

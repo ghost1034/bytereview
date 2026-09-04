@@ -24,7 +24,7 @@ function GateStatus({
   )
 }
 
-export function AnalyticsFirmGate({ children }: { children: ReactNode }) {
+export function AnalyticsFirmGate({ children, productName = 'CPA Analytics' }: { children: ReactNode; productName?: string }) {
   const { user, loading: authLoading } = useAuth()
   const {
     data,
@@ -35,7 +35,7 @@ export function AnalyticsFirmGate({ children }: { children: ReactNode }) {
   } = useAnalyticsFirmOnboardingStatus({ enabled: !!user && !authLoading })
 
   if (authLoading || !user) {
-    return <GateStatus label="Loading analytics…" />
+    return <GateStatus label={`Loading ${productName}…`} />
   }
 
   if (isPending) {
@@ -58,7 +58,7 @@ export function AnalyticsFirmGate({ children }: { children: ReactNode }) {
   }
 
   if (data?.needs_onboarding) {
-    return <AnalyticsOnboarding />
+    return <AnalyticsOnboarding productName={productName} />
   }
 
   return <>{children}</>

@@ -97,3 +97,6 @@ Dockerfile.backend
 # Deployment files
 DEPLOYMENT_PLAN.md
 ENVIRONMENT_SETUP.md
+
+# Imported FirmCRM reference application
+/firmcrm/

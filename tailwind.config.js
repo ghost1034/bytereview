@@ -1,3 +1,4 @@
+const crmTheme = require("./components/firmcrm/theme.json")
 const plugin = require("tailwindcss/plugin")
 
 /** @type {import('tailwindcss').Config} */
@@ -21,6 +22,7 @@ module.exports = {
       },
     },
     extend: {
+      zIndex: crmTheme.zIndex,
       fontFamily: {
         sans: [
           "var(--font-instrument-sans)",
@@ -51,6 +53,7 @@ module.exports = {
         "stripe-numerics": '"tnum","cv05","cv11","ss01"',
       },
       colors: {
+        ...crmTheme.colors,
         "surface-0": "var(--surface-0)",
         "surface-1": "var(--surface-1)",
         "surface-2": "var(--surface-2)",
@@ -158,6 +161,7 @@ module.exports = {
         },
       },
       boxShadow: {
+        ...crmTheme.boxShadow,
         xs: "var(--shadow-xs)",
         sm: "var(--shadow-sm)",
         DEFAULT: "var(--shadow-sm)",
@@ -166,6 +170,7 @@ module.exports = {
         glow: "var(--shadow-glow)",
       },
       borderRadius: {
+        ...crmTheme.borderRadius,
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",

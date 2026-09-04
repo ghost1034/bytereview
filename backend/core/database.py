@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from models.db_models import Base
 from models import inkwise_models  # noqa: F401
 from models import tasklytic  # noqa: F401
+from firmcrm import models as firmcrm_models  # noqa: F401
 from models import pbc  # noqa: F401
 from taxatlas import models as taxatlas_models  # noqa: F401
 

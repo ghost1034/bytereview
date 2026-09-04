@@ -66,6 +66,8 @@ def purge_firm(db: Session, firm_id) -> None:
         db.query(PbcContact).filter(PbcContact.firm_id == firm_id).delete(synchronize_session=False)
         db.query(PbcTemplate).filter(PbcTemplate.firm_id == firm_id).delete(synchronize_session=False)
         db.query(PbcFirmSettings).filter(PbcFirmSettings.firm_id == firm_id).delete(synchronize_session=False)
+        from firmcrm.lifecycle import purge_firm_crm
+        purge_firm_crm(db, firm_id)
         for model in _PURGE_MODELS:
             db.query(model).filter(model.firm_id == firm_id).delete(synchronize_session=False)
 

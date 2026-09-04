@@ -1,6 +1,7 @@
 import type { LucideIcon } from 'lucide-react'
 import {
   BarChart3,
+  Building2,
   Bot,
   Clock3,
   FileCheck2,
@@ -73,6 +74,17 @@ export const PRODUCT_GROUPS: ProductGroup[] = [
 ]
 
 export const PRODUCT_CATALOG: ProductCatalogItem[] = [
+  {
+    id: 'firmcrm',
+    name: 'FirmCRM',
+    description: 'Client relationships, pursuits, clearance, and firm growth.',
+    icon: Building2,
+    groupId: 'practice-operations',
+    appHref: '/dashboard/firmcrm',
+    marketingHref: '/features#practice-operations',
+    routePrefixes: ['/dashboard/firmcrm'],
+    accessStrategy: 'available',
+  },
   {
     id: 'uda',
     name: 'Universal Document Analysis',
