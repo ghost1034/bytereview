@@ -1,7 +1,7 @@
 /*
   FirmCRM design system — "finance-grade editorial" (design/proposals/finance/DESIGN.md).
-  Warm sand neutrals, indigo-ink accent, semantic success/warn/danger/info, hairline borders,
-  shadows only on overlays, Geist with tabular numerals, 13px base.
+  Warm neutral components, indigo-ink accent, semantic success/warn/danger/info, hairline borders,
+  shadows only on overlays, site typography with tabular numerals, 13px base.
 
   Legacy Tailwind palettes used across pages (slate / emerald / amber / red / sky / violet) are
   aliased onto the new tokens below so existing utilities pick up the palette without edits.
@@ -9,8 +9,8 @@
 */
 .firmcrm-root {
   /* ---------- Typography ---------- */
-  --firmcrm-font-sans: var(--font-firmcrm-geist), sans-serif;
-  --firmcrm-font-mono: var(--font-firmcrm-mono), monospace;
+  --firmcrm-font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --firmcrm-font-mono: var(--font-ibm-plex-mono), ui-monospace, monospace;
 
   /* ---------- Neutral scale (warm) ---------- */
   --firmcrm-color-sand-0: #ffffff;
@@ -165,7 +165,7 @@
 @layer base {
   .firmcrm-root, .firmcrm-root, .firmcrm-root { height: 100%; }
   .firmcrm-root {
-    background: var(--firmcrm-color-sand-50);
+    background: hsl(var(--surface));
     color: var(--firmcrm-color-sand-900);
     font-family: var(--firmcrm-font-sans);
     font-size: 13px;
