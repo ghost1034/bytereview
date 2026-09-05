@@ -1,4 +1,5 @@
-import { PublicFeatures } from '@/components/public-site/pages/marketing-pages'
+import './products.css'
+import { PublicFeatures } from '@/components/public-site/pages/products'
 import { generateMetadata } from '@/lib/metadata'
 import { pageMetadata } from '@/lib/metadata'
 

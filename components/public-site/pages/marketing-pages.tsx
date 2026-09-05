@@ -19,8 +19,6 @@ import {
   Workflow,
 } from 'lucide-react'
 
-import { PRODUCT_CATALOG, PRODUCT_GROUPS } from '@/lib/product-catalog'
-import { ProductExploreLink } from '../product-explore-link'
 import { PageHero, Reveal, SectionHeading, SiteButton } from '../ui'
 
 const DEMO_GROUPS = [
@@ -153,30 +151,7 @@ export function PublicConsulting() {
   )
 }
 
-export function PublicFeatures() {
-  const groups = PRODUCT_GROUPS.map((group) => ({
-    ...group,
-    products: PRODUCT_CATALOG.filter((product) => product.groupId === group.id),
-  }))
-  return (
-    <>
-      <PageHero eyebrow="Platform capabilities" title={<>One platform. <span className="ps-gradient-text">Thirteen purpose-built products.</span></>} description="Choose the workflow you need today and connect the rest of the engagement when you are ready." actions={<SiteButton href="/pricing" variant="light">Get started</SiteButton>} />
-      {groups.map((group, groupIndex) => (
-        <section className={groupIndex % 2 ? 'ps-section ps-section--soft' : 'ps-section'} id={group.id} key={group.id}>
-          <div className="ps-container">
-            <SectionHeading number={`00${groupIndex + 1}`} eyebrow={group.name} title={group.name} description={group.description} />
-            <div className="ps-feature-products">
-              {group.products.map((product) => {
-                const Icon = product.icon
-                return <Reveal key={product.id} className="ps-feature-product"><Icon /><div><h3>{product.name}</h3><p>{product.description}</p></div><ProductExploreLink href={product.appHref} productName={product.name} /></Reveal>
-              })}
-            </div>
-          </div>
-        </section>
-      ))}
-    </>
-  )
-}
+export { PublicFeatures } from './products'
 
 export function PublicAbout() {
   return (

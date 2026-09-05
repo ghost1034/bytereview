@@ -8,6 +8,9 @@ Responsive transitions follow the reference at 991px, 767px, and 479px.
 ## Ownership
 
 - `pages/home.tsx`: homepage sections and live billing states.
+- `pages/products.tsx`: the `/features` product directory and all thirteen product showcases.
+- `product-details.ts` / `product-graphic.tsx`: documented capabilities, use cases, guide links, and accessible SVG workflow illustrations for each catalog product.
+- `app/(general)/features/products.css`: responsive product-page styles, scoped to the products page.
 - `home-content.ts`: CPAAutomation products, existing customer feedback,
   professional-validation descriptions, case study, demos, and real people.
 - `home-interactions.tsx`: ambient video controls, on-demand video dialogs,
@@ -38,6 +41,15 @@ Responsive transitions follow the reference at 991px, 767px, and 479px.
   are labeled separately even though they share the same video assets.
 - Reduced-motion preferences stop decorative video and animation. Videos have
   explicit pause controls; moving strips pause on hover, and demos load only on activation.
+
+## Product-page content
+
+The product directory and sections use `lib/product-catalog.ts` for names, groups,
+and application destinations. Keep `product-details.ts` in sync when adding a
+product; the public-site tests require details and a distinct graphic for every
+catalog entry. Illustrations are labeled as illustrative workflows, use sample
+data, and are not application screenshots. Product claims come from the product
+documentation and implemented screens. FinanceClaw remains marked coming soon.
 
 ## Verification
 

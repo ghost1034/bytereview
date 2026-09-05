@@ -1,0 +1,78 @@
+.pp-products { --pp-accent: #6950b2; --pp-accent-soft: #eee7fc; }
+.pp-products [id] { scroll-margin-top: 7rem; }
+.pp-directory { padding-block: 3.5rem 4rem; }
+.pp-directory__heading { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; padding-bottom: 1.8rem; border-bottom: 1px solid var(--ps-grey-7); }
+.pp-directory__heading > span, .pp-next__eyebrow { font-size: .72rem; text-transform: uppercase; letter-spacing: .1em; }
+.pp-directory__heading p { margin: 0; color: var(--ps-grey-3); font-size: .9rem; }
+.pp-directory__groups { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2rem; padding-top: 1.8rem; }
+.pp-directory__group { display: flex; align-items: center; gap: .5rem; font-size: .8rem; font-weight: 600; }
+.pp-directory__group > span { color: var(--ps-grey-3); font: .65rem monospace; }
+.pp-directory__group svg { width: .9rem; height: .9rem; flex-shrink: 0; margin-left: auto; }
+.pp-directory ul { list-style: none; padding: 0; margin: 1rem 0 0; }
+.pp-directory li a { display: block; padding-block: .4rem; color: var(--ps-grey-3); font-size: .8rem; }
+.pp-directory a:hover { color: var(--pp-accent); }
+.pp-products a:focus-visible { outline: 2px solid currentColor; outline-offset: 5px; border-radius: 3px; }
+.pp-group { padding-block: 6rem; }
+.pp-product-list { display: grid; gap: 4rem; }
+.pp-product { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: clamp(2rem, 5vw, 5rem); padding-top: 3rem; border-top: 1px solid var(--ps-grey-7); }
+.pp-product:nth-child(even) .pp-product__visual { order: -1; }
+.pp-product__name { display: flex; align-items: center; gap: .7rem; }
+.pp-product__name > svg { width: 1.3rem; height: 1.3rem; flex-shrink: 0; color: var(--pp-accent); }
+.pp-product__name h3 { margin: 0; font-size: .95rem; font-weight: 600; letter-spacing: -.02em; }
+.pp-product__badge { padding: .2rem .5rem; border-radius: 999px; background: var(--pp-accent-soft); color: var(--pp-accent); font-size: .65rem; }
+.pp-product__tagline { margin: 1.2rem 0; max-width: 35rem; font-size: clamp(2rem, 3.2vw, 3.15rem); line-height: 1.08; letter-spacing: -.055em; font-weight: 500; text-wrap: balance; }
+.pp-product__description { margin: 0; color: var(--ps-grey-3); font-size: .94rem; line-height: 1.75; }
+.pp-product__capabilities { list-style: none; padding: 0; margin: 1.5rem 0; display: grid; gap: .7rem; }
+.pp-product__capabilities li { display: flex; align-items: flex-start; gap: .65rem; font-size: .84rem; line-height: 1.6; }
+.pp-product__capabilities svg { width: 1rem; height: 1rem; flex-shrink: 0; margin-top: .2rem; color: var(--pp-accent); }
+.pp-product__use-case { margin: 0; font-size: .78rem; color: var(--ps-grey-3); line-height: 1.65; }
+.pp-product__use-case strong { color: var(--ps-ink); margin-right: .3rem; font-weight: 600; }
+.pp-product__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 1.5rem; margin-top: 1.7rem; }
+.pp-product__actions > a { display: inline-flex; align-items: center; gap: .5rem; min-height: 2.75rem; font-size: .8rem; font-weight: 500; }
+.pp-product__actions > a:first-child { padding: .7rem 1.1rem; border-radius: 999px; background: var(--ps-ink); color: var(--ps-white); }
+.pp-product__actions > a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.pp-product__actions svg { width: 1rem; height: 1rem; }
+.pp-product__visual { min-width: 0; }
+.pp-graphic { margin: 0; padding: 1.25rem 1rem 1rem; border: 1px solid var(--ps-grey-7); border-radius: 1.5rem; background: radial-gradient(ellipse at 80% 0%, var(--pp-accent-soft), transparent 65%), var(--ps-grey-8); box-shadow: inset 0 1px 0 var(--ps-white); }
+.pp-graphic--forms, .pp-graphic--signature, .pp-graphic--time, .pp-graphic--tax { --pp-accent: #287467; --pp-accent-soft: #d9eee5; }
+.pp-graphic--requests, .pp-graphic--crm, .pp-graphic--learning { --pp-accent: #906029; --pp-accent-soft: #f4e8d3; }
+.pp-graphic__heading { display: flex; justify-content: space-between; gap: .5rem; padding-inline: .5rem; color: var(--ps-grey-3); font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; }
+.pp-graphic > svg { display: block; width: 100%; height: auto; overflow: visible; margin-block: 1rem .3rem; }
+.pp-graphic figcaption { color: var(--ps-grey-3); text-align: center; font-size: .6rem; letter-spacing: .07em; text-transform: uppercase; }
+.pp-art-panel { fill: var(--ps-white); stroke: var(--ps-grey-7); }
+.pp-art-text { fill: var(--ps-ink); font-weight: 500; }
+.pp-art-muted { fill: var(--ps-grey-3); }
+.pp-art-line { fill: var(--ps-grey-7); }
+.pp-art-rule { stroke: var(--ps-grey-7); }
+.pp-art-accent { fill: var(--pp-accent); }
+.pp-art-accent-soft { fill: var(--pp-accent-soft); }
+.pp-art-stroke { stroke: var(--pp-accent); stroke-linecap: round; stroke-linejoin: round; }
+.pp-next > .ps-container { display: flex; justify-content: space-between; align-items: flex-end; gap: 3rem; }
+.pp-next h2 { margin: 1.5rem 0; font-size: clamp(2.5rem, 5vw, 4.5rem); font-weight: 500; line-height: 1.05; letter-spacing: -.06em; }
+.pp-next p { margin: 0; color: var(--ps-grey-4); }
+.pp-next__actions { display: flex; flex-wrap: wrap; gap: .75rem; flex-shrink: 0; }
+@media (max-width: 991px) {
+  .pp-directory__groups { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pp-product { gap: 2rem; }
+  .pp-product__tagline { font-size: 2rem; }
+  .pp-next > .ps-container { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 767px) {
+  .pp-directory__heading { align-items: flex-start; flex-direction: column; }
+  .pp-directory__groups { gap: 1.75rem 1rem; }
+  .pp-group { padding-block: 4rem; }
+  .pp-product { grid-template-columns: minmax(0, 1fr); gap: 2rem; padding-top: 2rem; }
+  .pp-product:nth-child(even) .pp-product__visual { order: 0; }
+  .pp-product__tagline { max-width: 30rem; }
+  .pp-graphic { max-width: 35rem; margin-inline: auto; }
+}
+@media (max-width: 479px) {
+  .pp-directory__groups { grid-template-columns: minmax(0, 1fr); }
+  .pp-directory__group { font-size: .85rem; }
+  .pp-directory li a { min-height: 2.75rem; display: flex; align-items: center; }
+  .pp-graphic { padding: 1rem .4rem .8rem; }
+  .pp-product__actions { gap: 1rem; }
+}
+
+/* Keep the shared section numbers readable on both product section backgrounds. */
+.pp-products .ps-eyebrow__number { color: var(--ps-grey-3); }

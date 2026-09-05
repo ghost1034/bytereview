@@ -176,13 +176,6 @@
 .ps-simple-card__link svg { width: 1rem; height: 1rem; }
 .ps-simple-card__link:hover { color: var(--ps-grey-3); }
 .ps-simple-card__link:focus-visible { outline: 2px solid var(--ps-ink); outline-offset: 4px; }
-.ps-feature-products { border-top: 1px solid var(--ps-grey-7); }
-.ps-feature-product { min-height: 9rem; border-bottom: 1px solid var(--ps-grey-7); display: grid; grid-template-columns: 5rem 1fr auto; align-items: center; gap: 1.5rem; }
-.ps-feature-product > svg { width: 2rem; height: 2rem; }
-.ps-feature-product h3 { margin: 0; font-size: clamp(1.5rem, 3vw, 2.6rem); font-weight: 500; letter-spacing: -.055em; }
-.ps-feature-product p { margin: .4rem 0 0; color: var(--ps-grey-3); }
-.ps-feature-product > a { display: flex; align-items: center; gap: .4rem; border-bottom: 1px solid; padding-bottom: .2rem; font-size: .78rem; }
-.ps-feature-product > a svg { width: .9rem; }
 .ps-about-story { display: grid; grid-template-columns: .85fr 1.15fr; align-items: stretch; gap: 1rem; }
 .ps-about-portrait { min-height: 43rem; overflow: hidden; border-radius: 2.5rem; background: var(--ps-grey-8); }
 .ps-about-portrait img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(1); }
@@ -519,8 +512,6 @@
   .ps-demo-grid, .ps-demo-card--wide { grid-template-columns: 1fr; }
   .ps-demo-card--wide { display: block; }
   .ps-demo-card--wide .ps-video-frame { margin-bottom: 1rem; }
-  .ps-feature-product { min-height: 10rem; grid-template-columns: 2.5rem 1fr; }
-  .ps-feature-product > a { grid-column: 2; width: max-content; }
   .ps-about-portrait { min-height: 30rem; }
   .ps-about-copy { padding: 1.5rem; }
   .ps-case-metrics { grid-template-columns: 1fr; }

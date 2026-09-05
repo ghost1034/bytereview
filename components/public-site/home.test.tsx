@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATIONS, HOME_INTEGRATION_ROWS, HOME_PEOPLE, HOME_SECTIONS, HOME_STEPS } from './home-content'
 import { PRODUCTS } from './content'
+import { PRODUCT_DETAILS } from './product-details'
 import { PRODUCT_CATALOG, PRODUCT_GROUPS } from '@/lib/product-catalog'
 
 const state = vi.hoisted(() => ({
@@ -248,6 +249,32 @@ describe('products page', () => {
     PRODUCT_CATALOG.filter((product) => product.groupId === group.id)
   ))
 
+  it('gives every catalog product details, a distinct accessible graphic, and a working directory anchor', async () => {
+    await render(<PublicFeatures />)
+    expect(Object.keys(PRODUCT_DETAILS).sort()).toEqual(PRODUCT_CATALOG.map((product) => product.id).sort())
+    expect(host.querySelectorAll('article')).toHaveLength(PRODUCT_CATALOG.length)
+    expect(new Set(Object.values(PRODUCT_DETAILS).map((detail) => detail.graphic)).size).toBe(PRODUCT_CATALOG.length)
+    for (const product of PRODUCT_CATALOG) {
+      const article = host.querySelector(`#product-${product.id}`)!
+      const detail = PRODUCT_DETAILS[product.id]
+      expect(article.querySelector('h3')?.textContent).toBe(product.name)
+      expect(article.textContent).toContain(detail.description)
+      expect(article.querySelectorAll('.pp-product__capabilities li')).toHaveLength(3)
+      expect(article.querySelector('svg[role="img"]')?.getAttribute('aria-label')).toBe(detail.graphicLabel)
+      expect(article.querySelector('svg[role="img"]')?.childElementCount).toBeGreaterThan(0)
+      expect(article.querySelector('figcaption')?.textContent).toBe('Illustrative workflow')
+      expect(host.querySelector(`nav[aria-label="Product directory"] a[href="#product-${product.id}"]`)).not.toBeNull()
+      expect(article.querySelector(`[aria-label="Explore ${product.name}"]`)?.getAttribute('href')).toBe(product.appHref)
+      if (detail.guideHref) expect(article.querySelector(`[aria-label="Read the ${product.name} guide"]`)?.getAttribute('href')).toBe(detail.guideHref)
+    }
+    for (const group of PRODUCT_GROUPS) {
+      expect(host.querySelector(`#${group.id}`)).not.toBeNull()
+      expect(host.querySelector(`nav a[href="#${group.id}"]`)).not.toBeNull()
+    }
+    expect(host.querySelectorAll('h1')).toHaveLength(1)
+    expect(host.textContent).toContain('FinanceClaw is coming soon')
+  })
+
   it('lets visitors explore Speech2Write without opening sign in', async () => {
     await render(<PublicFeatures />)
     const link = host.querySelector<HTMLAnchorElement>('[aria-label="Explore Speech2Write"]')!
@@ -299,7 +326,7 @@ describe('products page', () => {
   it('links signed-in users directly to every product', async () => {
     state.user = { uid: 'test-user' }
     await render(<PublicFeatures />)
-    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.ps-feature-product > a'))
+    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('.pp-product__actions > a:first-child'))
 
     expect(links).toHaveLength(orderedProducts.length)
     expect(links.map((link) => link.getAttribute('href'))).toEqual(orderedProducts.map((product) => product.appHref))

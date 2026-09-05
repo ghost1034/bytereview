@@ -100,8 +100,8 @@ export const pageMetadata = {
     ],
   },
   features: {
-    title: 'Features - AI Tools for Accounting, Finance & Legal',
-    description: 'Discover CPAAutomation\'s features: document extraction, AI writing with citations, e-signatures, time tracking, AI agents, custom fields, and seamless integrations. Built for professional use.',
+    title: 'Products - AI Tools for Accounting, Finance & Legal',
+    description: 'Explore CPAAutomation products for document analysis, forms, writing, signatures, client relationships, projects, time tracking, analytics, tax research, and more.',
     canonical: 'https://cpaautomation.ai/features',
     keywords: [
       'AI platform features',
