@@ -38,7 +38,6 @@
 .pp-graphic--requests, .pp-graphic--crm, .pp-graphic--learning { --pp-accent: #906029; --pp-accent-soft: #f4e8d3; }
 .pp-graphic__heading { display: flex; justify-content: space-between; gap: .5rem; padding-inline: .5rem; color: var(--ps-grey-3); font-size: .65rem; text-transform: uppercase; letter-spacing: .06em; }
 .pp-graphic > svg { display: block; width: 100%; height: auto; overflow: visible; margin-block: 1rem .3rem; }
-.pp-graphic figcaption { color: var(--ps-grey-3); text-align: center; font-size: .6rem; letter-spacing: .07em; text-transform: uppercase; }
 .pp-art-panel { fill: var(--ps-white); stroke: var(--ps-grey-7); }
 .pp-art-text { fill: var(--ps-ink); font-weight: 500; }
 .pp-art-muted { fill: var(--ps-grey-3); }

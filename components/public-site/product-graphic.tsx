@@ -68,7 +68,7 @@ function Scene({ kind }: { kind: ProductGraphicKind }) {
       </>
     case 'crm':
       return <>
-        <Panel x={32} y={34} width={416} height={77}><circle cx="37" cy="38" r="21" className="pp-art-accent-soft" /><Text x={27} y={43}>AC</Text><Text x={73} y={32}>Acme · Client relationship</Text><Text x={73} y={54} small muted>Contacts · Activity · Opportunities</Text></Panel>
+        <Panel x={32} y={34} width={416} height={77}><circle cx="37" cy="38" r="21" className="pp-art-accent-soft" /><Text x={27} y={43}>AC</Text><Text x={73} y={32}>Acme Corp</Text><Text x={73} y={54} small muted>Contacts · Activity · Opportunities</Text></Panel>
         {['Qualify', 'Propose', 'Win'].map((label, i) => <Panel key={label} x={32 + i * 142} y={137} width={132} height={105}><Text x={16} y={28}>{label}</Text><rect x="14" y="46" width="104" height="40" rx="6" className="pp-art-accent-soft" /><Lines x={24} y={57} widths={[70, 48]} /></Panel>)}
         <Checkmark x={50} y={280} /><Text x={67} y={284}>Clearance review attached to the pursuit</Text>
       </>
@@ -106,9 +106,8 @@ function Scene({ kind }: { kind: ProductGraphicKind }) {
 export function ProductGraphic({ kind, label, productName }: { kind: ProductGraphicKind; label: string; productName: string }) {
   return (
     <figure className={`pp-graphic pp-graphic--${kind}`}>
-      <div className="pp-graphic__heading"><span>{productName}</span><span aria-hidden>↗</span></div>
+      <div className="pp-graphic__heading"><span>{productName}</span></div>
       <svg viewBox="0 0 480 320" role="img" aria-label={label}><Scene kind={kind} /></svg>
-      <figcaption>Illustrative workflow</figcaption>
     </figure>
   )
 }
