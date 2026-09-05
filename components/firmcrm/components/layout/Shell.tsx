@@ -22,7 +22,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   const [q, setQ] = useState('')
   const input = useRef<HTMLInputElement>(null)
   const search = useQuery({ queryKey: ['search', q], enabled: q.trim().length >= 2, queryFn: async () => {
-    const [accounts, contacts, opportunities] = await Promise.all([accountsApi.list({q,limit:5}), contactsApi.list({q,limit:5}), oppsApi.list({q,limit:5})])
+    const [accounts, contacts, opportunities] = await Promise.all([accountsApi.list({q,limit:5}), contactsApi.list({q,limit:5}), oppsApi.list({q,limit:5,status:'all'})])
     return [...accounts.items.map(a=>({name:a.name,path:`/accounts/${a.id}`})), ...contacts.items.map(c=>({name:c.full_name,path:`/contacts/${c.id}`})), ...opportunities.items.map(o=>({name:o.name,path:`/opportunities/${o.id}`}))]
   } })
   const label = NAV.find(([path]) => path === pathname || (path !== '/' && pathname.startsWith(`${path}/`)))?.[1] ?? 'Record'

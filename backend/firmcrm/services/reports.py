@@ -161,7 +161,8 @@ def referral_sources(db: Session) -> list[dict]:
 def funnel(db: Session, months: int = 12) -> dict:
     since = utcnow() - timedelta(days=30 * months)
     leads = db.scalars(select(Lead).where(Lead.created_at >= since)).all()
-    opps = db.scalars(select(Opportunity).where(Opportunity.created_at >= since)).all()
+    converted_ids = {lead.converted_opportunity_id for lead in leads if lead.converted_opportunity_id is not None}
+    opps = db.scalars(select(Opportunity).where(Opportunity.id.in_(converted_ids))).all()
     src: dict[str, dict] = defaultdict(lambda: {"leads": 0, "converted": 0, "won": 0})
     for lead in leads:
         src[lead.source]["leads"] += 1

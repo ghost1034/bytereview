@@ -1,4 +1,5 @@
 import { useQuery } from "@/components/firmcrm/lib/query";
+import type { User } from "@/components/firmcrm/api/types";
 import { refApi, usersApi } from "@/components/firmcrm/api";
 
 export const useUsers = () => useQuery({ queryKey: ["users"], queryFn: () => usersApi.list(), staleTime: 5 * 60_000 });
@@ -10,3 +11,7 @@ export const usePipelines = () => useQuery({ queryKey: ["pipelines"], queryFn: r
 
 export const opt = <T extends { id: number | string }>(rows: T[] | undefined, label: (r: T) => string) => (rows ?? []).map((r) => ({ value: r.id, label: label(r) }));
 export const strOpts = (xs: readonly string[]) => xs.map((x) => ({ value: x, label: x.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) }));
+
+/** Administrators have partner privileges; retain an inherited engagement owner when editing. */
+export const partnerOptions = (users: User[] | undefined, currentId?: string | null) =>
+  opt(users?.filter((user) => user.role === "partner" || user.role === "admin" || user.id === currentId), (user) => user.full_name);

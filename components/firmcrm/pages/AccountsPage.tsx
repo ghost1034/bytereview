@@ -13,7 +13,7 @@ import { FormModal, type FieldDef } from "@/components/firmcrm/components/ui/For
 import { useConfirm } from "@/components/firmcrm/components/ui/Confirm";
 import { useToast } from "@/components/firmcrm/components/ui/Toast";
 import { ApiError } from "@/components/firmcrm/api/client";
-import { useUsers, opt, strOpts } from "@/components/firmcrm/lib/hooks";
+import { useUsers, opt, partnerOptions, strOpts } from "@/components/firmcrm/lib/hooks";
 import { ACCOUNT_TYPES, ENTITY_KINDS, INDUSTRIES, REVENUE_BANDS, RISK } from "@/components/firmcrm/lib/options";
 import { titleCase } from "@/components/firmcrm/lib/format";
 
@@ -24,7 +24,7 @@ export function useAccountFields(): FieldDef[] {
     { name: "account_type", label: "Type", type: "select", options: strOpts(ACCOUNT_TYPES) }, { name: "entity_kind", label: "Entity kind", type: "select", options: strOpts(ENTITY_KINDS) },
     { name: "industry", label: "Industry", type: "select", options: strOpts(INDUSTRIES) }, { name: "revenue_band", label: "Revenue band", type: "select", options: REVENUE_BANDS.map((r) => ({ value: r, label: r })) },
     { name: "owner_id", label: "Relationship partner / owner", type: "select", options: opt(users.data, (u) => u.full_name) },
-    { name: "originating_partner_id", label: "Originating partner", type: "select", options: opt(users.data?.filter((u) => u.role === "partner"), (u) => u.full_name) },
+    { name: "originating_partner_id", label: "Originating partner", type: "select", options: partnerOptions(users.data) },
     { name: "website", label: "Website" }, { name: "phone", label: "Phone" },
     { name: "city", label: "City" }, { name: "state", label: "State" },
     { name: "risk_rating", label: "Risk rating", type: "select", options: strOpts(RISK) }, { name: "is_public_company", label: "Public company / SEC registrant (independence)", type: "checkbox" },

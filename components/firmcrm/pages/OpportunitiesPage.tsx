@@ -10,20 +10,19 @@ import { Badge, Button, Empty, Input, PageHeader, Select, cn, statusTone } from 
 import { DataTable, useServerSort, type Column } from "@/components/firmcrm/components/ui/DataTable";
 import { ArchivedChip, FilterToggle, NameCell, cellMoney, cellText } from "@/components/firmcrm/components/ui/cells";
 import { useMediaQuery } from "@/components/firmcrm/components/ui/useMediaQuery";
-import { FormModal, type FieldDef } from "@/components/firmcrm/components/ui/Form";
+import { FormModal, type FieldDef, type FormValues } from "@/components/firmcrm/components/ui/Form";
 import { useToast } from "@/components/firmcrm/components/ui/Toast";
 import { ClearanceShield, KanbanCard, StaleChip, isPastDue } from "@/components/firmcrm/components/crm/KanbanCard";
-import { paLabel, usePipelines, usePracticeAreas, useUsers, opt, strOpts } from "@/components/firmcrm/lib/hooks";
+import { paLabel, usePipelines, usePracticeAreas, useUsers, opt, partnerOptions, strOpts } from "@/components/firmcrm/lib/hooks";
 import { EL_STATUSES, FEE_TYPES } from "@/components/firmcrm/lib/options";
 import { fmtDate, useMoney, titleCase } from "@/components/firmcrm/lib/format";
 import { CloseLostModal } from "./OpportunityDetailPage";
 
-export function useOpportunityFields(accountId?: number): FieldDef[] {
+export function useOpportunityFields(accountId?: number, contactAccountId = accountId): FieldDef[] {
   const users = useUsers(); const pas = usePracticeAreas(true); // picker: active practice areas only (flows QA #9)
   const accounts = useQuery({ queryKey: ["accounts", "all"], queryFn: () => accountsApi.list({ limit: 500 }), staleTime: 60_000, select: (p) => p.items });
-  const contacts = useQuery({ queryKey: ["contacts", "acct", accountId], queryFn: () => contactsApi.list({ account_id: accountId, limit: 200 }), enabled: !!accountId, select: (p) => p.items });
+  const contacts = useQuery({ queryKey: ["contacts", "acct", contactAccountId], queryFn: () => contactsApi.list({ account_id: contactAccountId, limit: 200 }), enabled: !!contactAccountId, select: (p) => p.items });
   const referrers = useQuery({ queryKey: ["contacts", "referrers"], queryFn: () => contactsApi.list({ role: "referral_source", limit: 200 }), staleTime: 60_000, select: (p) => p.items });
-  const partners = users.data?.filter((u) => u.role === "partner");
   return useMemo(() => [
     { name: "name", label: "Opportunity name", required: true, span: 2 },
     ...(accountId ? [] : [{ name: "account_id", label: "Account", type: "select", options: opt(accounts.data?.filter((a) => a.account_type !== "adverse_party"), (a) => a.name), required: true } as FieldDef]),
@@ -32,21 +31,23 @@ export function useOpportunityFields(accountId?: number): FieldDef[] {
     { name: "amount", label: "Estimated fees", type: "money", min: 0, required: true }, { name: "fee_type", label: "Fee type", type: "select", options: strOpts(FEE_TYPES) },
     { name: "is_recurring", label: "Recurring / annual engagement", type: "checkbox" }, { name: "expected_close", label: "Expected close", type: "date" },
     { name: "owner_id", label: "Pursuit owner", type: "select", options: opt(users.data, (u) => u.full_name) },
-    { name: "originating_partner_id", label: "Originating partner (credit)", type: "select", options: opt(partners, (u) => u.full_name) },
-    { name: "responsible_partner_id", label: "Responsible partner", type: "select", options: opt(partners, (u) => u.full_name) },
+    { name: "originating_partner_id", label: "Originating partner (credit)", type: "select", options: partnerOptions(users.data) },
+    { name: "responsible_partner_id", label: "Responsible partner", type: "select", options: partnerOptions(users.data) },
     { name: "referral_contact_id", label: "Referred by", type: "select", options: opt(referrers.data, (c) => `${c.full_name}${c.account_name ? ` (${c.account_name})` : ""}`) },
     { name: "proposal_due", label: "Proposal due", type: "date" }, { name: "engagement_letter_status", label: "Engagement letter", type: "select", options: strOpts(EL_STATUSES) },
     { name: "adverse_parties", label: "Adverse / related parties", type: "tags", span: 2, hint: "Comma-separated. Feeds conflict search." },
     { name: "competitor", label: "Competitor" }, { name: "next_step", label: "Next step" },
     { name: "description", label: "Description", type: "textarea" },
-  ], [accountId, accounts.data, contacts.data, pas.data, users.data, partners, referrers.data]);
+  ], [accountId, accounts.data, contacts.data, pas.data, users.data, referrers.data]);
 }
 
 export function NewOpportunityModal({ accountId, onClose }: { accountId?: number; onClose: () => void }) {
   const qc = useQueryClient(); const nav = useNavigate(); const { toast } = useToast();
-  const fields = useOpportunityFields(accountId);
+  const initial = { account_id: accountId, fee_type: "hourly", engagement_letter_status: "not_started", adverse_parties: [], is_recurring: false };
+  const [values, setValues] = useState<FormValues>(initial);
+  const fields = useOpportunityFields(accountId, Number(values.account_id) || undefined);
   return (
-    <FormModal open onClose={onClose} title="New opportunity" fields={fields} initial={{ account_id: accountId, fee_type: "hourly", engagement_letter_status: "not_started", adverse_parties: [], is_recurring: false }} submitLabel="Create"
+    <FormModal open onClose={onClose} title="New opportunity" fields={fields} initial={initial} values={values} onValuesChange={(next) => setValues((previous) => next.account_id !== previous.account_id ? { ...next, primary_contact_id: null } : next)} submitLabel="Create"
       onSubmit={async (v) => { const o = await oppsApi.create({ ...(v as Partial<Opportunity>), account_id: accountId ?? (v.account_id as number) }); qc.invalidateQueries({ queryKey: ["opps"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); toast("Opportunity created"); nav(`/opportunities/${o.id}`); }} />
   );
 }
@@ -75,19 +76,19 @@ function DropStrip({ stages, dragOver, onDragOver, onDragLeave, onDrop }: {
     const Icon = kind === "won" ? Trophy : XCircle;
     return (
       <div data-tour={kind === "won" ? "drop-won" : undefined} onDragOver={(e) => onDragOver(s, e)} onDragLeave={onDragLeave} onDrop={(e) => onDrop(s, e)}
-           className={cn("flex h-14 items-center justify-center gap-2 rounded-crm-lg border border-dashed text-[12px] leading-4 font-medium transition-colors duration-[120ms]",
+           className={cn("flex min-h-14 flex-wrap items-center justify-center gap-2 px-3 py-3 rounded-crm-lg border border-dashed text-[12px] leading-4 font-medium transition-colors duration-[120ms]",
              !over && "border-crm-sand-300 text-crm-sand-500",
              over && kind === "won" && "border-solid border-crm-success-600 bg-crm-success-50 text-crm-success-700",
              over && kind === "lost" && "border-solid border-crm-danger-600 bg-crm-danger-50 text-crm-danger-700")}>
-        <Icon size={16} strokeWidth={1.75} />
-        <span>Drop to mark {kind === "won" ? "Won" : "Lost"}</span>
+        <Icon size={16} strokeWidth={1.75} className="shrink-0" />
+        <span className="whitespace-nowrap">Drop to mark {kind === "won" ? "Won" : "Lost"}</span>
         <span className={cn("font-normal", over ? (kind === "won" ? "text-crm-success-600" : "text-crm-danger-600") : "text-crm-sand-500")}>
           {kind === "won" ? "· requires cleared check and signed engagement letter" : "· you will be asked for a reason"}
         </span>
       </div>
     );
   };
-  return <div className="mt-4 grid grid-cols-2 gap-3">{zone(won, "won")}{zone(lost, "lost")}</div>;
+  return <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">{zone(won, "won")}{zone(lost, "lost")}</div>;
 }
 
 export default function OpportunitiesPage() {
@@ -153,7 +154,7 @@ export default function OpportunitiesPage() {
           {atLeast("manager") && <Button onClick={() => dataApi.exportCsv("opportunities").catch(error)}><Download size={14} />Export</Button>}
           <Button variant="primary" onClick={() => setCreating(true)}><Plus size={14} />New opportunity</Button>
         </>} />
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Input placeholder="Filter by name or account…" value={q} onChange={(e) => setQ(e.target.value)} className="!w-[240px]" aria-label="Filter opportunities" />
         <Select value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: "open", label: "Open" }, { value: "won", label: "Won" }, { value: "lost", label: "Lost" }, { value: "all", label: "All" }]} className="!w-[112px]" aria-label="Status" />
         <Select value={ownerId} onChange={(e) => setOwnerId(e.target.value)} options={opt(users.data, (u) => u.full_name)} placeholder="All owners" className="!w-[160px]" aria-label="Owner" />

@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@/components/firmcrm/lib/query";
 import { Phone, Mail, Calendar, StickyNote, CheckSquare, Check, Trash2, AlignLeft, ArrowRightLeft, ShieldCheck, type LucideIcon } from "lucide-react";
 import { format, isToday, isYesterday, parseISO } from "date-fns";
+import { Link } from "@/components/firmcrm/lib/navigation";
 import { activitiesApi } from "@/components/firmcrm/api";
 import type { Activity } from "@/components/firmcrm/api/types";
 import { Badge, Button, Input, Spinner, Textarea, cn } from "@/components/firmcrm/components/ui";
@@ -37,7 +38,7 @@ export function ActivityTimeline({ filter, linkTo, extraEvents, limit, readOnly,
   const [details, setDetails] = useState(false);
   const invalidate = () => { qc.invalidateQueries({ queryKey: ["activities"] }); qc.invalidateQueries({ queryKey: ["opps"] }); qc.invalidateQueries({ queryKey: ["opp"] }); qc.invalidateQueries({ queryKey: ["dashboard"] }); };
   const create = useMutation({
-    mutationFn: () => activitiesApi.create({ kind, subject, body: body || null, due_at: kind === "task" && due ? new Date(due).toISOString() : null, ...filter }),
+    mutationFn: () => activitiesApi.create({ kind, subject, body: body || null, due_at: kind === "task" && due ? parseISO(due).toISOString() : null, ...filter }),
     onSuccess: () => { setSubject(""); setBody(""); setDue(""); setDetails(false); invalidate(); toast(`${kind} logged`); }, onError: error,
   });
   const complete = useMutation({ mutationFn: (a: Activity) => activitiesApi.update(a.id, { completed: !a.completed_at }), onSuccess: invalidate, onError: error });
@@ -116,8 +117,8 @@ export function ActivityTimeline({ filter, linkTo, extraEvents, limit, readOnly,
                           {(a.kind === "task" && !done) || (linkTo && (a.opportunity_name || a.account_name)) ? (
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] leading-4 text-crm-sand-500">
                               {a.kind === "task" && !done && <Badge dot tone={overdue ? "danger" : a.priority === "high" ? "warn" : "neutral"}>{overdue ? "Overdue" : `Due ${fmtDate(a.due_at)}`}</Badge>}
-                              {linkTo && a.opportunity_name && <a href={`/opportunities/${a.opportunity_id}`} className="text-crm-sand-700">{a.opportunity_name}</a>}
-                              {linkTo && !a.opportunity_name && a.account_name && <a href={`/accounts/${a.account_id}`} className="text-crm-sand-700">{a.account_name}</a>}
+                              {linkTo && a.opportunity_name && <Link to={`/opportunities/${a.opportunity_id}`} className="text-crm-sand-700">{a.opportunity_name}</Link>}
+                              {linkTo && !a.opportunity_name && a.account_name && <Link to={`/accounts/${a.account_id}`} className="text-crm-sand-700">{a.account_name}</Link>}
                             </div>) : null}
                         </div>
                         <div className="flex shrink-0 flex-col items-end gap-1">

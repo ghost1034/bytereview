@@ -1,6 +1,7 @@
 """Public report contracts, shared with the generated TypeScript client."""
 from datetime import datetime
 from pydantic import BaseModel
+from firmcrm.schemas import FirmCrmORM
 
 class FirmCrmPipelineStageSummary(BaseModel):
     stage_id: int
@@ -40,7 +41,7 @@ class FirmCrmWinLoss(BaseModel):
     lost_reasons: list[FirmCrmLostReasonCount]
     monthly: list[FirmCrmMonthlyWinLoss]
 
-class FirmCrmDashboardTask(BaseModel):
+class FirmCrmDashboardTask(FirmCrmORM):
     id: int
     subject: str
     due_at: datetime | None

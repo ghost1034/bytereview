@@ -164,10 +164,12 @@ export function SchemaForm({ fields, values, onChange, showAllErrors = false, er
 }
 
 /* -------------------------------------------------------------- FormModal */
-export function FormModal({ open, onClose, title, fields, initial, onSubmit, submitLabel = "Save", width, size = "wide" }: {
-  open: boolean; onClose: () => void; title: string; fields: FieldDef[]; initial: FormValues; onSubmit: (v: FormValues) => Promise<unknown>; submitLabel?: string; width?: string; size?: "default" | "wide";
+export function FormModal({ open, onClose, title, fields, initial, values: controlledValues, onValuesChange, onSubmit, submitLabel = "Save", width, size = "wide" }: {
+  open: boolean; onClose: () => void; title: string; fields: FieldDef[]; initial: FormValues; values?: FormValues; onValuesChange?: (values: FormValues) => void; onSubmit: (v: FormValues) => Promise<unknown>; submitLabel?: string; width?: string; size?: "default" | "wide";
 }) {
-  const [values, setValues] = useState<FormValues>(initial);
+  const [localValues, setLocalValues] = useState<FormValues>(initial);
+  const values = controlledValues ?? localValues;
+  const setValues = onValuesChange ?? setLocalValues;
   const [busy, setBusy] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const formId = useId();

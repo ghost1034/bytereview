@@ -9,7 +9,7 @@ import { Badge, Button, Empty, PageHeader, Select, statusTone } from "@/componen
 import { DataTable, useServerSort, type Column } from "@/components/firmcrm/components/ui/DataTable";
 import { FormModal, type FieldDef, type FormValues } from "@/components/firmcrm/components/ui/Form";
 import { useToast } from "@/components/firmcrm/components/ui/Toast";
-import { useUsers, opt, strOpts } from "@/components/firmcrm/lib/hooks";
+import { useUsers, partnerOptions, strOpts } from "@/components/firmcrm/lib/hooks";
 import { ENGAGEMENT_STATUSES, FEE_TYPES } from "@/components/firmcrm/lib/options";
 import { useMoney, titleCase } from "@/components/firmcrm/lib/format";
 import { useAuth } from "@/components/firmcrm/lib/auth";
@@ -26,7 +26,7 @@ export default function EngagementsPage() {
   const users = useUsers();
   const fields: FieldDef[] = [
     { name: "name", label: "Engagement name", required: true, span: 2 }, { name: "external_ref", label: "Matter / PSA reference" },
-    { name: "status", label: "Status", type: "select", options: strOpts(ENGAGEMENT_STATUSES) }, { name: "responsible_partner_id", label: "Responsible partner", type: "select", options: opt(users.data?.filter((u) => u.role === "partner"), (u) => u.full_name) },
+    { name: "status", label: "Status", type: "select", options: strOpts(ENGAGEMENT_STATUSES) }, { name: "responsible_partner_id", label: "Responsible partner", type: "select", options: partnerOptions(users.data, editing?.responsible_partner_id) },
     { name: "fee_type", label: "Fee type", type: "select", options: strOpts(FEE_TYPES) }, { name: "annual_value", label: "Annual value", type: "money", min: 0 },
     { name: "start_date", label: "Start", type: "date" }, { name: "end_date", label: "End", type: "date" },
     // Adverse parties stay a comma-separated `tags` field; a chip TagInput is a kit follow-up (QA #20).

@@ -5,6 +5,7 @@ from firmcrm.core.routing import FirmCrmRoute
 
 import csv
 import io
+from datetime import UTC
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
@@ -53,7 +54,7 @@ def _out(db: Session, jobs: list[ImportJob]) -> list[FirmCrmImportJobOut]:
     un = user_names(db, [j.actor_id for j in jobs])
     return [FirmCrmImportJobOut(id=j.id, entity=j.entity, filename=j.filename, dry_run=j.dry_run, status=j.status, total_rows=j.total_rows,
                          created_rows=j.created_rows, updated_rows=j.updated_rows, skipped_rows=j.skipped_rows, exceptions=j.exceptions or [],
-                         actor_id=j.actor_id, actor_name=un.get(j.actor_id), created_at=j.created_at.isoformat()) for j in jobs]
+                         actor_id=j.actor_id, actor_name=un.get(j.actor_id), created_at=j.created_at.replace(tzinfo=j.created_at.tzinfo or UTC).isoformat()) for j in jobs]
 
 
 @router.get("/export/{entity}.csv")

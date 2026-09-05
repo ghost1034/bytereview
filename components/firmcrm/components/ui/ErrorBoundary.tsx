@@ -16,7 +16,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
           <pre className="mono mt-4 max-h-32 overflow-auto rounded-crm-md border border-crm-sand-150 bg-crm-sand-25 p-3 text-crm-sand-700 whitespace-pre-wrap">{this.state.error.message}</pre>
           <div className="mt-5 flex gap-2">
             <button type="button" onClick={() => window.location.reload()} className="inline-flex h-8 items-center rounded-crm-md border border-crm-accent-600 bg-crm-accent-600 px-3 font-medium text-white hover:bg-crm-accent-700">Reload</button>
-            <button type="button" onClick={() => { window.location.href = "/"; }} className="inline-flex h-8 items-center rounded-crm-md border border-crm-sand-200 bg-crm-sand-0 px-3 font-medium text-crm-sand-900 hover:bg-crm-sand-25">Go to dashboard</button>
+            <button type="button" onClick={() => { window.location.href = "/dashboard/firmcrm"; }} className="inline-flex h-8 items-center rounded-crm-md border border-crm-sand-200 bg-crm-sand-0 px-3 font-medium text-crm-sand-900 hover:bg-crm-sand-25">Go to dashboard</button>
           </div>
         </div>
       </div>

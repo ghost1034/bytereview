@@ -273,3 +273,39 @@ def test_concurrent_conversion_and_publication(crm):
         responses=list(pool.map(convert,range(2)))
         assert sorted(r.status_code for r in responses)==[200,400]
     assert call(crm,'get','/engagements')['total']==0
+
+
+def test_lead_funnel_only_counts_opportunities_from_the_lead_cohort(crm):
+    a = account(crm)
+    direct = opportunity(crm, a, engagement_letter_status='signed')
+    stages = call(crm, 'get', '/pipelines')[0]['stages']
+    won = next(stage['id'] for stage in stages if stage['is_won'])
+    call(crm, 'post', f"/opportunities/{direct['id']}/stage", json={'stage_id': won})
+    lead = call(crm, 'post', '/leads', expected=201, json={'first_name': 'QA', 'last_name': 'Funnel', 'source': 'web'})
+    converted = call(crm, 'post', f"/leads/{lead['id']}/convert", json={'existing_account_id': a['id'], 'create_opportunity': True})
+    report = call(crm, 'get', '/reports/funnel')
+    assert (report['leads'], report['converted'], report['opportunities'], report['won']) == (1, 1, 1, 0)
+    opp_id = converted['opportunity_id']
+    call(crm, 'patch', f'/opportunities/{opp_id}', json={'engagement_letter_status': 'signed'})
+    call(crm, 'post', f'/opportunities/{opp_id}/stage', json={'stage_id': won})
+    report = call(crm, 'get', '/reports/funnel')
+    assert report['won'] == 1
+    assert sum(row['won'] for row in report['by_source']) == report['won']
+
+
+def test_import_history_timestamps_include_utc_offset(crm):
+    from datetime import datetime, timedelta
+
+    job = call(crm, 'post', '/import/contacts', files={'file': ('qa.csv', b'first_name,last_name,email\nQA,Import,qa@example.com\n', 'text/csv')}, data={'dry_run': 'true'})
+    history = call(crm, 'get', '/import/jobs')['items']
+    for value in [job['created_at'], history[0]['created_at']]:
+        assert datetime.fromisoformat(value).utcoffset() == timedelta(0)
+
+
+def test_dashboard_task_dates_match_activity_dates(crm):
+    a = account(crm)
+    task = call(crm, 'post', '/activities', expected=201, json={'kind': 'task', 'subject': 'QA due date', 'account_id': a['id'], 'due_at': '2026-09-10T00:00:00Z'})
+    dashboard = call(crm, 'get', '/reports/dashboard')
+    shown = next(row for row in dashboard['my_tasks'] if row['id'] == task['id'])
+    assert shown['due_at'] == task['due_at']
+    assert shown['due_at'].endswith('+00:00')
