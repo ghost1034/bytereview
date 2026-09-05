@@ -27,6 +27,7 @@ describe('public-site route boundaries', () => {
       '/contact',
       '/features',
       '/claw',
+      '/speech2write',
       '/case-study/LFO',
       '/privacy',
       '/terms',
@@ -45,7 +46,7 @@ describe('public-site route boundaries', () => {
     expect(new Set(NAV_ITEMS.map((item) => item.number)).size).toBe(NAV_ITEMS.length)
     expect(new Set(NAV_ITEMS.map((item) => item.href)).size).toBe(NAV_ITEMS.length)
     expect(new Set(PRODUCTS.map((product) => product.name)).size).toBe(PRODUCTS.length)
-    expect(PRODUCTS).toHaveLength(12)
+    expect(PRODUCTS).toHaveLength(13)
   })
 })
 

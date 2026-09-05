@@ -19,7 +19,7 @@ Responsive transitions follow the reference at 991px, 767px, and 479px.
 
 ## Intentional differences from the template
 
-- All eleven real products appear in five capability groups.
+- All thirteen real products appear in five capability groups.
 - The three monthly plans come from the existing billing hook. No unsupported
   annual toggle, discount, or checkout contract was introduced.
 - One published customer case and two labeled demos replace fictional cases.

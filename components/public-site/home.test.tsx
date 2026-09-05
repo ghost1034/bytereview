@@ -41,6 +41,8 @@ vi.mock('embla-carousel-react', () => {
 })
 
 import PublicHome from './pages/home'
+import PublicSpeech2Write from './pages/speech2write'
+import { SPEECH2WRITE_CHECKSUMS_URL, SPEECH2WRITE_DOWNLOAD_URL, SPEECH2WRITE_INSTALLER_URL } from '@/lib/speech2write'
 import { PublicFeatures } from './pages/marketing-pages'
 import PublicHeader from './header'
 import PublicFooter from './footer'
@@ -245,6 +247,45 @@ describe('products page', () => {
   const orderedProducts = PRODUCT_GROUPS.flatMap((group) => (
     PRODUCT_CATALOG.filter((product) => product.groupId === group.id)
   ))
+
+  it('lets visitors explore Speech2Write without opening sign in', async () => {
+    await render(<PublicFeatures />)
+    const link = host.querySelector<HTMLAnchorElement>('[aria-label="Explore Speech2Write"]')!
+    expect(link.getAttribute('href')).toBe('/speech2write')
+    let prevented = true
+    host.addEventListener('click', (event) => {
+      prevented = event.defaultPrevented
+      event.preventDefault()
+    }, { once: true })
+    await click(link)
+    expect(prevented).toBe(false)
+    expect(host.querySelector('[aria-label="Sign in"]')).toBeNull()
+  })
+
+  it('downloads all three Speech2Write release files from either button and offers individual fallbacks', async () => {
+    await render(<PublicSpeech2Write />)
+    const expectedUrls = [SPEECH2WRITE_INSTALLER_URL, SPEECH2WRITE_CHECKSUMS_URL, SPEECH2WRITE_DOWNLOAD_URL]
+    const downloads = Array.from(host.querySelectorAll<HTMLAnchorElement>('a[download]'))
+    expect(downloads.map((link) => link.getAttribute('href'))).toEqual(expectedUrls)
+    expect(downloads.map((link) => link.download)).toEqual(['install.sh', 'SHA256SUMS', 'Speech2Write-1.4.1.zip'])
+    expect(host.querySelectorAll('iframe')).toHaveLength(0)
+    const buttons = Array.from(host.querySelectorAll('button')).filter((node) => node.textContent === 'Download')
+    expect(buttons).toHaveLength(2)
+    for (const [index, downloadButton] of buttons.entries()) {
+      await click(downloadButton)
+      expect(Array.from(host.querySelectorAll('iframe')).slice(index * 3).map((frame) => frame.src)).toEqual(expectedUrls)
+    }
+    const firstFrame = host.querySelector('iframe')
+    await click(buttons[0])
+    expect(host.querySelectorAll('iframe')).toHaveLength(6)
+    expect(host.querySelector('iframe')).not.toBe(firstFrame)
+    expect(SPEECH2WRITE_DOWNLOAD_URL).toMatch(/\/releases\/download\/v[\d.]+\/Speech2Write-[\d.]+\.zip$/)
+    expect(host.textContent).toContain('Download all three files')
+    expect(host.textContent).toContain('allow multiple downloads')
+    expect(host.textContent).toContain('leave the ZIP compressed')
+    expect(host.textContent).toContain('macOS 15')
+    expect(host.querySelector('code')?.textContent).toBe('chmod +x install.sh && ./install.sh')
+  })
 
   it('opens sign in for visitors and preserves the selected product destination', async () => {
     await render(<PublicFeatures />)

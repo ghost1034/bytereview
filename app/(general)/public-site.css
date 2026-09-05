@@ -42,6 +42,7 @@
 .ps-button:hover { transform: translateY(-2px); }
 .ps-button__icon { width: 2.15rem; height: 2.15rem; border-radius: 50%; display: grid; place-items: center; transition: transform .25s ease; }
 .ps-button:hover .ps-button__icon { transform: rotate(45deg); }
+.ps-button--download:hover .ps-button__icon { transform: none; }
 .ps-button__icon svg { width: .95rem; height: .95rem; }
 .ps-site .ps-button--dark { background: #fff; color: #111; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
 .ps-button--dark .ps-button__icon { background: #111; color: #fff; }
@@ -378,6 +379,20 @@
 .ps-claw-notes svg { width: 1rem; flex: none; }
 .ps-claw-notes strong { font-size: .75rem; }
 .ps-claw-notes p { margin: .35rem 0 0; color: var(--ps-grey-3); font-size: .68rem; }
+
+.ps-speech-install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 3rem; }
+.ps-speech-install aside { align-self: start; display: flex; flex-direction: column; align-items: flex-start; gap: 1rem; padding: 2rem; border: 1px solid var(--ps-grey-7); border-radius: 1.5rem; background: #fff; }
+.ps-speech-install h3 { margin: 0; font-size: 1.2rem; font-weight: 500; }
+.ps-speech-install p { margin: .5rem 0 1rem; color: var(--ps-grey-3); }
+.ps-speech-install ol { margin: 0; padding-left: 1.5rem; }
+.ps-speech-install li { padding-left: .5rem; margin-bottom: 1.5rem; }
+.ps-speech-install pre { overflow-x: auto; padding: 1rem; border-radius: .75rem; background: var(--ps-ink); color: #fff; font-size: .85rem; }
+.ps-speech-text-link { text-decoration: underline; text-underline-offset: .2em; }
+.ps-speech-attribution { margin: 2rem 0 0; color: var(--ps-grey-3); font-size: .85rem; }
+@media (max-width: 767px) {
+  .ps-speech-install { grid-template-columns: minmax(0, 1fr); gap: 2rem; }
+  .ps-speech-install aside { padding: 1.25rem; }
+}
 
 .ps-product-list { border-top: 1px solid var(--ps-grey-7); }
 .ps-product-row { min-height: 5.5rem; border-bottom: 1px solid var(--ps-grey-7); display: grid; grid-template-columns: 3rem 2.5rem minmax(12rem, .75fr) 1fr auto; align-items: center; gap: 1rem; transition: padding .2s ease, background .2s ease; }

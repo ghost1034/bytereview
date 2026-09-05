@@ -160,7 +160,7 @@ export function PublicFeatures() {
   }))
   return (
     <>
-      <PageHero eyebrow="Platform capabilities" title={<>One platform. <span className="ps-gradient-text">Eleven purpose-built products.</span></>} description="Choose the workflow you need today and connect the rest of the engagement when you are ready." actions={<SiteButton href="/pricing" variant="light">Get started</SiteButton>} />
+      <PageHero eyebrow="Platform capabilities" title={<>One platform. <span className="ps-gradient-text">Thirteen purpose-built products.</span></>} description="Choose the workflow you need today and connect the rest of the engagement when you are ready." actions={<SiteButton href="/pricing" variant="light">Get started</SiteButton>} />
       {groups.map((group, groupIndex) => (
         <section className={groupIndex % 2 ? 'ps-section ps-section--soft' : 'ps-section'} id={group.id} key={group.id}>
           <div className="ps-container">

@@ -17,7 +17,7 @@ export function ProductExploreLink({ href, productName }: ProductExploreLinkProp
   const [authOpen, setAuthOpen] = useState(false)
 
   const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
-    if (user) return
+    if (user || !href.startsWith('/dashboard')) return
 
     event.preventDefault()
     setAuthOpen(true)

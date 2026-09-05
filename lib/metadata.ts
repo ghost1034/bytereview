@@ -113,6 +113,12 @@ export const pageMetadata = {
       'professional integrations'
     ],
   },
+  speech2write: {
+    title: 'Speech2Write - Private Voice Dictation for macOS',
+    description: 'Download Speech2Write, the free, open-source Mac dictation app from CPAAutomation. Turn speech into text in your apps with on-device recognition.',
+    canonical: 'https://cpaautomation.ai/speech2write',
+    keywords: ['Speech2Write', 'macOS dictation', 'on-device speech recognition', 'voice to text', 'CPA Automation'],
+  },
   claw: {
     title: 'Claw Series - Personalized AI Digital Workers for Accounting, Finance & Legal',
     description: 'Download the AccountingClaw or LegalClaw Docker image or request personalized setup for Claw Series AI digital workers deployed on the cloud and model of your choice.',

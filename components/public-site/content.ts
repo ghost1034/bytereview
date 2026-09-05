@@ -23,6 +23,7 @@ export const PUBLIC_ROUTES = [
   '/contact',
   '/features',
   '/claw',
+  '/speech2write',
   '/case-study/LFO',
   '/privacy',
   '/terms',

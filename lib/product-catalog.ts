@@ -11,6 +11,7 @@ import {
   FolderKanban,
   Globe2,
   GraduationCap,
+  Mic,
   PenTool,
 } from 'lucide-react'
 
@@ -123,6 +124,17 @@ export const PRODUCT_CATALOG: ProductCatalogItem[] = [
     marketingHref: '/features#knowledge-work',
     routePrefixes: ['/dashboard/inkwise'],
     accessStrategy: 'available',
+  },
+  {
+    id: 'speech2write',
+    name: 'Speech2Write',
+    description: 'Private, on-device voice dictation for your Mac.',
+    icon: Mic,
+    groupId: 'knowledge-work',
+    appHref: '/speech2write',
+    marketingHref: '/speech2write',
+    routePrefixes: ['/speech2write'],
+    accessStrategy: 'free',
   },
   {
     id: 'tasklytic',

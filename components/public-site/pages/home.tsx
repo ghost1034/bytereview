@@ -83,7 +83,7 @@ export default function PublicHome() {
     </section>
 
     <div className="ph-brand-strip">
-      <div className="ph-container"><div className="ph-marquee" aria-label="Eleven CPAAutomation products"><div className="ph-marquee__track">
+      <div className="ph-container"><div className="ph-marquee" aria-label="Thirteen CPAAutomation products"><div className="ph-marquee__track">
         {[0, 1].map((copy) => <div className="ph-brand-list" key={copy} aria-hidden={copy === 1 || undefined}>{PRODUCTS.map((product) => { const Icon = product.icon; return <span key={product.name}><Icon aria-hidden />{product.name}</span> })}</div>)}
       </div></div></div>
     </div>

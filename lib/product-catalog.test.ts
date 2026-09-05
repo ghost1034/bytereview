@@ -17,12 +17,12 @@ const AVAILABLE_CONTEXT: ProductAccessContext = {
 }
 
 describe('CPAAutomation product catalog', () => {
-  it('defines exactly twelve unique products across four populated groups', () => {
-    expect(PRODUCT_CATALOG).toHaveLength(12)
+  it('defines exactly thirteen unique products across four populated groups', () => {
+    expect(PRODUCT_CATALOG).toHaveLength(13)
     expect(PRODUCT_GROUPS).toHaveLength(4)
-    expect(new Set(PRODUCT_CATALOG.map((product) => product.id)).size).toBe(12)
-    expect(new Set(PRODUCT_CATALOG.map((product) => product.name)).size).toBe(12)
-    expect(new Set(PRODUCT_CATALOG.map((product) => product.appHref)).size).toBe(12)
+    expect(new Set(PRODUCT_CATALOG.map((product) => product.id)).size).toBe(13)
+    expect(new Set(PRODUCT_CATALOG.map((product) => product.name)).size).toBe(13)
+    expect(new Set(PRODUCT_CATALOG.map((product) => product.appHref)).size).toBe(13)
     expect(PRODUCT_GROUPS.every((group) => (
       PRODUCT_CATALOG.some((product) => product.groupId === group.id)
     ))).toBe(true)
@@ -47,6 +47,7 @@ describe('CPAAutomation product catalog', () => {
     ['/dashboard/form-fill', 'form-fill'],
     ['/dashboard/pbc/engagements/abc', 'pbc'],
     ['/dashboard/inkwise/write/abc', 'inkwise'],
+    ['/speech2write', 'speech2write'],
     ['/dashboard/esign/abc/documents', 'esign'],
     ['/dashboard/project-management/w/abc', 'tasklytic'],
     ['/dashboard/analytics/chrona/devices', 'chrona'],

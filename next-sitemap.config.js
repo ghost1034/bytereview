@@ -55,6 +55,7 @@ module.exports = {
       '/about',
       '/pricing',
       '/features',
+      '/speech2write',
       '/demo',
       '/contact',
       '/privacy',
