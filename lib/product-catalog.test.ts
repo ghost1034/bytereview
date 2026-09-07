@@ -12,6 +12,7 @@ import { resolveProductAccessBadge, type ProductAccessContext } from '@/lib/prod
 
 const AVAILABLE_CONTEXT: ProductAccessContext = {
   paidPlan: 'available',
+  proPlan: 'available',
   analytics: 'available',
   claw: 'available',
 }
@@ -86,7 +87,7 @@ describe('product access badges', () => {
   it('uses stable labels for free and ungated products', () => {
     expect(resolveProductAccessBadge(product('cpe-tracker'), AVAILABLE_CONTEXT).label).toBe('Free')
     expect(resolveProductAccessBadge(product('uda'), AVAILABLE_CONTEXT).label).toBe('Available')
-    expect(resolveProductAccessBadge(product('firmcrm'), { ...AVAILABLE_CONTEXT, analytics: 'upgrade', paidPlan: 'upgrade' }).label).toBe('Available')
+    expect(resolveProductAccessBadge(product('firmcrm'), { ...AVAILABLE_CONTEXT, proPlan: 'upgrade' }).label).toBe('Pro')
   })
 
   it('reflects plan, setup, loading, and error states without changing destinations', () => {

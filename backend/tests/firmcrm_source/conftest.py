@@ -10,7 +10,7 @@ from models.db_models import Base, Firm, User as PlatformUser, Client
 from firmcrm import models as m
 from firmcrm.core.db import CrmSession, get_db, refresh_visibility
 from firmcrm.provisioning import provision
-from firmcrm.router import router
+from firmcrm.router import require_pro_firmcrm_user, router
 from .seed import seed_demo
 
 
@@ -47,6 +47,7 @@ def client():
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[get_db] = database
+    app.dependency_overrides[require_pro_firmcrm_user] = lambda: {"uid": "test-user"}
     with TestClient(app) as client:
         yield client
     engine.dispose()

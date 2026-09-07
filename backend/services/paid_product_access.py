@@ -19,18 +19,22 @@ def is_paid_plan(plan_code: object) -> bool:
     return bool(normalized and normalized != "free")
 
 
-def require_paid_plan(
+def is_pro_plan(plan_code: object) -> bool:
+    """Return whether a billing plan grants access to Pro-only modules."""
+
+    return str(plan_code or "").strip().lower() == "pro"
+
+
+def _billing_info_or_unavailable(
     db: Session,
     user_id: str,
     *,
     product_code: str,
     product_name: str,
-    billing_service_factory=get_billing_service,
+    billing_service_factory,
 ) -> dict:
-    """Load current billing state and fail closed unless it is a paid plan."""
-
     try:
-        billing_info = billing_service_factory(db).get_billing_info(user_id)
+        return billing_service_factory(db).get_billing_info(user_id)
     except HTTPException:
         raise
     except Exception as exc:
@@ -41,12 +45,59 @@ def require_paid_plan(
                 "message": f"{product_name} access could not be verified.",
             },
         ) from exc
+
+
+def require_paid_plan(
+    db: Session,
+    user_id: str,
+    *,
+    product_code: str,
+    product_name: str,
+    billing_service_factory=get_billing_service,
+) -> dict:
+    """Load current billing state and fail closed unless it is a paid plan."""
+
+    billing_info = _billing_info_or_unavailable(
+        db,
+        user_id,
+        product_code=product_code,
+        product_name=product_name,
+        billing_service_factory=billing_service_factory,
+    )
     if not is_paid_plan(billing_info.get("plan_code")):
         raise HTTPException(
             status_code=403,
             detail={
                 "code": f"{product_code}_paid_plan_required",
                 "message": f"{product_name} requires a paid plan.",
+            },
+        )
+    return billing_info
+
+
+def require_pro_plan(
+    db: Session,
+    user_id: str,
+    *,
+    product_code: str,
+    product_name: str,
+    billing_service_factory=get_billing_service,
+) -> dict:
+    """Load current billing state and fail closed unless it is the Pro plan."""
+
+    billing_info = _billing_info_or_unavailable(
+        db,
+        user_id,
+        product_code=product_code,
+        product_name=product_name,
+        billing_service_factory=billing_service_factory,
+    )
+    if not is_pro_plan(billing_info.get("plan_code")):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": f"{product_code}_pro_plan_required",
+                "message": f"{product_name} requires the Pro plan.",
             },
         )
     return billing_info

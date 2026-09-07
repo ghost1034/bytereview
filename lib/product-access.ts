@@ -4,6 +4,7 @@ export type ProductAccessSignal = 'available' | 'upgrade' | 'setup' | 'loading' 
 
 export interface ProductAccessContext {
   paidPlan: ProductAccessSignal
+  proPlan: ProductAccessSignal
   analytics: ProductAccessSignal
   claw: ProductAccessSignal
 }
@@ -29,13 +30,17 @@ export function resolveProductAccessBadge(
 
   const signal = product.accessStrategy === 'paid-plan'
     ? context.paidPlan
+    : product.accessStrategy === 'pro-plan'
+      ? context.proPlan
     : product.accessStrategy === 'analytics-setup'
       ? context.analytics
       : context.claw
 
   if (signal === 'loading') return { label: 'Checking', tone: 'muted' }
   if (signal === 'error') return { label: 'Access unknown', tone: 'muted' }
-  if (signal === 'upgrade') return { label: 'Paid', tone: 'info' }
+  if (signal === 'upgrade') {
+    return { label: product.accessStrategy === 'pro-plan' ? 'Pro' : 'Paid', tone: 'info' }
+  }
   if (signal === 'setup') return { label: 'Setup required', tone: 'warning' }
 
   return {

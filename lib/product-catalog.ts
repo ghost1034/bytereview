@@ -24,6 +24,7 @@ export type ProductGroupId =
 export type ProductAccessStrategy =
   | 'available'
   | 'paid-plan'
+  | 'pro-plan'
   | 'analytics-setup'
   | 'claw-activation'
   | 'free'
@@ -84,7 +85,7 @@ export const PRODUCT_CATALOG: ProductCatalogItem[] = [
     appHref: '/dashboard/firmcrm',
     marketingHref: '/features#practice-operations',
     routePrefixes: ['/dashboard/firmcrm'],
-    accessStrategy: 'available',
+    accessStrategy: 'pro-plan',
   },
   {
     id: 'uda',

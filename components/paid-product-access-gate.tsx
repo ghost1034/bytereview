@@ -16,14 +16,20 @@ type PaidProductAccessGateProps = {
   children: ReactNode
   description: string
   icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>
+  isPlanAllowed?: (planCode: string | null | undefined) => boolean
+  planCodes?: string[]
   productName: string
+  viewPlansLabel?: string
 }
 
 export function PaidProductAccessGate({
   children,
   description,
   icon: ProductIcon,
+  isPlanAllowed = isPaidProductPlan,
+  planCodes,
   productName,
+  viewPlansLabel = 'View paid plans',
 }: PaidProductAccessGateProps) {
   const [upgradeOpen, setUpgradeOpen] = useState(false)
   const { data: billingAccount, isLoading, isFetching, error, refetch } = useBillingAccount()
@@ -37,7 +43,7 @@ export function PaidProductAccessGate({
     )
   }
 
-  if (billingAccount && isPaidProductPlan(billingAccount.plan_code)) {
+  if (billingAccount && isPlanAllowed(billingAccount.plan_code)) {
     return <>{children}</>
   }
 
@@ -64,13 +70,17 @@ export function PaidProductAccessGate({
           ) : (
             <Button type="button" onClick={() => setUpgradeOpen(true)}>
               <CreditCard className="size-4" aria-hidden />
-              View paid plans
+              {viewPlansLabel}
             </Button>
           )}
         </div>
       </section>
 
-      <SubscriptionModal isOpen={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
+      <SubscriptionModal
+        isOpen={upgradeOpen}
+        onClose={() => setUpgradeOpen(false)}
+        planCodes={planCodes}
+      />
     </div>
   )
 }

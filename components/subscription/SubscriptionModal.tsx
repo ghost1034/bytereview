@@ -17,11 +17,13 @@ import { cn } from '@/lib/utils'
 interface SubscriptionModalProps {
   isOpen: boolean
   onClose: () => void
+  planCodes?: string[]
 }
 
 export default function SubscriptionModal({
   isOpen,
   onClose,
+  planCodes,
 }: SubscriptionModalProps) {
   const { user } = useAuth()
   const { data: plans, isLoading } = useSubscriptionPlans()
@@ -98,7 +100,9 @@ export default function SubscriptionModal({
     )
   }
 
-  const paidPlans = plans?.filter((plan) => plan.code !== 'free') || []
+  const paidPlans = plans?.filter((plan) => (
+    plan.code !== 'free' && (!planCodes || planCodes.includes(plan.code))
+  )) || []
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
