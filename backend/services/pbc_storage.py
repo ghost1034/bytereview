@@ -7,7 +7,7 @@ from datetime import timedelta
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import func
+from sqlalchemy import case, and_, func
 from sqlalchemy.orm import Session
 
 from models.db_models import BillingAccount, Firm, SubscriptionPlan, User
@@ -26,10 +26,14 @@ ACTIVE_RESERVATION_AGE = timedelta(hours=24)
 
 def _firm_plan(db: Session, firm_id: uuid.UUID) -> tuple[str, int]:
     """Return the firm's highest PBC entitlement across its member accounts."""
+    effective_plan = case(
+        (and_(BillingAccount.plan_code == "free", BillingAccount.feedback_basic_until > func.now()), "basic"),
+        else_=BillingAccount.plan_code,
+    )
     rows = (
-        db.query(BillingAccount.plan_code, SubscriptionPlan.pbc_storage_bytes_included)
+        db.query(effective_plan, SubscriptionPlan.pbc_storage_bytes_included)
         .join(User, User.id == BillingAccount.user_id)
-        .join(SubscriptionPlan, SubscriptionPlan.code == BillingAccount.plan_code)
+        .join(SubscriptionPlan, SubscriptionPlan.code == effective_plan)
         .filter(User.firm_id == firm_id)
         .all()
     )

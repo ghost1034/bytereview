@@ -746,6 +746,9 @@ class BillingAccount(Base):
     # Token events before this instant are shadow tracked: visible in usage,
     # but neither quota enforced nor sent to Stripe.
     token_billing_effective_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    feedback_basic_until = Column(TIMESTAMP(timezone=True), nullable=True)
+    feedback_reward_available_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    usage_reset_at = Column(TIMESTAMP(timezone=True), nullable=True)
     status = Column(Text, nullable=False, default='active')  # 'active','past_due','canceled','paused'
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
@@ -765,6 +768,8 @@ class UsageEvent(Base):
     product = Column(Text, nullable=False, default="uda", server_default="uda")
     unit = Column(Text, nullable=False, default="page", server_default="page")
     quantity = Column(BigInteger, nullable=False, default=0, server_default="0")
+    # Feedback credits retain non-negative usage history while offsetting Stripe meters.
+    stripe_quantity = Column(BigInteger, nullable=True)
     operation_id = Column(Text, nullable=False)
     task_id = Column(UUID(as_uuid=True), ForeignKey("extraction_tasks.id", ondelete="SET NULL"), nullable=True)  # NULL for manual adjustments
     inkwise_ingestion_id = Column(UUID(as_uuid=True), ForeignKey("inkwise_source_ingestions.id", ondelete="SET NULL"), nullable=True)
@@ -828,6 +833,25 @@ class UsageCounter(Base):
 
     # Relationships
     user = relationship("User")
+
+
+class FeedbackSubmission(Base):
+    """Durable feedback and the reward applied in the same transaction."""
+    __tablename__ = "feedback_submissions"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(128), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    request_id = Column(UUID(as_uuid=True), nullable=False)
+    message = Column(Text, nullable=False)
+    page_path = Column(String(500), nullable=True)
+    reward = Column(String(30), nullable=False)
+    basic_until = Column(TIMESTAMP(timezone=True), nullable=True)
+    next_reward_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    pages_reset = Column(Integer, nullable=False, default=0)
+    tokens_reset = Column(BigInteger, nullable=False, default=0)
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("user_id", "request_id", name="uq_feedback_user_request"),)
 
 
 # ===================================================================

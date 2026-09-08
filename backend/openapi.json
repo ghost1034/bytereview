@@ -2919,6 +2919,52 @@
         ]
       }
     },
+    "/api/feedback": {
+      "post": {
+        "tags": [
+          "feedback"
+        ],
+        "summary": "Submit Feedback",
+        "operationId": "submit_feedback_api_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
     "/api/templates": {
       "get": {
         "tags": [
@@ -45012,6 +45058,30 @@
             "type": "string",
             "title": "User Id"
           },
+          "feedback_basic_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Basic Until"
+          },
+          "feedback_reward_available_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feedback Reward Available At"
+          },
           "plan_code": {
             "type": "string",
             "title": "Plan Code"
@@ -55728,6 +55798,97 @@
         ],
         "title": "ExtractionTaskResult",
         "description": "Result from a single extraction task"
+      },
+      "FeedbackRequest": {
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "page_path": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Path"
+          }
+        },
+        "type": "object",
+        "required": [
+          "request_id",
+          "message"
+        ],
+        "title": "FeedbackRequest"
+      },
+      "FeedbackResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "reward": {
+            "type": "string",
+            "enum": [
+              "basic_month",
+              "usage_reset",
+              "none"
+            ],
+            "title": "Reward"
+          },
+          "basic_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basic Until"
+          },
+          "next_reward_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Reward At"
+          },
+          "pages_reset": {
+            "type": "integer",
+            "title": "Pages Reset"
+          },
+          "tokens_reset": {
+            "type": "integer",
+            "title": "Tokens Reset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "reward",
+          "pages_reset",
+          "tokens_reset"
+        ],
+        "title": "FeedbackResponse"
       },
       "FieldAppearance": {
         "properties": {

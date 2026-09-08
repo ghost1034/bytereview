@@ -206,13 +206,13 @@ export default function SubscriptionManager() {
             <div className="flex items-center justify-between">
               <span className="text-sm text-foreground-muted">Price</span>
               <span className="text-sm font-medium text-foreground">
-                {getPlanPrice(billingAccount.plan_code)}/month
+                {billingAccount.feedback_basic_until ? 'Free for one month' : `${getPlanPrice(billingAccount.plan_code)}/month`}
               </span>
             </div>
           )}
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-foreground-muted">Next billing</span>
+            <span className="text-sm text-foreground-muted">{billingAccount.feedback_basic_until ? 'Returns to Free' : 'Next billing'}</span>
             <span className="inline-flex items-center gap-1 text-sm text-foreground">
               <Calendar
                 className="size-3.5 text-foreground-subtle"

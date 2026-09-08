@@ -764,48 +764,30 @@ async def run_free_user_period_reset(ctx: Dict[str, Any]) -> Dict[str, Any]:
     db = db_config.get_session()
     try:
         from services.billing_service import get_billing_service
-        from datetime import datetime, timezone, timedelta
-        from models.db_models import BillingAccount, UsageCounter
+        from datetime import datetime, timezone
+        from models.db_models import BillingAccount
         
         billing_service = get_billing_service(db)
         now = datetime.now(timezone.utc)
         
         # Find free users whose periods have expired
-        expired_accounts = db.query(BillingAccount).filter(
+        expired_ids = db.query(BillingAccount.user_id).filter(
             BillingAccount.plan_code == 'free',
-            BillingAccount.current_period_end < now
+            BillingAccount.current_period_end < now,
         ).all()
-        
+
         updated_count = 0
-        for account in expired_accounts:
+        for (user_id,) in expired_ids:
             try:
-                # Calculate new period boundaries (current month)
-                period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-                period_end = (period_start + timedelta(days=32)).replace(day=1) - timedelta(seconds=1)
-                
-                # Update billing account period
-                account.current_period_start = period_start
-                account.current_period_end = period_end
-                
-                # Create new usage counter for the new period
-                new_counter = UsageCounter(
-                    user_id=account.user_id,
-                    period_start=period_start,
-                    period_end=period_end,
-                    pages_total=0,
-                    tokens_total=0,
-                )
-                db.merge(new_counter)  # Use merge to handle conflicts
-                
+                # Re-read under the same lock used by feedback and usage writes.
+                # A concurrent feedback grant may have already extended the period.
+                billing_service.get_or_create_billing_account(user_id, lock=True)
+                db.commit()
                 updated_count += 1
-                logger.info(f"Reset period for free user {account.user_id}: {period_start} to {period_end}")
-                
-            except Exception as e:
-                logger.error(f"Failed to reset period for user {account.user_id}: {e}")
-                continue
-        
-        db.commit()
-        
+            except Exception:
+                db.rollback()
+                logger.exception("Failed to reset period for user %s", user_id)
+
         logger.info(f"Free user period reset completed: {updated_count} accounts updated")
         return {
             "success": True, 

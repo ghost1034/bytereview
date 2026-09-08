@@ -18,6 +18,8 @@ class CreatePortalSessionRequest(BaseModel):
 class BillingAccountResponse(BaseModel):
     """User's billing account information"""
     user_id: str
+    feedback_basic_until: Optional[datetime] = None
+    feedback_reward_available_at: Optional[datetime] = None
     plan_code: str
     plan_display_name: str
     pages_included: int

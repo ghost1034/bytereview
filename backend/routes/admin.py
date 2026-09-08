@@ -116,7 +116,7 @@ ADMIN_TABLE_GROUPS: dict[str, dict[str, Any]] = {
         "label": "Platform",
         "description": "Billing, usage, integrations, and connector infrastructure.",
         "tables": [
-            "subscription_plans", "billing_accounts", "usage_events",
+            "subscription_plans", "billing_accounts", "feedback_submissions", "usage_events",
             "usage_counters", "integration_accounts", "connector_connections",
             "connector_oauth_configs", "connector_tokens", "connector_action_logs",
             "hosted_claw_slack_installations", "hosted_claw_slack_links",

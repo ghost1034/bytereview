@@ -18,6 +18,7 @@ class BillingServiceSubscriptionSyncTests(unittest.TestCase):
     def _build_lookup_query(self, first_result):
         query = MagicMock()
         query.filter.return_value.first.return_value = first_result
+        query.filter.return_value.with_for_update.return_value = query.filter.return_value
         return query
 
     def _build_plans_query(self, plans):

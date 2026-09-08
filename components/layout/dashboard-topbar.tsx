@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
+import { FeedbackButton } from '@/components/feedback/FeedbackButton'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -119,6 +120,8 @@ export function DashboardTopbar({
           {actions}
         </div>
       ) : null}
+
+      <FeedbackButton />
 
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>

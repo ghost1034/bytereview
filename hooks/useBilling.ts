@@ -8,6 +8,8 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 
 export interface BillingAccount {
+  feedback_basic_until?: string | null
+  feedback_reward_available_at?: string | null
   user_id: string
   plan_code: string
   plan_display_name: string

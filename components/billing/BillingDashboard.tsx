@@ -102,7 +102,9 @@ export default function BillingDashboard() {
           label="Current plan"
           value={usage.plan_display_name}
           hint={
-            billingAccount.plan_code === 'free'
+            billingAccount.feedback_basic_until
+              ? `Free until ${new Date(billingAccount.feedback_basic_until).toLocaleDateString()}`
+              : billingAccount.plan_code === 'free'
               ? 'Free forever'
               : 'Billed monthly'
           }
@@ -177,7 +179,7 @@ export default function BillingDashboard() {
             {plans
               ?.filter((plan) => plan.code !== 'free')
               .map((plan) => {
-                const isCurrent = billingAccount.plan_code === plan.code
+                const isCurrent = billingAccount.plan_code === plan.code && !billingAccount.feedback_basic_until
                 return (
                   <div
                     key={plan.code}

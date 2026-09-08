@@ -316,10 +316,21 @@ class BillingService:
 
     # ------------------------ Accounts & Plans ------------------------
 
-    def get_or_create_billing_account(self, user_id: str) -> BillingAccount:
+    def get_or_create_billing_account(self, user_id: str, *, lock: bool = False) -> BillingAccount:
         """Fetch the user's billing account; create a Free one if absent."""
-        acct = self.db.query(BillingAccount).filter(BillingAccount.user_id == user_id).first()
+        query = self.db.query(BillingAccount).filter(BillingAccount.user_id == user_id)
+        if lock:
+            query = query.populate_existing().with_for_update()
+        acct = query.first()
         if acct:
+            # Complimentary Basic uses its own month; all other free periods use
+            # calendar months. Resolve expiration even when the worker is delayed.
+            now = datetime.now(timezone.utc)
+            if acct.plan_code == "free" and acct.current_period_end and acct.current_period_end < now:
+                if not lock:
+                    return self.get_or_create_billing_account(user_id, lock=True)
+                acct.current_period_start, acct.current_period_end = _month_bounds_utc(now)
+                self.db.flush()
             return acct
 
         now = datetime.now(timezone.utc)
@@ -344,14 +355,23 @@ class BillingService:
             tokens_total=0,
         )
         self.db.merge(counter)
-        self.db.commit()
-        return acct
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            if not self.db.query(BillingAccount).filter(BillingAccount.user_id == user_id).first():
+                raise
+        return self.get_or_create_billing_account(user_id, lock=lock)
 
     def get_billing_info(self, user_id: str) -> Dict[str, Any]:
         """Return merged plan + usage + automation info for UI and guards."""
         acct = self.get_or_create_billing_account(user_id)
 
-        plan = self.db.query(SubscriptionPlan).filter(SubscriptionPlan.code == acct.plan_code).first()
+        now = datetime.now(timezone.utc)
+        basic_until = getattr(acct, "feedback_basic_until", None)
+        feedback_trial = acct.plan_code == "free" and isinstance(basic_until, datetime) and basic_until > now
+        plan_code = "basic" if feedback_trial else acct.plan_code
+        plan = self.db.query(SubscriptionPlan).filter(SubscriptionPlan.code == plan_code).first()
 
         counter = (
             self.db.query(UsageCounter)
@@ -361,12 +381,17 @@ class BillingService:
         pages_used = counter.pages_total if counter else 0
         tokens_used = (counter.tokens_total if counter else 0) or 0
 
+        reset_at = getattr(acct, "usage_reset_at", None)
+        breakdown_start = acct.current_period_start
+        if isinstance(reset_at, datetime):
+            breakdown_start = max(breakdown_start, reset_at)
         breakdown_rows = (
             self.db.query(UsageEvent.product, UsageEvent.unit, func.sum(UsageEvent.quantity))
             .filter(
                 UsageEvent.user_id == user_id,
-                UsageEvent.occurred_at >= acct.current_period_start,
+                UsageEvent.occurred_at >= breakdown_start,
                 UsageEvent.occurred_at <= acct.current_period_end,
+                UsageEvent.source != "feedback_reset",
             )
             .group_by(UsageEvent.product, UsageEvent.unit)
             .all()
@@ -388,7 +413,9 @@ class BillingService:
 
         return {
             "user_id": user_id,
-            "plan_code": acct.plan_code,
+            "plan_code": plan_code,
+            "feedback_basic_until": basic_until if feedback_trial else None,
+            "feedback_reward_available_at": getattr(acct, "feedback_reward_available_at", None),
             "plan_display_name": plan.display_name if plan else "Unknown",
             "pages_included": plan.pages_included if plan else 0,
             "pages_used": pages_used,
@@ -397,8 +424,8 @@ class BillingService:
             "pbc_storage_bytes_included": getattr(plan, "pbc_storage_bytes_included", 0) if plan else 0,
             "automations_limit": plan.automations_limit if plan else 0,
             "automations_count": automations_count,
-            "overage_cents": plan.overage_cents if plan else 0,
-            "token_overage_cents": getattr(plan, "token_overage_cents", 0) if plan else 0,
+            "overage_cents": plan.overage_cents if plan and not feedback_trial else 0,
+            "token_overage_cents": getattr(plan, "token_overage_cents", 0) if plan and not feedback_trial else 0,
             "token_billing_effective_at": token_effective_at,
             "token_billing_shadow": token_shadow,
             "product_breakdown": product_breakdown,
@@ -446,7 +473,7 @@ class BillingService:
         info = self.get_billing_info(user_id)
         if unit == "token" and info["token_billing_shadow"]:
             return True
-        if info["plan_code"] == "free":
+        if info["plan_code"] == "free" or info.get("feedback_basic_until"):
             used = info["pages_used"] if unit == "page" else info["tokens_used"]
             included = info["pages_included"] if unit == "page" else info["tokens_included"]
             return used + additional_quantity <= included
@@ -543,7 +570,8 @@ class BillingService:
             logger.info("Usage already recorded for %s/%s operation %s", product, unit, operation_id)
             return str(existing_event.id)
 
-        acct = self.get_or_create_billing_account(user_id)
+        # Serialize usage writes with feedback resets so neither loses in-flight usage.
+        acct = self.get_or_create_billing_account(user_id, lock=True)
 
         info = self.get_billing_info(user_id)
         # Known page workloads must fit. Token workloads are checked before the
@@ -589,6 +617,7 @@ class BillingService:
         event_id = str(uuid.uuid4())
         event = UsageEvent(
             id=event_id,
+            occurred_at=datetime.now(timezone.utc),
             user_id=user_id,
             product=product,
             source=source,
@@ -709,11 +738,12 @@ class BillingService:
                 else os.getenv("STRIPE_PAGE_METER_EVENT_NAME", os.getenv("STRIPE_METER_EVENT_NAME", "cpaautomation_pages"))
             )
 
+            stripe_quantity = getattr(event, "stripe_quantity", None)
             evt = stripe.billing.MeterEvent.create(
                 event_name=event_name,
                 payload={
                     "stripe_customer_id": acct.stripe_customer_id,
-                    "value": int(event.quantity),
+                    "value": int(stripe_quantity if stripe_quantity is not None else event.quantity),
                 },
                 timestamp=int(event.occurred_at.timestamp()),
                 identifier=str(event.id),
@@ -828,7 +858,7 @@ class BillingService:
             logger.error("checkout.session.completed missing user_id or plan_code in metadata")
             return
 
-        acct = self.get_or_create_billing_account(user_id)
+        acct = self.get_or_create_billing_account(user_id, lock=True)
 
         sub_id = _get_object_value(session, "subscription")
         if not sub_id:
@@ -874,9 +904,9 @@ class BillingService:
             return
 
         customer_id = _get_object_value(subscription_obj, "customer")
-        acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_subscription_id == sub_id).first()
+        acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_subscription_id == sub_id).with_for_update().first()
         if not acct and customer_id:
-            acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_customer_id == customer_id).first()
+            acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_customer_id == customer_id).with_for_update().first()
         if not acct:
             logger.info(f"No BillingAccount for subscription {sub_id}; ignoring update.")
             return
@@ -927,7 +957,7 @@ class BillingService:
         if not sub_id:
             return
 
-        acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_subscription_id == sub_id).first()
+        acct = self.db.query(BillingAccount).filter(BillingAccount.stripe_subscription_id == sub_id).with_for_update().first()
         if not acct:
             return
 
