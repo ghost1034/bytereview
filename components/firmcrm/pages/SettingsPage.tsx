@@ -1,30 +1,15 @@
 'use client'
 import { useState } from 'react'
-import { FirmManagementTab } from '@/components/analytics/settings/FirmManagementTab'
 import { useCrmContext, useAuth } from '../lib/auth'
 import { patch } from '../api/client'
-import { Button, Card, Field, Input, PageHeader, Tabs } from '../components/ui'
+import { Button, Card, Field, Input, PageHeader } from '../components/ui'
 import { useToast } from '../components/ui/Toast'
 
 export default function SettingsPage() {
-  const [tab, setTab] = useState<'firm' | 'crm'>('firm')
-
   return (
     <div className="max-w-4xl space-y-5">
-      <PageHeader title="Settings" subtitle="Shared firm membership and CRM business rules" />
-      <Tabs value={tab} onChange={setTab} tabs={[
-        { key: 'firm', label: 'Firm management' },
-        { key: 'crm', label: 'CRM settings' },
-      ]} />
-      {tab === 'firm' ? (
-        <div className="space-y-5">
-          <p className="text-sm text-crm-sand-600">
-            FirmCRM shares your firm, invitation codes, and members with AI Analytics Suite, Tasklytic, and PBC.
-            Firm administrators manage membership here. CRM roles and access are managed in Administration.
-          </p>
-          <FirmManagementTab />
-        </div>
-      ) : <BusinessRules />}
+      <PageHeader title="Settings" subtitle="CRM business rules" />
+      <BusinessRules />
     </div>
   )
 }

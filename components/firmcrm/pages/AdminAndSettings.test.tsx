@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
-import { act } from 'react'
+import { act, type ReactNode } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { apiClient } from '@/lib/api'
 import { CrmContext, type CrmContext as Context } from '../lib/auth'
 import SettingsPage from './SettingsPage'
+import AdminPage from './AdminPage'
+import { ConfirmProvider } from '../components/ui/Confirm'
 
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { uid: 'current' } }) }))
 vi.mock('@/lib/api', () => ({
@@ -18,7 +20,7 @@ vi.mock('@/lib/api', () => ({
 }))
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: vi.fn() }) }))
 vi.mock('../components/ui/Toast', () => ({ useToast: () => ({ toast: vi.fn(), error: vi.fn() }) }))
-vi.mock('../api/client', () => ({ patch: vi.fn() }))
+vi.mock('../api/client', () => ({ get: vi.fn(async () => []), patch: vi.fn() }))
 
 let host: HTMLDivElement
 let root: Root
@@ -43,7 +45,7 @@ afterEach(async () => {
   host.remove()
 })
 
-async function render(platformRole = 'admin', crmRole: Context['user']['role'] = 'admin') {
+async function render(platformRole = 'admin', crmRole: Context['user']['role'] = 'admin', page: ReactNode = <AdminPage />) {
   const firm = {
     firm: { id: 'shared-firm', name: 'Shared firm' }, invite_code: 'ABC123',
     members: [
@@ -56,14 +58,15 @@ async function render(platformRole = 'admin', crmRole: Context['user']['role'] =
   await act(async () => root.render(
     <QueryClientProvider client={client}>
       <CrmContext.Provider value={{ ...context, user: { ...context.user, role: crmRole } }}>
-        <SettingsPage />
+        <ConfirmProvider>{page}</ConfirmProvider>
       </CrmContext.Provider>
     </QueryClientProvider>,
   ))
 }
 
-it('shows the shared firm and invitation code inside FirmCRM and regenerates through the shared API', async () => {
+it('shows the shared firm and invitation code in Administration and regenerates through the shared API', async () => {
   await render()
+  expect(host.querySelector('[role="tab"][aria-selected="true"]')?.textContent).toBe('Firm management')
   expect(host.textContent).toContain('Shared firm')
   expect(host.textContent).toContain('shared-firm')
   expect(host.textContent).toContain('ABC123')
@@ -78,15 +81,17 @@ it('uses platform membership permissions even when the current member is a CRM a
   expect(host.textContent).toContain('colleague@example.com')
   expect(host.textContent).not.toContain('Regenerate')
   expect(host.querySelector('select')).toBeNull()
-  await act(async () => Array.from(host.querySelectorAll('[role="tab"]')).find(tab => tab.textContent === 'CRM settings')!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  await render('analyst', 'admin', <SettingsPage />)
+  expect(host.textContent).not.toContain('colleague@example.com')
+  expect(host.querySelector('[role="tab"]')).toBeNull()
   expect(host.querySelector('button[type="submit"]')).not.toBeNull()
 })
 
-it('allows ordinary firm members to view the directory and keeps CRM business rules read-only', async () => {
-  await render('analyst', 'staff')
+it('allows CRM managers to view the firm directory and keeps staff business rules read-only', async () => {
+  await render('analyst', 'manager')
   expect(host.textContent).toContain('colleague@example.com')
   expect(host.querySelector('select')).toBeNull()
-  await act(async () => Array.from(host.querySelectorAll('[role="tab"]')).find(tab => tab.textContent === 'CRM settings')!.dispatchEvent(new MouseEvent('click', { bubbles: true })))
+  await render('analyst', 'staff', <SettingsPage />)
   expect(host.querySelector('button[type="submit"]')).toBeNull()
   expect(Array.from(host.querySelectorAll('input')).every(input => input.disabled)).toBe(true)
 })

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FirmManagementTab } from '@/components/analytics/settings/FirmManagementTab';
 import { useMutation, useQuery, useQueryClient } from "@/components/firmcrm/lib/query";
 import { LockOpen, Plus, UserPlus } from "lucide-react";
 import { adminApi, refApi, usersApi, wallsApi } from "@/components/firmcrm/api";
@@ -24,7 +25,7 @@ type AuditRow = Awaited<ReturnType<typeof adminApi.audit>>["items"][number];
 
 export default function AdminPage() {
   const { hasRole, user } = useAuth(); const qc = useQueryClient(); const { toast, error } = useToast(); const confirm = useConfirm();
-  const [tab, setTab] = useState<"users" | "practice" | "pipeline" | "walls" | "audit">("users");
+  const [tab, setTab] = useState<"firm" | "users" | "practice" | "pipeline" | "walls" | "audit">("firm");
   const [inactiveWalls, setInactiveWalls] = useState(false);
   const walls = useQuery({ queryKey: ["walls", inactiveWalls], queryFn: () => wallsApi.list({ include_inactive: inactiveWalls, limit: 200 }), enabled: tab === "walls" });
   const users = useQuery({ queryKey: ["users", "all"], queryFn: () => usersApi.list(true) });
@@ -83,11 +84,19 @@ export default function AdminPage() {
   ];
   return (
     <div>
-      <PageHeader title="Administration" subtitle="Users and roles · practice areas and clearance gates · pipeline stages · ethical walls · audit trail" />
-      <Tabs value={tab} onChange={setTab} tabs={[{ key: "users", label: "Users", count: users.data?.length }, { key: "practice", label: "Practice areas", count: pas.data?.length }, { key: "pipeline", label: "Pipeline stages" }, { key: "walls", label: "Ethical walls", count: walls.data?.total }, { key: "audit", label: "Audit log", count: audit.data?.total }]} />
+      <PageHeader title="Administration" subtitle="Manage your firm, access, and workflows." />
+      <Tabs value={tab} onChange={setTab} tabs={[{ key: "firm", label: "Firm management" }, { key: "users", label: "Users", count: users.data?.length }, { key: "practice", label: "Practice areas", count: pas.data?.length }, { key: "pipeline", label: "Pipeline stages" }, { key: "walls", label: "Ethical walls", count: walls.data?.total }, { key: "audit", label: "Audit log", count: audit.data?.total }]} />
       <div className="mt-5 space-y-4">
+        {tab === "firm" && (
+          <div className="max-w-4xl space-y-5">
+            <p className="text-sm text-crm-sand-600">
+              Manage shared CPAAutomation membership here. Set CRM roles and access in Users.
+            </p>
+            <FirmManagementTab />
+          </div>
+        )}
         {tab === "users" && <Card title="Users" padded={false}>
-          <Note top>Members come from your shared CPAAutomation firm. <Link to="/settings">Manage firm members and invitation codes in Settings.</Link> Edit a member below to change their CRM role or access.</Note>
+          <Note top>Edit CRM roles and access below. <button type="button" className="underline hover:no-underline" onClick={() => setTab("firm")}>Manage membership and invites in Firm management.</button></Note>
           {users.isLoading ? <Spinner /> : <table className="tbl"><thead><tr><th style={{ width: 260 }}>Name</th><th>Email</th><th style={{ width: 120 }}>Role</th><th style={{ width: 200 }} className="max-[1279px]:hidden">Practice area</th><th style={{ width: 180 }} className="max-[1179px]:hidden">Last sign-in</th><th style={{ width: 110 }}>Status</th></tr></thead>
             <tbody>{users.data?.map((u) => <tr key={u.id} className={isAdmin ? "clickable row-2line" : "row-2line"} tabIndex={isAdmin ? 0 : undefined} onClick={() => isAdmin && setEditUser(u)} onKeyDown={(e) => { if (isAdmin && e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); setEditUser(u); } }}>
               <td><NameCell name={u.full_name} sub={u.title} max={260} /></td><td><span className="block max-w-[260px] truncate whitespace-nowrap text-crm-sand-600" title={u.email}>{u.email}</span></td><td><Badge>{titleCase(u.role)}</Badge></td>
