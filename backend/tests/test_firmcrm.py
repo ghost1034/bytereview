@@ -234,6 +234,52 @@ def test_clearance_and_waiver_gate(crm):
     call(crm,'post',f'/opportunities/{o["id"]}/stage',json={'stage_id':won['id']})
 
 
+def test_conflict_company_name_alias_archive_and_tenant_scope(crm):
+    prospect = account(crm, 'Prospective customer')
+    company = call(crm, 'post', '/accounts', expected=201, json={
+        'name': 'Northstar Industries LLC', 'aliases': 'Blue Harbor',
+        'account_type': 'adverse_party', 'entity_kind': 'company',
+        'description': 'Existing adverse relationship requires review',
+    })
+    other = account(crm, 'Other firm prospect', user='other')
+    for name in ['Northstar Industries', 'Blue Harbor']:
+        check = call(crm, 'post', '/conflict-checks', expected=201, json={
+            'account_id': prospect['id'], 'parties': [name],
+        })
+        assert check['status'] == 'pending'
+        assert any(match['entity_id'] == company['id'] and match['relationship'] == 'adverse_party' for match in check['matches'])
+        assert check['resolved_at'] is None
+        assert call(crm, 'post', '/conflict-checks', user='other', expected=201, json={
+            'account_id': other['id'], 'parties': [name],
+        })['status'] == 'clear'
+    call(crm, 'patch', f"/accounts/{company['id']}", json={'aliases': 'Blue Harbor, Red Cedar'})
+    call(crm, 'post', f"/accounts/{company['id']}/archive")
+    register = call(crm, 'get', '/accounts?account_type=adverse_party&include_archived=true&q=Red%20Cedar')
+    assert [row['id'] for row in register['items']] == [company['id']]
+    assert call(crm, 'post', '/conflict-checks', expected=201, json={
+        'account_id': prospect['id'], 'parties': ['Red Cedar'],
+    })['status'] == 'pending'
+
+
+def test_conflict_company_self_match_requires_review_and_blocks_won(crm):
+    company = call(crm, 'post', '/accounts', expected=201, json={
+        'name': 'Northstar Industries', 'aliases': 'Blue Harbor', 'account_type': 'adverse_party',
+    })
+    area = next(p for p in call(crm, 'get', '/practice-areas') if p['clearance_type'] == 'conflict')
+    opp = opportunity(crm, company, practice_area_id=area['id'], engagement_letter_status='signed')
+    won = next(stage['id'] for stage in call(crm, 'get', '/pipelines')[0]['stages'] if stage['is_won'])
+    for reference in [{'account_id': company['id']}, {'opportunity_id': opp['id']}]:
+        for name in [company['name'], 'Blue Harbor']:
+            check = call(crm, 'post', '/conflict-checks', expected=201, json={**reference, 'parties': [name]})
+            assert check['status'] == 'pending'
+            assert any(match['entity_id'] == company['id'] for match in check['matches'])
+    call(crm, 'post', f"/opportunities/{opp['id']}/stage", expected=400, json={'stage_id': won})
+    ordinary = account(crm, 'Unrelated prospect')
+    assert call(crm, 'post', '/conflict-checks', expected=201, json={
+        'account_id': ordinary['id'], 'parties': [ordinary['name']],
+    })['status'] == 'clear'
+
+
 def test_explicit_client_sharing_and_permanent_link(crm):
     a=account(crm)
     published=call(crm,'post',f'/accounts/{a["id"]}/shared-client',json={})

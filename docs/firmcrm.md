@@ -16,6 +16,12 @@ The imported `firmcrm/` directory remains reference material. Production code li
 - Historical CSV uploads contain unstructured row data that cannot safely be attributed to individual matters. Import history, exception downloads, and file-level audit entries are withheld from actors with any inaccessible matters. They remain available to actors who can see the full firm dataset. Current CSV record exports always follow the actor's visibility.
 - CRM writes serialize on the firm row. This intentionally favors correct conversion, publication, and wall behavior over concurrent write throughput. Engagement uniqueness and active-wall uniqueness are also enforced in PostgreSQL. Reopening and winning again reuses the existing engagement.
 
+## Conflict companies and clearance
+
+In **FirmCRM → Clearance**, use **Add conflict company** to save a company name, comma-separated aliases, and conflict reason / notes. The **Conflict companies** tab lists and edits these records, including archived entries, with search and pagination. They use the existing adverse-party account type and appear in Accounts as well. For an existing account, edit its Type to Adverse Party instead of creating a duplicate. No migration or API contract change is required.
+
+Recorded checks and ad-hoc searches screen these companies alongside other accounts, contacts, and adverse parties on opportunities and engagements. A match on a recorded check produces **Pending review**, requiring a reviewer decision. An adverse-party account remains a match even when checking that account itself or its opportunity; ordinary prospect self-matches are still excluded. Archived companies remain searchable, and firm boundaries and ethical-wall redaction still apply. Changes affect new checks; rerun clearance after maintaining the list because historical decisions are retained.
+
 ## Shared clients
 
 Accounts remain CRM-only until a manager or higher explicitly links or publishes them. The actor must also have the platform's shared-client write permission. Matching is selectable and same-firm; names never trigger an automatic merge.

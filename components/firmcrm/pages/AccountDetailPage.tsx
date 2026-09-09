@@ -1,7 +1,7 @@
 import { SharedClientPanel } from "../components/crm/SharedClientPanel";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@/components/firmcrm/lib/query";
-import { useNavigate, useParams } from "@/components/firmcrm/lib/navigation";
+import { Link, useNavigate, useParams } from "@/components/firmcrm/lib/navigation";
 import { Archive, ArchiveRestore, Lock, Pencil, Plus, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/components/firmcrm/lib/auth";
 import { accountsApi, contactsApi, conflictsApi, engagementsApi, oppsApi } from "@/components/firmcrm/api";
@@ -121,7 +121,7 @@ export default function AccountDetailPage() {
             ? <Empty title="No engagements yet" hint="Engagements are created automatically when an opportunity on this account is Closed Won." />
             : <DataTable rows={engs.data} columns={engCols} loading={engs.isLoading} twoLine empty="No engagements yet" />}
         </Card>}
-        {tab === "clearance" && <ClearanceList checks={checks.data} loading={checks.isLoading} />}
+        {tab === "clearance" && <><p className="mb-4 text-[13px] leading-5 text-crm-sand-600">Manage the screening list and add companies in <Link to="/clearance">Clearance → Conflict companies</Link>.</p><ClearanceList checks={checks.data} loading={checks.isLoading} /></>}
       </div>
       <FormModal open={editing} onClose={() => setEditing(false)} title="Edit account" fields={accFields} initial={a as unknown as FormValues}
         onSubmit={async (v) => { const body: Record<string, unknown> = {}; for (const f of accFields) body[f.name] = v[f.name] ?? null; await accountsApi.update(id, body as Partial<Account>); qc.invalidateQueries({ queryKey: ["account", id] }); qc.invalidateQueries({ queryKey: ["accounts"] }); toast("Account updated"); }} />

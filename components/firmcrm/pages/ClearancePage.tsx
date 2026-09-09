@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@/components/firmcrm/lib/query";
 import { Link } from "@/components/firmcrm/lib/navigation";
-import { AlertTriangle, Lock, Search, ShieldOff } from "lucide-react";
+import { AlertTriangle, Lock, Plus, Search, ShieldOff } from "lucide-react";
 import { conflictsApi } from "@/components/firmcrm/api";
 import type { ConflictCheck, ConflictMatch } from "@/components/firmcrm/api/types";
 import { Badge, Button, Card, Empty, Field, Modal, PageHeader, Select, Spinner, Tabs, Textarea, cn, statusTone } from "@/components/firmcrm/components/ui";
@@ -9,6 +9,7 @@ import { useToast } from "@/components/firmcrm/components/ui/Toast";
 import { Pagination, usePager } from "@/components/firmcrm/components/ui/Pagination";
 import { useAuth } from "@/components/firmcrm/lib/auth";
 import { fmtDateTime, titleCase } from "@/components/firmcrm/lib/format";
+import { ConflictCompanies, ConflictCompanyModal } from "@/components/firmcrm/components/crm/ConflictCompanies";
 import { INDEPENDENCE_QUESTIONS } from "@/components/firmcrm/lib/options";
 
 /** `flush`: inside a card, run the table edge-to-edge (§6.6 — the card is the table wrapper; no box-in-box). */
@@ -135,21 +136,22 @@ export function ClearanceList({ checks, loading, compact }: { checks: ConflictCh
 }
 
 export default function ClearancePage() {
-  const [tab, setTab] = useState<"pending" | "all" | "search">("pending");
+  const [tab, setTab] = useState<"pending" | "all" | "search" | "companies">("pending");
+  const [creatingCompany, setCreatingCompany] = useState(false);
   const [parties, setParties] = useState(""); const [results, setResults] = useState<ConflictMatch[] | null>(null);
   const { error } = useToast();
   const pager = usePager(25);
-  const checks = useQuery({ queryKey: ["checks", tab, pager.limit, pager.offset], queryFn: () => conflictsApi.list({ ...(tab === "pending" ? { status: "pending" } : {}), limit: pager.limit, offset: pager.offset }), enabled: tab !== "search" });
+  const checks = useQuery({ queryKey: ["checks", tab, pager.limit, pager.offset], queryFn: () => conflictsApi.list({ ...(tab === "pending" ? { status: "pending" } : {}), limit: pager.limit, offset: pager.offset }), enabled: tab === "pending" || tab === "all" });
   // Tab counts are part of the label (§6.12) and must not disappear when the other tab is active: two cheap limit=1 totals.
   const pendingTotal = useQuery({ queryKey: ["checks", "count", "pending"], queryFn: () => conflictsApi.list({ status: "pending", limit: 1 }), select: (p) => p.total });
   const allTotal = useQuery({ queryKey: ["checks", "count", "all"], queryFn: () => conflictsApi.list({ limit: 1 }), select: (p) => p.total });
   const search = useMutation({ mutationFn: () => conflictsApi.search(parties.split("\n").map((s) => s.trim()).filter(Boolean)), onSuccess: setResults, onError: error });
   return (
     <div>
-      <PageHeader title="Clearance" subtitle="Conflict checks (legal) and independence checks (attest). Pending items block Closed Won until a manager or partner resolves them." />
-      <Tabs value={tab} onChange={setTab} tabs={[{ key: "pending", label: "Pending review", count: pendingTotal.data }, { key: "all", label: "All checks", count: allTotal.data }, { key: "search", label: "Ad-hoc search" }]} />
+      <PageHeader title="Clearance" subtitle="Conflict checks (legal) and independence checks (attest). Pending items block Closed Won until a manager or partner resolves them." actions={<Button variant="primary" onClick={() => setCreatingCompany(true)}><Plus size={14} />Add conflict company</Button>} />
+      <div className="overflow-x-auto [&_button]:shrink-0 [&_button]:whitespace-nowrap"><Tabs value={tab} onChange={(value) => { setTab(value); pager.reset(); }} tabs={[{ key: "pending", label: "Pending review", count: pendingTotal.data }, { key: "all", label: "All checks", count: allTotal.data }, { key: "search", label: "Ad-hoc search" }, { key: "companies", label: "Conflict companies" }]} /></div>
       <div className="mt-5">
-        {tab !== "search" ? (
+        {tab === "companies" ? <ConflictCompanies /> : tab !== "search" ? (
           <>
             <ClearanceList checks={checks.data?.items} loading={checks.isLoading} />
             {checks.data && checks.data.total > pager.limit && <div className="card mt-3 overflow-hidden"><Pagination total={checks.data.total} limit={pager.limit} offset={pager.offset} onOffset={pager.setOffset} onLimit={pager.setLimit} /></div>}
@@ -168,6 +170,7 @@ export default function ClearancePage() {
             </div>
           </Card>)}
       </div>
+      {creatingCompany && <ConflictCompanyModal onClose={() => setCreatingCompany(false)} onSaved={() => { setTab("companies"); setResults(null); }} />}
     </div>
   );
 }

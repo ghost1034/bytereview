@@ -47,7 +47,8 @@ function RunCheckModal({ opp, onClose }: { opp: Opportunity; onClose: () => void
   return (
     <Drawer open onClose={onClose} title={`Run ${type} check`} footer={<><Button onClick={onClose}>Cancel</Button><Button variant="primary" onClick={() => m.mutate()} disabled={m.isPending}>Run check</Button></>}>
       <div className="space-y-4">
-        <Field label="Parties to search (one per line)" hint="Client, affiliates, principals, and adverse parties. Matched against accounts, aliases, contacts, and recorded adverse parties."><Textarea value={parties} onChange={(e) => setParties(e.target.value)} className="min-h-[110px] font-mono text-[12px]" /></Field>
+        <Field label="Parties to search (one per line)" hint="Client, affiliates, principals, and adverse parties. Matched against conflict companies, accounts, aliases, contacts, and recorded adverse parties."><Textarea value={parties} onChange={(e) => setParties(e.target.value)} className="min-h-[110px] font-mono text-[12px]" /></Field>
+        <p className="text-[12px] leading-4 text-crm-sand-600">Maintain the screening list in <Link to="/clearance">Clearance → Conflict companies</Link>.</p>
         {type === "independence" && (
           <div>
             <div className="label">Independence attestation (engagement team)</div>

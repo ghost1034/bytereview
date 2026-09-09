@@ -80,10 +80,10 @@ def _search(db: Session, parties: list[str]) -> list[dict]:
 
 
 def filter_self(matches: list[dict], *, account_id: int | None, opportunity_id: int | None) -> list[dict]:
-    """Drop matches that are merely the prospect itself or the adverse parties typed on this same opportunity."""
+    """Exclude ordinary self-matches, but retain an account explicitly registered as adverse."""
     out = []
     for m in matches:
-        if account_id and m["entity"] == "account" and m["entity_id"] == account_id:
+        if account_id and m["entity"] == "account" and m["entity_id"] == account_id and m["relationship"] != "adverse_party":
             continue
         if opportunity_id and m["entity"] == "adverse_party" and m.get("source_type") == "opportunity" and m["entity_id"] == opportunity_id:
             continue
