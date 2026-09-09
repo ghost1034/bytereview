@@ -14,11 +14,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select, event, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
-from models.db_models import Base, Firm, User as PlatformUser, Client
+from models.db_models import Base, Firm, FirmInviteCode, User as PlatformUser, Client
 from firmcrm import models as m
 from firmcrm.core.db import CrmSession, get_db, refresh_visibility
 from firmcrm.provisioning import provision
-from firmcrm.router import router
+from firmcrm.router import router, require_pro_firmcrm_user
+from services.analytics import firms_service
 from firmcrm.services.shared_clients import require_client_unlinked
 from firmcrm.lifecycle import export_firm_crm, purge_firm_crm
 
@@ -38,7 +39,7 @@ def crm():
     @event.listens_for(engine,'begin')
     def begin(connection):
         if not url: connection.exec_driver_sql('BEGIN')
-    Base.metadata.create_all(engine,tables=[Firm.__table__,PlatformUser.__table__,Client.__table__]+[model.__table__ for model in m.CRM_MODELS])
+    Base.metadata.create_all(engine,tables=[Firm.__table__,FirmInviteCode.__table__,PlatformUser.__table__,Client.__table__]+[model.__table__ for model in m.CRM_MODELS])
     firms=[uuid.uuid4(),uuid.uuid4()]
     with Session(engine) as db:
         db.add_all([Firm(id=firms[0],name='Alpha'),Firm(id=firms[1],name='Beta')]);db.flush()
@@ -58,6 +59,9 @@ def crm():
             refresh_visibility(db)
             yield db
     app=FastAPI();app.include_router(router);app.dependency_overrides[get_db]=database
+    # These domain tests use synthetic authenticated members. Subscription and
+    # router-level access enforcement are covered in test_firmcrm_authorization.
+    app.dependency_overrides[require_pro_firmcrm_user] = lambda: {'uid': 'admin'}
     with TestClient(app) as client:
         for uid in ['admin','other']: assert client.get('/api/firmcrm/context',headers={'X-Test-User':uid}).status_code==200
         for uid in ['manager','partner']:
@@ -96,6 +100,38 @@ def test_initialization_and_tenant_scope(crm):
     call(crm,'post','/contacts',user='other',expected=404,json={'first_name':'X','last_name':'Y','account_id':a['id']})
     call(crm,'post','/accounts',expected=404,json={'name':'Bad owner','owner_id':'other'})
     call(crm,'post','/opportunities',expected=404,json={'name':'Wrong pipeline','account_id':a['id'],'pipeline_id':second[0]['id']})
+
+
+def test_shared_firm_invitation_and_platform_roles_flow_into_crm(crm):
+    existing = account(crm, 'Existing shared firm account')
+    with Session(crm[1]) as db:
+        member = PlatformUser(id='new-member', email='new-member@example.com')
+        db.add(member)
+        db.commit()
+        code = firms_service.generate_invite_code(db, crm[2][0])
+        joined = firms_service.join_firm_by_code(db, member, code.lower())
+        assert joined.id == crm[2][0]
+
+    context = call(crm, 'get', '/context', user='new-member')
+    assert context['firm_id'] == str(crm[2][0])
+    assert context['firm_name'] == 'Alpha'
+    assert context['user']['role'] == 'staff'
+    assert call(crm, 'get', f'/accounts/{existing["id"]}', user='new-member')['name'] == existing['name']
+    assert 'new-member' in {member['id'] for member in call(crm, 'get', '/users')}
+    assert 'new-member' not in {member['id'] for member in call(crm, 'get', '/users', user='other')}
+    call(crm, 'patch', '/settings', user='new-member', expected=403, json={'default_currency': 'GBP'})
+
+    with Session(crm[1]) as db:
+        firms_service.update_member(db, crm[2][0], 'new-member', role='admin', set_role=True,
+                                    persona=None, title=None, set_persona=False, set_title=False)
+    assert call(crm, 'get', '/context', user='new-member')['user']['role'] == 'admin'
+    call(crm, 'patch', '/settings', user='new-member', json={'default_currency': 'GBP'})
+
+    with Session(crm[1]) as db:
+        firms_service.update_member(db, crm[2][0], 'new-member', role='analyst', set_role=True,
+                                    persona=None, title=None, set_persona=False, set_title=False)
+    assert call(crm, 'get', '/context', user='new-member')['user']['role'] == 'staff'
+    call(crm, 'patch', '/settings', user='new-member', expected=403, json={'default_currency': 'USD'})
 
 
 def test_restricted_referral_and_historical_import_payloads(crm):

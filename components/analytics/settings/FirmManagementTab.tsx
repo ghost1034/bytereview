@@ -1,6 +1,6 @@
 'use client'
 
-import { Copy, Loader2 } from 'lucide-react'
+import { Copy } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast'
 import { isAdmin, settingsRoleLabel } from '@/lib/analytics/labels'
 import type { AnalyticsFirmMember, AnalyticsUserRole } from '@/lib/analytics/types'
 
-/** CPAAnalytics settings only distinguish Admin vs User. Map User to analyst in the API. */
+/** Shared firm settings distinguish Admin vs User. Map User to analyst in the API. */
 function toSettingsRole(role: AnalyticsUserRole | undefined): 'admin' | 'user' {
   return role === 'admin' ? 'admin' : 'user'
 }
@@ -113,7 +113,7 @@ export function FirmManagementTab() {
       <Section
         variant="card"
         title="Firm details"
-        description="Basic information about your analytics firm."
+        description="Your shared CPAAutomation firm."
       >
         <div className="space-y-4">
           <div className="rounded-xl border border-border bg-surface-muted p-4">
