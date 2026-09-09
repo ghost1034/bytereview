@@ -60,10 +60,6 @@ export function ConflictCompanies() {
     queryFn: () => accountsApi.list({ account_type: 'adverse_party', include_archived: true, q: q || undefined, limit: pager.limit, offset: pager.offset }),
   });
   return <div className="space-y-4">
-    <p className="text-[13px] leading-5 text-crm-sand-600">
-      Companies to screen for conflicts. Matches require review, including archived companies.
-      Run a new check after edits; past decisions stay in the audit history.
-    </p>
     <SearchInput aria-label="Search conflict companies" placeholder="Search company or alias…" value={q}
       onChange={(event) => { setQ(event.target.value); pager.reset(); }} />
     {companies.isError ? <div role="alert" className="card p-5 text-crm-danger-700">Could not load conflict companies. <Button onClick={() => companies.refetch()}>Retry</Button></div>
