@@ -4,14 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import hashlib
 import logging
 import math
 import os
 import tempfile
 import time
 import uuid
-from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import fitz
@@ -21,18 +21,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload
 
 from core.database import db_config
-from inkwise.services.ocrmypdf_service import OCRmyPDFError, OCRmyPDFService
 from models.db_models import (
-    EsignAiFieldPlacementRun, EsignDocument, EsignEnvelope, EsignEnvelopeStatus,
-    EsignField, EsignFieldType, EsignRecipientRole, EsignTemplate, EsignTemplateDocument,
+    EsignAiFieldPlacementRun, EsignEnvelope,
+    EsignField, EsignFieldType, EsignRecipientRole, EsignTemplate,
     EsignTemplateField,
 )
 from models.esign import (
     EsignAiFieldPlacementActionResponse, EsignAiFieldPlacementApplyRequest,
     EsignAiFieldPlacementCreateRequest, EsignAiFieldPlacementProposal,
-    EsignAiFieldPlacementRunResponse, EsignFieldProperties,
+    EsignAiFieldPlacementRunResponse,
 )
-from services.billing_service import BillingService, PlanLimitExceeded
+from services.billing_service import BillingService
 from services.cloud_run_task_service import cloud_run_task_service
 from services.esign.authorization_service import esign_authorization_service
 from services.esign.envelope_service import (
@@ -40,7 +39,9 @@ from services.esign.envelope_service import (
     esign_envelope_service, normalize_template_roles, validate_field_placement,
 )
 from services.esign.field_logic import FieldLogicError, validate_field_graph
-from services.esign.placement_analysis import PIPELINE_VERSION, analyze_documents, validate_group_acceptance
+from services.esign.placement_single_call import (
+    PIPELINE_VERSION, analyze_documents, validate_group_acceptance, remap_properties,
+)
 from services.esign.placement_model import generate_placement_response
 from services.esign.placement_targets import field_box, intersection_fraction
 from services.gcs_service import get_storage_service
@@ -48,7 +49,8 @@ from services.pdf_anchor import relative_anchor_box_position, resolve_contextual
 
 
 logger = logging.getLogger(__name__)
-ALLOWED_TYPES = {
+# Historical anchor parser compatibility; live runs use the shared 20-type contract.
+LEGACY_ALLOWED_TYPES = {
     "signature", "initials", "date_signed", "first_name", "last_name", "full_name",
     "email", "company", "title", "text", "checkbox", "date", "number",
 }
@@ -105,7 +107,7 @@ def parse_ai_field_placement_response(payload: Any) -> tuple[list[dict[str, Any]
             warnings.append(f"Suggestion {index + 1} was omitted because it was malformed.")
             continue
         field_type = str(item.get("field_type") or "").strip().lower()
-        if field_type not in ALLOWED_TYPES:
+        if field_type not in LEGACY_ALLOWED_TYPES:
             warnings.append(f"Suggestion {index + 1} used unsupported field type '{field_type or 'unknown'}' and was omitted.")
             continue
         parsed.append({**item, "field_type": field_type})
@@ -231,9 +233,7 @@ def materialize_ai_field_placement_proposal(
 class EsignAiFieldPlacementService:
     def __init__(self) -> None:
         self.storage = get_storage_service()
-        self.ocr = OCRmyPDFService()
         self.model_name = os.getenv("ESIGN_AI_FIELD_PLACEMENT_MODEL", "gemini-2.5-flash")
-        self._client: genai.Client | None = None
 
     @staticmethod
     def _serialize(run: EsignAiFieldPlacementRun) -> EsignAiFieldPlacementRunResponse:
@@ -297,7 +297,9 @@ class EsignAiFieldPlacementService:
             snapshot = self._snapshot(target_type, target)
             allowed_users = {item.strip() for item in os.getenv('ESIGN_AI_TARGET_PIPELINE_USERS', '').split(',') if item.strip()}
             enabled = os.getenv('ESIGN_AI_TARGET_PIPELINE', 'false').lower() == 'true' or user_id in allowed_users
-            snapshot['pipeline_version'] = PIPELINE_VERSION if enabled else 'anchors-v1'
+            if not enabled:
+                raise EsignError('AI field placement is temporarily paused. Place fields manually or try again later.')
+            snapshot['pipeline_version'] = PIPELINE_VERSION
             snapshot['model_settings'] = {'model': self.model_name,
                                           'location': os.getenv('ESIGN_AI_FIELD_PLACEMENT_LOCATION', 'global'),
                                           'temperature': 0.1}
@@ -435,6 +437,7 @@ class EsignAiFieldPlacementService:
                 if (item.get('properties') or {}).get('selection_group') and any(_overlap_duplicate(item, other) for other in existing):
                     raise EsignConflict('A choice group overlaps fields added since analysis. Review or regenerate the group.')
             added: list[Any] = []
+            saved_ids = {item['id']: str(uuid.uuid4()) for item in proposals}
             roles = normalize_template_roles(target.recipient_roles or []) if run.target_type == "template" else []
             for item in proposals:
                 if any(_overlap_duplicate(item, other) for other in existing):
@@ -443,10 +446,10 @@ class EsignAiFieldPlacementService:
                 document = next((doc for doc in target.documents if str(doc.id) == proposal.document_id), None)
                 if not document or proposal.participant_id not in current_participants: raise EsignConflict("A suggestion references a removed document or role")
                 validate_field_placement(proposal.model_dump(), document)
-                common = dict(id=uuid.uuid4(), field_type=EsignFieldType(proposal.field_type), page_number=proposal.page_number,
+                common = dict(id=uuid.UUID(saved_ids[proposal.id]), field_type=EsignFieldType(proposal.field_type), page_number=proposal.page_number,
                               pos_x=proposal.pos_x, pos_y=proposal.pos_y, width=proposal.width, height=proposal.height,
                               required=proposal.required, label=proposal.label,
-                              properties=proposal.properties.model_dump(exclude_none=True))
+                              properties=remap_properties(proposal.properties.model_dump(exclude_none=True), saved_ids))
                 if run.target_type == "envelope":
                     field = EsignField(envelope_id=target.id, document_id=uuid.UUID(proposal.document_id), recipient_id=uuid.UUID(proposal.participant_id), **common)
                 else:
@@ -478,13 +481,6 @@ class EsignAiFieldPlacementService:
         except Exception: db.rollback(); raise
         finally: db.close()
 
-    def _client_or_raise(self) -> genai.Client:
-        if self._client is None:
-            project = os.getenv("GOOGLE_CLOUD_PROJECT_ID")
-            if not project: raise RuntimeError("Vertex AI is not configured")
-            self._client = genai.Client(vertexai=True, project=project, location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"))
-        return self._client
-
     @staticmethod
     def _response_schema(document_ids: list[str], participant_ids: list[str]) -> types.Schema:
         proposal = types.Schema(
@@ -493,7 +489,7 @@ class EsignAiFieldPlacementService:
                 "document_id": types.Schema(type="STRING", enum=document_ids),
                 "page_number": types.Schema(type="INTEGER", minimum=0),
                 "participant_id": types.Schema(type="STRING", enum=participant_ids),
-                "field_type": types.Schema(type="STRING", enum=sorted(ALLOWED_TYPES)),
+                "field_type": types.Schema(type="STRING", enum=sorted(LEGACY_ALLOWED_TYPES)),
                 "anchor_text": types.Schema(type="STRING", min_length=1),
                 "anchor_before": types.Schema(type="STRING", nullable=True),
                 "anchor_after": types.Schema(type="STRING", nullable=True),
@@ -552,198 +548,181 @@ Page-numbered extracted text:
 Additional sender instructions: {instructions or 'None'}
 """
 
-    async def _download_analysis_pdf(self, document: Any, directory: str) -> tuple[str, bool]:
-        source = os.path.join(directory, f"{document.id}.pdf")
-        await self.storage.download_file(document.gcs_object_name, source)
-        needs_ocr = False
-        with fitz.open(source) as pdf:
-            needs_ocr = any(len(page.get_text().strip()) < 25 for page in pdf)
-        if not needs_ocr: return source, False
-        output = os.path.join(directory, f"{document.id}-ocr.pdf")
-        try:
-            await asyncio.to_thread(self.ocr.run_ocr, input_pdf_path=source, output_pdf_path=output,
-                                    languages=os.getenv("FORM_FILL_TARGET_OCR_LANGUAGES", "eng"),
-                                    timeout_seconds=int(os.getenv("FORM_FILL_TARGET_OCR_TIMEOUT_SECONDS", "600")))
-        except OCRmyPDFError as exc: raise RuntimeError(f"OCR failed for {document.original_filename}: {exc}") from exc
-        return output, True
-
-    def _generate_model_payload(self, document_parts: list[Any], prompt: str, response_schema: types.Schema) -> Any:
-        response = self._client_or_raise().models.generate_content(
-            model=self.model_name, contents=document_parts + [prompt],
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=response_schema,
-                temperature=0.1,
-            ),
-        )
-        return json.loads(response.text or "{}")
-
     def _generate_target_payload(
-        self, phase: str, prompt: str, schema: dict[str, Any], image: bytes,
+        self, phase: str, prompt: str, schema: dict[str, Any], image: bytes | list[dict[str, Any]],
         settings: dict[str, Any],
     ) -> tuple[dict[str, Any], dict[str, Any]]:
         with genai.Client(vertexai=True, project=os.environ['GOOGLE_CLOUD_PROJECT_ID'],
-                          location=settings.get('location', 'us-central1')) as client:
+                          location=settings.get('location', 'global'),
+                          http_options=types.HttpOptions(timeout=600_000, retry_options=types.HttpRetryOptions(attempts=1))) as client:
             return generate_placement_response(client, {'model': self.model_name, **settings}, phase, prompt, schema, image)
 
+    def _durable_generate(self, run_id: str, token: uuid.UUID, settings: dict[str, Any],
+                          phase: str, prompt: str, schema: dict[str, Any], images: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Reserve once before network I/O; replay only a durably stored response."""
+        request_hash = hashlib.sha256(json.dumps({
+            'prompt': prompt, 'schema': schema, 'settings': settings,
+            'images': [hashlib.sha256(image['data']).hexdigest() for image in images],
+        }, sort_keys=True).encode()).hexdigest()
+        with db_config.get_session() as db:
+            run = db.query(EsignAiFieldPlacementRun).filter_by(id=uuid.UUID(run_id)).with_for_update().one()
+            if run.status != 'processing' or run.processing_token != token or run.processing_deadline <= datetime.now(timezone.utc):
+                raise RuntimeError('Analysis worker no longer owns this run')
+            if run.model_response is not None:
+                if run.model_response['request_hash'] != request_hash:
+                    raise ValueError('Saved response does not match the prepared request')
+                return run.model_response['response'], run.model_response['provider']
+            if run.inference_attempted_at is not None:
+                raise RuntimeError('The single inference attempt was already reserved; start a new analysis')
+            run.inference_attempted_at = datetime.now(timezone.utc)
+            run.processing_deadline = datetime.now(timezone.utc) + timedelta(minutes=30)
+            run.analysis_diagnostics = {'pipeline_version': PIPELINE_VERSION, 'request_hash': request_hash, 'attempted_calls': 1}
+            db.commit()
+        raw, metadata = self._generate_target_payload(phase, prompt, schema, images, settings)
+        with db_config.get_session() as db:
+            run = db.query(EsignAiFieldPlacementRun).filter_by(id=uuid.UUID(run_id)).with_for_update().one()
+            if run.status != 'processing' or run.processing_token != token or run.processing_deadline <= datetime.now(timezone.utc):
+                raise RuntimeError('Analysis completed after its worker lease ended')
+            run.model_response = {'request_hash': request_hash, 'response': raw, 'provider': metadata}
+            db.commit()
+        return raw, metadata
+
+    def recover_expired_runs(self) -> list[str]:
+        """Expired workers lose their lease. Only saved responses can resume."""
+        requeue = []
+        with db_config.get_session() as db:
+            runs = db.query(EsignAiFieldPlacementRun).filter(
+                EsignAiFieldPlacementRun.status == 'processing',
+                EsignAiFieldPlacementRun.processing_deadline < datetime.now(timezone.utc),
+            ).with_for_update(skip_locked=True).all()
+            for run in runs:
+                run.processing_token = None
+                run.processing_deadline = None
+                if run.model_response is not None and run.processing_attempts < 3:
+                    run.status = 'queued'
+                    requeue.append(str(run.id))
+                else:
+                    run.status = 'failed'
+                    run.completed_at = datetime.now(timezone.utc)
+                    run.error = 'Analysis timed out. Start a new analysis or place fields manually.'
+            db.commit()
+            # Re-offer saved-response work on every maintenance tick until a
+            # worker claims it, including after an enqueue/network failure.
+            requeue = [str(row.id) for row in db.query(EsignAiFieldPlacementRun).filter(
+                EsignAiFieldPlacementRun.status == 'queued',
+                EsignAiFieldPlacementRun.model_response.isnot(None),
+                EsignAiFieldPlacementRun.processing_attempts < 3,
+            ).all()]
+        return requeue
+
     async def process_run(self, run_id: str, **task_context: Any) -> dict[str, Any]:
-        started = time.monotonic(); db = db_config.get_session()
+        started = time.monotonic()
         try:
-            try: parsed = uuid.UUID(str(run_id))
-            except ValueError: return {"status": "not_found"}
+            parsed = uuid.UUID(str(run_id))
+        except ValueError:
+            return {'status': 'not_found'}
+        token = uuid.uuid4()
+        diagnostics: dict[str, Any] = {}
+        db = db_config.get_session()
+        try:
             run = db.query(EsignAiFieldPlacementRun).filter_by(id=parsed).with_for_update().first()
-            if not run: return {"status": "not_found"}
-            if run.status != "queued": return {"status": run.status}
-            run.status = "processing"; run.started_at = datetime.now(timezone.utc); db.commit()
-            target_model = EsignEnvelope if run.target_type == "envelope" else EsignTemplate
-            target = db.query(target_model).options(joinedload(target_model.documents), joinedload(target_model.fields)).filter_by(id=run.envelope_id or run.template_id).first()
-            if not target: raise RuntimeError("Draft target was deleted")
-            selected = set(str(item) for item in run.selected_document_ids or [])
-            documents = [item for item in target.documents or [] if str(item.id) in selected]
-            snapshot = run.target_snapshot or {}; participants = snapshot.get("participants", [])
-            existing = snapshot.get("existing_fields", [self._field_dict(item, target_type=run.target_type) for item in target.fields or []])
-            document_parts: list[Any] = []; local_paths: dict[str, str] = {}; page_text_sections: list[str] = []; ocr_used = 0
-            omission_counts: Counter[str] = Counter(); recovery_counts: Counter[str] = Counter()
-            analysis_issues: list[dict[str, Any]] = []
-            diagnostics: dict[str, Any] = {}
-            if snapshot.get('pipeline_version') == PIPELINE_VERSION:
-                if {str(d.id) for d in documents} != selected:
-                    raise RuntimeError('A selected document was removed before analysis')
-                with tempfile.TemporaryDirectory(prefix='esign-target-placement-') as directory:
-                    originals = {}
-                    for document in documents:
-                        path = os.path.join(directory, f'{document.id}.pdf')
-                        await self.storage.download_file(document.gcs_object_name, path)
-                        with open(path, 'rb') as handle:
-                            originals[str(document.id)] = handle.read()
-                    settings = snapshot.get('model_settings') or {}
-                    result = await asyncio.to_thread(
-                        analyze_documents, originals, snapshot, run.instructions,
-                        lambda phase, prompt, schema, image: self._generate_target_payload(phase, prompt, schema, image, settings),
-                        model_settings=settings, diagnostics_sink=diagnostics,
-                    )
-                proposals = result.proposals
-                analysis_issues = result.issues
-                warnings = []
-                omission_counts.update(item['code'] for item in analysis_issues)
-                model_warning_count = 0
-            else:
-                with tempfile.TemporaryDirectory(prefix="esign-ai-placement-") as directory:
-                    for document in documents:
-                        path, used = await self._download_analysis_pdf(document, directory); ocr_used += int(used); local_paths[str(document.id)] = path
-                        with open(path, "rb") as handle: document_parts.append(types.Part.from_bytes(data=handle.read(), mime_type="application/pdf"))
-                        with fitz.open(path) as text_pdf:
-                            for page_index, text_page in enumerate(text_pdf):
-                                page_text_sections.append(
-                                    f"Document {document.id}, zero-based page {page_index} "
-                                    f"(display page {page_index + 1}):\n{text_page.get_text().strip()}"
-                                )
-                    page_numbered_text = "\n\n".join(page_text_sections)
-                    prompt = self._build_model_prompt(
-                        documents=documents,
-                        participants=participants,
-                        existing=existing,
-                        page_numbered_text=page_numbered_text,
-                        instructions=run.instructions,
-                    )
-                    response_schema = self._response_schema(
-                        [str(document.id) for document in documents],
-                        [str(participant["id"]) for participant in participants],
-                    )
-                    raw = await asyncio.to_thread(
-                        self._generate_model_payload, document_parts, prompt, response_schema,
-                    )
-                    diagnostics = {'pipeline_version': 'anchors-v1', 'snapshot': snapshot,
-                                   'instructions': run.instructions, 'model_settings': snapshot.get('model_settings', {}),
-                                   'prompt': prompt, 'response': raw}
-                    candidates, warnings = parse_ai_field_placement_response(raw)
-                    parse_omissions = sum("omitted" in warning.lower() for warning in warnings)
-                    if parse_omissions:
-                        omission_counts["parse"] += parse_omissions
-                    model_warning_count = len(warnings) - parse_omissions
-                    proposals: list[dict[str, Any]] = []
-                    participant_ids = {item["id"] for item in participants}; docs_by_id = {str(item.id): item for item in documents}
-                    pdfs = {doc_id: fitz.open(path) for doc_id, path in local_paths.items()}
-                    try:
-                        for index, item in enumerate(candidates):
-                            participant_id = str(item.get("participant_id") or "")
-                            document_id = str(item.get("document_id") or "")
-                            if participant_id not in participant_ids:
-                                warnings.append(f"Suggestion {index + 1} was omitted because its signing role was missing or ambiguous.")
-                                omission_counts["signing_role"] += 1; continue
-                            document = docs_by_id.get(document_id)
-                            if not document:
-                                warnings.append(f"Suggestion {index + 1} was omitted because its document was not selected.")
-                                omission_counts["document"] += 1; continue
-                            try:
-                                if isinstance(item.get("page_number"), bool): raise ValueError
-                                page_number = int(item.get("page_number"))
-                            except (TypeError, ValueError): page_number = -1
-                            if page_number < 0 or page_number >= int(document.page_count):
-                                warnings.append(f"Suggestion {index + 1} was omitted because its page was invalid.")
-                                omission_counts["page"] += 1; continue
-                            page = pdfs[document_id][page_number]
-                            normalized, candidate_warnings, recovery_codes, omission_code = materialize_ai_field_placement_proposal(
-                                item,
-                                suggestion_number=index + 1,
-                                document_id=document_id,
-                                participant_id=participant_id,
-                                page_number=page_number,
-                                page=page,
-                            )
-                            warnings.extend(candidate_warnings)
-                            recovery_counts.update(recovery_codes)
-                            if normalized is None:
-                                omission_counts[omission_code or "validation"] += 1; continue
-                            if any(_overlap_duplicate(normalized, other) for other in existing + proposals):
-                                warnings.append(f"Suggestion {index + 1} overlapped an existing or duplicate field and was omitted.")
-                                omission_counts["overlap"] += 1; continue
-                            proposals.append(normalized)
-                    finally:
-                        for pdf in pdfs.values(): pdf.close()
+            if not run:
+                return {'status': 'not_found'}
+            if run.status != 'queued':
+                return {'status': run.status}
+            if (run.target_snapshot or {}).get('pipeline_version') != PIPELINE_VERSION:
+                run.status = 'failed'
+                run.error = 'This analysis uses an older pipeline. Start a new analysis.'
+                run.completed_at = datetime.now(timezone.utc)
+                db.commit()
+                return {'status': 'failed'}
+            if run.processing_attempts >= 3:
+                run.status = 'failed'
+                run.error = 'Local analysis could not be completed. Start a new analysis.'
+                run.completed_at = datetime.now(timezone.utc)
+                db.commit()
+                return {'status': 'failed'}
+            if run.inference_attempted_at is not None and run.model_response is None:
+                run.status = 'failed'
+                run.error = 'The previous request outcome is unknown. Start a new analysis.'
+                run.completed_at = datetime.now(timezone.utc)
+                db.commit()
+                return {'status': 'failed'}
+            run.status = 'processing'
+            run.processing_attempts += 1
+            run.started_at = datetime.now(timezone.utc)
+            run.processing_token = token
+            run.processing_deadline = datetime.now(timezone.utc) + timedelta(minutes=30)
+            db.commit()
+            snapshot = run.target_snapshot
+            target_model = EsignEnvelope if run.target_type == 'envelope' else EsignTemplate
+            target = db.query(target_model).options(joinedload(target_model.documents)).filter_by(id=run.envelope_id or run.template_id).first()
+            if not target:
+                raise ValueError('Draft target was deleted')
+            selected = set(run.selected_document_ids)
+            documents = [document for document in target.documents if str(document.id) in selected]
+            if {str(d.id) for d in documents} != selected:
+                raise ValueError('A selected document was removed before analysis')
+            with tempfile.TemporaryDirectory(prefix='esign-single-request-') as directory:
+                originals = {}
+                for document in documents:
+                    path = os.path.join(directory, f'{document.id}.pdf')
+                    await self.storage.download_file(document.gcs_object_name, path)
+                    with open(path, 'rb') as handle:
+                        originals[str(document.id)] = handle.read()
+                settings = snapshot['model_settings']
+                result = await asyncio.to_thread(
+                    analyze_documents, originals, snapshot, run.instructions,
+                    lambda phase, prompt, schema, images: self._durable_generate(str(parsed), token, settings, phase, prompt, schema, images),
+                    model_settings=settings, diagnostics_sink=diagnostics,
+                )
             db.refresh(run, with_for_update=True)
-            if run.status == "discarded": return {"status": "discarded"}
-            billing = BillingService(db)
-            usage_event_id = billing.record_usage(
-                user_id=run.requester_user_id,
-                product="esign",
-                source="esign_ai_field_placement",
-                unit="page",
-                quantity=int(run.page_usage),
-                operation_id=str(run.id),
-                esign_ai_field_placement_run_id=str(run.id), notes="E-Signature AI field placement",
-                commit=False,
+            if run.status != 'processing' or run.processing_token != token or run.processing_deadline <= datetime.now(timezone.utc):
+                return {'status': run.status}
+            BillingService(db).record_usage(
+                user_id=run.requester_user_id, product='esign', source='esign_ai_field_placement',
+                unit='page', quantity=int(run.page_usage), operation_id=str(run.id),
+                esign_ai_field_placement_run_id=str(run.id), notes='E-Signature AI field placement', commit=False,
             )
-            run.issues = analysis_issues
+            diagnostics['attempted_calls'] = int(run.inference_attempted_at is not None)
+            diagnostics['request_hash'] = run.model_response['request_hash']
             run.analysis_diagnostics = diagnostics
-            run.proposals = proposals; run.warnings = warnings; run.status = "completed"; run.completed_at = datetime.now(timezone.utc); db.commit()
-            logger.info("esign_ai_field_placement_metric %s", json.dumps({
-                "event": "completed", "run_id": str(run.id),
-                "duration_ms": int((time.monotonic()-started)*1000), "pages": run.page_usage,
-                "proposals": len(proposals), "omissions": sum(omission_counts.values()),
-                "omission_reasons": dict(omission_counts), "recoveries": dict(recovery_counts),
-                "model_warnings": model_warning_count, "ocr_documents": ocr_used,
-                "pipeline_version": snapshot.get('pipeline_version', 'anchors-v1'),
-                "model_calls": len(diagnostics.get('calls', [])),
-                "model_tokens": sum(call.get('provider', {}).get('usage', {}).get('total_token_count', 0) or 0 for call in diagnostics.get('calls', [])),
+            run.issues = result.issues
+            run.proposals = result.proposals
+            run.warnings = []
+            run.status = 'completed'
+            run.completed_at = datetime.now(timezone.utc)
+            run.processing_deadline = None
+            run.processing_token = None
+            db.commit()
+            logger.info('esign_ai_field_placement_metric %s', json.dumps({
+                'event': 'completed', 'run_id': str(run.id), 'pipeline_version': PIPELINE_VERSION,
+                'duration_ms': int((time.monotonic()-started)*1000), 'pages': run.page_usage,
+                'proposals': len(result.proposals), 'omissions': len(result.issues), 'model_calls': 1,
+                'model_tokens': sum(c.get('provider', {}).get('usage', {}).get('total_token_count', 0) or 0 for c in diagnostics['calls']),
             }))
-            return {"status": "completed", "proposals": len(proposals)}
+            return {'status': 'completed', 'proposals': len(result.proposals)}
         except Exception as exc:
             db.rollback()
-            failed = db.query(EsignAiFieldPlacementRun).filter_by(id=run_id).first()
-            if failed and failed.status in ACTIVE_STATUSES:
-                if 'diagnostics' in locals() and diagnostics:
-                    failed.analysis_diagnostics = diagnostics
-                retry_count = task_context.get("task_retry_count")
-                max_attempts = max(1, int(os.getenv("TASK_EXTRACT_MAX_ATTEMPTS", "3")))
-                if retry_count is not None and int(retry_count) + 1 < max_attempts:
-                    failed.status = "queued"; failed.error = None; failed.started_at = None
-                else:
-                    failed.status = "failed"; failed.error = "AI analysis failed. Place fields manually or try again."; failed.completed_at = datetime.now(timezone.utc)
+            failed = db.query(EsignAiFieldPlacementRun).filter_by(id=parsed).with_for_update().first()
+            if failed and failed.status == 'processing' and failed.processing_token == token:
+                # Only local failures after response persistence are retryable.
+                # Validation failures are terminal and never re-call the model.
+                can_resume = failed.model_response is not None and not isinstance(exc, ValueError) and failed.processing_attempts < 3
+                attempted = int(failed.inference_attempted_at is not None)
+                failed.analysis_diagnostics = {**(failed.analysis_diagnostics or {}), **diagnostics, 'attempted_calls': attempted}
+                failed.status = 'queued' if can_resume else 'failed'
+                failed.processing_token = None
+                failed.processing_deadline = None
+                failed.error = None if can_resume else (str(exc)[:500] if isinstance(exc, ValueError) else 'AI analysis failed. Start a new analysis or place fields manually.')
+                failed.completed_at = None if can_resume else datetime.now(timezone.utc)
                 db.commit()
-            logger.error("esign_ai_field_placement_metric %s", json.dumps({"event": "failed", "run_id": str(run_id), "model_error": type(exc).__name__}))
-            raise
-        finally: db.close()
+                if can_resume:
+                    raise
+            logger.error('esign_ai_field_placement_metric %s', json.dumps({'event': 'failed', 'run_id': run_id, 'model_error': type(exc).__name__}))
+            return {'status': failed.status if failed else 'not_found'}
+        finally:
+            db.close()
 
 
 esign_ai_field_placement_service = EsignAiFieldPlacementService()

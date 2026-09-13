@@ -49658,18 +49658,32 @@
               "signature",
               "initials",
               "date_signed",
+              "text",
+              "checkbox",
+              "auto_fill",
+              "attachment",
+              "radio",
+              "dropdown",
+              "formula",
+              "stamp",
+              "date",
+              "number",
               "first_name",
               "last_name",
               "full_name",
               "email",
               "company",
               "title",
-              "text",
-              "checkbox",
-              "date",
-              "number"
+              "note"
             ],
             "title": "Field Type"
+          },
+          "dependency_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dependency Ids"
           },
           "page_number": {
             "type": "integer",

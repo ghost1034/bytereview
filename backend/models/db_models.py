@@ -1833,6 +1833,11 @@ class EsignAiFieldPlacementRun(Base):
     issues = Column(JSONB, nullable=False, default=list, server_default=expression.text("'[]'::jsonb"))
     # Private evidence; intentionally excluded from the public run serializer.
     analysis_diagnostics = Column(JSONB, nullable=False, default=dict, server_default=expression.text("'{}'::jsonb"))
+    inference_attempted_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    model_response = Column(JSONB, nullable=True)
+    processing_token = Column(UUID(as_uuid=True), nullable=True)
+    processing_deadline = Column(TIMESTAMP(timezone=True), nullable=True)
+    processing_attempts = Column(Integer, nullable=False, default=0, server_default="0")
     error = Column(Text, nullable=True)
     page_usage = Column(Integer, nullable=False, default=0, server_default="0")
     started_at = Column(TIMESTAMP(timezone=True), nullable=True)

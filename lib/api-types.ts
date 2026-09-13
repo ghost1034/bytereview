@@ -12793,7 +12793,9 @@ export interface components {
              * Field Type
              * @enum {string}
              */
-            field_type: "signature" | "initials" | "date_signed" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "text" | "checkbox" | "date" | "number";
+            field_type: "signature" | "initials" | "date_signed" | "text" | "checkbox" | "auto_fill" | "attachment" | "radio" | "dropdown" | "formula" | "stamp" | "date" | "number" | "first_name" | "last_name" | "full_name" | "email" | "company" | "title" | "note";
+            /** Dependency Ids */
+            dependency_ids?: string[];
             /** Page Number */
             page_number: number;
             /** Pos X */

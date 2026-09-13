@@ -79,7 +79,8 @@ export interface EsignAiFieldPlacementProposal {
   target_source?: string | null
   document_id: string
   participant_id: string
-  field_type: 'signature' | 'initials' | 'date_signed' | 'first_name' | 'last_name' | 'full_name' | 'email' | 'company' | 'title' | 'text' | 'checkbox' | 'date' | 'number'
+  field_type: import('./api-types').components['schemas']['EsignAiFieldPlacementProposal']['field_type']
+  dependency_ids?: string[]
   page_number: number
   pos_x: number
   pos_y: number

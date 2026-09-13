@@ -991,10 +991,8 @@ class EsignAiFieldPlacementProposal(BaseModel):
     target_source: Optional[str] = None
     document_id: str
     participant_id: str
-    field_type: Literal[
-        "signature", "initials", "date_signed", "first_name", "last_name", "full_name",
-        "email", "company", "title", "text", "checkbox", "date", "number",
-    ]
+    field_type: EsignFieldTypeName
+    dependency_ids: list[str] = Field(default_factory=list)
     page_number: int = Field(ge=0)
     pos_x: float = Field(ge=0, le=1)
     pos_y: float = Field(ge=0, le=1)
@@ -1008,6 +1006,8 @@ class EsignAiFieldPlacementProposal(BaseModel):
     def valid_box_and_properties(self):
         _validate_normalized_field_box(self.pos_x, self.pos_y, self.width, self.height)
         self.properties = _validated_properties(self.field_type, self.properties)
+        if self.field_type == "formula":
+            self.required = False
         return self
 
 

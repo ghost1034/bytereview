@@ -22,6 +22,18 @@ describe('AI placement review', () => {
     expect([...removeAiSuggestionGroup(proposals, new Set(['yes', 'no', 'name']), 'name')]).toEqual(['yes', 'no'])
   })
 
+  it('removes radio peers and transitive dependents without removing their sources', () => {
+    const source = { ...proposal('amount'), field_type: 'number' as const }
+    const computed = { ...proposal('computed'), field_type: 'formula' as const, dependency_ids: ['amount'] }
+    const conditional = { ...proposal('conditional'), dependency_ids: ['computed'] }
+    const radio = (id: string): EsignAiFieldPlacementProposal => ({ ...proposal(id), field_type: 'radio', properties: { group: { id: 'r' } } })
+    const proposals = [source, computed, conditional, radio('a'), radio('b')]
+    const ids = new Set(proposals.map((p) => p.id))
+    expect([...removeAiSuggestionGroup(proposals, ids, 'amount')]).toEqual(['a', 'b'])
+    expect([...removeAiSuggestionGroup(proposals, ids, 'computed')]).toEqual(['amount', 'a', 'b'])
+    expect([...removeAiSuggestionGroup(proposals, ids, 'a')]).toEqual(['amount', 'computed', 'conditional'])
+  })
+
   it('shows an unresolved target and navigates to its original document and page', async () => {
     const element = document.createElement('div')
     const root = createRoot(element)

@@ -1198,7 +1198,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
             setActiveDocumentId(issue.document_id)
             setAiFocusPage({ documentId: issue.document_id, pageNumber: issue.page_number })
           }} />
-          {aiRun.proposals.some((proposal) => proposal.properties?.selection_group) && <p className="text-foreground-muted">Choice options are reviewed together. Removing one removes the group.</p>}
+          {aiRun.proposals.some((proposal) => proposal.properties?.selection_group || proposal.properties?.group || proposal.dependency_ids?.length) && <p className="text-foreground-muted">Choice options are reviewed together. Removing a source also removes suggestions that depend on it.</p>}
           {aiError && <p className="text-destructive">{aiError}</p>}
           <div className="flex gap-1.5"><Button type="button" size="sm" className="h-7 flex-1 text-xs" disabled={aiBusy} onClick={() => void applyAiPlacement()}>{aiBusy && <Loader2 className="mr-1 size-3 animate-spin" />}Apply remaining</Button><Button type="button" variant="outline" size="sm" className="h-7 text-xs" disabled={aiBusy} onClick={() => void discardAiPlacement()}>Discard all</Button></div>
         </div>}

@@ -43,6 +43,10 @@ class EsignMaintenanceService:
         # bounded claims make duplicate Cloud Scheduler/Tasks delivery safe.
         from services.esign.scale_service import esign_scale_service
         from services.esign.webhook_service import esign_webhook_service
+        from services.esign.ai_field_placement_service import esign_ai_field_placement_service
+        from services.cloud_run_task_service import cloud_run_task_service
+        for run_id in esign_ai_field_placement_service.recover_expired_runs():
+            await cloud_run_task_service.enqueue_esign_ai_field_placement_task(run_id)
         bulk_rows = await esign_scale_service.process_queued_rows()
         scheduled = await esign_scale_service.dispatch_due()
         seal_tasks = await esign_outbox_service.dispatch_due_seals()

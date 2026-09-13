@@ -84,20 +84,10 @@ def setup(database,monkeypatch):
         db.add_all([document,recipient]);db.commit()
         envelope_id=str(envelope.id)
     calls=[]
+    from esign_placement_helpers import consent_model
     def generate(phase,prompt,schema,image,settings):
         calls.append(phase)
-        if phase=='discover': return {'targets':[]},{}
-        if phase in {'select','repair'}:
-            participants=json.loads(prompt.split('Participants: ')[1].split('\nTargets: ')[0])
-            targets=json.loads(prompt.split('Targets: ')[1].split('\nExisting fields: ')[0])
-            rows=[]
-            for t in targets:
-                eligible='Witness' not in t['section'] and 'Obtaining' not in t['section']
-                rows.append({'target_id':t['id'],'participant_id':participants[0]['id'] if eligible else None,
-                    'field_type':t['kind'],'required':True,'disposition':'proposed' if eligible else 'unassigned','reason':'Missing role' if not eligible else ''})
-            return {'assignments':rows},{}
-        ids=schema['properties']['checks']['items']['properties']['target_id']['enum']
-        return {'checks':[{'target_id':t,'accepted':True,'reason':'','corrected_box':None} for t in ids]},{}
+        return consent_model(phase,prompt,schema,image,settings)
     service._generate_target_payload=generate
     def create(): return asyncio.run(service.create_run(user_id,'envelope',envelope_id,EsignAiFieldPlacementCreateRequest(expected_revision=1)))
     return SimpleNamespace(service=service,sessions=sessions,uid=user_id,envelope_id=envelope_id,create=create,calls=calls,charges=charges,queued=queued)
@@ -129,20 +119,22 @@ def test_run_completion_replay_evidence_application_and_idempotence(setup):
         assert db.query(EsignField).filter_by(envelope_id=uuid.UUID(s.envelope_id)).count()==5
 
 
-def test_retry_queues_then_completes_and_discard_does_not_charge(setup):
-    s=setup;created=s.create();original=s.service._generate_target_payload
-    def failure(*args): raise RuntimeError('Simulated model failure')
+def test_provider_failure_is_terminal_and_never_retries(setup):
+    s=setup;created=s.create()
+    attempts=[]
+    def failure(*args):
+        attempts.append(1)
+        raise RuntimeError('Simulated model failure')
     s.service._generate_target_payload=failure
-    with pytest.raises(RuntimeError,match='Simulated'):
-        asyncio.run(s.service.process_run(created.id,task_retry_count=0))
-    assert s.service.get_run(s.uid,created.id).status=='queued'
+    assert asyncio.run(s.service.process_run(created.id,task_retry_count=0)) == {'status':'failed'}
+    assert s.service.get_run(s.uid,created.id).status=='failed'
     assert s.charges==[]
-    s.service._generate_target_payload=original
-    assert asyncio.run(s.service.process_run(created.id,task_retry_count=1))['status']=='completed'
-    assert len(s.charges)==1
-    s.service.discard_run(s.uid,created.id)
-    assert asyncio.run(s.service.process_run(created.id))=={'status':'discarded'}
-    assert len(s.charges)==1
+    assert asyncio.run(s.service.process_run(created.id,task_retry_count=1)) == {'status':'failed'}
+    assert len(attempts)==1
+    with s.sessions() as db:
+        run=db.get(EsignAiFieldPlacementRun,uuid.UUID(created.id))
+        assert run.inference_attempted_at is not None
+        assert run.analysis_diagnostics['attempted_calls']==1
 
 
 def test_stale_revision_and_changed_roles_prevent_application(setup):
@@ -157,11 +149,10 @@ def test_stale_revision_and_changed_roles_prevent_application(setup):
         s.service.apply_run(s.uid,run.id,EsignAiFieldPlacementApplyRequest(accepted_proposal_ids=[p.id for p in run.proposals],current_revision=1))
 
 
-def test_rollout_flag_is_snapshotted_and_legacy_runs_default_to_anchors(setup,monkeypatch):
+def test_rollout_disabled_pauses_new_analyses(setup,monkeypatch):
     monkeypatch.setenv('ESIGN_AI_TARGET_PIPELINE','false')
-    s=setup;created=s.create()
-    with s.sessions() as db:
-        assert db.get(EsignAiFieldPlacementRun,uuid.UUID(created.id)).target_snapshot['pipeline_version']=='anchors-v1'
+    with pytest.raises(EsignError,match='paused'):
+        setup.create()
 
 
 def test_field_added_after_analysis_cannot_be_overwritten_by_a_different_type(setup):
@@ -206,3 +197,133 @@ def test_additive_migration_preserves_old_runs_and_round_trips(database):
             migration.upgrade()
         assert conn.execute(text('select count(*) from esign_ai_field_placement_runs')).scalar()==before
         assert conn.execute(text("select count(*) from esign_ai_field_placement_runs where issues is null or analysis_diagnostics is null")).scalar()==0
+
+
+def test_saved_response_resumes_local_processing_without_inference(setup, monkeypatch):
+    from services.esign import placement_single_call
+    s = setup
+    created = s.create()
+    original = placement_single_call.materialize
+    def failure(*args, **kwargs):
+        raise RuntimeError('Local processing interrupted')
+    monkeypatch.setattr(placement_single_call, 'materialize', failure)
+    with pytest.raises(RuntimeError, match='Local processing'):
+        asyncio.run(s.service.process_run(created.id, task_retry_count=0))
+    with s.sessions() as db:
+        run = db.get(EsignAiFieldPlacementRun, uuid.UUID(created.id))
+        assert run.status == 'queued'
+        assert run.model_response is not None and run.inference_attempted_at is not None
+    monkeypatch.setattr(placement_single_call, 'materialize', original)
+    assert asyncio.run(s.service.process_run(created.id, task_retry_count=1))['status'] == 'completed'
+    assert s.calls == ['analyze']
+    assert len(s.charges) == 1
+
+
+def test_concurrent_delivery_and_late_response_cannot_reenter_or_complete(setup):
+    from concurrent.futures import ThreadPoolExecutor
+    from datetime import datetime, timedelta, timezone
+    import threading
+    s = setup
+    created = s.create()
+    entered, release = threading.Event(), threading.Event()
+    original = s.service._generate_target_payload
+    def held(*args):
+        entered.set()
+        assert release.wait(20)
+        return original(*args)
+    s.service._generate_target_payload = held
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(lambda: asyncio.run(s.service.process_run(created.id)))
+        try:
+            assert entered.wait(10)
+            assert asyncio.run(s.service.process_run(created.id)) == {'status': 'processing'}
+            with s.sessions() as db:
+                run = db.get(EsignAiFieldPlacementRun, uuid.UUID(created.id))
+                assert run.inference_attempted_at is not None
+                run.processing_deadline = datetime.now(timezone.utc)-timedelta(seconds=1)
+                db.commit()
+            assert s.service.recover_expired_runs() == []
+        finally:
+            release.set()
+        assert future.result()['status'] == 'failed'
+    with s.sessions() as db:
+        run = db.get(EsignAiFieldPlacementRun, uuid.UUID(created.id))
+        assert run.model_response is None and run.proposals == []
+    assert s.charges == []
+    assert asyncio.run(s.service.process_run(created.id)) == {'status': 'failed'}
+    assert s.calls == ['analyze']
+
+
+def test_crash_after_reservation_cannot_request_again(setup):
+    from datetime import datetime, timedelta, timezone
+    s = setup
+    created = s.create()
+    def crash(*args):
+        raise SystemExit('simulated process death')
+    s.service._generate_target_payload = crash
+    with pytest.raises(SystemExit):
+        asyncio.run(s.service.process_run(created.id))
+    with s.sessions() as db:
+        run = db.get(EsignAiFieldPlacementRun, uuid.UUID(created.id))
+        assert run.inference_attempted_at is not None
+        run.processing_deadline = datetime.now(timezone.utc)-timedelta(seconds=1)
+        db.commit()
+    s.service.recover_expired_runs()
+    assert asyncio.run(s.service.process_run(created.id)) == {'status': 'failed'}
+    assert s.charges == []
+
+
+def test_invalid_response_is_terminal_after_persistence(setup):
+    s = setup
+    created = s.create()
+    s.service._generate_target_payload = lambda *args: ({'fields': None}, {})
+    assert asyncio.run(s.service.process_run(created.id)) == {'status': 'failed'}
+    with s.sessions() as db:
+        run = db.get(EsignAiFieldPlacementRun, uuid.UUID(created.id))
+        assert run.model_response is not None
+    assert asyncio.run(s.service.process_run(created.id)) == {'status': 'failed'}
+    assert s.charges == []
+
+
+def test_apply_remaps_formula_and_conditional_ids(setup):
+    s = setup
+    created = s.create()
+    asyncio.run(s.service.process_run(created.id))
+    with s.sessions() as db:
+        run = db.get(EsignAiFieldPlacementRun, uuid.UUID(created.id))
+        example = run.proposals[0]
+        base = {**example, 'field_type': 'number', 'page_number': 0, 'pos_y': .1, 'width': .1, 'height': .03, 'properties': {'schema_version': 2}}
+        a = {**base, 'id': 'source-proposal', 'pos_x': .1, 'target_id': 'source'}
+        b = {**base, 'id': 'formula-proposal', 'pos_x': .3, 'target_id': 'formula', 'field_type': 'formula',
+             'dependency_ids': ['source-proposal'], 'properties': {'schema_version': 2, 'formula': {'expression': '[source-proposal] * 2'}}}
+        c = {**base, 'id': 'conditional-proposal', 'pos_x': .5, 'target_id': 'conditional', 'field_type': 'text',
+             'dependency_ids': ['source-proposal'], 'properties': {'schema_version': 2,
+             'conditional': {'parent_field_id': 'source-proposal', 'operator': 'not_empty', 'action': 'show', 'values': []}}}
+        run.proposals = [a, b, c]
+        db.commit()
+    s.service.apply_run(s.uid, created.id, EsignAiFieldPlacementApplyRequest(
+        accepted_proposal_ids=['source-proposal', 'formula-proposal', 'conditional-proposal'], current_revision=1))
+    with s.sessions() as db:
+        fields = db.query(EsignField).filter_by(envelope_id=uuid.UUID(s.envelope_id)).all()
+        number = next(f for f in fields if f.field_type.value == 'number')
+        formula = next(f for f in fields if f.field_type.value == 'formula')
+        conditional = next(f for f in fields if f.field_type.value == 'text')
+        assert formula.properties['formula']['expression'] == f'[{number.id}] * 2'
+        assert conditional.properties['conditional']['parent_field_id'] == str(number.id)
+        assert formula.required is False
+
+
+def test_single_request_migration_round_trip(database):
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    path = Path(__file__).resolve().parents[1]/'alembic/versions/082_esign_single_request.py'
+    spec = importlib.util.spec_from_file_location('single_request_migration', path)
+    migration = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(migration)
+    with database.begin() as conn:
+        before = conn.execute(text('select count(*) from esign_ai_field_placement_runs')).scalar()
+        with Operations.context(MigrationContext.configure(conn)):
+            migration.downgrade()
+            migration.upgrade()
+        assert conn.execute(text('select count(*) from esign_ai_field_placement_runs')).scalar() == before
+        assert conn.execute(text('select count(*) from esign_ai_field_placement_runs where inference_attempted_at is not null')).scalar() == 0

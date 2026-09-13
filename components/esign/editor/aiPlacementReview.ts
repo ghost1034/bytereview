@@ -6,11 +6,21 @@ export function removeAiSuggestionGroup(
   proposalId: string,
 ): Set<string> {
   const groupId = (proposal: EsignAiFieldPlacementProposal) => {
-    const group = proposal.properties?.selection_group
-    return group && typeof group === 'object' && 'id' in group ? String(group.id) : null
+    const key = proposal.field_type === 'radio' ? 'group' : 'selection_group'
+    const group = proposal.properties?.[key]
+    return group && typeof group === 'object' && 'id' in group ? `${key}:${String(group.id)}` : null
   }
-  const proposal = proposals.find((item) => item.id === proposalId)
-  const group = proposal ? groupId(proposal) : null
-  const removed = new Set(proposals.filter((item) => item.id === proposalId || (group && groupId(item) === group)).map((item) => item.id))
+  const removed = new Set([proposalId])
+  let changed = true
+  while (changed) {
+    changed = false
+    const groups = new Set(proposals.filter((p) => removed.has(p.id)).map(groupId).filter(Boolean))
+    for (const proposal of proposals) {
+      if (!removed.has(proposal.id) && (groups.has(groupId(proposal)) || proposal.dependency_ids?.some((id) => removed.has(id)))) {
+        removed.add(proposal.id)
+        changed = true
+      }
+    }
+  }
   return new Set([...selected].filter((id) => !removed.has(id)))
 }
