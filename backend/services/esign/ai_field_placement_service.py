@@ -295,10 +295,6 @@ class EsignAiFieldPlacementService:
             target = self._load_target(db, user_id, target_type, target_id)
             _lock_draft_revision(db, target, payload.expected_revision)
             snapshot = self._snapshot(target_type, target)
-            allowed_users = {item.strip() for item in os.getenv('ESIGN_AI_TARGET_PIPELINE_USERS', '').split(',') if item.strip()}
-            enabled = os.getenv('ESIGN_AI_TARGET_PIPELINE', 'false').lower() == 'true' or user_id in allowed_users
-            if not enabled:
-                raise EsignError('AI field placement is temporarily paused. Place fields manually or try again later.')
             snapshot['pipeline_version'] = PIPELINE_VERSION
             snapshot['model_settings'] = {'model': self.model_name,
                                           'location': os.getenv('ESIGN_AI_FIELD_PLACEMENT_LOCATION', 'global'),

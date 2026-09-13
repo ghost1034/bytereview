@@ -34,14 +34,11 @@ Local request admission allows at most 500 pages and 500 total candidates/propos
 
 Deploy API, extract worker, and maintenance worker from the same revision after applying migration 082. The extract image already includes Tesseract; Pillow is supplied by the existing OCR dependency. Existing saved results remain readable and applicable.
 
-Before rollout, pause new requests and allow old queued/processing work to drain on the old worker. Verify the active-run count is zero before replacing workers; old-version queued runs encountered by the new worker fail with instructions to start a new run. Then use:
+`single-request-v1` is the only pipeline; every new analysis uses it and there is no rollout flag or requester allowlist. Per-firm access is still governed by the existing `ai_field_placement` entitlement. `ESIGN_AI_FIELD_PLACEMENT_MODEL` and `ESIGN_AI_FIELD_PLACEMENT_LOCATION` remain as model/location overrides, snapshotted at creation.
 
-- `ESIGN_AI_TARGET_PIPELINE=false`: new analyses are paused; this **no longer selects the legacy pipeline**.
-- `ESIGN_AI_TARGET_PIPELINE_USERS`: comma-separated internal requester IDs allowed while globally paused.
-- `ESIGN_AI_TARGET_PIPELINE=true`: enable new single-request analyses generally.
-- `ESIGN_AI_FIELD_PLACEMENT_MODEL` and `ESIGN_AI_FIELD_PLACEMENT_LOCATION`: retained model/location overrides, snapshotted at creation.
+Before deploying, allow old queued/processing work to drain on the old worker. Verify the active-run count is zero before replacing workers; old-version queued runs encountered by the new worker fail with instructions to start a new run.
 
-Rollback means setting the flag false and clearing the requester allowlist. It pauses new runs; it does not replay in-flight requests using an older model pipeline. Do not downgrade migration 082 while new workers or saved-response work remain active.
+Rollback now means deploying the previous revision — there is no environment switch that pauses new runs, and no in-flight request is replayed with an older model pipeline. Do not downgrade migration 082 while new workers or saved-response work remain active.
 
 ## Evaluation and acceptance
 
@@ -55,7 +52,7 @@ PYTHONPATH=backend backend/.venv/bin/python backend/scripts/evaluate_esign_place
 
 The suite includes the original consent form (empty and with existing fields), all 20 editor types, single/multiple-choice groups, independent checkboxes, scanned and rotated forms, repeated labels assigned to two parties, an unlabeled area, and multiple documents. The authored expected rectangles are independent of detector output. Assertions cover geometry, types, owners, options, cardinality, multiline behavior, and formula evaluation. Unit tests additionally cover crop boxes, native widget options/values, malformed responses, omissions, existing-field conflicts, dependency closure, exact replay, and preflight limits.
 
-Use `--baseline` explicitly to compare the old multi-call pipeline; it is allowed to make multiple calls only in this standalone evaluator. `--replay PATH` replays recorded single-request evidence offline with zero model calls. Evaluation results include calls, tokens, latency, recall, and false placements. Release only after every curated case passes all ten runs and broader-corpus comparison shows acceptable quality. A failed evaluation keeps rollout gated even if software tests pass.
+Use `--baseline` explicitly to compare the old multi-call pipeline; it is allowed to make multiple calls only in this standalone evaluator. `--replay PATH` replays recorded single-request evidence offline with zero model calls. Evaluation results include calls, tokens, latency, recall, and false placements. Release only after every curated case passes all ten runs and broader-corpus comparison shows acceptable quality. A failed evaluation blocks the release even if software tests pass.
 
 Run the focused suite against a disposable local PostgreSQL database:
 

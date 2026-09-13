@@ -60,8 +60,6 @@ def database():
 def setup(database,monkeypatch):
     sessions=sessionmaker(bind=database)
     monkeypatch.setattr(module.db_config,'get_session',sessions)
-    monkeypatch.setenv('ESIGN_AI_TARGET_PIPELINE','true')
-    monkeypatch.setenv('ESIGN_AI_TARGET_PIPELINE_USERS','')
     charges=[];queued=[]
     class Billing:
         def __init__(self,db): self.db=db
@@ -147,12 +145,6 @@ def test_stale_revision_and_changed_roles_prevent_application(setup):
         recipient.role_label='Changed role';db.commit()
     with pytest.raises(EsignConflict,match='signing roles changed'):
         s.service.apply_run(s.uid,run.id,EsignAiFieldPlacementApplyRequest(accepted_proposal_ids=[p.id for p in run.proposals],current_revision=1))
-
-
-def test_rollout_disabled_pauses_new_analyses(setup,monkeypatch):
-    monkeypatch.setenv('ESIGN_AI_TARGET_PIPELINE','false')
-    with pytest.raises(EsignError,match='paused'):
-        setup.create()
 
 
 def test_field_added_after_analysis_cannot_be_overwritten_by_a_different_type(setup):
