@@ -987,6 +987,8 @@ class EsignAiFieldPlacementCreateRequest(BaseModel):
 
 class EsignAiFieldPlacementProposal(BaseModel):
     id: str
+    target_id: Optional[str] = None
+    target_source: Optional[str] = None
     document_id: str
     participant_id: str
     field_type: Literal[
@@ -1009,6 +1011,15 @@ class EsignAiFieldPlacementProposal(BaseModel):
         return self
 
 
+class EsignAiFieldPlacementIssue(BaseModel):
+    document_id: str
+    page_number: int = Field(ge=0)
+    target_id: Optional[str] = None
+    label: str
+    code: Literal["unassigned", "unsupported", "unresolved"]
+    reason: str
+
+
 class EsignAiFieldPlacementRunResponse(BaseModel):
     id: str
     target_type: Literal["envelope", "template"]
@@ -1020,6 +1031,7 @@ class EsignAiFieldPlacementRunResponse(BaseModel):
     instructions: Optional[str] = None
     proposals: list[EsignAiFieldPlacementProposal] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    issues: list[EsignAiFieldPlacementIssue] = Field(default_factory=list)
     error: Optional[str] = None
     page_usage: int = 0
     progress: int = Field(default=0, ge=0, le=100)

@@ -75,6 +75,8 @@ export interface EsignContext {
 
 export interface EsignAiFieldPlacementProposal {
   id: string
+  target_id?: string | null
+  target_source?: string | null
   document_id: string
   participant_id: string
   field_type: 'signature' | 'initials' | 'date_signed' | 'first_name' | 'last_name' | 'full_name' | 'email' | 'company' | 'title' | 'text' | 'checkbox' | 'date' | 'number'
@@ -99,11 +101,21 @@ export interface EsignAiFieldPlacementRun {
   instructions?: string | null
   proposals: EsignAiFieldPlacementProposal[]
   warnings: string[]
+  issues?: EsignAiFieldPlacementIssue[]
   error?: string | null
   page_usage: number
   progress: number
   created_at: string
   updated_at: string
+}
+
+export interface EsignAiFieldPlacementIssue {
+  document_id: string
+  page_number: number
+  target_id?: string | null
+  label: string
+  code: 'unassigned' | 'unsupported' | 'unresolved'
+  reason: string
 }
 
 export interface EsignAiFieldPlacementAction {

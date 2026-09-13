@@ -40,6 +40,9 @@ from services.esign.envelope_service import (
     esign_envelope_service, normalize_template_roles, validate_field_placement,
 )
 from services.esign.field_logic import FieldLogicError, validate_field_graph
+from services.esign.placement_analysis import PIPELINE_VERSION, analyze_documents, validate_group_acceptance
+from services.esign.placement_model import generate_placement_response
+from services.esign.placement_targets import field_box, intersection_fraction
 from services.gcs_service import get_storage_service
 from services.pdf_anchor import relative_anchor_box_position, resolve_contextual_anchor_rect
 
@@ -242,6 +245,7 @@ class EsignAiFieldPlacementService:
             scope=run.scope, selected_document_ids=[str(item) for item in (run.selected_document_ids or [])],
             base_revision=int(run.base_revision), instructions=run.instructions,
             proposals=list(run.proposals or []), warnings=list(run.warnings or []), error=run.error,
+            issues=list(getattr(run, 'issues', None) or []),
             page_usage=int(run.page_usage or 0), progress=progress, created_at=run.created_at,
             updated_at=run.updated_at, started_at=run.started_at, completed_at=run.completed_at,
             applied_at=run.applied_at, discarded_at=run.discarded_at,
@@ -265,7 +269,9 @@ class EsignAiFieldPlacementService:
             participants = [{"id": role["id"], "label": role.get("label") or role.get("role", "signer"), "role": role.get("role", "signer")}
                             for role in normalize_template_roles(target.recipient_roles or [])
                             if role.get("role") in {"signer", "witness", "in_person_signer"}]
-        return {"documents": documents, "participants": participants}
+        return {"documents": documents, "participants": participants,
+                "existing_fields": [EsignAiFieldPlacementService._field_dict(field, target_type=target_type)
+                                    for field in target.fields or []]}
 
     def _load_target(self, db: Any, user_id: str, target_type: str, target_id: str) -> Any:
         if target_type == "envelope":
@@ -289,6 +295,12 @@ class EsignAiFieldPlacementService:
             target = self._load_target(db, user_id, target_type, target_id)
             _lock_draft_revision(db, target, payload.expected_revision)
             snapshot = self._snapshot(target_type, target)
+            allowed_users = {item.strip() for item in os.getenv('ESIGN_AI_TARGET_PIPELINE_USERS', '').split(',') if item.strip()}
+            enabled = os.getenv('ESIGN_AI_TARGET_PIPELINE', 'false').lower() == 'true' or user_id in allowed_users
+            snapshot['pipeline_version'] = PIPELINE_VERSION if enabled else 'anchors-v1'
+            snapshot['model_settings'] = {'model': self.model_name,
+                                          'location': os.getenv('ESIGN_AI_FIELD_PLACEMENT_LOCATION', 'global'),
+                                          'temperature': 0.1}
             if not snapshot["participants"]:
                 raise EsignError("Add at least one signing role before placing fields with AI")
             documents = snapshot["documents"]
@@ -297,6 +309,7 @@ class EsignAiFieldPlacementService:
                 if not documents:
                     raise EsignError("The active document is not part of this draft")
             selected_ids = [item["id"] for item in documents]
+            snapshot['selected_document_ids'] = selected_ids
             pages = sum(int(item["page_count"]) for item in documents)
             active = db.query(EsignAiFieldPlacementRun).filter(
                 (EsignAiFieldPlacementRun.envelope_id == target.id if target_type == "envelope" else EsignAiFieldPlacementRun.template_id == target.id),
@@ -362,10 +375,12 @@ class EsignAiFieldPlacementService:
     @staticmethod
     def _field_dict(field: Any, *, target_type: str) -> dict[str, Any]:
         return {
+            "id": str(field.id),
             "document_id": str(field.document_id if target_type == "envelope" else field.template_document_id),
             "participant_id": str(field.recipient_id if target_type == "envelope" else field.recipient_role_id),
             "field_type": _value(field.field_type), "page_number": int(field.page_number),
             "pos_x": float(field.pos_x), "pos_y": float(field.pos_y), "width": float(field.width), "height": float(field.height),
+            "properties": dict(field.properties or {}),
         }
 
     @staticmethod
@@ -406,7 +421,19 @@ class EsignAiFieldPlacementService:
             if len(accepted) != len(payload.accepted_proposal_ids): raise EsignError("Proposal IDs must be unique")
             proposals = [item for item in (run.proposals or []) if item.get("id") in accepted]
             if len(proposals) != len(accepted): raise EsignError("An accepted proposal does not belong to this run")
+            try:
+                validate_group_acceptance(list(run.proposals or []), accepted)
+            except ValueError as exc:
+                raise EsignError(str(exc)) from exc
             existing = [self._field_dict(item, target_type=run.target_type) for item in target.fields or []]
+            for item in proposals:
+                if item.get('target_id') and any(
+                    item['document_id'] == other['document_id'] and item['page_number'] == other['page_number']
+                    and intersection_fraction(field_box(item), field_box(other)) > .2 for other in existing
+                ):
+                    raise EsignConflict('Fields were added over a suggested target after analysis. Review or regenerate the suggestions.')
+                if (item.get('properties') or {}).get('selection_group') and any(_overlap_duplicate(item, other) for other in existing):
+                    raise EsignConflict('A choice group overlaps fields added since analysis. Review or regenerate the group.')
             added: list[Any] = []
             roles = normalize_template_roles(target.recipient_roles or []) if run.target_type == "template" else []
             for item in proposals:
@@ -551,6 +578,14 @@ Additional sender instructions: {instructions or 'None'}
         )
         return json.loads(response.text or "{}")
 
+    def _generate_target_payload(
+        self, phase: str, prompt: str, schema: dict[str, Any], image: bytes,
+        settings: dict[str, Any],
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        with genai.Client(vertexai=True, project=os.environ['GOOGLE_CLOUD_PROJECT_ID'],
+                          location=settings.get('location', 'us-central1')) as client:
+            return generate_placement_response(client, {'model': self.model_name, **settings}, phase, prompt, schema, image)
+
     async def process_run(self, run_id: str, **task_context: Any) -> dict[str, Any]:
         started = time.monotonic(); db = db_config.get_session()
         try:
@@ -566,79 +601,106 @@ Additional sender instructions: {instructions or 'None'}
             selected = set(str(item) for item in run.selected_document_ids or [])
             documents = [item for item in target.documents or [] if str(item.id) in selected]
             snapshot = run.target_snapshot or {}; participants = snapshot.get("participants", [])
-            existing = [self._field_dict(item, target_type=run.target_type) for item in target.fields or []]
+            existing = snapshot.get("existing_fields", [self._field_dict(item, target_type=run.target_type) for item in target.fields or []])
             document_parts: list[Any] = []; local_paths: dict[str, str] = {}; page_text_sections: list[str] = []; ocr_used = 0
             omission_counts: Counter[str] = Counter(); recovery_counts: Counter[str] = Counter()
-            with tempfile.TemporaryDirectory(prefix="esign-ai-placement-") as directory:
-                for document in documents:
-                    path, used = await self._download_analysis_pdf(document, directory); ocr_used += int(used); local_paths[str(document.id)] = path
-                    with open(path, "rb") as handle: document_parts.append(types.Part.from_bytes(data=handle.read(), mime_type="application/pdf"))
-                    with fitz.open(path) as text_pdf:
-                        for page_index, text_page in enumerate(text_pdf):
-                            page_text_sections.append(
-                                f"Document {document.id}, zero-based page {page_index} "
-                                f"(display page {page_index + 1}):\n{text_page.get_text().strip()}"
+            analysis_issues: list[dict[str, Any]] = []
+            diagnostics: dict[str, Any] = {}
+            if snapshot.get('pipeline_version') == PIPELINE_VERSION:
+                if {str(d.id) for d in documents} != selected:
+                    raise RuntimeError('A selected document was removed before analysis')
+                with tempfile.TemporaryDirectory(prefix='esign-target-placement-') as directory:
+                    originals = {}
+                    for document in documents:
+                        path = os.path.join(directory, f'{document.id}.pdf')
+                        await self.storage.download_file(document.gcs_object_name, path)
+                        with open(path, 'rb') as handle:
+                            originals[str(document.id)] = handle.read()
+                    settings = snapshot.get('model_settings') or {}
+                    result = await asyncio.to_thread(
+                        analyze_documents, originals, snapshot, run.instructions,
+                        lambda phase, prompt, schema, image: self._generate_target_payload(phase, prompt, schema, image, settings),
+                        model_settings=settings, diagnostics_sink=diagnostics,
+                    )
+                proposals = result.proposals
+                analysis_issues = result.issues
+                warnings = []
+                omission_counts.update(item['code'] for item in analysis_issues)
+                model_warning_count = 0
+            else:
+                with tempfile.TemporaryDirectory(prefix="esign-ai-placement-") as directory:
+                    for document in documents:
+                        path, used = await self._download_analysis_pdf(document, directory); ocr_used += int(used); local_paths[str(document.id)] = path
+                        with open(path, "rb") as handle: document_parts.append(types.Part.from_bytes(data=handle.read(), mime_type="application/pdf"))
+                        with fitz.open(path) as text_pdf:
+                            for page_index, text_page in enumerate(text_pdf):
+                                page_text_sections.append(
+                                    f"Document {document.id}, zero-based page {page_index} "
+                                    f"(display page {page_index + 1}):\n{text_page.get_text().strip()}"
+                                )
+                    page_numbered_text = "\n\n".join(page_text_sections)
+                    prompt = self._build_model_prompt(
+                        documents=documents,
+                        participants=participants,
+                        existing=existing,
+                        page_numbered_text=page_numbered_text,
+                        instructions=run.instructions,
+                    )
+                    response_schema = self._response_schema(
+                        [str(document.id) for document in documents],
+                        [str(participant["id"]) for participant in participants],
+                    )
+                    raw = await asyncio.to_thread(
+                        self._generate_model_payload, document_parts, prompt, response_schema,
+                    )
+                    diagnostics = {'pipeline_version': 'anchors-v1', 'snapshot': snapshot,
+                                   'instructions': run.instructions, 'model_settings': snapshot.get('model_settings', {}),
+                                   'prompt': prompt, 'response': raw}
+                    candidates, warnings = parse_ai_field_placement_response(raw)
+                    parse_omissions = sum("omitted" in warning.lower() for warning in warnings)
+                    if parse_omissions:
+                        omission_counts["parse"] += parse_omissions
+                    model_warning_count = len(warnings) - parse_omissions
+                    proposals: list[dict[str, Any]] = []
+                    participant_ids = {item["id"] for item in participants}; docs_by_id = {str(item.id): item for item in documents}
+                    pdfs = {doc_id: fitz.open(path) for doc_id, path in local_paths.items()}
+                    try:
+                        for index, item in enumerate(candidates):
+                            participant_id = str(item.get("participant_id") or "")
+                            document_id = str(item.get("document_id") or "")
+                            if participant_id not in participant_ids:
+                                warnings.append(f"Suggestion {index + 1} was omitted because its signing role was missing or ambiguous.")
+                                omission_counts["signing_role"] += 1; continue
+                            document = docs_by_id.get(document_id)
+                            if not document:
+                                warnings.append(f"Suggestion {index + 1} was omitted because its document was not selected.")
+                                omission_counts["document"] += 1; continue
+                            try:
+                                if isinstance(item.get("page_number"), bool): raise ValueError
+                                page_number = int(item.get("page_number"))
+                            except (TypeError, ValueError): page_number = -1
+                            if page_number < 0 or page_number >= int(document.page_count):
+                                warnings.append(f"Suggestion {index + 1} was omitted because its page was invalid.")
+                                omission_counts["page"] += 1; continue
+                            page = pdfs[document_id][page_number]
+                            normalized, candidate_warnings, recovery_codes, omission_code = materialize_ai_field_placement_proposal(
+                                item,
+                                suggestion_number=index + 1,
+                                document_id=document_id,
+                                participant_id=participant_id,
+                                page_number=page_number,
+                                page=page,
                             )
-                page_numbered_text = "\n\n".join(page_text_sections)
-                prompt = self._build_model_prompt(
-                    documents=documents,
-                    participants=participants,
-                    existing=existing,
-                    page_numbered_text=page_numbered_text,
-                    instructions=run.instructions,
-                )
-                response_schema = self._response_schema(
-                    [str(document.id) for document in documents],
-                    [str(participant["id"]) for participant in participants],
-                )
-                raw = await asyncio.to_thread(
-                    self._generate_model_payload, document_parts, prompt, response_schema,
-                )
-                candidates, warnings = parse_ai_field_placement_response(raw)
-                parse_omissions = sum("omitted" in warning.lower() for warning in warnings)
-                if parse_omissions:
-                    omission_counts["parse"] += parse_omissions
-                model_warning_count = len(warnings) - parse_omissions
-                proposals: list[dict[str, Any]] = []
-                participant_ids = {item["id"] for item in participants}; docs_by_id = {str(item.id): item for item in documents}
-                pdfs = {doc_id: fitz.open(path) for doc_id, path in local_paths.items()}
-                try:
-                    for index, item in enumerate(candidates):
-                        participant_id = str(item.get("participant_id") or "")
-                        document_id = str(item.get("document_id") or "")
-                        if participant_id not in participant_ids:
-                            warnings.append(f"Suggestion {index + 1} was omitted because its signing role was missing or ambiguous.")
-                            omission_counts["signing_role"] += 1; continue
-                        document = docs_by_id.get(document_id)
-                        if not document:
-                            warnings.append(f"Suggestion {index + 1} was omitted because its document was not selected.")
-                            omission_counts["document"] += 1; continue
-                        try:
-                            if isinstance(item.get("page_number"), bool): raise ValueError
-                            page_number = int(item.get("page_number"))
-                        except (TypeError, ValueError): page_number = -1
-                        if page_number < 0 or page_number >= int(document.page_count):
-                            warnings.append(f"Suggestion {index + 1} was omitted because its page was invalid.")
-                            omission_counts["page"] += 1; continue
-                        page = pdfs[document_id][page_number]
-                        normalized, candidate_warnings, recovery_codes, omission_code = materialize_ai_field_placement_proposal(
-                            item,
-                            suggestion_number=index + 1,
-                            document_id=document_id,
-                            participant_id=participant_id,
-                            page_number=page_number,
-                            page=page,
-                        )
-                        warnings.extend(candidate_warnings)
-                        recovery_counts.update(recovery_codes)
-                        if normalized is None:
-                            omission_counts[omission_code or "validation"] += 1; continue
-                        if any(_overlap_duplicate(normalized, other) for other in existing + proposals):
-                            warnings.append(f"Suggestion {index + 1} overlapped an existing or duplicate field and was omitted.")
-                            omission_counts["overlap"] += 1; continue
-                        proposals.append(normalized)
-                finally:
-                    for pdf in pdfs.values(): pdf.close()
+                            warnings.extend(candidate_warnings)
+                            recovery_counts.update(recovery_codes)
+                            if normalized is None:
+                                omission_counts[omission_code or "validation"] += 1; continue
+                            if any(_overlap_duplicate(normalized, other) for other in existing + proposals):
+                                warnings.append(f"Suggestion {index + 1} overlapped an existing or duplicate field and was omitted.")
+                                omission_counts["overlap"] += 1; continue
+                            proposals.append(normalized)
+                    finally:
+                        for pdf in pdfs.values(): pdf.close()
             db.refresh(run, with_for_update=True)
             if run.status == "discarded": return {"status": "discarded"}
             billing = BillingService(db)
@@ -652,6 +714,8 @@ Additional sender instructions: {instructions or 'None'}
                 esign_ai_field_placement_run_id=str(run.id), notes="E-Signature AI field placement",
                 commit=False,
             )
+            run.issues = analysis_issues
+            run.analysis_diagnostics = diagnostics
             run.proposals = proposals; run.warnings = warnings; run.status = "completed"; run.completed_at = datetime.now(timezone.utc); db.commit()
             logger.info("esign_ai_field_placement_metric %s", json.dumps({
                 "event": "completed", "run_id": str(run.id),
@@ -659,12 +723,17 @@ Additional sender instructions: {instructions or 'None'}
                 "proposals": len(proposals), "omissions": sum(omission_counts.values()),
                 "omission_reasons": dict(omission_counts), "recoveries": dict(recovery_counts),
                 "model_warnings": model_warning_count, "ocr_documents": ocr_used,
+                "pipeline_version": snapshot.get('pipeline_version', 'anchors-v1'),
+                "model_calls": len(diagnostics.get('calls', [])),
+                "model_tokens": sum(call.get('provider', {}).get('usage', {}).get('total_token_count', 0) or 0 for call in diagnostics.get('calls', [])),
             }))
             return {"status": "completed", "proposals": len(proposals)}
         except Exception as exc:
             db.rollback()
             failed = db.query(EsignAiFieldPlacementRun).filter_by(id=run_id).first()
             if failed and failed.status in ACTIVE_STATUSES:
+                if 'diagnostics' in locals() and diagnostics:
+                    failed.analysis_diagnostics = diagnostics
                 retry_count = task_context.get("task_retry_count")
                 max_attempts = max(1, int(os.getenv("TASK_EXTRACT_MAX_ATTEMPTS", "3")))
                 if retry_count is not None and int(retry_count) + 1 < max_attempts:

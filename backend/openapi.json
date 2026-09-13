@@ -49566,11 +49566,83 @@
         ],
         "title": "EsignAiFieldPlacementCreateRequest"
       },
+      "EsignAiFieldPlacementIssue": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "page_number": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Page Number"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "unassigned",
+              "unsupported",
+              "unresolved"
+            ],
+            "title": "Code"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "page_number",
+          "label",
+          "code",
+          "reason"
+        ],
+        "title": "EsignAiFieldPlacementIssue"
+      },
       "EsignAiFieldPlacementProposal": {
         "properties": {
           "id": {
             "type": "string",
             "title": "Id"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "target_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Source"
           },
           "document_id": {
             "type": "string",
@@ -49749,6 +49821,13 @@
             },
             "type": "array",
             "title": "Warnings"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/EsignAiFieldPlacementIssue"
+            },
+            "type": "array",
+            "title": "Issues"
           },
           "error": {
             "anyOf": [

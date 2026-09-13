@@ -37,6 +37,8 @@ import { snapRect, type SnapGuide } from './snapping'
 import { configuredTextFontSize, textFontFamily, TEXT_FONT_OPTIONS } from './textAppearance'
 import { apiClient, type EsignAiFieldPlacementAction, type EsignAiFieldPlacementRun } from '@/lib/api'
 import { pollAiFieldPlacementRun } from './aiFieldPlacementPolling'
+import { AiPlacementIssues } from './AiPlacementIssues'
+import { removeAiSuggestionGroup } from './aiPlacementReview'
 import { choiceLabelsEnabled, isLinkedLabel, reconcileLinkedLabels, setChoiceLabelsEnabled } from './linkedLabels'
 import {
   checkboxRuleFromPreset,
@@ -754,6 +756,8 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
   const [acceptedAiIds, setAcceptedAiIds] = React.useState<Set<string>>(new Set())
   const [aiBusy, setAiBusy] = React.useState(false)
   const [aiError, setAiError] = React.useState('')
+  const [aiFocusPage, setAiFocusPage] = React.useState<{ documentId: string; pageNumber: number } | null>(null)
+  const [loadedPdfDocumentId, setLoadedPdfDocumentId] = React.useState<string | null>(null)
   const [highlightedAnchorMatch, setHighlightedAnchorMatch] = React.useState<{ ruleId: string; matchIndex: number } | null>(null)
   const past = React.useRef<EditorField[][]>([])
   const future = React.useRef<EditorField[][]>([])
@@ -855,11 +859,20 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
       return
     }
     let cancelled = false
-    setPdf(null); setLoadError(null)
-    openPdfFromUrl(activeDocumentUrl).then((doc) => { if (!cancelled) setPdf(doc) })
+    setPdf(null); setLoadError(null); setLoadedPdfDocumentId(null)
+    openPdfFromUrl(activeDocumentUrl).then((doc) => { if (!cancelled) { setPdf(doc); setLoadedPdfDocumentId(resolvedActiveDocumentId ?? null) } })
       .catch((error) => { if (!cancelled) setLoadError(error instanceof Error ? error.message : 'Failed to load PDF') })
     return () => { cancelled = true }
   }, [activeDocumentUrl, resolvedActiveDocumentId])
+
+  React.useEffect(() => {
+    if (!pdf || !aiFocusPage || loadedPdfDocumentId !== aiFocusPage.documentId) return
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById(`esign-ai-page-${aiFocusPage.documentId}-${aiFocusPage.pageNumber}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setAiFocusPage(null)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [aiFocusPage, loadedPdfDocumentId, pdf])
 
   React.useEffect(() => {
     if (!focusFieldId) return
@@ -1181,6 +1194,11 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
           <p className="font-medium text-foreground">Review AI suggestions</p>
           <p className="text-foreground-muted">{acceptedAiIds.size} of {aiRun.proposals.length} suggestion{aiRun.proposals.length === 1 ? '' : 's'} selected · {aiRun.page_usage} page{aiRun.page_usage === 1 ? '' : 's'} used.</p>
           {!!aiRun.warnings.length && <div className="space-y-1 rounded bg-warning-soft p-2 text-warning"><p className="flex items-center gap-1 font-medium"><AlertTriangle className="size-3" /> Warnings</p>{aiRun.warnings.map((warning, index) => <p key={index}>{warning}</p>)}</div>}
+          <AiPlacementIssues issues={aiRun.issues ?? []} onFocus={(issue) => {
+            setActiveDocumentId(issue.document_id)
+            setAiFocusPage({ documentId: issue.document_id, pageNumber: issue.page_number })
+          }} />
+          {aiRun.proposals.some((proposal) => proposal.properties?.selection_group) && <p className="text-foreground-muted">Choice options are reviewed together. Removing one removes the group.</p>}
           {aiError && <p className="text-destructive">{aiError}</p>}
           <div className="flex gap-1.5"><Button type="button" size="sm" className="h-7 flex-1 text-xs" disabled={aiBusy} onClick={() => void applyAiPlacement()}>{aiBusy && <Loader2 className="mr-1 size-3 animate-spin" />}Apply remaining</Button><Button type="button" variant="outline" size="sm" className="h-7 text-xs" disabled={aiBusy} onClick={() => void discardAiPlacement()}>Discard all</Button></div>
         </div>}
@@ -1228,7 +1246,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
     <main className={cn('min-w-0 flex-1 space-y-4 rounded-lg bg-surface-muted p-3 sm:p-4', armedType && 'cursor-crosshair')}>
       {loadError && <p className="text-sm text-destructive">{loadError}</p>}
       {!pdf && !loadError && <div className="flex justify-center py-16 text-foreground-muted"><Loader2 className="mr-2 size-4 animate-spin" /> Loading document…</div>}
-      {pdf && activeDocument && Array.from({ length: pdf.numPages }, (_, pageIndex) => <div key={pageIndex} className="mx-auto w-full max-w-3xl"><p className="mb-1 text-xs text-foreground-subtle">Page {pageIndex + 1} of {pdf.numPages}</p>
+      {pdf && activeDocument && Array.from({ length: pdf.numPages }, (_, pageIndex) => <div key={pageIndex} id={`esign-ai-page-${activeDocument.id}-${pageIndex}`} className="mx-auto w-full max-w-3xl"><p className="mb-1 text-xs text-foreground-subtle">Page {pageIndex + 1} of {pdf.numPages}</p>
         <PdfPageCanvas pdf={pdf} pageNumber={pageIndex + 1} overlay={(size) => <div className="absolute inset-0" onPointerMove={(event) => {
           if (drag.current) { moveInteraction(event); return } if (!marquee || marquee.page !== pageIndex) return
           const rect = event.currentTarget.getBoundingClientRect(); setMarquee({ ...marquee, width: (event.clientX - rect.left) / rect.width - marquee.x, height: (event.clientY - rect.top) / rect.height - marquee.y })
@@ -1275,7 +1293,7 @@ export function PdfFieldEditor({ documents, participants, fields, onChange, clas
               {selected && HANDLES.map((handle) => <span key={handle} onPointerDown={(event) => startInteraction(event, field, 'resize', size, handle)} onPointerMove={moveInteraction} onPointerUp={endInteraction}
                 className="absolute size-2 rounded-[1px] border border-white bg-primary" style={{ cursor: `${handle}-resize`, left: handle.includes('w') ? -4 : handle.includes('e') ? 'calc(100% - 4px)' : 'calc(50% - 4px)', top: handle.includes('n') ? -4 : handle.includes('s') ? 'calc(100% - 4px)' : 'calc(50% - 4px)' }} />)}
             </div>})}
-          {stagedAiProposals.filter((proposal) => proposal.document_id === activeDocument.id && proposal.page_number === pageIndex).map((proposal) => { const participant = participants.find((item) => item.id === proposal.participant_id); return <div key={proposal.id} data-testid={`ai-proposal-${proposal.id}`} className="pointer-events-none absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-violet-600 bg-violet-300/25 text-[10px] font-semibold text-violet-950 shadow-sm" style={{ left: proposal.pos_x * size.width, top: proposal.pos_y * size.height, width: proposal.width * size.width, height: proposal.height * size.height }} title={`${proposal.field_type.replace(/_/g, ' ')} · ${participant?.label ?? 'Signing role'} · page ${proposal.page_number + 1}`}><span className="truncate px-1">AI · {proposal.field_type.replace(/_/g, ' ')}</span><button type="button" className="pointer-events-auto absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full bg-violet-700 text-white shadow" aria-label={`Remove AI ${proposal.field_type.replace(/_/g, ' ')} suggestion`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setAcceptedAiIds((current) => { const next = new Set(current); next.delete(proposal.id); return next }) }}><X className="size-3" /></button></div> })}
+          {stagedAiProposals.filter((proposal) => proposal.document_id === activeDocument.id && proposal.page_number === pageIndex).map((proposal) => { const participant = participants.find((item) => item.id === proposal.participant_id); return <div key={proposal.id} data-testid={`ai-proposal-${proposal.id}`} className="pointer-events-none absolute z-20 flex items-center justify-center rounded-sm border-2 border-dashed border-violet-600 bg-violet-300/25 text-[10px] font-semibold text-violet-950 shadow-sm" style={{ left: proposal.pos_x * size.width, top: proposal.pos_y * size.height, width: proposal.width * size.width, height: proposal.height * size.height }} title={`${proposal.field_type.replace(/_/g, ' ')} · ${participant?.label ?? 'Signing role'} · page ${proposal.page_number + 1}`}><span className="truncate px-1">AI · {proposal.field_type.replace(/_/g, ' ')}</span><button type="button" className="pointer-events-auto absolute -right-2 -top-2 flex size-5 items-center justify-center rounded-full bg-violet-700 text-white shadow" aria-label={`Remove AI ${proposal.field_type.replace(/_/g, ' ')} suggestion`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); setAcceptedAiIds((current) => removeAiSuggestionGroup(aiRun?.proposals ?? [], current, proposal.id)) }}><X className="size-3" /></button></div> })}
           {selectedIds.size === 1 && selectedField?.documentId === activeDocument.id && selectedField.pageNumber === pageIndex && <FieldFloatingToolbar
             field={selectedField}
             participants={participants}

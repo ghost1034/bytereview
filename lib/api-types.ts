@@ -12759,10 +12759,32 @@ export interface components {
             /** Expected Revision */
             expected_revision: number;
         };
+        /** EsignAiFieldPlacementIssue */
+        EsignAiFieldPlacementIssue: {
+            /** Document Id */
+            document_id: string;
+            /** Page Number */
+            page_number: number;
+            /** Target Id */
+            target_id?: string | null;
+            /** Label */
+            label: string;
+            /**
+             * Code
+             * @enum {string}
+             */
+            code: "unassigned" | "unsupported" | "unresolved";
+            /** Reason */
+            reason: string;
+        };
         /** EsignAiFieldPlacementProposal */
         EsignAiFieldPlacementProposal: {
             /** Id */
             id: string;
+            /** Target Id */
+            target_id?: string | null;
+            /** Target Source */
+            target_source?: string | null;
             /** Document Id */
             document_id: string;
             /** Participant Id */
@@ -12827,6 +12849,8 @@ export interface components {
             proposals?: components["schemas"]["EsignAiFieldPlacementProposal"][];
             /** Warnings */
             warnings?: string[];
+            /** Issues */
+            issues?: components["schemas"]["EsignAiFieldPlacementIssue"][];
             /** Error */
             error?: string | null;
             /**
