@@ -6,7 +6,7 @@ from typing import Any
 
 
 SUPPORTED_VERTEX_MODELS = (
-    {"id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "default": True},
+    {"id": "gemini-3.8-flash", "label": "Gemini 3.8 Flash", "default": True},
     {"id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro"},
     {"id": "gemini-3.1-pro-preview", "label": "Gemini 3.1 Pro Preview"},
 )

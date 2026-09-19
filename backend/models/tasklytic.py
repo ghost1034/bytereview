@@ -302,7 +302,7 @@ class TasklyticAiSettings(Base):
     user_id = Column(String(128), primary_key=True)
     enabled = Column(Boolean, nullable=False, default=True, server_default=true())
     paused = Column(Boolean, nullable=False, default=False, server_default=false())
-    model = Column(String(64), nullable=False, default="gemini-2.5-flash", server_default="gemini-2.5-flash")
+    model = Column(String(64), nullable=False, default="gemini-3.8-flash", server_default="gemini-3.8-flash")
     migration_key = Column(String(128), nullable=True)
     migrated_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=func.now())

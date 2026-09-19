@@ -1284,7 +1284,7 @@ def test_phase7_all_proposal_contracts_are_editable_permission_checked_and_accep
         "propose_assignees": {"taskId": "task1", "assigneeIds": ["owner"]},
     }
     assert set(proposals) == PROPOSAL_TYPES
-    assert "gemini-2.5-flash" in SUPPORTED_VERTEX_MODEL_IDS
+    assert "gemini-3.8-flash" in SUPPORTED_VERTEX_MODEL_IDS
     rows = {kind: add_proposal(kind, payload) for kind, payload in proposals.items()}
     db.commit()
 
@@ -1354,7 +1354,7 @@ def test_phase7_teammate_rate_usage_audit_and_failure_notification(db):
     })
     persist_generated_exchange(
         db, thread_id=thread.id, user_id="owner", prompt="Summarize",
-        response={"text": "Summary", "proposals": []}, model="gemini-2.5-flash",
+        response={"text": "Summary", "proposals": []}, model="gemini-3.8-flash",
         usage={"prompt_tokens": 7, "output_tokens": 5, "total_tokens": 12},
     )
     db.commit()

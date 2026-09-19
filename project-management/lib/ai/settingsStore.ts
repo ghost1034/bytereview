@@ -47,7 +47,7 @@ export const useAiSettingsStore = create<AiSettingsState>()(
     (set, get) => ({
       enabled: true,
       paused: false,
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.8-flash',
       modelOptions: [],
       activeThreadId: null,
       threads: [],

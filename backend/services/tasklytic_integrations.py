@@ -342,7 +342,7 @@ def extract_receipt(
         else:
             from google.genai import types
             response = get_client().models.generate_content(
-                model=os.getenv("TASKLYTIC_RECEIPT_MODEL", "gemini-2.5-flash"),
+                model=os.getenv("TASKLYTIC_RECEIPT_MODEL", "gemini-3.8-flash"),
                 contents=[
                     "Extract receipt vendor, ISO date, subtotal amount, tax amount, and ISO currency. Do not estimate unreadable values.",
                     types.Part.from_bytes(data=content, mime_type=mime_type),

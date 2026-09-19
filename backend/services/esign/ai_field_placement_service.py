@@ -233,7 +233,7 @@ def materialize_ai_field_placement_proposal(
 class EsignAiFieldPlacementService:
     def __init__(self) -> None:
         self.storage = get_storage_service()
-        self.model_name = os.getenv("ESIGN_AI_FIELD_PLACEMENT_MODEL", "gemini-2.5-flash")
+        self.model_name = os.getenv("ESIGN_AI_FIELD_PLACEMENT_MODEL", "gemini-3.8-flash")
 
     @staticmethod
     def _serialize(run: EsignAiFieldPlacementRun) -> EsignAiFieldPlacementRunResponse:

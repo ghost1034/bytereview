@@ -69,7 +69,7 @@ The scheduler and batching fields beneath the presets (check interval, lookback 
 
 ### AI (Settings → AI (Gemini))
 
-Here you can re-enter or update your **API key**, choose the **Model** (for example `gemini-3-flash-preview`, `gemini-2.5-flash`, or `gemini-2.5-pro` from the presets), and adjust runtime options such as request timeout and retry attempts. Click **Save Gemini settings** when done.
+Here you can re-enter or update your **API key**, choose the **Model** (for example `gemini-3-flash-preview`, `gemini-3.8-flash`, or `gemini-2.5-pro` from the presets), and adjust runtime options such as request timeout and retry attempts. Click **Save Gemini settings** when done.
 
 ### Prompts (Settings → Prompts)
 

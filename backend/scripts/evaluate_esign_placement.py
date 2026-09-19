@@ -53,7 +53,7 @@ def main() -> int:
     parser.add_argument('--workers', type=int, choices=[1, 2, 3, 4], default=2)
     parser.add_argument('--project', default=os.getenv('GOOGLE_CLOUD_PROJECT_ID'))
     parser.add_argument('--location', default='global')
-    parser.add_argument('--model', default='gemini-2.5-flash')
+    parser.add_argument('--model', default='gemini-3.8-flash')
     parser.add_argument('--gcloud-auth', action='store_true')
     parser.add_argument('--baseline', action='store_true', help='Explicitly evaluate the previous multi-call pipeline for comparison')
     parser.add_argument('--replay', type=Path)

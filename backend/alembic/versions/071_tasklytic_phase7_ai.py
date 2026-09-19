@@ -25,7 +25,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.String(128), primary_key=True),
         sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("paused", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column("model", sa.String(64), nullable=False, server_default="gemini-2.5-flash"),
+        sa.Column("model", sa.String(64), nullable=False, server_default="gemini-3.8-flash"),
         sa.Column("migration_key", sa.String(128)),
         sa.Column("migrated_at", sa.TIMESTAMP(timezone=True)),
         sa.Column("created_at", sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()),

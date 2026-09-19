@@ -45,7 +45,7 @@ describe('Phase 7 browser exit gate', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     useAiSettingsStore.setState({
-      enabled: true, paused: false, model: 'gemini-2.5-flash', activeThreadId: null, threads: [localThread],
+      enabled: true, paused: false, model: 'gemini-3.8-flash', activeThreadId: null, threads: [localThread],
     })
     useUiStore.setState({ activeWorkspaceId: 'w1' })
     useWorkspacesStore.setState({ items: { w1: {
@@ -56,8 +56,8 @@ describe('Phase 7 browser exit gate', () => {
 
   it('migrates local history only after server success and then hydrates persisted threads', async () => {
     server.loadAiSettings
-      .mockResolvedValueOnce({ enabled: true, paused: false, model: 'gemini-2.5-flash', localThreadsMigrated: false })
-      .mockResolvedValueOnce({ enabled: true, paused: false, model: 'gemini-2.5-flash', localThreadsMigrated: true })
+      .mockResolvedValueOnce({ enabled: true, paused: false, model: 'gemini-3.8-flash', localThreadsMigrated: false })
+      .mockResolvedValueOnce({ enabled: true, paused: false, model: 'gemini-3.8-flash', localThreadsMigrated: true })
     server.migrateAiThreads.mockResolvedValue({ migrated: true, threads: [serverThread] })
     server.loadAiThreads.mockResolvedValue({ threads: [serverThread] })
 
