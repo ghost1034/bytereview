@@ -93,8 +93,8 @@ export default function PublicHome() {
         <Reveal className="ph-about__intro"><Eyebrow number="001">Who we are</Eyebrow><HomeAboutHeading>We bring document intelligence, professional writing, engagement operations, analytics, and AI agents into one connected platform.</HomeAboutHeading></Reveal>
         <Reveal className="ph-about__media">
           <div className="ph-statistics" aria-label="11 purpose-built products, 3 professional domains, 1 connected platform"><div className="ph-marquee__track" aria-hidden>{[0, 1].map((copy) => <div key={copy}><span>11 <b>products</b></span><span>3 <b>professional domains</b></span><span>1 <b>connected platform</b></span></div>)}</div></div>
-          <VideoLightbox videoId="tNwpajJZ8zA" title="Build a P&L in two minutes" className="ph-about__video">
-            <Image src="/public-site/caseimg1.png" alt="" fill sizes="(max-width: 767px) 70vw, 600px" />
+          <VideoLightbox videoId="WLDN8MEFw6c" title="Run an Entire Month-End Close in One Platform with AI" className="ph-about__video">
+            <Image src="/public-site/month-end-close-thumbnail.jpg" alt="" fill sizes="(max-width: 767px) 70vw, 600px" />
             <span className="ph-demo__play"><Play aria-hidden /></span><span className="ph-about__caption">See CPAAutomation in action</span>
           </VideoLightbox>
         </Reveal>
