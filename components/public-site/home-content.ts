@@ -91,7 +91,7 @@ export const HOME_QUOTES = [
 
 export const HOME_PEOPLE = [
   { name: 'Ian Stewart', role: 'Founder & engineer', image: '/ian.jpg', href: 'mailto:ianstewart@cpaautomation.ai', action: 'Contact Ian' },
-  { name: 'Ray Sang', role: 'Finance systems', image: '/ray.jpg', href: 'mailto:raysang@cpaautomation.ai', action: 'Contact Ray' },
+  { name: 'Ray Sang', role: 'Co-founder & finance systems', image: '/ray.jpg', href: 'mailto:raysang@cpaautomation.ai', action: 'Contact Ray' },
 ]
 
 export const HOME_FAQS = [
