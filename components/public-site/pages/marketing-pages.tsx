@@ -23,39 +23,49 @@ import { PageHero, Reveal, SectionHeading, SiteButton } from '../ui'
 
 const DEMO_GROUPS = [
   {
+    id: 'document-analysis',
     name: 'Document intelligence',
-    description: 'Extraction, analysis, and automated document work.',
+    description: 'Turn source documents into structured data and useful analysis.',
     videos: [
-      ['Build P&L in 2 Minutes', 'tNwpajJZ8zA'],
-      ['Free CPE Tracker', 'gchB4SbxsJM'],
-      ['Bank Statement Analysis', 'mxDEliIRWtc'],
-      ['Invoice Extraction and Contract Review', 'uWA5ds9VuPM'],
-      ['Email and Google Drive Automations', 'R0ubnn4ggGA'],
+      { title: 'Build P&L in 2 Minutes', id: 'tNwpajJZ8zA', description: 'Turn financial source documents into a structured profit-and-loss report with Universal Document Analysis.' },
+      { title: 'Bank Statement Analysis', id: 'mxDEliIRWtc', description: 'See how AI extracts and organizes bank statement data for financial review.' },
+      { title: 'Invoice Extraction and Contract Review', id: 'uWA5ds9VuPM', description: 'Extract key details from invoices and review contract terms with AI-assisted document analysis.' },
+      { title: 'Email and Google Drive Automations', id: 'R0ubnn4ggGA', description: 'Connect email and Google Drive to automate recurring document-processing workflows.' },
     ],
   },
   {
+    id: 'writing-and-forms',
     name: 'Writing and forms',
-    description: 'Grounded drafting, citations, and form completion.',
+    description: 'Complete forms and draft professional documents with supporting sources.',
     videos: [
-      ['Automatically Fill Any PDF or Word Document with AI', 'Jgv9cP-vT1Y'],
-      ['Write a Professional Investor Report in Minutes with AI', 'OaloCO7Bh28'],
-      ['Write a Legal Complaint Faster with AI', 'pNpDUlNZuuU'],
-      ['Write a Robust Academic Article with 70+ References Using AI', 'qmFBxibcals'],
-      ['Generate Accurate Academic & Legal Citations with AI', 'zloKYPE0Vjw'],
-      ['How Inkwise Prevents AI Hallucinations with RAG', 'e5rytCGzzec'],
+      { title: 'Automatically Fill Any PDF or Word Document with AI', id: 'Jgv9cP-vT1Y', description: 'Use AI to populate PDF and Word forms from your source information.' },
+      { title: 'Write a Professional Investor Report in Minutes with AI', id: 'OaloCO7Bh28', description: 'Follow an AI-assisted workflow for turning investment information into a professional investor report.' },
+      { title: 'Write a Legal Complaint Faster with AI', id: 'pNpDUlNZuuU', description: 'See how Inkwise helps organize case information and draft a legal complaint.' },
+      { title: 'Write a Robust Academic Article with 70+ References Using AI', id: 'qmFBxibcals', description: 'Build a research-based academic article using AI-assisted drafting and an extensive reference library.' },
+      { title: 'Generate Accurate Academic & Legal Citations with AI', id: 'zloKYPE0Vjw', description: 'Create academic and legal citations to support your writing and connect claims to their sources.' },
+      { title: 'How Inkwise Prevents AI Hallucinations with RAG', id: 'e5rytCGzzec', description: 'Learn how Inkwise retrieves relevant source material to ground AI-generated writing.' },
     ],
   },
   {
-    name: 'Signatures, time, and agents',
-    description: 'Operational workflows that keep professional work moving.',
+    id: 'everyday-workflows',
+    name: 'Everyday workflows',
+    description: 'Keep signatures, billable time, and continuing education organized.',
     videos: [
-      ['Send & Sign PDFs for Free with CPAAutomation eSign', 'QnpKCSrOGB8'],
-      ['Track Billable Hours Automatically with AI', 'QNCVh1SKS9A'],
-      ['AccountingClaw Preview', '976yIJsO1cA'],
-      ['Dual Agent Technical Accounting Memo', 'hePBTs8MnFQ'],
-      ['AI Skill for Browser Automation', '939uCq5jxN0'],
-      ['Automate Universal Document Analysis with AccountingClaw', 'w4HB7m8XEUQ'],
-      ['Get Your AI Digital Workers on Slack', 'bnB6fy3KaA4'],
+      { title: 'Send & Sign PDFs for Free with CPAAutomation eSign', id: 'QnpKCSrOGB8', description: 'Walk through sending a PDF for signature and completing the signing process with eSign.' },
+      { title: 'Track Billable Hours Automatically with AI', id: 'QNCVh1SKS9A', description: 'See how Chrona helps reconstruct your workday and turn activity into billable time entries.' },
+      { title: 'Free CPE Tracker', id: 'gchB4SbxsJM', description: 'Explore a simple way to organize continuing professional education and track your credits.' },
+    ],
+  },
+  {
+    id: 'ai-agents',
+    name: 'AI agents',
+    description: 'Put digital workers to work across accounting tools, browsers, and Slack.',
+    videos: [
+      { title: 'AccountingClaw Preview', id: '976yIJsO1cA', description: 'Get a first look at AccountingClaw and its approach to AI-assisted accounting workflows.' },
+      { title: 'Dual Agent Technical Accounting Memo', id: 'hePBTs8MnFQ', description: 'Watch two AI agents collaborate on a technical accounting memo.' },
+      { title: 'AI Skill for Browser Automation', id: '939uCq5jxN0', description: 'See an AI agent use a reusable skill to carry out tasks in a web browser.' },
+      { title: 'Automate Universal Document Analysis with AccountingClaw', id: 'w4HB7m8XEUQ', description: 'Use AccountingClaw to run document-analysis workflows through Universal Document Analysis.' },
+      { title: 'Get Your AI Digital Workers on Slack', id: 'bnB6fy3KaA4', description: 'Bring AI digital workers into Slack so your team can collaborate with them where conversations happen.' },
     ],
   },
 ]
@@ -69,21 +79,37 @@ export function PublicDemo() {
         description="Watch CPAAutomation handle real accounting, finance, and legal workflows—from source document to finished work."
         actions={<><SiteButton href="/pricing" variant="light">Get started</SiteButton><SiteButton href="/contact" variant="ghost">Ask a question</SiteButton></>}
       />
-      {DEMO_GROUPS.map((group, groupIndex) => (
-        <section className={groupIndex % 2 ? 'ps-section ps-section--soft' : 'ps-section'} key={group.name}>
-          <div className="ps-container">
-            <SectionHeading number={`00${groupIndex + 1}`} eyebrow={group.name} title={group.name} description={group.description} />
+      <div className="ps-demo-library ps-container">
+        <nav className="ps-demo-nav" aria-label="Demo categories">
+          <p>Browse by workflow</p>
+          <ul>
+            {DEMO_GROUPS.map((group) => (
+              <li key={group.id}><a href={`#${group.id}`}>{group.name}<span>{group.videos.length} videos</span></a></li>
+            ))}
+          </ul>
+        </nav>
+        {DEMO_GROUPS.map((group) => (
+          <section className="ps-demo-category" id={group.id} aria-labelledby={`${group.id}-heading`} key={group.id}>
+            <header className="ps-demo-category__heading">
+              <h2 id={`${group.id}-heading`}>{group.name}</h2>
+              <p>{group.description}</p>
+            </header>
             <div className="ps-demo-grid">
-              {group.videos.map(([title, id], index) => (
-                <Reveal className={index === 0 ? 'ps-demo-card ps-demo-card--wide' : 'ps-demo-card'} key={id}>
-                  <div className="ps-video-frame"><iframe src={`https://www.youtube-nocookie.com/embed/${id}`} title={title} loading="lazy" allowFullScreen /></div>
-                  <span>{String(index + 1).padStart(2, '0')}</span><h3>{title}</h3>
-                </Reveal>
+              {group.videos.map(({ title, id, description }) => (
+                <article className="ps-demo-card" aria-labelledby={`demo-${id}`} key={id}>
+                  <div className="ps-video-frame">
+                    <iframe src={`https://www.youtube-nocookie.com/embed/${id}`} title={title} loading="lazy" allowFullScreen />
+                  </div>
+                  <div className="ps-demo-card__copy">
+                    <h3 id={`demo-${id}`}>{title}</h3>
+                    <p>{description}</p>
+                  </div>
+                </article>
               ))}
             </div>
-          </div>
-        </section>
-      ))}
+          </section>
+        ))}
+      </div>
     </>
   )
 }
