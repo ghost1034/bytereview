@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 import { act, type AnchorHTMLAttributes, type ImgHTMLAttributes } from 'react'
-import { createRoot, type Root } from 'react-dom/client'
+import { createRoot, hydrateRoot, type Root } from 'react-dom/client'
+import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { HOME_CAPABILITIES, HOME_FAQS, HOME_INTEGRATIONS, HOME_INTEGRATION_ROWS, HOME_PEOPLE, HOME_SECTIONS, HOME_STEPS } from './home-content'
@@ -73,6 +74,34 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('template-aligned homepage', () => {
+  it('hydrates the navigation, video dialogs, and FAQs with matching accessibility IDs', async () => {
+    await act(async () => root.unmount())
+    const page = <><PublicHeader /><PublicHome /></>
+    host.innerHTML = renderToString(page)
+    // JSDOM does not initialize the muted property from the HTML attribute.
+    host.querySelectorAll<HTMLVideoElement>('video[muted]').forEach((video) => { video.muted = true })
+    const accessibilityIds = () => Array.from(host.querySelectorAll('[aria-controls], [aria-labelledby]')).map((node) => ({
+      id: node.id,
+      controls: node.getAttribute('aria-controls'),
+      labelledBy: node.getAttribute('aria-labelledby'),
+    }))
+    const serverIds = accessibilityIds()
+    expect(serverIds.length).toBeGreaterThan(0)
+    const consoleError = vi.spyOn(console, 'error')
+    const onRecoverableError = vi.fn()
+
+    await act(async () => { root = hydrateRoot(host, page, { onRecoverableError }) })
+
+    expect(consoleError).not.toHaveBeenCalled()
+    expect(onRecoverableError).not.toHaveBeenCalled()
+    expect(accessibilityIds()).toEqual(serverIds)
+    const trigger = host.querySelector<HTMLButtonElement>('.ph-faq-item button')!
+    await click(trigger)
+    const answer = document.getElementById(trigger.getAttribute('aria-controls')!)!
+    expect(answer.textContent).toBe(HOME_FAQS[0][1])
+    expect(answer.getAttribute('aria-labelledby')).toBe(trigger.id)
+  })
+
   it('renders the ten numbered sections in reference order and every product once in the mosaic', async () => {
     await render(<PublicHome />)
     expect(Array.from(host.querySelectorAll('section[id]')).map((node) => node.id)).toEqual(HOME_SECTIONS.map(([id]) => id))
