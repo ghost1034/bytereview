@@ -543,18 +543,19 @@ class EsignRecipientService:
 
     def _issue_invitation(
         self, db: Session, envelope: EsignEnvelope, recipient: EsignRecipient,
-        *, purpose: str = "ceremony",
+        *, purpose: str = "ceremony", preserve_existing: bool = False,
     ) -> EsignGuestInvitationResponse:
         if purpose not in ("ceremony", "completed_copy"):
             raise EsignError("Invalid guest invitation purpose")
         now = _now()
-        # Rotating an emailed bearer link invalidates older links while an
-        # already-open, short-lived browser session may finish uninterrupted.
-        db.query(EsignGuestInvitation).filter(
-            EsignGuestInvitation.recipient_id == recipient.id,
-            EsignGuestInvitation.purpose == purpose,
-            EsignGuestInvitation.revoked_at.is_(None),
-        ).update({EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
+        # Routine email notifications preserve earlier links and their expiry.
+        # Explicit handoffs and witness configuration still rotate invitations.
+        if not preserve_existing:
+            db.query(EsignGuestInvitation).filter(
+                EsignGuestInvitation.recipient_id == recipient.id,
+                EsignGuestInvitation.purpose == purpose,
+                EsignGuestInvitation.revoked_at.is_(None),
+            ).update({EsignGuestInvitation.revoked_at: now}, synchronize_session=False)
         token = secrets.token_urlsafe(32)
         if purpose == "completed_copy":
             expires_at = now + timedelta(days=30)
@@ -748,9 +749,8 @@ class EsignRecipientService:
             invitation = db.query(EsignGuestInvitation).filter(
                 EsignGuestInvitation.id == session.invitation_id
             ).first()
-            # A reminder may rotate the emailed link while an already-open
-            # short-lived session continues. Identity corrections and terminal
-            # transitions revoke the session row itself.
+            # Identity corrections and terminal transitions revoke the session
+            # row itself, as well as every outstanding invitation.
             if invitation is None:
                 raise EsignNotFound("Guest session is invalid or expired")
             purpose = getattr(invitation, "purpose", "ceremony") or "ceremony"

@@ -1538,11 +1538,6 @@ class EsignGuestInvitation(Base):
 
     __table_args__ = (
         Index("ix_esign_guest_invitations_recipient", "recipient_id"),
-        Index(
-            "uq_esign_guest_invitations_active_purpose",
-            "recipient_id", "purpose", unique=True,
-            postgresql_where=text("revoked_at IS NULL"),
-        ),
     )
 
 

@@ -296,7 +296,9 @@ class EsignSigningService:
         if recipient.role == EsignRecipientRole.IN_PERSON_SIGNER:
             return signing_url(envelope.id)
         from services.esign.recipient_service import esign_recipient_service
-        invitation = esign_recipient_service._issue_invitation(db, envelope, recipient)
+        invitation = esign_recipient_service._issue_invitation(
+            db, envelope, recipient, preserve_existing=True,
+        )
         return guest_capable_signing_url(envelope.id, invitation.invitation_token)
 
     def _cc_recipients_due(

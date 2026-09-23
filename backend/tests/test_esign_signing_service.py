@@ -180,7 +180,7 @@ class RecipientAccessUrlTests(unittest.TestCase):
             url = esign_signing_service.recipient_signing_url(MagicMock(), envelope, recipient)
         self.assertIn(f"/esign/sign/{envelope.id}", url)
         self.assertIn("guest_token=secure-token", url)
-        issue.assert_called_once_with(ANY, envelope, recipient)
+        issue.assert_called_once_with(ANY, envelope, recipient, preserve_existing=True)
 
     def test_in_person_host_stays_authenticated(self) -> None:
         envelope = NS(id=uuid.uuid4(), recipient_access_mode="email_link", source_type="manual", source_id=None)
