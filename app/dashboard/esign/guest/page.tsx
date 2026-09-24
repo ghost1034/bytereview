@@ -48,9 +48,11 @@ export default function GuestSigningPage() {
 
   const ceremonyFetch = React.useCallback(async (input: RequestInfo | URL, options: RequestInit = {}) => {
     const headers = new Headers(options.headers)
-    if (user) headers.set('Authorization', `Bearer ${await user.getIdToken()}`)
+    // Guest access uses only the recipient's private invitation and session.
+    // A different account may already be signed in in this browser.
+    if (user && !continueAsGuest) headers.set('Authorization', `Bearer ${await user.getIdToken()}`)
     return fetch(input, { ...options, headers })
-  }, [user])
+  }, [continueAsGuest, user])
 
   const guestRequest = React.useCallback(async <T,>(path: string, options: RequestInit = {}) => {
     if (!sessionId) throw new Error('Guest session is unavailable')
@@ -91,7 +93,7 @@ export default function GuestSigningPage() {
         currentId = exchanged.session_id
         currentCsrf = exchanged.csrf_token
         sessionStorage.setItem(`esign_guest_csrf_${currentId}`, currentCsrf)
-        window.history.replaceState({}, '', `/esign/guest?session=${encodeURIComponent(currentId)}`)
+        window.history.replaceState({}, '', `/esign/guest?session=${encodeURIComponent(currentId)}${continueAsGuest ? '&continue=guest' : ''}`)
         setSessionId(currentId)
         setCsrf(currentCsrf)
       }
@@ -201,7 +203,7 @@ export default function GuestSigningPage() {
     <SigningCeremony
       initialSession={session}
       transport={transport}
-      displayName={user?.displayName}
+      displayName={continueAsGuest ? undefined : user?.displayName}
       stickyTopClassName="top-[var(--header-height)]"
     />
   )

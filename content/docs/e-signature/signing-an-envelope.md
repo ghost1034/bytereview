@@ -4,7 +4,7 @@ description: "Open a signature request, consent to electronic records, complete 
 order: 3
 ---
 
-Open the secure link in the signature-request email. You can sign in, create a free CPAAutomation account, or select **Continue as guest** to review and sign without an account. Signed-in users may also use **E-Signature > Awaiting my signature**.
+Open the secure link in the signature-request email. Recipient email links open your envelope directly without an account, even if another CPAAutomation account is already signed in in the browser. Links that require an account will ask you to sign in or create one. Signed-in users may also use **E-Signature > Awaiting my signature**.
 
 ## Before you begin
 
